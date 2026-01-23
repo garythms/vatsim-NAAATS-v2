@@ -1,28 +1,29 @@
 #include "pch.h"
+#include <WinInet.h>
+#pragma comment(lib, "wininet.lib")
 #include "DataHandler.h"
 #include "RoutesHelper.h"
-#include "Keys.h"
-#include <iostream>
-#include <fstream>
-#include <json.hpp>
-#include <WinInet.h>
-#pragma comment(lib,"WinInet.Lib")
+#include "Constants.h"
+#include <sstream>
 
-// Include dependency
 using json = nlohmann::json;
-using namespace ApiKeys;
 
-const string CDataHandler::TrackURL = "https://api.vnaaats.net/GetAllNatTracks";
+// Flight data map
 map<string, CAircraftFlightPlan> CDataHandler::flights;
 
-const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/vNAAATS/vatsim-NAAATS/master/pluginversion.txt";
-const string CDataHandler::TrackSource = "https://api.vnaaats.net/GetTrackSource";
-const string CDataHandler::GetSingleAircraft = "https://api.vnaaats.net/GetSingleFlightData?callsign=";
-const string CDataHandler::PostSingleAircraft = "https://api.vnaaats.net/PostFlightData?code=" + ApiKeys::FUNC_KEY;
-const string CDataHandler::FlightDataUpdate = "https://api.vnaaats.net/UpdateFlightData?code=" + ApiKeys::FUNC_KEY;
+// Version check URL (update to your own repo)
+const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/garythms/vatsim-NAAATS-v2/master/pluginversion.txt";
 
-int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
-{
+// NAT Track URL - NOW USES NATTRAK API
+const string CDataHandler::TrackURL = "https://nattrak.vatsim.net/api/tracks";
+
+// DEFUNCT - kept as empty strings for compatibility
+const string CDataHandler::TrackSource = "";
+const string CDataHandler::GetSingleAircraft = "";
+const string CDataHandler::FlightDataUpdate = "";
+const string CDataHandler::PostSingleAircraft = "";
+
+int CDataHandler::CheckPluginVersion(CPlugIn* plugin) {
 	// Try and get data and pass into string
 	string responseString = "";
 	try {
@@ -65,12 +66,12 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
 	if (responseString != PLUGIN_VERSION) {
 		// Display dialog if update available
 		int msgBox = MessageBox(NULL, (LPCSTR)("A new version of vNAAATS (" + responseString + ") is now available. Your version: " + PLUGIN_VERSION +
-			"\nPlease update as soon as possible to avoid possible compatibility issues.\nFind the new version at vNAAATS.net.").c_str(),
+			"\nPlease update as soon as possible to avoid possible compatibility issues.\nFind the new version at GitHub.").c_str(),
 			(LPCSTR)"vNAAATS Version Notification", MB_ICONWARNING | MB_OK);
 
 		if (msgBox == IDOK) {
 			// Open the website
-			ShellExecute(NULL, "open", "https://vnaaats.net/", NULL, NULL, SW_SHOWNORMAL);
+			ShellExecute(NULL, "open", "https://github.com/garythms/vatsim-NAAATS-v2", NULL, NULL, SW_SHOWNORMAL);
 		}
 		return msgBox;
 	}
@@ -78,13 +79,72 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
 	return -1;
 }
 
+// Helper function to parse track waypoint strings into coordinates
+// Formats: "ELSIR" (named), "50/50" (50N 50W), "5230/40" (52.5N 40W)
+CPosition CDataHandler::ParseTrackWaypoint(const string& waypoint) {
+	CPosition pos;
+	pos.m_Latitude = 0.0;
+	pos.m_Longitude = 0.0;
+	
+	// Check if it contains a slash (coordinate format)
+	size_t slashPos = waypoint.find('/');
+	if (slashPos == string::npos) {
+		// Named waypoint - return 0,0, RoutesHelper will resolve it
+		return pos;
+	}
+	
+	// Parse lat/lon from format like "50/50", "5230/40", "5330/30"
+	string latPart = waypoint.substr(0, slashPos);
+	string lonPart = waypoint.substr(slashPos + 1);
+	
+	try {
+		double lat = 0.0;
+		double lon = 0.0;
+		
+		// Parse latitude
+		if (latPart.length() <= 2) {
+			// Simple format: "50" = 50N
+			lat = stod(latPart);
+		}
+		else if (latPart.length() == 4) {
+			// Half-degree format: "5230" = 52 30' = 52.5N
+			lat = stod(latPart.substr(0, 2)) + stod(latPart.substr(2, 2)) / 60.0;
+		}
+		else {
+			lat = stod(latPart);
+			if (lat > 90) lat /= 100.0;
+		}
+		
+		// Parse longitude (always West in NAT, so negative)
+		if (lonPart.length() <= 2) {
+			// Simple format: "50" = 50W
+			lon = -stod(lonPart);
+		}
+		else if (lonPart.length() == 4) {
+			// Half-degree format: "5030" = 50 30' = 50.5W
+			lon = -(stod(lonPart.substr(0, 2)) + stod(lonPart.substr(2, 2)) / 60.0);
+		}
+		else {
+			lon = -stod(lonPart);
+			if (lon < -180) lon /= 100.0;
+		}
+		
+		pos.m_Latitude = lat;
+		pos.m_Longitude = lon;
+	}
+	catch (...) {
+		// Parse error - return 0,0
+	}
+	
+	return pos;
+}
+
 int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 	// Try and get data and pass into string
 	string responseString;
 	try {
 		// Convert URL to LPCSTR type
-		string eventTracks = TrackURL + "?event=true";
-		LPCSTR lpcURL = GetTrackSource(plugin) == 0 ? TrackURL.c_str() : eventTracks.c_str();
+		LPCSTR lpcURL = TrackURL.c_str();
 
 		// Delete cache data
 		DeleteUrlCacheEntry(lpcURL);
@@ -98,17 +158,15 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 			// Show user message
 			plugin->DisplayUserMessage("vNAAATS", "Error", "Track data download failed. Code: " + code, true, true, true, true, true);
 			// Clogger
-			CLogger::Log(CLogType::ERR, "Could not connect to tracks API. Code: " + code, "CDataHandler::PopulateLatestTrackData");
+			CLogger::Log(CLogType::ERR, "Could not connect to natTrak tracks API. Code: " + code, "CDataHandler::PopulateLatestTrackData");
 			return 1;
 		}
-		// Put data into buffer
-		char tempBuffer[16384];
+		// Put data into buffer - increased size for natTrak response
+		char tempBuffer[65536];
 		DWORD bytesRead = 0;
-		hr = pStream->Read(tempBuffer, sizeof(tempBuffer), &bytesRead);
-		// Put data into string
-		for (int i = 0; i < bytesRead; i++) {
-			responseString += tempBuffer[i];
-		}
+		hr = pStream->Read(tempBuffer, sizeof(tempBuffer) - 1, &bytesRead);
+		tempBuffer[bytesRead] = '\0';
+		responseString = string(tempBuffer, bytesRead);
 	}
 	catch (exception & e) {
 		// Log to ES
@@ -117,135 +175,105 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 		CLogger::Log(CLogType::EXC, "Failed to load NAT Track data: " + string(string(e.what())), "CDataHandler::PopulateLatestTrackData");
 		return 1;
 	}
-	
+
 	// Parse the json
 	try {
 		// Clear old tracks
 		if (!CRoutesHelper::CurrentTracks.empty()) {
 			CRoutesHelper::CurrentTracks.clear();
 		}
-		
-		// Now we parse the json
+
+		// Parse JSON - natTrak returns array directly [...]
 		auto jsonArray = json::parse(responseString);
-		for (int i = 0; i < jsonArray.size(); i++) {
+		
+		// TMI derived from valid_from date
+		string currentTMI = "";
+		
+		for (size_t i = 0; i < jsonArray.size(); i++) {
+			// Skip inactive tracks
+			if (jsonArray[i].contains("active") && !jsonArray[i].at("active").get<bool>()) {
+				continue;
+			}
+			
 			// Make track
 			CTrack track;
 
-			// Identifier
-			track.Identifier = jsonArray[i].at("id");
+			// Identifier (natTrak uses "identifier" not "id")
+			track.Identifier = jsonArray[i].at("identifier").get<string>();
 
-			// TMI
-			track.TMI = jsonArray[i].at("tmi");
-			CRoutesHelper::CurrentTMI = jsonArray[i].at("tmi");
-
-			// Direction
-			if (jsonArray[i].at("direction") == 0) {
-				track.Direction = CTrackDirection::UNKNOWN;
+			// TMI - derive from valid_from date
+			if (jsonArray[i].contains("valid_from") && !jsonArray[i].at("valid_from").is_null()) {
+				string validFrom = jsonArray[i].at("valid_from").get<string>();
+				if (validFrom.length() >= 10) {
+					currentTMI = validFrom.substr(8, 2); // Extract day
+				}
 			}
-			else if (jsonArray[i].at("direction") == 1) {
+			track.TMI = currentTMI;
+			CRoutesHelper::CurrentTMI = currentTMI;
+
+			// Direction (natTrak uses string "east"/"west" not int)
+			string dirStr = jsonArray[i].at("direction").get<string>();
+			if (dirStr == "west") {
 				track.Direction = CTrackDirection::WEST;
 			}
-			else {
+			else if (dirStr == "east") {
 				track.Direction = CTrackDirection::EAST;
 			}
-
-			// Route
-			for (int j = 0; j < jsonArray[i].at("route").size(); j++) {
-				track.Route.push_back(jsonArray[i].at("route")[j].at("name"));
-
-				// Get lat and lon vars
-				double lat = jsonArray[i].at("route")[j].at("latitude");
-				double lon = jsonArray[i].at("route")[j].at("longitude");
-
-				// Split the name string to determine whether half waypoints (i.e. xxxx/xx not xx/xx)
-				vector<string> splitString;
-				int successCode = CUtils::StringSplit(jsonArray[i].at("route")[j].at("name"), '/', &splitString);
-				
-				// If they are weird half waypoints then divide by 100 to get the decimal
-				if (successCode == 0 && splitString.size() == 2) {
-					if (splitString[0].size() > 2)
-						lat /= 100.0;
-					
-					if (splitString[1].size() > 2)
-						lon /= 100.0;
-				}
-
-				// Finally, append
-				track.RouteRaw.push_back(CUtils::PositionFromLatLon(lat, lon));				
+			else {
+				track.Direction = CTrackDirection::UNKNOWN;
 			}
 
-			// Flight levels
-			for (int j = 0; j < jsonArray[i].at("flightLevels").size(); j++) {
-				track.FlightLevels.push_back((int)jsonArray[i].at("flightLevels")[j]);
+			// Route - parse from "last_routeing" string
+			// Format: "ELSIR 50/50 5230/40 5330/30 54/20 DOGAL BEXET"
+			string routeStr = jsonArray[i].at("last_routeing").get<string>();
+			vector<string> routeParts;
+			CUtils::StringSplit(routeStr, ' ', &routeParts);
+			
+			for (const string& part : routeParts) {
+				track.Route.push_back(part);
+				CPosition pos = ParseTrackWaypoint(part);
+				track.RouteRaw.push_back(pos);
 			}
 
-			// Validity
-			track.validFrom = string(jsonArray[i].at("validFrom"));
-			track.validTo = string(jsonArray[i].at("validTo"));
+			// Flight levels - natTrak gives feet (34000), convert to FL (340)
+			for (size_t j = 0; j < jsonArray[i].at("flight_levels").size(); j++) {
+				int flFeet = jsonArray[i].at("flight_levels")[j].get<int>();
+				track.FlightLevels.push_back(flFeet / 100);
+			}
+
+			// Validity times (natTrak uses snake_case)
+			if (jsonArray[i].contains("valid_from") && !jsonArray[i].at("valid_from").is_null()) {
+				track.validFrom = jsonArray[i].at("valid_from").get<string>();
+			}
+			if (jsonArray[i].contains("valid_to") && !jsonArray[i].at("valid_to").is_null()) {
+				track.validTo = jsonArray[i].at("valid_to").get<string>();
+			}
 
 			// Push track to tracks array
 			CRoutesHelper::CurrentTracks.insert(make_pair(track.Identifier, track));
 		}
-		// Everything succeeded, show to user
-		plugin->DisplayUserMessage("Message", "vNAAATS Plugin", string("Track data loaded successfully. TMI is " + CRoutesHelper::CurrentTMI + ".").c_str(), false, false, false, false, false);
-		// Clogger
-		CLogger::Log(CLogType::NORM, string("Track data loaded successfully. TMI is " + CRoutesHelper::CurrentTMI + "."), "CDataHandler::PopulateLatestTrackData");
+		
+		// Success message
+		string message = "Track data loaded successfully from natTrak.";
+		if (!CRoutesHelper::CurrentTMI.empty()) {
+			message += " TMI is " + CRoutesHelper::CurrentTMI + ".";
+		}
+		message += " " + to_string(CRoutesHelper::CurrentTracks.size()) + " active tracks.";
+		plugin->DisplayUserMessage("Message", "vNAAATS Plugin", message.c_str(), false, false, false, false, false);
+		CLogger::Log(CLogType::NORM, message, "CDataHandler::PopulateLatestTrackData");
 		return 0;
 	}
 	catch (exception & e) {
 		// User message
-		plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to parse NAT track JSON return: " + string(e.what())).c_str(), true, true, true, true, true);
+		plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to parse natTrak track JSON: " + string(e.what())).c_str(), true, true, true, true, true);
 		// Clogger
-		CLogger::Log(CLogType::EXC, "Failed to parse NAT track JSON return: " + string(e.what()), "CDataHandler::PopulateLatestTrackData");
-		return 1;
-	}
-}
-
-int CDataHandler::GetTrackSource(CPlugIn* plugin) {
-	// Try and get data and pass into string
-	string responseString;
-	try {
-		// Convert URL to LPCSTR type
-		LPCSTR lpcURL = TrackSource.c_str();
-
-		// Delete cache data
-		DeleteUrlCacheEntry(lpcURL);
-
-		// Download data
-		CComPtr<IStream> pStream;
-		HRESULT hr = URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
-		// If failed
-		if (FAILED(hr)) {
-			int code = (int)hr;
-			// Show user message
-			plugin->DisplayUserMessage("vNAAATS", "Error", "Track source retrieval failed. Code: " + code, true, true, true, true, true);
-			// Clogger
-			CLogger::Log(CLogType::ERR, "Could not connect to the vNAAATS network. Code: " + code, "CDataHandler::GetTrackSource");
-			return 1;
-		}
-		// Put data into buffer
-		char tempBuffer[16384];
-		DWORD bytesRead = 0;
-		hr = pStream->Read(tempBuffer, sizeof(tempBuffer), &bytesRead);
-		// Put data into string
-		for (int i = 0; i < bytesRead; i++) {
-			responseString += tempBuffer[i];
-		}
-
-		return stoi(responseString);
-	}
-	catch (exception & e) {
-		// Log to ES
-		plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to load track source data: " + string(e.what())).c_str(), true, true, true, true, true);
-		// Clogger
-		CLogger::Log(CLogType::EXC, "Failed to load track source: " + string(string(e.what())), "CDataHandler::GetTrackSource");
+		CLogger::Log(CLogType::EXC, "Failed to parse natTrak track JSON: " + string(e.what()), "CDataHandler::PopulateLatestTrackData");
 		return 1;
 	}
 }
 
 CAircraftFlightPlan* CDataHandler::GetFlightData(string callsign) {
 	if (flights.find(callsign) != flights.end()) {
-		
 		return &flights.find(callsign)->second;
 	}
 	// Return invalid
@@ -285,11 +313,6 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 }
 
 int CDataHandler::CreateFlightData(CRadarScreen* screen, string callsign) {
-	// MISSING VALUES:
-	// DLStatus
-	// SECTOR
-	// STATE
-
 	try {
 		// Euroscope flight plan and my flight plan
 		CFlightPlan fpData = screen->GetPlugIn()->FlightPlanSelect(callsign.c_str());
@@ -301,21 +324,21 @@ int CDataHandler::CreateFlightData(CRadarScreen* screen, string callsign) {
 		fp.Dest = fpData.GetFlightPlanData().GetDestination();
 		fp.Etd = CUtils::ParseZuluTime(false, atoi(fpData.GetFlightPlanData().GetEstimatedDepartureTime()));
 		fp.ExitTime = fpData.GetSectorExitMinutes();
-		fp.DLStatus = "false"; // TEMPORARY
+		fp.DLStatus = "false";
 		fp.Sector = string(fpData.GetTrackingControllerId()) == "" ? "-1" : fpData.GetTrackingControllerId();
 		fp.CurrentMessage = nullptr;
 		fp.IsRelevant = fp.ExitTime != -1 ? true : false;
 		fp.IsEquipped = CUtils::IsAircraftEquipped(fpData.GetFlightPlanData().GetRemarks(), fpData.GetFlightPlanData().GetAircraftInfo(), fpData.GetFlightPlanData().GetCapibilities());
 		fp.TargetMode = CUtils::GetTargetMode(screen->GetPlugIn()->RadarTargetSelect(callsign.c_str()).GetPosition().GetRadarFlags());
 
-		// Scrape the selcal from the remarks and set the flight plan property if it exists
+		// Scrape the selcal from the remarks
 		string selcal = CUtils::GetSelcalCode(&fpData);
 		fp.SELCAL = selcal != "" ? selcal : "N/A";
 
 		// Get communication mode
 		string comType;
 		comType += toupper(fpData.GetFlightPlanData().GetCommunicationType());
-		if (comType == "V") { // Switch each of the values
+		if (comType == "V") {
 			comType = "VOX";
 		}
 		else if (comType == "T") {
@@ -325,9 +348,9 @@ int CDataHandler::CreateFlightData(CRadarScreen* screen, string callsign) {
 			comType = "RCV";
 		}
 		else {
-			comType = "VOX"; // We assume voice if it defaults
+			comType = "VOX";
 		}
-		fp.Communications = comType; // Set the type
+		fp.Communications = comType;
 
 		// Set IsCleared
 		fp.IsCleared = false;
@@ -344,48 +367,34 @@ int CDataHandler::CreateFlightData(CRadarScreen* screen, string callsign) {
 		data->Callsign = callsign;
 		_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*)data); // Async
 
-		// Log string
-		string fDLog = "Flight data object " + data->Callsign + " generated successfully.";
-		// Verbose details
-		fDLog.append("\nType: " + fp.Type);
-		fDLog.append("\nDoF: " + CUtils::GetAircraftDirection(screen->GetPlugIn()->RadarTargetSelect(callsign.c_str()).GetPosition().GetReportedHeadingTrueNorth()) ? "East" : "West");
-		fDLog.append("\Equipped?: " + fp.IsEquipped ? "True" : "False");
-		fDLog.append("\TimeToExit: " + fp.ExitTime);
-		CLogger::Log(CLogType::NORM, "Flight data object for " + data->Callsign + " generated successfully.", "CDataHandler::CreateFlightData");
+		CLogger::Log(CLogType::NORM, "Flight data object for " + callsign + " generated successfully.", "CDataHandler::CreateFlightData");
 
 		// Success
 		return 0;
 	}
 	catch (exception & ex) {
-		// Clogger
 		CLogger::Log(CLogType::EXC, "Flight data generation for " + callsign + " failed: " + string(ex.what()), "CDataHandler::CreateFlightData");
-
-		// Failed
 		return 1;
 	}
 }
 
 int CDataHandler::DeleteFlightData(string callsign) {
 	if (flights.find(callsign) != flights.end()) {
-		// Remove the flight if it exists
 		flights.erase(callsign);
-		// Clogger
 		CLogger::Log(CLogType::NORM, "Flight data object for " + callsign + " destroyed successfully.", "CDataHandler::DeleteFlightData");
 		return 0;
 	}
 	else {
-		return 1; // Non-success code occurs when flight doesn't exist to delete
+		return 1;
 	}
 }
 
 int CDataHandler::SetRoute(string callsign, vector<CWaypoint>* route, string track, CAircraftFlightPlan* copiedPlan) {
 	if (copiedPlan != nullptr) {
-		// Set route if flight exists
 		copiedPlan->Route.clear();
 		copiedPlan->Route = *route;
 		copiedPlan->Route.shrink_to_fit();
 
-		// Set track if not nothing
 		if (track != "")
 			copiedPlan->Track = track;
 		else
@@ -394,334 +403,54 @@ int CDataHandler::SetRoute(string callsign, vector<CWaypoint>* route, string tra
 		return 0;
 	}
 	if (flights.find(callsign) != flights.end()) {
-		// Set route if flight exists
 		flights.find(callsign)->second.Route.clear();
 		flights.find(callsign)->second.Route = *route;
 		flights.find(callsign)->second.Route.shrink_to_fit();
-		// Set track if not nothing
 		if (track != "")
 			flights.find(callsign)->second.Track = track;
-		else 
+		else
 			flights.find(callsign)->second.Track = "RR";
 
-		// Success code
 		return 0;
 	}
 	else {
-		return 1; // Non-success code occurs when flight doesn't exist
+		return 1;
 	}
 }
 
+// ============================================================================
+// STUB FUNCTIONS - These called the defunct vNAAATS API
+// Kept for compatibility but do nothing
+// ============================================================================
+
 void CDataHandler::DownloadNetworkAircraft(void* args) {
-	// Convert args
-	CUtils::CNetworkAsyncData* data = (CUtils::CNetworkAsyncData*) args;
-
-	// Get callsign & radar screen
-	string callsign = data->Callsign;
-	CRadarScreen* screen = data->Screen;
-
-	// Create URL
-	string reqUrl = GetSingleAircraft + callsign;
-
-	// Try and get data and pass into string
-	string responseString;
-
-	try {
-		// Convert URL to LPCSTR type
-		LPCSTR lpcURL = reqUrl.c_str();
-
-		// Delete cache data
-		DeleteUrlCacheEntry(lpcURL);
-
-		// Download data
-		CComPtr<IStream> pStream;
-		HRESULT hr = URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
-		// If failed (probably a 404 not found)
-		if (FAILED(hr)) {
-			// Cleanup
-			delete args;
-			return;
-		}
-
-		// Put data into buffer
-		char tempBuffer[16384];
-		DWORD bytesRead = 0;
-		hr = pStream->Read(tempBuffer, sizeof(tempBuffer), &bytesRead);
-		// Put data into string
-		for (int i = 0; i < bytesRead; i++) {
-			responseString += tempBuffer[i];
-		}
-	}
-	catch (exception & e) {
-		data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to download aircraft data for " + data->Callsign + ". Error: " + string(e.what())).c_str(), true, true, true, true, true);
-		CLogger::Log(CLogType::EXC, "Could not download network data for aircraft " + callsign + ": " + string(e.what()) + "\nRequest URL: \n" + reqUrl, "CDataHandler::DownloadNetworkAircraft");
-		// Cleanup
+	// REMOVED - vNAAATS API is defunct
+	// EuroScope already has aircraft data via VATSIM
+	if (args) {
 		delete args;
-		return;
 	}
-
-	// Parse the json
-	try {
-		// Now we parse the json
-		auto jsonArray = json::parse(responseString);
-		for (int i = 0; i < jsonArray.size(); i++) {
-			// Make a network object
-			CNetworkFlightPlan netFP;
-
-			// Fill properties
-			netFP.Callsign = jsonArray[i].at("callsign");
-			netFP.Type = jsonArray[i].at("type");
-			netFP.AssignedLevel = jsonArray[i].at("assignedLevel");
-			netFP.AssignedMach = jsonArray[i].at("assignedMach");
-			netFP.Track = jsonArray[i].at("track");
-			netFP.Route = jsonArray[i].at("route");
-			netFP.RouteEtas = jsonArray[i].at("routeEtas");
-			netFP.Departure = jsonArray[i].at("departure");
-			netFP.Arrival = jsonArray[i].at("arrival");
-			netFP.Direction = jsonArray[i].at("direction");
-			netFP.Etd = jsonArray[i].at("etd");
-			netFP.Selcal = jsonArray[i].at("selcal");
-			netFP.DatalinkConnected = jsonArray[i].at("datalinkConnected");
-			netFP.IsEquipped = jsonArray[i].at("isEquipped");
-			netFP.State = jsonArray[i].at("state");
-			netFP.Relevant = jsonArray[i].at("relevant");
-			netFP.TrackedBy = jsonArray[i].at("trackedBy");
-			netFP.TrackedById = jsonArray[i].at("trackedById");
-			netFP.TargetMode = jsonArray[i].at("targetMode");
-			netFP.LastUpdated = jsonArray[i].at("lastUpdated");
-
-			// Get flight plan
-			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
-
-			// If it is valid
-			if (fp->IsValid) {
-				// Check if it is cleared
-				if (!fp->IsCleared) fp->IsCleared = true;
-				// Simply update all the values
-				fp->FlightLevel = to_string(netFP.AssignedLevel);
-				fp->Mach = to_string(netFP.AssignedMach);
-				fp->Track = netFP.Track;
-				fp->Depart = netFP.Departure;
-				fp->Dest = netFP.Arrival;
-				fp->Etd = netFP.Etd;
-				fp->State = netFP.State;
-				fp->IsEquipped = netFP.IsEquipped;
-				fp->IsRelevant = netFP.Relevant;
-				fp->DLStatus = to_string(netFP.DatalinkConnected);
-				fp->TargetMode = CUtils::GetTargetMode(screen->GetPlugIn()->RadarTargetSelect(callsign.c_str()).GetPosition().GetRadarFlags());
-
-				// Routes
-				vector<string> splitString;
-				CUtils::StringSplit(netFP.Route, ' ', &splitString);
-				bool isUpdated = false;
-
-				// Check first if they are the same length
-				if (splitString.size() != fp->RouteRaw.size()) {
-					// They are not so update the route
-					fp->RouteRaw = splitString;
-					isUpdated = true;
-				}
-				else {
-					// Now iterate and find out if there are discrepancies
-					for (int i = 0; i < splitString.size(); i++) {
-						if (splitString[i] != fp->RouteRaw[i]) {
-							// There is a discrepancy
-							fp->RouteRaw = splitString;
-							isUpdated = true;
-							break;
-						}
-					}
-				}
-
-				// If isUpdated is true, then we re-instantiate the route, hopefully without a crash
-				if (isUpdated) UpdateFlightData(screen, callsign, true);
-			}
-		}
-	}
-	catch (exception & e) {
-		data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to parse aircraft data for " + callsign +". Error: " + string(e.what())).c_str(), true, true, true, true, true);
-		CLogger::Log(CLogType::EXC, "Could not parse downloaded JSON for network aircraft " + callsign + ": " + string(e.what()) + "\nRequest URL: \n" + reqUrl, "CDataHandler::DownloadNetworkAircraft");
-		// Cleanup
-		delete args;
-		return;
-	}
-
-	// Cleanup
-	delete args;
 }
 
 void CDataHandler::GetAllNetworkAircraft() {
-
+	// REMOVED - vNAAATS API is defunct
 }
 
 void CDataHandler::PostNetworkAircraft(void* args) {
-	// Convert args
-	CUtils::CNetworkAsyncData* data = (CUtils::CNetworkAsyncData*) args;
-
-	// Prefix
-	string reqUrl = PostSingleAircraft;
-
-	try {
-		// Switch target mode
-		int mode = 0;
-		switch (data->FP->TargetMode) {
-			case CRadarTargetMode::PRIMARY:
-				mode = 0;
-				break;
-			case CRadarTargetMode::SECONDARY_S:
-				mode = 1;
-				break;
-			case CRadarTargetMode::SECONDARY_C:
-				mode = 2;
-				break;
-			case CRadarTargetMode::ADS_B:
-				mode = 3;
-				break;
-			default:
-				mode = 3;
-				break;
-		}
-
-		// Construct URL
-		reqUrl += "&callsign=" + data->FP->Callsign;
-		reqUrl += "&type=" + data->FP->Type;
-		reqUrl += "&level=" + to_string(data->FP->AssignedLevel);
-		reqUrl += "&mach=" + to_string(data->FP->AssignedMach);
-		reqUrl += "&track=" + data->FP->Track;
-		reqUrl += "&route=" + data->FP->Route;
-		reqUrl += "&routeEtas=" + data->FP->RouteEtas;
-		reqUrl += "&departure=" + data->FP->Departure;
-		reqUrl += "&arrival=" + data->FP->Arrival;
-		reqUrl += "&direction=" + to_string(data->FP->Direction);
-		reqUrl += "&etd=" + data->FP->Etd;
-		reqUrl += "&selcal=" + data->FP->Selcal;
-		reqUrl += "&datalinkConnected=" + data->FP->DatalinkConnected;
-		reqUrl += "&isEquipped=" + to_string(data->FP->IsEquipped);
-		reqUrl += "&state=" + data->FP->State;
-		reqUrl += "&relevant=" + to_string(data->FP->Relevant);
-		reqUrl += "&targetMode=" + to_string(mode);
-		reqUrl += "&trackedBy=" + data->FP->TrackedBy;
-		reqUrl += "&trackedById=" + data->FP->TrackedById;
-	
-		// Convert URL to LPCSTR type
-		LPCSTR lpcURL = reqUrl.c_str();
-
-		// Delete cache data
-		DeleteUrlCacheEntry(lpcURL);
-
-		// Download data
-		CComPtr<IStream> pStream;
-		HRESULT hr = URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
-
-		// If failed
-		if (FAILED(hr)) {
-			// We want to know about it
-			data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to post aircraft data for " + data->Callsign + ". The server returned an error.").c_str(), true, true, true, true, true);
-			CLogger::Log(CLogType::ERR, "Could not post aircraft " + data->FP->Callsign + " to the network. A connection to the server could not be established.", "CDataHandler::PostNetworkAircraft");
-			// Cleanup
-			delete data->FP;
-			delete args;
-			return;
-		}
-		else {
-			// Success, clean up and move on
-			delete data->FP;
-			delete args;
-			return;
-		}
-	}
-	catch (exception & e) {
-		data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to post aircraft data for " + data->Callsign + ". Error: " + string(e.what())).c_str(), true, true, true, true, true);
-		CLogger::Log(CLogType::EXC, "Could not post aircraft " + data->FP->Callsign + " to the network: " + string(e.what()) + "\nRequest URL: \n" + reqUrl, "CDataHandler::PostNetworkAircraft");
-		// Cleanup
-		delete data->FP;
+	// REMOVED - vNAAATS API is defunct
+	// Use natTrak for oceanic clearances
+	if (args) {
+		CUtils::CNetworkAsyncData* data = (CUtils::CNetworkAsyncData*)args;
+		if (data->FP) delete data->FP;
 		delete args;
-		return;
 	}
 }
 
 void CDataHandler::UpdateNetworkAircraft(void* args) {
-	// Convert args
-	CUtils::CNetworkAsyncData* data = (CUtils::CNetworkAsyncData*) args;
-
-	// Prefix
-	string reqUrl = FlightDataUpdate;
-
-	try {
-		// Switch target mode
-		int mode = 0;
-		switch (data->FP->TargetMode) {
-		case CRadarTargetMode::PRIMARY:
-			mode = 0;
-			break;
-		case CRadarTargetMode::SECONDARY_S:
-			mode = 1;
-			break;
-		case CRadarTargetMode::SECONDARY_C:
-			mode = 2;
-			break;
-		case CRadarTargetMode::ADS_B:
-			mode = 3;
-			break;
-		default:
-			mode = 3;
-			break;
-		}
-
-		// Construct URL		
-		reqUrl += "&callsign=" + data->FP->Callsign;
-		reqUrl += "&type=" + data->FP->Type;
-		reqUrl += "&level=" + to_string(data->FP->AssignedLevel);
-		reqUrl += "&mach=" + to_string(data->FP->AssignedMach);
-		reqUrl += "&track=" + data->FP->Track;
-		reqUrl += "&route=" + data->FP->Route;
-		reqUrl += "&routeEtas=" + data->FP->RouteEtas;
-		reqUrl += "&departure=" + data->FP->Departure;
-		reqUrl += "&arrival=" + data->FP->Arrival;
-		reqUrl += "&direction=" + to_string(data->FP->Direction);
-		reqUrl += "&etd=" + data->FP->Etd;
-		reqUrl += "&selcal=" + data->FP->Selcal;
-		reqUrl += "&datalinkConnected=" + data->FP->DatalinkConnected;
-		reqUrl += "&isEquipped=" + to_string(data->FP->IsEquipped);
-		reqUrl += "&state=" + data->FP->State;
-		reqUrl += "&relevant=" + to_string(data->FP->Relevant);
-		reqUrl += "&targetMode=" + to_string(mode);
-		reqUrl += "&trackedBy=" + data->FP->TrackedBy;
-		reqUrl += "&trackedById=" + data->FP->TrackedById;
-	
-		// Convert URL to LPCSTR type
-		LPCSTR lpcURL = reqUrl.c_str();
-
-		// Delete cache data
-		DeleteUrlCacheEntry(lpcURL);
-
-		// Download data
-		CComPtr<IStream> pStream;
-		HRESULT hr = URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
-
-		// If failed
-		if (FAILED(hr)) {
-			// We want to know about it
-			data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to update aircraft data for " + data->Callsign + ". The server returned an error.").c_str(), true, true, true, true, true);
-			CLogger::Log(CLogType::ERR, "Could not post update for aircraft " + data->FP->Callsign + ".  A connection to the server could not be established.", "CDataHandler::UpdateNetworkAircraft");
-			// Cleanup
-			delete data->FP;
-			delete args;
-			return;
-		}
-		else {
-			// Success, clean up and move on
-			delete data->FP;
-			delete args;
-			return;
-		}
-	}
-	catch (exception & e) {
-		data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to update aircraft data for " + data->Callsign + ". Error: " + string(e.what())).c_str(), true, true, true, true, true);
-		CLogger::Log(CLogType::EXC, "Could not post aircraft " + data->FP->Callsign + " to the network: " + string(e.what()) + "\nRequest URL: \n" + reqUrl, "CDataHandler::UpdateNetworkAircraft");
-		// Cleanup
-		delete data->FP;
+	// REMOVED - vNAAATS API is defunct
+	// Use natTrak for oceanic clearances
+	if (args) {
+		CUtils::CNetworkAsyncData* data = (CUtils::CNetworkAsyncData*)args;
+		if (data->FP) delete data->FP;
 		delete args;
-		return;
 	}
 }

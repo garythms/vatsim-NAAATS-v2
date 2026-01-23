@@ -13,53 +13,49 @@ using namespace EuroScopePlugIn;
 class CDataHandler
 {
 	public:
-	// Check plugin version number
-	static int CheckPluginVersion(CPlugIn* plugin);
+		// Check plugin version number
+		static int CheckPluginVersion(CPlugIn* plugin);
+		
+		// Download nat track data (now from natTrak API)
+		static int PopulateLatestTrackData(CPlugIn* plugin);
+		
+		// Get flight data
+		static CAircraftFlightPlan* GetFlightData(string callsign);
+		static void GetFlightData(string callsign, CAircraftFlightPlan& fp);
+		
+		// Update a flight data object
+		static int UpdateFlightData(CRadarScreen* screen, string callsign, bool updateRoute);
+		
+		// Create a new flight data object
+		static int CreateFlightData(CRadarScreen* screen, string callsign);
+		
+		// Deletes a flight data object out of the flights map
+		static int DeleteFlightData(string callsign);
+		
+		// Set route
+		static int SetRoute(string callsign, vector<CWaypoint>* route, string track, CAircraftFlightPlan* copiedPlan = nullptr);
+		
+		// vNAAATS network methods - REMOVED (defunct API)
+		// These are kept as stubs for compatibility but do nothing
+		static void DownloadNetworkAircraft(void* args);
+		static void GetAllNetworkAircraft();
+		static void PostNetworkAircraft(void* args);
+		static void UpdateNetworkAircraft(void* args);
 
-	// Download nat track data
-	static int PopulateLatestTrackData(CPlugIn* plugin);
-
-	// Get flight data
-	static CAircraftFlightPlan* GetFlightData(string callsign);
-	static void GetFlightData(string callsign, CAircraftFlightPlan& fp);
-
-	// Update a flight data object
-	static int UpdateFlightData(CRadarScreen* screen, string callsign, bool updateRoute);
-
-	// Create a new flight data object
-	static int CreateFlightData(CRadarScreen* screen, string callsign);
-
-	// Deletes a flight data object out of the flights map
-	static int DeleteFlightData(string callsign);
-
-	// Set route
-	static int SetRoute(string callsign, vector<CWaypoint>* route, string track, CAircraftFlightPlan* copiedPlan = nullptr);
-
-	/// vNAAATS network methods
-	// Download aircraft data (single)
-	static void DownloadNetworkAircraft(void* args);
-
-	// Download all aircraft data
-	static void GetAllNetworkAircraft();
-
-	// Post new aircraft data
-	static void PostNetworkAircraft(void* args);
-
-	// Update aircraft data
-	static void UpdateNetworkAircraft(void* args);
-	
 	private:
-		// Methods
-		static int GetTrackSource(CPlugIn* plugin); // Event tracks or not
-
-		// Version URL
+		// Helper to parse track waypoint coordinates
+		static CPosition ParseTrackWaypoint(const string& waypoint);
+		
+		// Version URL (update to your repo if desired)
 		static const string PluginVersion;
-
-		// NAT Track URL
+		
+		// NAT Track URL - now uses natTrak
 		static const string TrackURL;
+		
+		// Flight data storage
 		static map<string, CAircraftFlightPlan> flights;
-
-		// vNAAATS API Links
+		
+		// REMOVED - defunct vNAAATS API links (kept as empty for compatibility)
 		static const string TrackSource;
 		static const string GetSingleAircraft;
 		static const string FlightDataUpdate;
