@@ -684,7 +684,7 @@ bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool
 		// If greater than sixty minutes out or already in the airspace
 		if (entryMinutes < 0)
 			valid = false;
-		if (entryMinutes == 0 || entryMinutes > 60) {
+		if (entryMinutes == 0 || entryMinutes > 120) {  // Extended from 60 to 120 minutes
 			valid = false;
 		}
 		
@@ -697,10 +697,10 @@ bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool
 		}
 	}
 	else if (PosType == 801) {
-		// If not ever going to enter, or greater than 60 min out
+		// If not ever going to enter, or greater than 120 min out (extended from 60)
 		if (entryMinutes < 0)
 			valid = false;
-		if (entryMinutes > 60) {
+		if (entryMinutes > 120) {
 			valid = false;
 		}
 
@@ -721,10 +721,10 @@ bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool
 		}
 	}
 	else {
-		// If not ever going to enter, or greater than 20 min out
+		// If not ever going to enter, or greater than 90 min out (extended from 20)
 		if (entryMinutes < 0)
 			valid = false;
-		if (entryMinutes > 20) {
+		if (entryMinutes > 90) {
 			valid = false;
 		}
 
@@ -779,10 +779,10 @@ bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool
 
 	// Let's check if filtering disabled
 	if (filtersDisabled) { // ALL btn is pressed
-		// If not ever going to enter, or greater than 90 min out
+		// If not ever going to enter, or greater than 180 min out (extended from 90)
 		if (entryMinutes < 0)
 			valid = false;
-		if (entryMinutes > 90) {
+		if (entryMinutes > 180) {
 			valid = false;
 		}
 		else {
