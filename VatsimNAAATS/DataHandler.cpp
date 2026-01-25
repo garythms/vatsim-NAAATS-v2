@@ -40,9 +40,10 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin) {
 		if (FAILED(hr)) {
 			int code = (int)hr;
 			// Show user message
-			plugin->DisplayUserMessage("vNAAATS", "Error", "Failed to fetch version info. Code: " + code, true, true, true, true, true);
+			std::string msg = std::string("Failed to fetch version info. Code: ") + std::to_string(code);
+			plugin->DisplayUserMessage("vNAAATS", "Error", msg.c_str(), true, true, true, true, true);
 			// Clogger
-			CLogger::Log(CLogType::ERR, "Could not fetch version info. Code: " + code, "CDataHandler::CheckPluginVersion");
+			CLogger::Log(CLogType::ERR, std::string("Could not fetch version info. Code: ") + std::to_string(code), "CDataHandler::CheckPluginVersion");
 			return -1;
 		}
 		// Put data into buffer
@@ -62,18 +63,28 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin) {
 		return -1;
 	}
 
+
+
+// Trim whitespace/newlines from the fetched version string (GitHub raw often includes \r\n)
+auto trim_inplace = [](std::string& s) {
+	while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ' || s.back() == '\t'))
+		s.pop_back();
+	size_t i = 0;
+	while (i < s.size() && (s[i] == '\n' || s[i] == '\r' || s[i] == ' ' || s[i] == '\t'))
+		++i;
+	if (i) s.erase(0, i);
+};
+trim_inplace(responseString);
+
 	// Check version
 	if (responseString != PLUGIN_VERSION) {
-		// Display dialog if update available
-		int msgBox = MessageBox(NULL, (LPCSTR)("A new version of vNAAATS (" + responseString + ") is now available. Your version: " + PLUGIN_VERSION +
-			"\nPlease update as soon as possible to avoid possible compatibility issues.\nFind the new version at GitHub.").c_str(),
-			(LPCSTR)"vNAAATS Version Notification", MB_ICONWARNING | MB_OK);
-
-		if (msgBox == IDOK) {
-			// Open the website
-			ShellExecute(NULL, "open", "https://github.com/garythms/vatsim-NAAATS-v2", NULL, NULL, SW_SHOWNORMAL);
-		}
-		return msgBox;
+		// Disabled: version pop-up (was interrupting EuroScope on startup).
+		// Keep a log entry so we still know an update exists.
+		CLogger::Log(CLogType::NORM,
+			std::string("Update available. Latest: ") + responseString + " | Current: " + PLUGIN_VERSION,
+			"CDataHandler::CheckPluginVersion");
+		// No modal dialog, no browser launch.
+		return -1;
 	}
 
 	return -1;

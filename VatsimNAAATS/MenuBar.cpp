@@ -6,8 +6,15 @@
 #include "Utils.h"
 #include "CommonRenders.h"
 #include "Overlays.h"
+#include <string>
+#include <windows.h>
+#include <ctime>
 
 using namespace Colours;
+
+// Static member initialization
+bool CMenuBar::CpdlcAlert = false;
+time_t CMenuBar::CpdlcAlertTime = 0;
 
 CMenuBar::CMenuBar() {
 	// Button defaults
@@ -39,6 +46,8 @@ CMenuBar::CMenuBar() {
 	buttons[BTN_AUTOTAG] = CWinButton(BTN_AUTOTAG, MENBAR, "Auto Tag", CInputState::INACTIVE, 75);
 	buttons[BTN_ALL] = CWinButton(BTN_ALL, MENBAR, "ALL", CInputState::DISABLED, 40);
 	buttons[BTN_RTEDEL] = CWinButton(BTN_RTEDEL, MENBAR, "Rte Del", CInputState::INACTIVE, 75);
+	buttons[BTN_SELCAL] = CWinButton(BTN_SELCAL, MENBAR, "SELCAL", CInputState::INACTIVE, 55);
+	buttons[BTN_CPDLC] = CWinButton(BTN_CPDLC, MENBAR, "CPDLC", CInputState::INACTIVE, 50);
 
 	// Text inputs
 	textInputs[TXT_SEARCH] = CTextInput(TXT_SEARCH, MENBAR, "Search A/C: ", "", 100, CInputState::ACTIVE);
@@ -178,14 +187,59 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 				offsetX += 82;
 				offsetIsItemSize = true;
 				break;
+			case BTN_SELCAL:
+				// Position in the far right dead space area (after RECT8)
+				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + RECT5_WIDTH + RECT6_WIDTH + RECT7_WIDTH + RECT8_WIDTH + 10;
+				offsetY = 30;
+				offsetIsItemSize = true;
+				break;
+			case BTN_CPDLC:
+				offsetIsItemSize = true;
+				break;
 			default:
 				offsetIsItemSize = true;
 				break;
 		}
 
 		// Button rendering
-		if (kv.first != BTN_AREASEL && kv.first != BTN_TYPESEL && kv.first != BTN_RINGS)
-			CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, kv.second.Width, 30, &kv.second);
+		if (kv.first != BTN_AREASEL && kv.first != BTN_TYPESEL && kv.first != BTN_RINGS) {
+			// Special handling for CPDLC button - flash yellow when alert is active
+			if (kv.first == BTN_CPDLC && CpdlcAlert) {
+				// Calculate flash state (toggle every 500ms)
+				time_t now = time(0);
+				bool flashOn = ((now - CpdlcAlertTime) % 2) == 0;
+				
+				// Create a temporary button with yellow background for flash effect
+				if (flashOn) {
+					// Draw yellow flashing button manually
+					CRect btnRect(offsetX, offsetY, offsetX + kv.second.Width, offsetY + 30);
+					
+					// Yellow background
+					dc->FillSolidRect(btnRect, RGB(255, 255, 0));
+					
+					// Button bevel
+					dc->Draw3dRect(btnRect, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+					InflateRect(btnRect, -1, -1);
+					dc->Draw3dRect(btnRect, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+					
+					// Black text for contrast on yellow
+					FontSelector::SelectNormalFont(MEN_FONT_SIZE, dc);
+					dc->SetTextColor(RGB(0, 0, 0));
+					dc->SetTextAlign(TA_CENTER);
+					dc->TextOutA(offsetX + kv.second.Width / 2, offsetY + 7, kv.second.Label.c_str());
+					
+					// Add screen object
+					screen->AddScreenObject(kv.second.Type, to_string(kv.second.Id).c_str(), btnRect, false, "");
+				}
+				else {
+					// Normal render on off-flash
+					CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, kv.second.Width, 30, &kv.second);
+				}
+			}
+			else {
+				CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, kv.second.Width, 30, &kv.second);
+			}
+		}
 
 		// Text alignment
 		dc->SetTextAlign(TA_LEFT);
@@ -364,6 +418,7 @@ CInputState CMenuBar::GetButtonState(int id) {
 			return buttons.find(id)->second.State;
 		}
 	}
+	return CInputState::DISABLED;  // Default return
 }
 
 void CMenuBar::OnOverDropDownItem(int id) {
@@ -583,6 +638,66 @@ void CMenuBar::ButtonUnpress(int id, int button, CRadarScreen* screen) {
 		// Open the FDD
 		ShellExecute(NULL, "open", "https://vnaaats.net/fdd/", NULL, NULL, SW_SHOWNORMAL);
 	}
+
+	// SELCAL Call
+	if (id == BTN_SELCAL) {
+		// Get ASEL aircraft
+		CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelectASEL();
+		if (fp.IsValid()) {
+			// Get SELCAL code (remarks first, then local storage)
+			string selcal = CUtils::GetSelcalForAircraft(&fp);
+			
+			if (!selcal.empty()) {
+				// Build the command
+				string command = ".selcal " + selcal;
+				
+				// Copy to clipboard so controller can paste and press Enter
+				if (OpenClipboard(NULL)) {
+					EmptyClipboard();
+					HGLOBAL hGlob = GlobalAlloc(GMEM_MOVEABLE, command.size() + 1);
+					if (hGlob) {
+						memcpy(GlobalLock(hGlob), command.c_str(), command.size() + 1);
+						GlobalUnlock(hGlob);
+						SetClipboardData(CF_TEXT, hGlob);
+					}
+					CloseClipboard();
+				}
+				
+				// Display info message
+				screen->GetPlugIn()->DisplayUserMessage(
+					"SELCAL", 
+					fp.GetCallsign(), 
+					(selcal + " - Command copied. Press Ctrl+V, Enter to send.").c_str(),
+					true, true, false, false, false
+				);
+			}
+			else {
+				// No SELCAL found
+				screen->GetPlugIn()->DisplayUserMessage(
+					"SELCAL", 
+					fp.GetCallsign(), 
+					"No SELCAL code found. Click SELCAL field in Flight Plan to enter.",
+					true, true, false, true, false
+				);
+			}
+		}
+		else {
+			// No aircraft selected
+			screen->GetPlugIn()->DisplayUserMessage(
+				"SELCAL", 
+				"Error", 
+				"No aircraft selected (ASEL)",
+				true, true, false, true, false
+			);
+		}
+	}
+
+	// CPDLC Window - toggle handled in RadarDisplay
+	// Clear the alert when CPDLC button is clicked
+	if (id == BTN_CPDLC) {
+		CpdlcAlert = false;
+		CpdlcAlertTime = 0;
+	}
 }
 
 void CMenuBar::GetSelectedTracks(vector<string>& tracksVector) {
@@ -591,4 +706,4 @@ void CMenuBar::GetSelectedTracks(vector<string>& tracksVector) {
 			tracksVector.push_back(idx.second.Label);
 		}
 	}
-}
+}

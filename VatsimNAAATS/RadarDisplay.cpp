@@ -28,6 +28,7 @@ CRadarDisplay::CRadarDisplay()
 	fltPlnWindow = new CFlightPlanWindow({ 1000, 300 }); // TODO: settings save
 	msgWindow = new CMessageWindow({ 500, 500 }); // TODO: settings save
 	npWindow = new CNotePad({ 300, 300 }, { 800, 200 }); // TODO: save settings
+	cpdlcWindow = new CCPDLCWindow({ 600, 200 }); // TODO: save settings
 	menuBar = new CMenuBar();
 	asel = GetPlugIn()->FlightPlanSelectASEL().GetCallsign();
 	fiveSecondTimer = clock();
@@ -45,12 +46,11 @@ CRadarDisplay::~CRadarDisplay()
 	delete appCursor;
 	delete trackWindow;
 	delete fltPlnWindow;
-	delete trackWindow;
 	delete msgWindow;
 	delete npWindow;
+	delete cpdlcWindow;
 	delete inboundList;
 	delete otherList;
-	delete this;
 }
 
 void CRadarDisplay::PopulateProgramData() {
@@ -123,6 +123,11 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 	double fiveSecT = (double)(clock() - fiveSecondTimer) / ((double)CLOCKS_PER_SEC);
 	// 10 second timer
 	double tenSecT = (double)(clock() - tenSecondTimer) / ((double)CLOCKS_PER_SEC);
+
+	// Run CPDLC background tasks (polling) regardless of window visibility.
+	if (cpdlcWindow != nullptr) {
+		cpdlcWindow->Tick();
+	}
 
 	// Clear lists if not empty and time is greater than 1 second
 	if (fiveSecT >= 5 && !inboundList->AircraftList.empty()) {
@@ -614,6 +619,14 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			msgWindow->RenderWindow(&dc, &g, this);
 		}
 
+		// Draw CPDLC window if button pressed
+		if (menuBar->IsButtonPressed(CMenuBar::BTN_CPDLC)) {
+				// Ensure the CPDLC window is actually opened when the menu bar button is active.
+				// The window defaults to closed, so without this it will never render.
+				cpdlcWindow->IsClosed = false;
+			cpdlcWindow->RenderWindow(&dc, &g, this);
+		}
+
 		// Draw flight plan window if button pressed
 		if (menuBar->IsButtonPressed(CMenuBar::BTN_FLIGHTPLAN)) {
 			fltPlnWindow->RenderWindow(&dc, &g, this);
@@ -920,6 +933,9 @@ void CRadarDisplay::OnMoveScreenObject(int ObjectType, const char* sObjectId, PO
 		if (string(sObjectId) == "NOTEPAD")
 			npWindow->MoveWindow(Area);
 
+		if (string(sObjectId) == "CPDLC")
+			cpdlcWindow->MoveWindow(Area);
+
 		CUtils::TrackWindowX = Area.left;
 		CUtils::TrackWindowY = Area.top;
 	}
@@ -984,6 +1000,11 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 					RefreshResolution = 0.04;
 				}
 				menuBar->ButtonPress(atoi(sObjectId), Button, this);
+
+				// Open CPDLC window immediately when toggled on
+				if (atoi(sObjectId) == CMenuBar::BTN_CPDLC && cpdlcWindow != nullptr) {
+					cpdlcWindow->IsClosed = false;
+				}
 			}
 			else {
 				// Disable all QDM if it is the QDM button
@@ -998,6 +1019,11 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 					RefreshResolution = 0.2;
 				}
 				menuBar->ButtonUnpress(atoi(sObjectId), Button, this);
+
+				// Close CPDLC window when toggled off
+				if (atoi(sObjectId) == CMenuBar::BTN_CPDLC && cpdlcWindow != nullptr) {
+					cpdlcWindow->IsClosed = true;
+				}
 			}
 		}
 	} else if (ObjectType == WIN_FLTPLN) {
@@ -1006,6 +1032,35 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 		}
 		else {
 			fltPlnWindow->ButtonUnpress(atoi(sObjectId));
+		}
+	} else if (ObjectType == WIN_CPDLC) {
+		std::string oid = sObjectId;
+		// List selection (messages / aircraft)
+		if (oid.rfind("CPDLC_MSG_", 0) == 0) {
+			try { cpdlcWindow->SelectMessage(std::stoi(oid.substr(10))); } catch (...) {}
+			return;
+		}
+		if (oid.rfind("CPDLC_AC_", 0) == 0) {
+			cpdlcWindow->SelectAircraft(oid.substr(9));
+			return;
+		}
+
+		// Text inputs (open edit popup)
+		if (cpdlcWindow->IsTextInput(atoi(sObjectId))) {
+			// EuroScope popup edit routes back to OnFunctionCall(FunctionId, ...)
+			// FunctionId must be unique across the whole plugin.
+			GetPlugIn()->OpenPopupEdit(Area, atoi(sObjectId), cpdlcWindow->GetTextValue(atoi(sObjectId)).c_str());
+			return;
+		}
+
+		// Dropdown items / toggles (IDs >= 800)
+		if (sObjectId && isdigit(sObjectId[0])) {
+			int id = atoi(sObjectId);
+			if (id >= 800) {
+				if (!cpdlcWindow->IsButtonPressed(id)) cpdlcWindow->ButtonPress(id);
+				else cpdlcWindow->ButtonUnpress(id);
+				return;
+			}
 		}
 	}
 
@@ -1242,6 +1297,12 @@ void CRadarDisplay::OnButtonDownScreenObject(int ObjectType, const char* sObject
 		msgWindow->ButtonDown(atoi(sObjectId));
 	}
 
+	// CPDLC window (only numeric control IDs)
+	if (ObjectType == WIN_CPDLC) {
+		if (sObjectId && (isdigit(sObjectId[0]) || sObjectId[0] == '-'))
+			cpdlcWindow->ButtonDown(atoi(sObjectId));
+	}
+
 	// Menu bar
 	if (ObjectType == MENBAR) {
 		menuBar->ButtonDown(atoi(sObjectId));
@@ -1290,6 +1351,17 @@ void CRadarDisplay::OnButtonUpScreenObject(int ObjectType, const char* sObjectId
 			menuBar->SetButtonState(CMenuBar::BTN_MESSAGE, CInputState::INACTIVE);
 		}
 		msgWindow->ButtonUp(atoi(sObjectId));
+	}
+
+	// CPDLC window (only numeric control IDs)
+	if (ObjectType == WIN_CPDLC) {
+		if (sObjectId && (isdigit(sObjectId[0]) || sObjectId[0] == '-')) {
+			int id = atoi(sObjectId);
+			if (id == CCPDLCWindow::BTN_CLOSE) {
+				menuBar->SetButtonState(CMenuBar::BTN_CPDLC, CInputState::INACTIVE);
+			}
+			cpdlcWindow->ButtonUp(id, this);
+		}
 	}
 
 	// Menu bar
@@ -1353,6 +1425,11 @@ void CRadarDisplay::OnFunctionCall(int FunctionId, const char* sItemString, POIN
 	// If it is a flight plan window text input
 	if (fltPlnWindow->IsTextInput(FunctionId)) {
 		fltPlnWindow->SetTextValue(this, FunctionId, string(sItemString));
+	}
+
+	// CPDLC window text input
+	if (cpdlcWindow->IsTextInput(FunctionId)) {
+		cpdlcWindow->SetTextValue(this, FunctionId, string(sItemString));
 	}
 }
 

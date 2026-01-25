@@ -88,7 +88,7 @@ void CFlightPlanWindow::MakeWindowItems() {
 	textInputs[TXT_TYPE] = CTextInput(TXT_TYPE, WIN_FLTPLN, "Type", "", 55, CInputState::INACTIVE);
 	textInputs[TXT_DEPART] = CTextInput(TXT_DEPART, WIN_FLTPLN, "Depart", "", 50, CInputState::INACTIVE);
 	textInputs[TXT_ETD] = CTextInput(TXT_ETD, WIN_FLTPLN, "Etd", "", 50, CInputState::INACTIVE);
-	textInputs[TXT_SELCAL] = CTextInput(TXT_SELCAL, WIN_FLTPLN, "SELCAL", "", 55, CInputState::INACTIVE);
+	textInputs[TXT_SELCAL] = CTextInput(TXT_SELCAL, WIN_FLTPLN, "SELCAL", "", 55, CInputState::ACTIVE);
 	textInputs[TXT_DATALINK] = CTextInput(TXT_DATALINK, WIN_FLTPLN, "Datalink", "", 60, CInputState::INACTIVE);
 	textInputs[TXT_COMMS] = CTextInput(TXT_COMMS, WIN_FLTPLN, "Com", "", 35, CInputState::INACTIVE);
 	textInputs[TXT_OWNERSHIP] = CTextInput(TXT_OWNERSHIP, WIN_FLTPLN, "Sector", "", 30, CInputState::INACTIVE);
@@ -1938,7 +1938,7 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 			textInputs[TXT_TCK].Content = primedPlan->Track;
 		}
 		textInputs[TXT_RTE].Content = route;
-		textInputs[TXT_RTE].State = CInputState::DISABLED;
+		textInputs[TXT_RTE].State == CInputState::DISABLED;
 
 		if (fp->State == "CPY") {
 			primedPlan->State = "CPY";
@@ -2024,7 +2024,18 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 	textInputs[TXT_DATALINK].Content = primedPlan->DLStatus;
 	textInputs[TXT_COMMS].Content = primedPlan->Communications;
 	textInputs[TXT_OWNERSHIP].Content = primedPlan->Sector;
-	textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
+	
+	// Get SELCAL using hybrid approach (remarks first, then local storage)
+	CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
+	if (fp.IsValid()) {
+		string selcal = CUtils::GetSelcalForAircraft(&fp);
+		textInputs[TXT_SELCAL].Content = selcal.empty() ? "N/A" : selcal;
+		primedPlan->SELCAL = textInputs[TXT_SELCAL].Content;
+	}
+	else {
+		textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
+	}
+	
 	textInputs[TXT_DATALINK].Content = primedPlan->DLStatus == "true" ? "ONLINE" : "OFFLINE";
 
 
@@ -2191,6 +2202,52 @@ void CFlightPlanWindow::ParseRestriction(string content, CRestrictionType type) 
 }
 
 void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string content) {
+	// SELCAL input handling
+	if (id == TXT_SELCAL) {
+		// Uppercase the code
+		string newCode = content;
+		for (size_t i = 0; i < newCode.length(); i++) {
+			newCode[i] = toupper(newCode[i]);
+		}
+		
+		// Validate: empty, "N/A", or exactly 4 characters
+		if (newCode.empty() || newCode == "N/A") {
+			CUtils::StoreSelcal(primedPlan->Callsign, "");
+			primedPlan->SELCAL = "N/A";
+			textInputs[TXT_SELCAL].Content = "N/A";
+		}
+		else if (newCode.length() == 4) {
+			// Store locally
+			CUtils::StoreSelcal(primedPlan->Callsign, newCode);
+			primedPlan->SELCAL = newCode;
+			textInputs[TXT_SELCAL].Content = newCode;
+			
+			// Show reminder message
+			if (screen != nullptr) {
+				screen->GetPlugIn()->DisplayUserMessage(
+					"SELCAL",
+					primedPlan->Callsign.c_str(),
+					"SELCAL saved locally. Use .am to add SEL/XXXX to remarks for permanence.",
+					true, true, false, false, false
+				);
+			}
+		}
+		else {
+			// Invalid length - show error
+			if (screen != nullptr) {
+				screen->GetPlugIn()->DisplayUserMessage(
+					"SELCAL",
+					"Error",
+					"SELCAL must be exactly 4 characters (e.g., ABCD)",
+					true, true, false, true, false
+				);
+			}
+			// Restore previous value
+			textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
+		}
+		return;
+	}
+
 	// Mach numbers
 	if (id == TXT_SPD || id == TXT_SPD_CPY || id == TXT_MAN_SPD) {
 		if (content == "") return;
@@ -2355,7 +2412,6 @@ CInputState CFlightPlanWindow::GetInputState(int id) {
 	else if (IsButton(id)) {
 		return windowButtons[id].State;
 	}
-	return CInputState::DISABLED;  // Default return
 }
 
 void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
@@ -2587,7 +2643,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 					else
 						SetTextValue(screen, CFlightPlanWindow::TXT_TCK, primedPlan->Track);
 
-					textInputs[TXT_RTE].State = CInputState::DISABLED;
+					textInputs[TXT_RTE].State == CInputState::DISABLED;
 				}
 
 				IsClearanceOpen = false;

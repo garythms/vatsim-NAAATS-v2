@@ -37,6 +37,9 @@ class CUtils { // TODO: refactor into namespace
 		static int SepMinimaLateral;
 		static int SepMinimaLongitudinal;
 
+		// SELCAL local storage (callsign -> code)
+		static map<string, string> SelcalStorage;
+
 		// Load/save methods
 		static void SavePluginData(CRadarScreen* screen);
 		static void LoadPluginData(CRadarScreen* screen);
@@ -91,6 +94,15 @@ class CUtils { // TODO: refactor into namespace
 
 		// Find selcal code from remarks
 		static string GetSelcalCode(CFlightPlan* fpData);
+
+		// Get SELCAL for aircraft (checks remarks first, then local storage)
+		static string GetSelcalForAircraft(CFlightPlan* fp);
+
+		// Store SELCAL locally
+		static void StoreSelcal(const string& callsign, const string& code);
+
+		// Clear stored SELCAL
+		static void ClearStoredSelcal(const string& callsign);
 
 		// Parse zulu time
 		static string ParseZuluTime(bool delimit, int deltaTime = -1, CFlightPlan* fp = nullptr, int ep = -1);

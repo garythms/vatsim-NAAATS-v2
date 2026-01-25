@@ -15,6 +15,7 @@
 #include "TrackInfoWindow.h"
 #include "FlightPlanWindow.h"
 #include "MessageWindow.h"
+#include "CPDLCWindow.h"
 
 using namespace std;
 using namespace EuroScopePlugIn;
@@ -90,5 +91,6 @@ class CRadarDisplay : public CRadarScreen
 		CFlightPlanWindow* fltPlnWindow = nullptr;
 		CMessageWindow* msgWindow = nullptr;
 		CNotePad* npWindow = nullptr;
+		CCPDLCWindow* cpdlcWindow = nullptr;
 };
 

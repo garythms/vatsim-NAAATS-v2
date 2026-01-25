@@ -109,11 +109,11 @@ const vector<string> pointsShanwick = { "RATSU",
 /// VALUES
 // Plugin info
 const string PLUGIN_NAME = "vNAAATS";
-const string PLUGIN_VERSION = "1.3b2";
-const string PLUGIN_AUTHOR = "Andrew Ogden github.com/andrewogden1678";
-const string PLUGIN_COPYRIGHT = "(C) 2021 Andrew Ogden vNAAATS";
-const bool IS_ALPHA = true;
-const bool DEBUG_MODE = true;
+const string PLUGIN_VERSION = "2.0.0";
+const string PLUGIN_AUTHOR = "Gary Thomas (Original by Andrew Ogden)";
+const string PLUGIN_COPYRIGHT = "(C) 2024-2026 Gary Thomas, Original (C) 2021 Andrew Ogden";
+const bool IS_ALPHA = false;
+const bool DEBUG_MODE = false;
 
 // Sector file & geo constants
 const int SECTELEMENT_COORD_IDX = 7;
@@ -188,6 +188,8 @@ const int WIN_SCROLLBAR = 103;
 const int WIN_MSG = 104;
 const int WIN_NOTEPAD = 105;
 const int WIN_FLTPLN_TSFR = 106;
+// CPDLC window object handle
+const int WIN_CPDLC = 107;
 
 // Text inputs and functions
 const int ALTFILT_TEXT = 200;

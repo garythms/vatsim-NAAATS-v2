@@ -1,6 +1,8 @@
 #define _USE_MATH_DEFINES
 #include "pch.h"
 #include<cmath>
+#include <algorithm>
+#include <cctype>
 #include "Utils.h"
 #include "Constants.h"
 #include "RadarDisplay.h"
@@ -27,6 +29,14 @@ int CUtils::SelectedOverlay = 800;
 int CUtils::PosType = 802;
 char CUtils::DllPathFile[_MAX_PATH];
 string CUtils::DllPath;
+
+// Separation minima defaults (used by conflict logic / tools)
+int CUtils::SepMinimaVertical = 1000;
+int CUtils::SepMinimaLateral = 60;
+int CUtils::SepMinimaLongitudinal = 10;
+
+// SELCAL local storage (callsign -> code)
+map<string, string> CUtils::SelcalStorage;
 
 // Save plugin data
 void CUtils::SavePluginData(CRadarScreen* screen) {
@@ -470,6 +480,7 @@ string CUtils::ParseToRaw(string callsign, CMessageType type, CAircraftFlightPla
 	if (type == CMessageType::REVISION_REJECT) {
 		return fp->Callsign + ":REVISION_REJECT";
 	}
+	return "";  // Default return for unhandled message types
 }
 // Load plugin data
 void CUtils::LoadPluginData(CRadarScreen* screen) {
@@ -546,7 +557,7 @@ void CUtils::LoadPluginData(CRadarScreen* screen) {
 	screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("version " + PLUGIN_VERSION + " initialised.").c_str(), false, false, false, false, false);
 
 	if (IS_ALPHA)
-		screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("This is a BETA version. Please report any issues to a.ogden@vatcan.ca or submit them here: https://ganderoceanic.com/vnaaats-feedback.").c_str(), false, false, false, false, false);
+		screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("This is a BETA version. Please report any issues at: https://github.com/garythms/vatsim-NAAATS-v2").c_str(), false, false, false, false, false);
 }
 
 // Returns the requested format, or returns the same string if the format was unchanged
@@ -623,6 +634,7 @@ bool CUtils::GetAircraftDirection(int heading) {
 
 		return true; // Eastbound
 	}
+	return false;  // Default - treat as westbound
 }
 
 bool CUtils::IsEntryPoint(string pointName, bool side) {
@@ -818,6 +830,7 @@ bool CUtils::IsAircraftEquipped(string rawRemarks, string rawAcInfo, char equipC
 			return true; // Aircraft is AGCS equipped
 		return false;
 	}
+	return false;  // Default - not equipped
 }
 
 // Get radar target mode
@@ -983,6 +996,33 @@ string CUtils::GetSelcalCode(CFlightPlan* fpData) {
 	}
 	return "";
 }
+
+string CUtils::GetSelcalForAircraft(CFlightPlan* fp) {
+    if (!fp) return "";
+
+    // 1) Prefer SEL/XXXX from remarks
+    string fromRemarks = GetSelcalCode(fp);
+    if (fromRemarks.size() == 4) return fromRemarks;
+
+    // 2) Fall back to locally stored SELCAL for this callsign
+    const string cs = fp->GetCallsign();
+    auto it = SelcalStorage.find(cs);
+    if (it != SelcalStorage.end()) return it->second;
+
+    return "";
+}
+
+void CUtils::StoreSelcal(const string& callsign, const string& code) {
+    if (callsign.empty()) return;
+    if (code.size() != 4) return;
+    SelcalStorage[callsign] = code;
+}
+
+void CUtils::ClearStoredSelcal(const string& callsign) {
+    if (callsign.empty()) return;
+    SelcalStorage.erase(callsign);
+}
+
 
 string CUtils::ParseZuluTime(bool delimit, int deltaTime, CFlightPlan* fp, int fix) {
 	time_t now = time(0);

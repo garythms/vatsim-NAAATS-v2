@@ -195,8 +195,10 @@
     <ClCompile Include="AcTargets.cpp" />
     <ClCompile Include="BaseList.cpp" />
     <ClCompile Include="BaseWindow.cpp" />
+    <ClCompile Include="CPDLCWindow.cpp" />
     <ClCompile Include="CommonRenders.cpp" />
     <ClCompile Include="ConflictList.cpp" />
+    <ClCompile Include="HoppieClient.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="RCLList.cpp" />
     <ClCompile Include="MenuBar.cpp" />
@@ -227,10 +229,12 @@
     <ClInclude Include="AcTargets.h" />
     <ClInclude Include="BaseList.h" />
     <ClInclude Include="BaseWindow.h" />
+    <ClInclude Include="CPDLCWindow.h" />
     <ClInclude Include="CommonRenders.h" />
     <ClInclude Include="ConflictDetection.h" />
     <ClInclude Include="ConflictList.h" />
     <ClInclude Include="Constants.h" />
+    <ClInclude Include="HoppieClient.h" />
     <ClInclude Include="Keys.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="RCLList.h" />
