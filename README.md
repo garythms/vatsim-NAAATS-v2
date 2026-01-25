@@ -23,6 +23,6 @@ vNAAATS is a plugin designed to revolutionise day-to-day oceanic operations on t
 - Saving of data
 - ... and more!
 
-![Gander Logo](https://cdn.ganderoceanic.ca/resources/media/img/brand/bnr/ZQO_BNRSMALL_BLUE.png](https://ganderoceanic.ca/assets/resources/media/img/brand/bnr/ZQO_BNR_TSPBLUE.png)
+
 
 
