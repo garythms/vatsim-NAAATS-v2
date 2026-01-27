@@ -31,6 +31,9 @@ public:
 	// Hoppie client instance (static so it persists)
 	static CHoppieClient* hoppieClient;
 	
+	// Get Hoppie client instance
+	static CHoppieClient* GetHoppieClient() { return hoppieClient; }
+	
 	// Connection state
 	bool IsConnected;
 	string CurrentStation;
@@ -38,9 +41,10 @@ public:
 	// Inherited methods
 	CCPDLCWindow(POINT topLeft);
 	virtual void MakeWindowItems();
-	// Run periodic CPDLC tasks (e.g. polling) regardless of window visibility.
-	void Tick();
 	virtual void RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen);
+	
+	// Background tick (polling/cleanup). Runs even when window is closed.
+	void Tick();
 	
 	// Render sub-panels
 	void RenderLoginPanel(CDC* dc, Graphics* g, CRadarScreen* screen, CRect area);

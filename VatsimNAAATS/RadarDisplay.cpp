@@ -7,8 +7,12 @@
 #include "DataHandler.h"
 #include "Utils.h"
 #include "ConflictDetection.h"
-#include "DataHandler.h"
+#include "WebServer.h"
+#include "RoutesHelper.h"
+#include <json.hpp>
 #include <thread>
+
+using json = nlohmann::json;
 #include <gdiplus.h>
 #include <ctype.h>
 #include <iostream>
@@ -29,6 +33,7 @@ CRadarDisplay::CRadarDisplay()
 	msgWindow = new CMessageWindow({ 500, 500 }); // TODO: settings save
 	npWindow = new CNotePad({ 300, 300 }, { 800, 200 }); // TODO: save settings
 	cpdlcWindow = new CCPDLCWindow({ 600, 200 }); // TODO: save settings
+	fddWindow = new CFddWindow({ 200, 200 }); // Initial position
 	menuBar = new CMenuBar();
 	asel = GetPlugIn()->FlightPlanSelectASEL().GetCallsign();
 	fiveSecondTimer = clock();
@@ -49,6 +54,7 @@ CRadarDisplay::~CRadarDisplay()
 	delete msgWindow;
 	delete npWindow;
 	delete cpdlcWindow;
+	delete fddWindow;
 	delete inboundList;
 	delete otherList;
 }
@@ -124,6 +130,113 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 	// 10 second timer
 	double tenSecT = (double)(clock() - tenSecondTimer) / ((double)CLOCKS_PER_SEC);
 
+	// Web Server Sync (1 second interval)
+	static clock_t lastWebSync = clock();
+	if ((double)(clock() - lastWebSync) / ((double)CLOCKS_PER_SEC) >= 1.0) {
+		lastWebSync = clock();
+
+		// 1. Push data to WebServer
+		json root = json::array();
+		for (auto& kv : CDataHandler::GetFlights()) {
+			auto& flight = kv.second;
+			if (!flight.IsValid) continue;
+
+			json f;
+			f["Callsign"] = flight.Callsign;
+			f["Type"] = flight.Type;
+			f["Depart"] = flight.Depart;
+			f["Dest"] = flight.Dest;
+			f["Track"] = flight.Track;
+
+			// Logic for FL display format
+			string flStr = flight.FlightLevel;
+			try {
+				int flVal = stoi(flStr);
+				
+				// Filter out aircraft below FL200
+				// If value > 1000, it's feet (e.g. 35000). Threshold 20000.
+				// If value <= 1000, it's FL (e.g. 350). Threshold 200.
+				if (flVal > 1000) {
+					if (flVal < 20000) continue;
+					flStr = to_string(flVal / 100);
+				} else {
+					if (flVal < 200) continue;
+				}
+			}
+			catch (...) {}
+			f["FlightLevel"] = flStr;
+
+			f["Mach"] = flight.Mach;
+			f["Estimate"] = flight.Etd;
+			f["SELCAL"] = flight.SELCAL;
+			f["Direction"] = flight.Direction;
+			f["IsEquipped"] = flight.IsEquipped;
+
+			// Get tracking controller callsign
+			CFlightPlan fpData = GetPlugIn()->FlightPlanSelect(flight.Callsign.c_str());
+			f["TrackedBy"] = fpData.GetTrackingControllerCallsign();
+			f["TrackedById"] = fpData.GetTrackingControllerId();
+			f["IsTrackedByMe"] = fpData.GetTrackingControllerIsMe();
+			f["IsCleared"] = flight.IsCleared;
+
+			// NATTrak status
+			CNatTrakStatus natStatus = CDataHandler::GetNatTrakStatus(flight.Callsign);
+			f["NatStatus"] = (int)natStatus; // 0=UNKNOWN, 1=PENDING, 2=CLEARED
+			if (natStatus != CNatTrakStatus::UNKNOWN) {
+				CNatTrakClearance* clr = CDataHandler::GetNatTrakClearance(flight.Callsign);
+				if (clr) {
+					f["NatClearance"] = {
+						{"Level", clr->Level},
+						{"Mach", clr->Mach},
+						{"Fix", clr->Fix},
+						{"Nat", clr->Nat}
+					};
+				}
+			}
+
+			// Get route details
+			vector<CRoutePosition> rte;
+			if (CRoutesHelper::GetRoute(this, &rte, flight.Callsign)) {
+				json routeArray = json::array();
+				for (const auto& pt : rte) {
+					json point;
+					point["name"] = pt.Fix;
+					point["lat"] = pt.PositionRaw.m_Latitude;
+					point["lon"] = pt.PositionRaw.m_Longitude;
+					point["est"] = pt.Estimate;
+					routeArray.push_back(point);
+				}
+				f["RouteDetails"] = routeArray;
+			}
+
+			root.push_back(f);
+		}
+		CWebServer::SetData(root.dump());
+
+		// 2. Pull updates from WebServer
+		while (CWebServer::HasPendingUpdates()) {
+			string updateStr = CWebServer::GetPendingUpdates();
+			try {
+				auto update = json::parse(updateStr);
+				string callsign = update["callsign"];
+				string field = update["field"];
+				string value = update["value"];
+
+				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
+				if (fp && fp->IsValid) {
+					if (field == "FlightLevel") fp->FlightLevel = value;
+					else if (field == "Mach") fp->Mach = value;
+					else if (field == "SELCAL") {
+						fp->SELCAL = value;
+						// Also update local storage so it persists across refreshes
+						CUtils::SelcalStorage[callsign] = value;
+					}
+				}
+			}
+			catch (...) {}
+		}
+	}
+
 	// Run CPDLC background tasks (polling) regardless of window visibility.
 	if (cpdlcWindow != nullptr) {
 		cpdlcWindow->Tick();
@@ -141,6 +254,9 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 	// Online controllers
 	if (fiveSecT >= 5) {
+		// Fetch NATTrak clearances
+		CDataHandler::FetchNatTrakClearances(GetPlugIn());
+
 		// Clear online controllers first
 		if (!fltPlnWindow->onlineControllers.empty())
 			fltPlnWindow->onlineControllers.clear();
@@ -627,6 +743,12 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			cpdlcWindow->RenderWindow(&dc, &g, this);
 		}
 
+		// Draw FDD window if button pressed
+		if (menuBar->IsButtonPressed(CMenuBar::BTN_FDD)) {
+			if (fddWindow->IsClosed) fddWindow->IsClosed = false;
+			fddWindow->RenderWindow(&dc, &g, this);
+		}
+
 		// Draw flight plan window if button pressed
 		if (menuBar->IsButtonPressed(CMenuBar::BTN_FLIGHTPLAN)) {
 			fltPlnWindow->RenderWindow(&dc, &g, this);
@@ -680,8 +802,16 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 				fp->ExitTime = exitMinutes;
 			}
 
+			// Update Direction and IsEquipped for Web Server
+			fp->Direction = CUtils::GetAircraftDirection(RadarTarget.GetPosition().GetReportedHeadingTrueNorth());
+			// IsEquipped logic - need to check where this comes from. 
+			// netFP->IsEquipped is used later, but where is fp->IsEquipped set?
+			// It seems it's set in DataHandler or here. 
+			// Let's use CUtils::IsAircraftEquipped logic if possible or trust existing if set.
+			// Actually, let's just ensure Direction is set for now.
+			
 			// Update selcal code (maybe move into an Update method in DataHandler if I find there is more to update than just the selcal code)
-			string selcal = CUtils::GetSelcalCode(&fpData);
+			string selcal = CUtils::GetSelcalForAircraft(&fpData);
 			fp->SELCAL = selcal != "" ? selcal : "N/A";
 
 			// Download the vNAAATS network data on the plane
@@ -936,6 +1066,9 @@ void CRadarDisplay::OnMoveScreenObject(int ObjectType, const char* sObjectId, PO
 		if (string(sObjectId) == "CPDLC")
 			cpdlcWindow->MoveWindow(Area);
 
+		if (string(sObjectId) == "WIN_FDD")
+			fddWindow->MoveWindow(Area);
+
 		CUtils::TrackWindowX = Area.left;
 		CUtils::TrackWindowY = Area.top;
 	}
@@ -954,6 +1087,7 @@ void CRadarDisplay::OnMoveScreenObject(int ObjectType, const char* sObjectId, PO
 	if (ObjectType == WIN_SCROLLBAR) {
 		if (string(sObjectId) == "TCKINFO") trackWindow->Scroll(Area, mousePointer);
 		if (string(sObjectId) == "520") msgWindow->Scroll(atoi(sObjectId), Pt, mousePointer);
+		if (string(sObjectId) == "FDD_SCROLL") fddWindow->Scroll(Area, mousePointer);
 	}
 
 	// Mouse pointer
@@ -1061,6 +1195,11 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 				else cpdlcWindow->ButtonUnpress(id);
 				return;
 			}
+		}
+	} else if (ObjectType == WIN_FDD) {
+		if (atoi(sObjectId) == CFddWindow::BTN_CLOSE) {
+			fddWindow->IsClosed = true;
+			menuBar->SetButtonState(CMenuBar::BTN_FDD, CInputState::INACTIVE);
 		}
 	}
 
@@ -1209,11 +1348,15 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 		}
 
 		// If a flight plan window text entry
-		if (ObjectType == WIN_FLTPLN) {
-			if (fltPlnWindow->IsTextInput(atoi(sObjectId)) && (fltPlnWindow->GetInputState(atoi(sObjectId)) != CInputState::DISABLED || fltPlnWindow->GetInputState(atoi(sObjectId)) != CInputState::INACTIVE)) {
-				GetPlugIn()->OpenPopupEdit(Area, atoi(sObjectId), fltPlnWindow->GetTextValue(atoi(sObjectId)).c_str());
+			if (ObjectType == WIN_FLTPLN) {
+				// Only allow editing when the input is actually active.
+				// The previous condition used (A != DISABLED || A != INACTIVE) which is always true.
+				if (fltPlnWindow->IsTextInput(atoi(sObjectId)) &&
+					(fltPlnWindow->GetInputState(atoi(sObjectId)) != CInputState::DISABLED &&
+					 fltPlnWindow->GetInputState(atoi(sObjectId)) != CInputState::INACTIVE)) {
+					GetPlugIn()->OpenPopupEdit(Area, atoi(sObjectId), fltPlnWindow->GetTextValue(atoi(sObjectId)).c_str());
+				}
 			}
-		}
 
 		// If it is a hide show button for a list
 		if (ObjectType == LIST_INBOUND) {
@@ -1280,6 +1423,11 @@ void CRadarDisplay::OnButtonDownScreenObject(int ObjectType, const char* sObject
 	// Track info window
 	if (ObjectType == WIN_TCKINFO) {
 		trackWindow->ButtonDown(atoi(sObjectId));
+	}
+
+	// FDD Window
+	if (ObjectType == WIN_FDD) {
+		fddWindow->ButtonDown(atoi(sObjectId));
 	}
 
 	// Flight plan window
@@ -1351,6 +1499,14 @@ void CRadarDisplay::OnButtonUpScreenObject(int ObjectType, const char* sObjectId
 			menuBar->SetButtonState(CMenuBar::BTN_MESSAGE, CInputState::INACTIVE);
 		}
 		msgWindow->ButtonUp(atoi(sObjectId));
+	}
+
+	// FDD Window
+	if (ObjectType == WIN_FDD) {
+		if (atoi(sObjectId) == CFddWindow::BTN_CLOSE) {
+			menuBar->SetButtonState(CMenuBar::BTN_FDD, CInputState::INACTIVE);
+		}
+		fddWindow->ButtonUp(atoi(sObjectId), this);
 	}
 
 	// CPDLC window (only numeric control IDs)

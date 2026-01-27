@@ -1,91 +1,93 @@
-#pragma once
-#include "pch.h"
-#include <string>
-#include <map>
-#include <gdiplus.h>
-#include <EuroScopePlugIn.h>
-#include "Structures.h"
-
-using namespace std;
-using namespace EuroScopePlugIn;
-using namespace Gdiplus;
-class CMenuBar
-{
-	public:
-		CMenuBar();
-		~CMenuBar() {};
-		void RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel);
-		bool IsButtonPressed(int id);
-		string GetDropDownValue(int id);
-		map<int, CWinButton> GetToggleButtons();
-		void SetButtonState(int id, CInputState state);
-		CInputState GetButtonState(int id);
-		void OnOverDropDownItem(int id);
-		void SetDropDownValue(int id, int value);
-		void MakeDropDownItems(int id);
-		void SetTextInput(int id, string value);
-		void ButtonDown(int id);
-		void ButtonUp(int id);
-		void ButtonPress(int id, int button, CRadarScreen* screen);
-		void ButtonUnpress(int id, int button, CRadarScreen* screen);
-		void GetSelectedTracks(vector<string>& tracksVector);
-		int ActiveDropDown;
-		int ActiveDropDownHover;
-
-		// Definitions
-		static const int BTN_SETUP = 0;
-		static const int BTN_NOTEPAD = 1;
-		static const int BTN_ADSC = 2;
-		static const int BTN_TCKINFO = 3;
-		static const int BTN_MISC = 4;
-		static const int BTN_MESSAGE = 5;
-		static const int BTN_TAGS = 6;
-		static const int BTN_FLIGHTPLAN = 7;
-		static const int BTN_DETAILED = 8;
-		static const int BTN_AREASEL = 9;
-		static const int BTN_TCKCTRL = 10;
-		static const int BTN_OVERLAYS = 11;
-		static const int BTN_TYPESEL = 12;
-		static const int BTN_ALTFILT = 13;
-		static const int BTN_HALO = 14;
-		static const int BTN_RBL = 15;
-		static const int BTN_RINGS = 16;
-		static const int BTN_QDM = 17;
-		static const int BTN_PTL = 18;
-		static const int BTN_PIV = 19;
-		static const int BTN_GRID = 20;
-		static const int BTN_SEP = 21;
-		static const int BTN_QCKLOOK = 22;
-		static const int BTN_PSSR = 23;
-		static const int BTN_EXT = 24;
-		static const int BTN_AUTOTAG = 25;
-		static const int BTN_ALL = 26;
-		static const int BTN_RTEDEL = 27;
-		static const int BTN_SELCAL = 28;
-		static const int BTN_CPDLC = 29;
-		
-		// CPDLC alert state
-		static bool CpdlcAlert;			// True when new message received
-		static time_t CpdlcAlertTime;	// When alert started (for flashing)
-		
-		static const int DRP_AREASEL = 100;
-		static const int DRP_TCKCTRL = 101;
-		static const int DRP_OVERLAYS = 102;
-		static const int DRP_TYPESEL = 103;
-
-		static const int TXT_ALTFILT = 30;
-		static const int ID_POS = 31;
-		static const int TXT_SEARCH = 32;
-
-		const int PANEL_SIZES[8] = { RECT1_WIDTH, RECT2_WIDTH, RECT3_WIDTH, RECT4_WIDTH, RECT5_WIDTH, RECT6_WIDTH, RECT7_WIDTH, RECT8_WIDTH };
-
-		map<int, CDropDown> dropDowns;
-
-	private:
-		// Menu bar objects
-		map<int, CWinButton> buttons;
-		map<int, CTextInput> textInputs;
-		map<int, CCheckBox> checkBoxes;
-		map<int, int> panels;
-};
-
+#pragma once
+#include "pch.h"
+#include <string>
+#include <map>
+#include <gdiplus.h>
+#include <EuroScopePlugIn.h>
+#include "Structures.h"
+
+using namespace std;
+using namespace EuroScopePlugIn;
+using namespace Gdiplus;
+class CMenuBar
+{
+	public:
+		CMenuBar();
+		~CMenuBar() {};
+		void RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel);
+		bool IsButtonPressed(int id);
+		string GetDropDownValue(int id);
+		map<int, CWinButton> GetToggleButtons();
+		void SetButtonState(int id, CInputState state);
+		CInputState GetButtonState(int id);
+		void OnOverDropDownItem(int id);
+		void SetDropDownValue(int id, int value);
+		void MakeDropDownItems(int id);
+		void SetTextInput(int id, string value);
+		void ButtonDown(int id);
+		void ButtonUp(int id);
+		void ButtonPress(int id, int button, CRadarScreen* screen);
+		void ButtonUnpress(int id, int button, CRadarScreen* screen);
+		void GetSelectedTracks(vector<string>& tracksVector);
+		int ActiveDropDown;
+		int ActiveDropDownHover;
+
+		// Definitions
+		static const int BTN_SETUP = 0;
+		static const int BTN_NOTEPAD = 1;
+		static const int BTN_ADSC = 2;
+		static const int BTN_TCKINFO = 3;
+		static const int BTN_MISC = 4;
+		static const int BTN_MESSAGE = 5;
+		static const int BTN_TAGS = 6;
+		static const int BTN_FLIGHTPLAN = 7;
+		static const int BTN_DETAILED = 8;
+		static const int BTN_AREASEL = 9;
+		static const int BTN_TCKCTRL = 10;
+		static const int BTN_OVERLAYS = 11;
+		static const int BTN_TYPESEL = 12;
+		static const int BTN_ALTFILT = 13;
+		static const int BTN_HALO = 14;
+		static const int BTN_RBL = 15;
+		static const int BTN_RINGS = 16;
+		static const int BTN_QDM = 17;
+		static const int BTN_PTL = 18;
+		static const int BTN_PIV = 19;
+		static const int BTN_GRID = 20;
+		static const int BTN_SEP = 21;
+		static const int BTN_QCKLOOK = 22;
+		static const int BTN_PSSR = 23;
+		static const int BTN_EXT = 24;
+		static const int BTN_AUTOTAG = 25;
+		static const int BTN_ALL = 26;
+		static const int BTN_RTEDEL = 27;
+		static const int BTN_SELCAL = 28;
+		static const int BTN_CPDLC = 29;
+		static const int BTN_FDD = 33;
+		static const int BTN_VACS = 34;
+
+		// CPDLC alert state (used by HoppieClient / CPDLCWindow to flash the button)
+		static bool CpdlcAlert;
+		static time_t CpdlcAlertTime;
+
+		static const int DRP_AREASEL = 100;
+		static const int DRP_TCKCTRL = 101;
+		static const int DRP_OVERLAYS = 102;
+		static const int DRP_TYPESEL = 103;
+
+		static const int TXT_ALTFILT = 30;
+		static const int ID_POS = 31;
+		static const int TXT_SEARCH = 32;
+
+		const int PANEL_SIZES[8] = { RECT1_WIDTH, RECT2_WIDTH, RECT3_WIDTH, RECT4_WIDTH, RECT5_WIDTH, RECT6_WIDTH, RECT7_WIDTH, RECT8_WIDTH };
+
+		map<int, CDropDown> dropDowns;
+
+	private:
+		// Menu bar objects
+		map<int, CWinButton> buttons;
+		map<int, CTextInput> textInputs;
+		map<int, CCheckBox> checkBoxes;
+		map<int, int> panels;
+};
+

@@ -286,6 +286,29 @@ void CHoppieClient::ParseResponse(const string& response) {
 				upperContent.find("UNABLE") != string::npos ||
 				upperContent.find("STANDBY") != string::npos) {
 				msg.Status = CpdlcMessageStatus::ACKNOWLEDGED;
+				
+				// Check if this is a WILCO response to a CONTACT message
+				// If so, auto-disconnect the aircraft
+				if (upperContent.find("WILCO") != string::npos) {
+					// Check if there's a pending CONTACT message for this aircraft
+					for (auto& pendingMsg : m_pendingMessages) {
+						if (pendingMsg.To == from && 
+							pendingMsg.Direction == CpdlcDirection::DOWNLINK &&
+							pendingMsg.Status == CpdlcMessageStatus::PENDING) {
+							string pendingUpper = pendingMsg.Content;
+							transform(pendingUpper.begin(), pendingUpper.end(), pendingUpper.begin(), ::toupper);
+							if (pendingUpper.find("CONTACT") != string::npos) {
+								// Mark original message as acknowledged
+								pendingMsg.Status = CpdlcMessageStatus::ACKNOWLEDGED;
+								// Auto-disconnect this aircraft
+								DisconnectAircraft(from);
+								CLogger::Log(CLogType::NORM, "Auto-disconnected " + from + " after WILCO to CONTACT message", 
+											 "CHoppieClient::ParseResponse");
+								break;
+							}
+						}
+					}
+				}
 			}
 		}
 		
@@ -619,4 +642,25 @@ void CHoppieClient::CleanupOldMessages(int maxAgeSeconds) {
 			++it;
 		}
 	}
+}
+
+bool CHoppieClient::SendContactOnHandoff(const string& aircraft, const string& facility, const string& frequency) {
+	// Check if aircraft is connected to CPDLC
+	auto it = m_connectedAircraft.find(aircraft);
+	if (it == m_connectedAircraft.end() || !it->second.LoggedOn) {
+		CLogger::Log(CLogType::WARN, "Cannot send contact message - " + aircraft + " not connected to CPDLC", 
+					 "CHoppieClient::SendContactOnHandoff");
+		return false;
+	}
+	
+	// Build and send the contact message
+	string message = BuildContactFreq(facility, frequency);
+	bool result = SendCpdlc(aircraft, message);
+	
+	if (result) {
+		CLogger::Log(CLogType::NORM, "Sent contact message to " + aircraft + ": " + message, 
+					 "CHoppieClient::SendContactOnHandoff");
+	}
+	
+	return result;
 }

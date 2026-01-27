@@ -6,6 +6,7 @@
 #include "MessageWindow.h"
 #include <iostream>
 #include <fstream>
+#include <cctype>
 #include <json.hpp>
 
 using namespace Colours;
@@ -88,7 +89,8 @@ void CFlightPlanWindow::MakeWindowItems() {
 	textInputs[TXT_TYPE] = CTextInput(TXT_TYPE, WIN_FLTPLN, "Type", "", 55, CInputState::INACTIVE);
 	textInputs[TXT_DEPART] = CTextInput(TXT_DEPART, WIN_FLTPLN, "Depart", "", 50, CInputState::INACTIVE);
 	textInputs[TXT_ETD] = CTextInput(TXT_ETD, WIN_FLTPLN, "Etd", "", 50, CInputState::INACTIVE);
-	textInputs[TXT_SELCAL] = CTextInput(TXT_SELCAL, WIN_FLTPLN, "SELCAL", "", 55, CInputState::INACTIVE);
+	// SELCAL should be editable in the Flight Plan window
+	textInputs[TXT_SELCAL] = CTextInput(TXT_SELCAL, WIN_FLTPLN, "SELCAL", "", 55, CInputState::ACTIVE);
 	textInputs[TXT_DATALINK] = CTextInput(TXT_DATALINK, WIN_FLTPLN, "Datalink", "", 60, CInputState::INACTIVE);
 	textInputs[TXT_COMMS] = CTextInput(TXT_COMMS, WIN_FLTPLN, "Com", "", 35, CInputState::INACTIVE);
 	textInputs[TXT_OWNERSHIP] = CTextInput(TXT_OWNERSHIP, WIN_FLTPLN, "Sector", "", 30, CInputState::INACTIVE);
@@ -2020,12 +2022,24 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 	textInputs[TXT_ACID].Content = primedPlan->Callsign;
 	textInputs[TXT_TYPE].Content = primedPlan->Type;
 	textInputs[TXT_DEPART].Content = primedPlan->Depart;
-	textInputs[TXT_ETD].Content = primedPlan->Etd;
-	textInputs[TXT_DATALINK].Content = primedPlan->DLStatus;
-	textInputs[TXT_COMMS].Content = primedPlan->Communications;
-	textInputs[TXT_OWNERSHIP].Content = primedPlan->Sector;
-	textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
-	textInputs[TXT_DATALINK].Content = primedPlan->DLStatus == "true" ? "ONLINE" : "OFFLINE";
+		textInputs[TXT_ETD].Content = primedPlan->Etd;
+		textInputs[TXT_COMMS].Content = primedPlan->Communications;
+		textInputs[TXT_OWNERSHIP].Content = primedPlan->Sector;
+
+		// SELCAL (hybrid: try remarks via EuroScope flight plan first, then local stored value)
+		{
+			EuroScopePlugIn::CFlightPlan esFp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
+			if (esFp.IsValid()) {
+				std::string selcal = CUtils::GetSelcalForAircraft(&esFp);
+				textInputs[TXT_SELCAL].Content = selcal;
+				primedPlan->SELCAL = selcal;
+			} else {
+				textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
+			}
+		}
+
+		// Datalink status is displayed as ONLINE/OFFLINE
+		textInputs[TXT_DATALINK].Content = (primedPlan->DLStatus == "true") ? "ONLINE" : "OFFLINE";
 
 
 	// If tracked by other controller
@@ -2191,6 +2205,36 @@ void CFlightPlanWindow::ParseRestriction(string content, CRestrictionType type) 
 }
 
 void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string content) {
+	// SELCAL
+	if (id == TXT_SELCAL) {
+		// Normalise: remove spaces/dashes and uppercase
+		std::string s;
+		s.reserve(content.size());
+		for (char c : content) {
+			if (c == ' ' || c == '-' || c == '\t') continue;
+			s.push_back((char)toupper((unsigned char)c));
+		}
+
+		// Allow clearing
+		if (s.empty()) {
+			primedPlan->SELCAL.clear();
+			CUtils::ClearStoredSelcal(primedPlan->Callsign);
+			textInputs[TXT_SELCAL].Content.clear();
+			return;
+		}
+
+		// Validate: exactly 4 letters A-Z
+		if (s.size() != 4) return;
+		for (char c : s) {
+			if (c < 'A' || c > 'Z') return;
+		}
+
+		primedPlan->SELCAL = s;
+		CUtils::StoreSelcal(primedPlan->Callsign, s);
+		textInputs[TXT_SELCAL].Content = s;
+		return;
+	}
+
 	// Mach numbers
 	if (id == TXT_SPD || id == TXT_SPD_CPY || id == TXT_MAN_SPD) {
 		if (content == "") return;

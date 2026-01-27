@@ -11,107 +11,17 @@ using namespace EuroScopePlugIn;
 
 /// WAYPOINTS
 // Entry Waypoints
-const vector<string> pointsGander = { "AVPUT",
-        "CLAVY",
-        "EMBOK",
-        "KETLA",
-        "LIBOR",
-        "MAXAR",
-        "NIFTY",
-        "PIDSO",
-        "RADUN",
-        "SAVRY",
-        "TOXIT",
-        "URTAK",
-        "VESMI",
-        "AVUTI",
-        "BOKTO",
-        "CUDDY",
-        "DORYY",
-        "ENNSO",
-        "HOIST",
-        "IRLOK",
-        "JANJO",
-        "KODIK",
-        "LOMSI",
-        "MELDI",
-        "NEEKO",
-        "PELTU",
-        "RIKAL",
-        "SAXAN",
-        "TUDEP",
-        "UMESI",
-        "ALLRY",
-        "BUDAR",
-        "ELSIR",
-        "IBERG",
-        "JOOPY",
-        "MUSAK",
-        "NICSO",
-        "OMSAT",
-        "PORTI",
-        "RELIC",
-        "SUPRY",
-        "RAFIN",
-        "JAROM",
-        "BOBTU" 
-};
+extern const vector<string> pointsGander;
 
-const vector<string> pointsShanwick = { "RATSU",
-        "LUSEN",
-        "ATSIX",
-        "ORTAV",
-        "BALIX",
-        "ADODO",
-        "ERAKA",
-        "ETILO",
-        "GOMUP",
-        "AGORI",
-        "SUNOT",
-        "BILTO",
-        "PIKIL",
-        "ETARI",
-        "RESNO",
-        "VENER",
-        "DOGAL",
-        "NEBIN",
-        "MALOT",
-        "TOBOR",
-        "LIMRI",
-        "ADARA",
-        "DINIM",
-        "RODEL",
-        "SOMAX",
-        "KOGAD",
-        "BEDRA",
-        "NERTU",
-        "NASBA",
-        "OMOKO",
-        "TAMEL",
-        "GELPO",
-        "LASNO",
-        "ETIKI",
-        "UMLER",
-        "SEPAL",
-        "BUNAV",
-        "SIVIR",
-        "BEGAS",
-        "DIVAT",
-        "DIXIS",
-        "BERUX",
-        "PITAX",
-        "PASAS",
-        "NILAV",
-        "GONAN",
-        "ATSUR"
-};
+extern const vector<string> pointsShanwick;
+
 
 /// VALUES
 // Plugin info
-const string PLUGIN_NAME = "vNAAATS";
-const string PLUGIN_VERSION = "2.0.0";
-const string PLUGIN_AUTHOR = "Gary Thomas (Original by Andrew Ogden)";
-const string PLUGIN_COPYRIGHT = "(C) 2024-2026 Gary Thomas, Original (C) 2021 Andrew Ogden";
+extern const string PLUGIN_NAME;
+extern const string PLUGIN_VERSION;
+extern const string PLUGIN_AUTHOR;
+extern const string PLUGIN_COPYRIGHT;
 const bool IS_ALPHA = false;
 const bool DEBUG_MODE = false;
 
@@ -133,17 +43,17 @@ const int LIST_OTHERS_WIDTH = 110;
 const int LIST_RCLS_WIDTH = 110;
 const int LIST_CONFLICT_WIDTH = 150;
 
-// Menu bar
-const int MENBAR_HEIGHT = 100;
-const int MENBAR_BTN_HEIGHT = 30;
+// Menu bar (height reduced by one row to sit higher; dropdowns on top row to avoid overlap)
+const int MENBAR_HEIGHT = 80;
+const int MENBAR_BTN_HEIGHT = 28;
 const int RECT1_WIDTH = 500;
 const int RECT2_WIDTH = 340;
 const int RECT3_WIDTH = 160;
 const int RECT4_WIDTH = 100;
-const int RECT5_WIDTH = 250;
-const int RECT6_WIDTH = 100;
-const int RECT7_WIDTH = 180;
-const int RECT8_WIDTH = 190;
+const int RECT5_WIDTH = 300;
+const int RECT6_WIDTH = 100;  // Removed - Search A/C moves to RECT7
+const int RECT7_WIDTH = 310;  // Wider for Search A/C + Ext + Auto Tag + Rte Del
+const int RECT8_WIDTH = 0;  // Will span to edge of screen
 
 // Window sizes
 const int WINSZ_TITLEBAR_HEIGHT = 20;
@@ -190,6 +100,8 @@ const int WIN_NOTEPAD = 105;
 const int WIN_FLTPLN_TSFR = 106;
 // CPDLC window object handle
 const int WIN_CPDLC = 107;
+// FDD window object handle
+const int WIN_FDD = 108;
 
 // Text inputs and functions
 const int ALTFILT_TEXT = 200;
@@ -216,19 +128,19 @@ const int DRP_TYPE_ENR = 802;
 const int DRP_TYPE_MULTI = 803;
 
 /// SETTINGS VARIABLES
-const string SET_INBNDX = "InboundX";
-const string SET_INBNDY = "InboundY";
-const string SET_OTHERSX = "OthersX";
-const string SET_OTHERSY = "OthersY";
-const string SET_ALTFILT_LOW = "AltFiltLow";
-const string SET_ALTFILT_HIGH = "AltFiltHigh";
-const string SET_GRID = "GridEnabled";
-const string SET_TAGS = "TagsEnabled";
-const string SET_QCKLOOK = "QckLookEnabled";
-const string SET_OVERLAY = "OverlayEnabled";
-const string SET_AREASEL = "SelectedArea";
-const string SET_OVERLAYSEL = "SelectedOverlay";
-const string SET_POSTYPESEL = "SelectedPosType";
+extern const string SET_INBNDX;
+extern const string SET_INBNDY;
+extern const string SET_OTHERSX;
+extern const string SET_OTHERSY;
+extern const string SET_ALTFILT_LOW;
+extern const string SET_ALTFILT_HIGH;
+extern const string SET_GRID;
+extern const string SET_TAGS;
+extern const string SET_QCKLOOK;
+extern const string SET_OVERLAY;
+extern const string SET_AREASEL;
+extern const string SET_OVERLAYSEL;
+extern const string SET_POSTYPESEL;
 
 /// ENUMS
 // Path type enum

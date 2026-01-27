@@ -114,6 +114,9 @@ public:
 	// Disconnect aircraft
 	void DisconnectAircraft(const string& callsign);
 	
+	// Send contact message when handoff initiated (auto-disconnects on WILCO)
+	bool SendContactOnHandoff(const string& aircraft, const string& facility, const string& frequency);
+	
 	// Cleanup old closed/acknowledged messages (called periodically)
 	void CleanupOldMessages(int maxAgeSeconds = 90);
 	

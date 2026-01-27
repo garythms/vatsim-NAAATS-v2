@@ -6,15 +6,18 @@
 #include "Utils.h"
 #include "CommonRenders.h"
 #include "Overlays.h"
+#include "DataHandler.h"
 #include <string>
 #include <windows.h>
-#include <ctime>
+#include <shellapi.h>
+#include <commdlg.h>
+#include <fstream>
 
 using namespace Colours;
 
-// Static member initialization
+// Static CPDLC alert state
 bool CMenuBar::CpdlcAlert = false;
-time_t CMenuBar::CpdlcAlertTime = 0;
+std::time_t CMenuBar::CpdlcAlertTime = 0;
 
 CMenuBar::CMenuBar() {
 	// Button defaults
@@ -28,7 +31,7 @@ CMenuBar::CMenuBar() {
 	buttons[BTN_FLIGHTPLAN] = CWinButton(BTN_FLIGHTPLAN, MENBAR, "Flight Plan", CInputState::DISABLED, 78);
 	buttons[BTN_DETAILED] = CWinButton(BTN_DETAILED, MENBAR, "ASEL Dtld", CInputState::INACTIVE, 80);
 	buttons[BTN_AREASEL] = CWinButton(BTN_AREASEL, MENBAR, "Area Sel", CInputState::DISABLED, 83);
-	buttons[BTN_TCKCTRL] = CWinButton(BTN_TCKCTRL, MENBAR, "Tck Control", CInputState::DISABLED, 88);
+	// BTN_TCKCTRL removed - not needed
 	buttons[BTN_OVERLAYS] = CWinButton(BTN_OVERLAYS, MENBAR, "Overlays", CInputState::INACTIVE, 73);
 	buttons[BTN_TYPESEL] = CWinButton(BTN_TYPESEL, MENBAR, "Select", CInputState::DISABLED, 68);
 	buttons[BTN_ALTFILT] = CWinButton(BTN_ALTFILT, MENBAR, "Alt Filter", CInputState::INACTIVE, 86);
@@ -38,16 +41,18 @@ CMenuBar::CMenuBar() {
 	buttons[BTN_QDM] = CWinButton(BTN_QDM, MENBAR, "QDM", CInputState::INACTIVE, 43);
 	buttons[BTN_PTL] = CWinButton(BTN_PTL, MENBAR, "PTL 5", CInputState::INACTIVE, 68, 0);
 	buttons[BTN_PIV] = CWinButton(BTN_PIV, MENBAR, "PIV", CInputState::INACTIVE, 48);
-	buttons[BTN_GRID] = CWinButton(BTN_GRID, MENBAR, "Grid", CInputState::DISABLED, 73);
+	buttons[BTN_GRID] = CWinButton(BTN_GRID, MENBAR, "Grid", CInputState::DISABLED, 48);
 	buttons[BTN_SEP] = CWinButton(BTN_SEP, MENBAR, "Sep", CInputState::INACTIVE, 43);
-	buttons[BTN_QCKLOOK] = CWinButton(BTN_QCKLOOK, MENBAR, "Qck Look", CInputState::DISABLED, 86);
+	buttons[BTN_QCKLOOK] = CWinButton(BTN_QCKLOOK, MENBAR, "Qck Look", CInputState::DISABLED, 70);
 	buttons[BTN_PSSR] = CWinButton(BTN_PSSR, MENBAR, "PSR_SYMBOL", CInputState::DISABLED, 40);
-	buttons[BTN_EXT] = CWinButton(BTN_EXT, MENBAR, "Ext", CInputState::INACTIVE, 40);
-	buttons[BTN_AUTOTAG] = CWinButton(BTN_AUTOTAG, MENBAR, "Auto Tag", CInputState::INACTIVE, 75);
-	buttons[BTN_ALL] = CWinButton(BTN_ALL, MENBAR, "ALL", CInputState::DISABLED, 40);
-	buttons[BTN_RTEDEL] = CWinButton(BTN_RTEDEL, MENBAR, "Rte Del", CInputState::INACTIVE, 75);
+	buttons[BTN_EXT] = CWinButton(BTN_EXT, MENBAR, "Ext", CInputState::INACTIVE, 35);
+	buttons[BTN_AUTOTAG] = CWinButton(BTN_AUTOTAG, MENBAR, "Auto Tag", CInputState::INACTIVE, 65);
+	buttons[BTN_ALL] = CWinButton(BTN_ALL, MENBAR, "ALL", CInputState::DISABLED, 35);
+	buttons[BTN_RTEDEL] = CWinButton(BTN_RTEDEL, MENBAR, "Rte Del", CInputState::INACTIVE, 60);
+	buttons[BTN_CPDLC] = CWinButton(BTN_CPDLC, MENBAR, "CPDLC", CInputState::INACTIVE, 55);
 	buttons[BTN_SELCAL] = CWinButton(BTN_SELCAL, MENBAR, "SELCAL", CInputState::INACTIVE, 55);
-	buttons[BTN_CPDLC] = CWinButton(BTN_CPDLC, MENBAR, "CPDLC", CInputState::INACTIVE, 50);
+	buttons[BTN_FDD] = CWinButton(BTN_FDD, MENBAR, "FDD", CInputState::INACTIVE, 45);
+	buttons[BTN_VACS] = CWinButton(BTN_VACS, MENBAR, "VACS", CInputState::INACTIVE, 45);
 
 	// Text inputs
 	textInputs[TXT_SEARCH] = CTextInput(TXT_SEARCH, MENBAR, "Search A/C: ", "", 100, CInputState::ACTIVE);
@@ -83,38 +88,65 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	// Brush to draw the bar
 	CBrush brush(ScreenBlue.ToCOLORREF());
 
-	// Get screen width
+	// Get screen dimensions
 	RECT radarArea = screen->GetRadarArea();
-	LONG screenWidth = radarArea.left + radarArea.right;
+	LONG screenWidth = radarArea.right - radarArea.left;
+	const int top = radarArea.top;
+
+	// Row positions (aligned with date on row 1)
+	const int kRow1Y = 10;   // Row 1 - aligned with date
+	const int kRow2Y = 40;   // Row 2
+	const int kDropY = 4;    // Dropdown row
+	const int kDropH = 22;   // Dropdown height
+
+	// Panel boundaries
+	const int P1 = radarArea.left;
+	const int P2 = P1 + RECT1_WIDTH;
+	const int P3 = P2 + RECT2_WIDTH;
+	const int P4 = P3 + RECT3_WIDTH;
+	const int P5 = P4 + RECT4_WIDTH;
+	const int P6 = P5 + RECT5_WIDTH;
+	const int P7 = P6 + RECT7_WIDTH;  // RECT6 is now 0
+	const int P8 = P7;  // Panel 8 starts where 7 ends (spans to edge)
 
 	// Create the base rectangle and the 3d bevel
-	CRect baseMenuRectColour(radarArea.left, radarArea.top, radarArea.left + screenWidth, MENBAR_HEIGHT);
+	CRect baseMenuRectColour(radarArea.left, top, radarArea.left + screenWidth, top + MENBAR_HEIGHT);
 	dc->FillRect(baseMenuRectColour, &brush);
-	CRect baseMenuRect(radarArea.left, radarArea.top, radarArea.left + screenWidth, MENBAR_HEIGHT);
+	CRect baseMenuRect(radarArea.left, top, radarArea.left + screenWidth, top + MENBAR_HEIGHT);
 	dc->Draw3dRect(baseMenuRect, ScreenBlue.ToCOLORREF(), BevelLight.ToCOLORREF());
 
-	// Draw the panels
-	int menuOffsetX = 0;
-	for (int i = 0; i <= sizeof(PANEL_SIZES) / sizeof(PANEL_SIZES[0]); i++) {
-		CRect rect1(menuOffsetX, radarArea.top + 1, menuOffsetX + PANEL_SIZES[i], MENBAR_HEIGHT - 2);
-		dc->Draw3dRect(rect1, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
-		InflateRect(rect1, -1, -1);
-		dc->Draw3dRect(rect1, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
-		menuOffsetX += PANEL_SIZES[i] + 1;
+	// Draw panels (only non-zero width panels)
+	int panelWidths[] = { RECT1_WIDTH, RECT2_WIDTH, RECT3_WIDTH, RECT4_WIDTH, RECT5_WIDTH, RECT7_WIDTH };
+	int menuOffsetX = radarArea.left;
+	for (int i = 0; i < 6; i++) {
+		if (panelWidths[i] > 0) {
+			CRect rect1(menuOffsetX, top + 1, menuOffsetX + panelWidths[i], top + MENBAR_HEIGHT - 2);
+			dc->Draw3dRect(rect1, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+			InflateRect(rect1, -1, -1);
+			dc->Draw3dRect(rect1, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+			menuOffsetX += panelWidths[i] + 1;
+		}
 	}
-	
+	// Final panel spans to screen edge
+	CRect rectFinal(menuOffsetX, top + 1, radarArea.left + screenWidth - 2, top + MENBAR_HEIGHT - 2);
+	dc->Draw3dRect(rectFinal, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+	InflateRect(rectFinal, -1, -1);
+	dc->Draw3dRect(rectFinal, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+	const int P8_LEFT = menuOffsetX;
+
 	/// ITEM RENDERING
-	// Render zulu time
+	// Render zulu time (centered below menu bar)
 	FontSelector::SelectNormalFont(30, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
-	dc->TextOutA(screen->GetRadarArea().right / 2, MENBAR_HEIGHT + 5, CUtils::ParseZuluTime(true).c_str());
+	dc->SetTextAlign(TA_CENTER);
+	dc->TextOutA(radarArea.left + (screenWidth / 2), top + MENBAR_HEIGHT + 5, CUtils::ParseZuluTime(true).c_str());
 
 	// Font selection
 	FontSelector::SelectNormalFont(MEN_FONT_SIZE, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_CENTER);
 
-	// Calculate date
+	// Calculate and render date (Panel 1, Row 1)
 	time_t now = time(0);
 	tm* date = gmtime(&now);
 	string strDate;
@@ -123,212 +155,169 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	strDate += to_string(date->tm_mday);
 	strDate += "-";
 	strDate += to_string(1900 + date->tm_year);
+	dc->TextOutA(P1 + 60, top + kRow1Y + 7, strDate.c_str());
+
+	// ===== PANEL 1: Buttons =====
+	// Row 1: Setup, NotePad, Flight Data, Track Info
+	int offsetX = P1 + 120;
+	int offsetY = top + kRow1Y;
+	dc->SetTextAlign(TA_LEFT);
 	
-	// Render date
-	dc->TextOutA(radarArea.left + 64, radarArea.top + 12.5, strDate.c_str());
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_SETUP].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_SETUP]);
+	offsetX += buttons[BTN_SETUP].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_NOTEPAD].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_NOTEPAD]);
+	offsetX += buttons[BTN_NOTEPAD].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_ADSC].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_ADSC]);
+	offsetX += buttons[BTN_ADSC].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_TCKINFO].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_TCKINFO]);
 
-	// Buttons
-	int idx = 0;
-	int offsetX = 128;
-	int offsetY = 30;
-	string text = "";
-	for (auto kv : buttons) {
-		// Offsets
-		bool offsetIsItemSize = false;
-		switch (kv.first) {
-			case BTN_MISC:
-				offsetX = 10;
-				offsetY += MENBAR_BTN_HEIGHT + 1;
-				offsetIsItemSize = true;
-				break;
-			case BTN_AREASEL:
-				offsetX = RECT1_WIDTH + 10;
-				offsetY = 30;
-				offsetIsItemSize = true;
-				break;
-			case BTN_TCKCTRL:
-				offsetIsItemSize = false;
-				break;
-			case BTN_RINGS:
-				offsetIsItemSize = true;
-				break;
-			case BTN_OVERLAYS:
-				offsetX += 164;
-				break;
-			case BTN_TYPESEL:
-				offsetX = offsetX = RECT1_WIDTH + RECT2_WIDTH + 85;
-				break;
-			case BTN_ALTFILT:
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + 10;
-				break;
-			case BTN_HALO:
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + 11;
-				offsetY = 30;
-				offsetIsItemSize = true;
-				break;
-			case BTN_PTL:
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + 11;
-				offsetY += MENBAR_BTN_HEIGHT + 1;
-				offsetIsItemSize = true;
-				break;
-			case BTN_QCKLOOK:
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + RECT5_WIDTH + 11;
-				break;
-			case BTN_PSSR:
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + RECT5_WIDTH + RECT6_WIDTH + RECT7_WIDTH + 35;
-				offsetY = 30;
-				offsetIsItemSize = true;
-				break;
-			case BTN_ALL:
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + RECT5_WIDTH + RECT6_WIDTH + RECT7_WIDTH + 35;
-				offsetY += MENBAR_BTN_HEIGHT + 1;
-				break;
-			case BTN_RTEDEL:
-				offsetX += 82;
-				offsetIsItemSize = true;
-				break;
-			case BTN_SELCAL:
-				// Position in the far right dead space area (after RECT8)
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + RECT5_WIDTH + RECT6_WIDTH + RECT7_WIDTH + RECT8_WIDTH + 10;
-				offsetY = 30;
-				offsetIsItemSize = true;
-				break;
-			case BTN_CPDLC:
-				offsetIsItemSize = true;
-				break;
-			default:
-				offsetIsItemSize = true;
-				break;
-		}
+	// Row 2: Misc, Message, Tags, Flight Plan, ASEL Dtld, Selected: xxx
+	offsetX = P1 + 10;
+	offsetY = top + kRow2Y;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_MISC].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_MISC]);
+	offsetX += buttons[BTN_MISC].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_MESSAGE].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_MESSAGE]);
+	offsetX += buttons[BTN_MESSAGE].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_TAGS].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_TAGS]);
+	offsetX += buttons[BTN_TAGS].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_FLIGHTPLAN].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_FLIGHTPLAN]);
+	offsetX += buttons[BTN_FLIGHTPLAN].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_DETAILED].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_DETAILED]);
+	offsetX += buttons[BTN_DETAILED].Width + 4;
+	string selText = "Selected: " + (asel == "" ? "None" : asel);
+	dc->TextOutA(offsetX, offsetY + 7, selText.c_str());
 
-		// Button rendering
-		if (kv.first != BTN_AREASEL && kv.first != BTN_TYPESEL && kv.first != BTN_RINGS) {
-			// Special handling for CPDLC button - flash yellow when alert is active
-			if (kv.first == BTN_CPDLC && CpdlcAlert) {
-				// Calculate flash state (toggle every 500ms)
-				time_t now = time(0);
-				bool flashOn = ((now - CpdlcAlertTime) % 2) == 0;
-				
-				// Create a temporary button with yellow background for flash effect
-				if (flashOn) {
-					// Draw yellow flashing button manually
-					CRect btnRect(offsetX, offsetY, offsetX + kv.second.Width, offsetY + 30);
-					
-					// Yellow background
-					dc->FillSolidRect(btnRect, RGB(255, 255, 0));
-					
-					// Button bevel
-					dc->Draw3dRect(btnRect, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
-					InflateRect(btnRect, -1, -1);
-					dc->Draw3dRect(btnRect, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
-					
-					// Black text for contrast on yellow
-					FontSelector::SelectNormalFont(MEN_FONT_SIZE, dc);
-					dc->SetTextColor(RGB(0, 0, 0));
-					dc->SetTextAlign(TA_CENTER);
-					dc->TextOutA(offsetX + kv.second.Width / 2, offsetY + 7, kv.second.Label.c_str());
-					
-					// Add screen object
-					screen->AddScreenObject(kv.second.Type, to_string(kv.second.Id).c_str(), btnRect, false, "");
-				}
-				else {
-					// Normal render on off-flash
-					CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, kv.second.Width, 30, &kv.second);
-				}
-			}
-			else {
-				CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, kv.second.Width, 30, &kv.second);
-			}
-		}
+	// ===== PANEL 2: Dropdowns and labels =====
+	// Row 1: [CZQX] [None] [ALL_TCKS]
+	offsetX = P2 + 10;
+	offsetY = top + kDropY;
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_AREASEL].Width, kDropH, &dropDowns[DRP_AREASEL]);
+	offsetX += dropDowns[DRP_AREASEL].Width + 1;
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_TCKCTRL].Width, kDropH, &dropDowns[DRP_TCKCTRL]);
+	offsetX += dropDowns[DRP_TCKCTRL].Width + 1;
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_OVERLAYS].Width, kDropH, &dropDowns[DRP_OVERLAYS]);
 
-		// Text alignment
-		dc->SetTextAlign(TA_LEFT);
+	// Row 2: Area Sel label, Overlays button (below ALL_TCKS)
+	offsetX = P2 + 10;
+	offsetY = top + kRow2Y;
+	dc->SetTextAlign(TA_LEFT);
+	dc->TextOutA(offsetX, offsetY + 7, "Area Sel");
+	// Overlays button below ALL_TCKS dropdown
+	offsetX = P2 + 10 + dropDowns[DRP_AREASEL].Width + 1 + dropDowns[DRP_TCKCTRL].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_OVERLAYS].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_OVERLAYS]);
 
-		// Text rendering
-		if (kv.first == BTN_DETAILED) {
-			text = "Selected: " + (asel == "" ? "None" : asel);
-			dc->TextOutA(offsetX + kv.second.Width + 4, offsetY + 7, text.c_str());
-		}
-		else if (kv.first == BTN_OVERLAYS) {
-			text = "Map";
-			dc->TextOutA(offsetX - (kv.second.Width / 2) - 2, offsetY + 7, text.c_str());
-		}
-		else if (kv.first == BTN_TYPESEL) {
-			text = "Pos Type";
-			dc->TextOutA(offsetX - kv.second.Width - 2, offsetY + 7, text.c_str());
-		}
-		else if (kv.first == BTN_AREASEL) {
-			dc->SetTextAlign(TA_CENTER);
-			text = "Area Sel";
-			dc->TextOutA(offsetX + (kv.second.Width / 2), offsetY + 7, text.c_str());
-		}
+	// ===== PANEL 3: OCA Enroute dropdown + Pos Type label =====
+	// Row 1: [OCA Enroute]
+	offsetX = P3 + 10;
+	offsetY = top + kDropY;
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_TYPESEL].Width, kDropH, &dropDowns[DRP_TYPESEL]);
+	// Row 2: Pos Type label (centered)
+	dc->SetTextAlign(TA_CENTER);
+	dc->TextOutA(P3 + (RECT3_WIDTH / 2), top + kRow2Y + 7, "Pos Type");
 
-		// If offsetting between buttons
-		if (offsetIsItemSize) {
-			offsetX += kv.second.Width + 1;
-		}
-		
-		// Increment
-		idx++;
-	}
-
-	// Misc items
-	offsetX = RECT1_WIDTH + 10;
-	offsetY += 8;
-	for (auto kv : dropDowns) {
-		// Offsets
-		bool offsetIsItemSize = true;
-		switch (kv.first) {
-			case DRP_OVERLAYS: 
-				offsetX += 36;
-				offsetIsItemSize = false;
-				break;
-			case DRP_TYPESEL:
-				offsetX = RECT1_WIDTH + RECT2_WIDTH + 10;
-				offsetIsItemSize = false;
-				break;
-			case DRP_AREASEL:
-				offsetX = RECT1_WIDTH + 10;
-				break;
-		}
-
-		// Render
-		CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, kv.second.Width, 20, &kv.second);
-
-		// If offsetting between buttons
-		if (offsetIsItemSize) {
-			offsetX += kv.second.Width + 1;
-		}
-	}
-
-	// Altitude filter (we only need this once so we draw it directly here)
-	CRect altFilt(RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + 10, 61, RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + 10 + 86, 91);
+	// ===== PANEL 4: Alt Filter =====
+	// Row 1: 200-700 box (centered)
+	int altFiltWidth = 86;
+	int altFiltLeft = P4 + (RECT4_WIDTH - altFiltWidth) / 2;
+	CRect altFilt(altFiltLeft, top + kRow1Y, altFiltLeft + altFiltWidth, top + kRow1Y + MENBAR_BTN_HEIGHT);
 	dc->FillSolidRect(altFilt, ButtonPressed.ToCOLORREF());
-	// Button bevel
 	dc->Draw3dRect(altFilt, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
 	InflateRect(altFilt, -1, -1);
 	dc->Draw3dRect(altFilt, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
-
-	/// Add screen objects for text
-	// Low
-	CSize rectSize = dc->GetTextExtent("000");
-	CRect lowRect(altFilt.left + 14, altFilt.top + 6, altFilt.left + 16 + rectSize.cx, altFilt.top + 6 + rectSize.cy);
-	screen->AddScreenObject(ALTFILT_TEXT, "ALTFILT_LOW", lowRect, false, "");
-	// High
-	CRect highRect(altFilt.right - 16 - rectSize.cx, altFilt.top + 6, altFilt.right - 14, altFilt.top + 6 + rectSize.cy);
-	screen->AddScreenObject(ALTFILT_TEXT, "ALTFILT_HIGH", highRect, false, "");
-	
-	// Text out
+	// Text
 	string lowAlt = CUtils::PadWithZeros(3, CUtils::AltFiltLow);
 	string highAlt = CUtils::PadWithZeros(3, CUtils::AltFiltHigh);
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(altFilt.left + (altFilt.Width() / 2), altFilt.top + 7, (lowAlt + "-" + highAlt).c_str());
+	dc->TextOutA(altFiltLeft + (altFiltWidth / 2), top + kRow1Y + 7, (lowAlt + "-" + highAlt).c_str());
+	// Screen objects for clicking
+	CSize rectSize = dc->GetTextExtent("000");
+	CRect lowRect(altFilt.left + 14, altFilt.top + 6, altFilt.left + 16 + rectSize.cx, altFilt.top + 6 + rectSize.cy);
+	screen->AddScreenObject(ALTFILT_TEXT, "ALTFILT_LOW", lowRect, false, "");
+	CRect highRect(altFilt.right - 16 - rectSize.cx, altFilt.top + 6, altFilt.right - 14, altFilt.top + 6 + rectSize.cy);
+	screen->AddScreenObject(ALTFILT_TEXT, "ALTFILT_HIGH", highRect, false, "");
 
-	// Render the selection input
+	// ===== PANEL 5: Halo, RBL, QDM / PTL, PIV, Grid, Sep, Qck Look =====
+	// Row 1: Halo 5, RBL, QDM
+	offsetX = P5 + 10;
+	offsetY = top + kRow1Y;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_HALO].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_HALO]);
+	offsetX += buttons[BTN_HALO].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_RBL].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_RBL]);
+	offsetX += buttons[BTN_RBL].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_QDM].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_QDM]);
+	
+	// Row 2: PTL 5, PIV, Grid, Sep, Qck Look
+	offsetX = P5 + 10;
+	offsetY = top + kRow2Y;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_PTL].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_PTL]);
+	offsetX += buttons[BTN_PTL].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_PIV].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_PIV]);
+	offsetX += buttons[BTN_PIV].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_GRID].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_GRID]);
+	offsetX += buttons[BTN_GRID].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_SEP].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_SEP]);
+	offsetX += buttons[BTN_SEP].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_QCKLOOK].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_QCKLOOK]);
+
+	// ===== PANEL 6/7: Search A/C + Ext, Auto Tag / ALL, Rte Del =====
+	// Row 1: Search A/C: [input] Ext Auto Tag
+	offsetX = P6 + 10;
+	offsetY = top + kRow1Y;
 	dc->SetTextAlign(TA_LEFT);
-	offsetX = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + RECT5_WIDTH + RECT6_WIDTH + 13;
-	dc->TextOutA(offsetX, 30, textInputs[TXT_SEARCH].Label.c_str());
-	CCommonRenders::RenderTextInput(dc, screen, { offsetX, dc->GetTextExtent("ABCD").cy + 35 }, textInputs[TXT_SEARCH].Width, 20, & textInputs[TXT_SEARCH]);
+	dc->TextOutA(offsetX, offsetY + 7, textInputs[TXT_SEARCH].Label.c_str());
+	offsetX += dc->GetTextExtent(textInputs[TXT_SEARCH].Label.c_str()).cx + 2;
+	CCommonRenders::RenderTextInput(dc, screen, { offsetX, offsetY }, textInputs[TXT_SEARCH].Width, MENBAR_BTN_HEIGHT, &textInputs[TXT_SEARCH]);
+	offsetX += textInputs[TXT_SEARCH].Width + 5;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_EXT].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_EXT]);
+	offsetX += buttons[BTN_EXT].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_AUTOTAG].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_AUTOTAG]);
+	
+	// Row 2: ALL, Rte Del
+	offsetX = P6 + 10;
+	offsetY = top + kRow2Y;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_ALL].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_ALL]);
+	offsetX += buttons[BTN_ALL].Width + 1;
+	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_RTEDEL].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_RTEDEL]);
+
+	// ===== PANEL 8: CPDLC (tall), SELCAL (tall), FDD/VACS =====
+	// CPDLC - spans both rows
+	offsetX = P8_LEFT + 10;
+	int tallBtnHeight = (kRow2Y - kRow1Y) + MENBAR_BTN_HEIGHT;  // Span both rows
+	
+	// Special rendering for CPDLC with flash capability
+	if (CpdlcAlert) {
+		time_t now = time(0);
+		bool flashOn = ((now - CpdlcAlertTime) % 2) == 0;
+		if (flashOn) {
+			CRect btnRect(offsetX, top + kRow1Y, offsetX + buttons[BTN_CPDLC].Width, top + kRow1Y + tallBtnHeight);
+			dc->FillSolidRect(btnRect, RGB(255, 255, 0));
+			dc->Draw3dRect(btnRect, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+			InflateRect(btnRect, -1, -1);
+			dc->Draw3dRect(btnRect, BevelLight.ToCOLORREF(), BevelDark.ToCOLORREF());
+			FontSelector::SelectNormalFont(MEN_FONT_SIZE, dc);
+			dc->SetTextColor(RGB(0, 0, 0));
+			dc->SetTextAlign(TA_CENTER);
+			dc->TextOutA(offsetX + buttons[BTN_CPDLC].Width / 2, top + kRow1Y + tallBtnHeight / 2 - 6, buttons[BTN_CPDLC].Label.c_str());
+			screen->AddScreenObject(buttons[BTN_CPDLC].Type, to_string(buttons[BTN_CPDLC].Id).c_str(), btnRect, false, "");
+		} else {
+			CCommonRenders::RenderButton(dc, screen, { offsetX, top + kRow1Y }, buttons[BTN_CPDLC].Width, tallBtnHeight, &buttons[BTN_CPDLC]);
+		}
+	} else {
+		CCommonRenders::RenderButton(dc, screen, { offsetX, top + kRow1Y }, buttons[BTN_CPDLC].Width, tallBtnHeight, &buttons[BTN_CPDLC]);
+	}
+	offsetX += buttons[BTN_CPDLC].Width + 1;
+	
+	// SELCAL - spans both rows
+	CCommonRenders::RenderButton(dc, screen, { offsetX, top + kRow1Y }, buttons[BTN_SELCAL].Width, tallBtnHeight, &buttons[BTN_SELCAL]);
+	offsetX += buttons[BTN_SELCAL].Width + 5;
+	
+	// FDD - Row 1
+	CCommonRenders::RenderButton(dc, screen, { offsetX, top + kRow1Y }, buttons[BTN_FDD].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_FDD]);
+	// VACS - Row 2
+	CCommonRenders::RenderButton(dc, screen, { offsetX, top + kRow2Y }, buttons[BTN_VACS].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_VACS]);
+
+	// Reset text color
+	dc->SetTextColor(TextWhite.ToCOLORREF());
 
 	// Clean up
 	DeleteObject(&brush);
@@ -504,13 +493,140 @@ void CMenuBar::ButtonPress(int id, int button, CRadarScreen* screen = nullptr) {
 				ActiveDropDown = 0;
 		}
 		else {
-			// Press the button
-			if (GetButtonState(id) != CInputState::DISABLED && id != BTN_RTEDEL)
+			// Press the button (but not for instant-action buttons)
+			if (GetButtonState(id) != CInputState::DISABLED && id != BTN_RTEDEL && id != BTN_SELCAL && id != BTN_VACS)
 				SetButtonState(id, CInputState::ACTIVE);
 
 			// Grid
 			if (id == BTN_GRID) {
 				COverlays::ShowHideGridReference(screen, true);
+			}
+			
+			// SELCAL - instant action on click
+			if (id == BTN_SELCAL && screen != nullptr) {
+				CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelectASEL();
+				if (fp.IsValid()) {
+					// Get SELCAL from flight data first
+					CAircraftFlightPlan* flightData = CDataHandler::GetFlightData(fp.GetCallsign());
+					string selcal = "";
+					
+					if (flightData != nullptr && flightData->IsValid && flightData->SELCAL != "N/A" && !flightData->SELCAL.empty()) {
+						selcal = flightData->SELCAL;
+					}
+					
+					// Fallback to Utils method
+					if (selcal.empty()) {
+						selcal = CUtils::GetSelcalForAircraft(&fp);
+					}
+					
+					if (!selcal.empty() && selcal != "N/A") {
+						string command = ".selcal " + selcal;
+						
+						// Send input to EuroScope command line
+						vector<INPUT> inputs;
+						for (char c : command) {
+							INPUT input = { 0 };
+							input.type = INPUT_KEYBOARD;
+							short vk = VkKeyScanA(c);
+							input.ki.wVk = vk & 0xFF;
+							
+							// Handle shift
+							if ((vk >> 8) & 1) {
+								INPUT shiftDown = { 0 };
+								shiftDown.type = INPUT_KEYBOARD;
+								shiftDown.ki.wVk = VK_SHIFT;
+								inputs.push_back(shiftDown);
+							}
+
+							inputs.push_back(input); // Key down
+
+							input.ki.dwFlags = KEYEVENTF_KEYUP;
+							inputs.push_back(input); // Key up
+
+							if ((vk >> 8) & 1) {
+								INPUT shiftUp = { 0 };
+								shiftUp.type = INPUT_KEYBOARD;
+								shiftUp.ki.wVk = VK_SHIFT;
+								shiftUp.ki.dwFlags = KEYEVENTF_KEYUP;
+								inputs.push_back(shiftUp);
+							}
+						}
+
+						// Enter
+						INPUT enter = { 0 };
+						enter.type = INPUT_KEYBOARD;
+						enter.ki.wVk = VK_RETURN;
+						inputs.push_back(enter);
+						enter.ki.dwFlags = KEYEVENTF_KEYUP;
+						inputs.push_back(enter);
+
+						SendInput((UINT)inputs.size(), inputs.data(), sizeof(INPUT));
+
+						screen->GetPlugIn()->DisplayUserMessage("SELCAL", fp.GetCallsign(), 
+							(selcal + " - Command executed.").c_str(),
+							true, true, false, false, false);
+					}
+					else {
+						screen->GetPlugIn()->DisplayUserMessage("SELCAL", fp.GetCallsign(), 
+							"No SELCAL code found. Enter SELCAL in Flight Plan window first.",
+							true, true, false, true, false);
+					}
+				}
+				else {
+					screen->GetPlugIn()->DisplayUserMessage("SELCAL", "Error", 
+						"No aircraft selected - click on an aircraft first",
+						true, true, false, true, false);
+				}
+			}
+			
+			// VACS - instant action on click
+			if (id == BTN_VACS) {
+				// Try to load saved path
+				static string vacsPath = "";
+				if (vacsPath.empty()) {
+					// Try to read from settings file
+					ifstream settingsFile("vNAAATS_settings.txt");
+					if (settingsFile.is_open()) {
+						string line;
+						while (getline(settingsFile, line)) {
+							if (line.find("VACS_PATH=") == 0) {
+								vacsPath = line.substr(10);
+								break;
+							}
+						}
+						settingsFile.close();
+					}
+				}
+				
+				// If still no path, open file dialog
+				if (vacsPath.empty()) {
+					OPENFILENAMEA ofn;
+					char szFile[260] = {0};
+					ZeroMemory(&ofn, sizeof(ofn));
+					ofn.lStructSize = sizeof(ofn);
+					ofn.hwndOwner = NULL;
+					ofn.lpstrFile = szFile;
+					ofn.nMaxFile = sizeof(szFile);
+					ofn.lpstrFilter = "Executable Files\0*.exe\0All Files\0*.*\0";
+					ofn.nFilterIndex = 1;
+					ofn.lpstrTitle = "Select VACS.exe";
+					ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+					
+					if (GetOpenFileNameA(&ofn)) {
+						vacsPath = ofn.lpstrFile;
+						// Save to settings file
+						ofstream outFile("vNAAATS_settings.txt", ios::app);
+						if (outFile.is_open()) {
+							outFile << "VACS_PATH=" << vacsPath << endl;
+							outFile.close();
+						}
+					}
+				}
+				
+				// Launch VACS if we have a path
+				if (!vacsPath.empty()) {
+					ShellExecuteA(NULL, "open", vacsPath.c_str(), NULL, NULL, SW_SHOWNORMAL);
+				}
 			}
 		}
 	}
@@ -625,75 +741,17 @@ void CMenuBar::ButtonPress(int id, int button, CRadarScreen* screen = nullptr) {
 }
 
 void CMenuBar::ButtonUnpress(int id, int button, CRadarScreen* screen) {
-	// Finally, unpress the button
-	SetButtonState(id, CInputState::INACTIVE);
+	// Don't unpress instant-action buttons (they don't show pressed state)
+	if (id != BTN_SELCAL && id != BTN_VACS) {
+		SetButtonState(id, CInputState::INACTIVE);
+	}
 
 	// Grid
 	if (id == BTN_GRID) {
 		COverlays::ShowHideGridReference(screen, false);
 	}
 
-	// Flight data display
-	if (id == BTN_ADSC) {
-		// Open the FDD
-		ShellExecute(NULL, "open", "https://vnaaats.net/fdd/", NULL, NULL, SW_SHOWNORMAL);
-	}
-
-	// SELCAL Call
-	if (id == BTN_SELCAL) {
-		// Get ASEL aircraft
-		CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelectASEL();
-		if (fp.IsValid()) {
-			// Get SELCAL code (remarks first, then local storage)
-			string selcal = CUtils::GetSelcalForAircraft(&fp);
-			
-			if (!selcal.empty()) {
-				// Build the command
-				string command = ".selcal " + selcal;
-				
-				// Copy to clipboard so controller can paste and press Enter
-				if (OpenClipboard(NULL)) {
-					EmptyClipboard();
-					HGLOBAL hGlob = GlobalAlloc(GMEM_MOVEABLE, command.size() + 1);
-					if (hGlob) {
-						memcpy(GlobalLock(hGlob), command.c_str(), command.size() + 1);
-						GlobalUnlock(hGlob);
-						SetClipboardData(CF_TEXT, hGlob);
-					}
-					CloseClipboard();
-				}
-				
-				// Display info message
-				screen->GetPlugIn()->DisplayUserMessage(
-					"SELCAL", 
-					fp.GetCallsign(), 
-					(selcal + " - Command copied. Press Ctrl+V, Enter to send.").c_str(),
-					true, true, false, false, false
-				);
-			}
-			else {
-				// No SELCAL found
-				screen->GetPlugIn()->DisplayUserMessage(
-					"SELCAL", 
-					fp.GetCallsign(), 
-					"No SELCAL code found. Click SELCAL field in Flight Plan to enter.",
-					true, true, false, true, false
-				);
-			}
-		}
-		else {
-			// No aircraft selected
-			screen->GetPlugIn()->DisplayUserMessage(
-				"SELCAL", 
-				"Error", 
-				"No aircraft selected (ASEL)",
-				true, true, false, true, false
-			);
-		}
-	}
-
-	// CPDLC Window - toggle handled in RadarDisplay
-	// Clear the alert when CPDLC button is clicked
+	// CPDLC - clear alert when clicked
 	if (id == BTN_CPDLC) {
 		CpdlcAlert = false;
 		CpdlcAlertTime = 0;
@@ -706,4 +764,4 @@ void CMenuBar::GetSelectedTracks(vector<string>& tracksVector) {
 			tracksVector.push_back(idx.second.Label);
 		}
 	}
-}
+}

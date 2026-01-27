@@ -5,6 +5,7 @@
 #include <cctype>
 #include "Utils.h"
 #include "Constants.h"
+#include "Structures.h"
 #include "RadarDisplay.h"
 
 // Default values
@@ -97,6 +98,169 @@ bool CUtils::WrapText(CDC* dc, string textToWrap, char wrapChar, int contentWidt
 
 	return 0;
 }
+
+// Constants Definitions
+const vector<string> pointsGander = { "AVPUT",
+        "CLAVY",
+        "EMBOK",
+        "KETLA",
+        "LIBOR",
+        "MAXAR",
+        "NIFTY",
+        "PIDSO",
+        "RADUN",
+        "SAVRY",
+        "TOXIT",
+        "URTAK",
+        "VESMI",
+        "AVUTI",
+        "BOKTO",
+        "CUDDY",
+        "DORYY",
+        "ENNSO",
+        "HOIST",
+        "IRLOK",
+        "JANJO",
+        "KODIK",
+        "LOMSI",
+        "MELDI",
+        "NEEKO",
+        "PELTU",
+        "RIKAL",
+        "SAXAN",
+        "TUDEP",
+        "UMESI",
+        "ALLRY",
+        "BUDAR",
+        "ELSIR",
+        "IBERG",
+        "JOOPY",
+        "MUSAK",
+        "NICSO",
+        "OMSAT",
+        "PORTI",
+        "RELIC",
+        "SUPRY",
+        "RAFIN",
+        "JAROM",
+        "BOBTU" 
+};
+
+const vector<string> pointsShanwick = { "RATSU",
+        "LUSEN",
+        "ATSIX",
+        "ORTAV",
+        "BALIX",
+        "ADODO",
+        "ERAKA",
+        "ETILO",
+        "GOMUP",
+        "AGORI",
+        "SUNOT",
+        "BILTO",
+        "PIKIL",
+        "ETARI",
+        "RESNO",
+        "VENER",
+        "DOGAL",
+        "NEBIN",
+        "MALOT",
+        "TOBOR",
+        "LIMRI",
+        "ADARA",
+        "DINIM",
+        "RODEL",
+        "SOMAX",
+        "KOGAD",
+        "BEDRA",
+        "NERTU",
+        "NASBA",
+        "OMOKO",
+        "TAMEL",
+        "GELPO",
+        "LASNO",
+        "ETIKI",
+        "UMLER",
+        "SEPAL",
+        "BUNAV",
+        "SIVIR",
+        "BEGAS",
+        "DIVAT",
+        "DIXIS",
+        "BERUX",
+        "PITAX",
+        "PASAS",
+        "NILAV",
+        "GONAN",
+        "ATSUR"
+};
+
+const string PLUGIN_NAME = "vNAAATS";
+const string PLUGIN_VERSION = "2.0.0";
+const string PLUGIN_AUTHOR = "Gary Thomas (Original by Andrew Ogden)";
+const string PLUGIN_COPYRIGHT = "(C) 2024-2026 Gary Thomas, Original (C) 2021 Andrew Ogden";
+
+const string SET_INBNDX = "InboundX";
+const string SET_INBNDY = "InboundY";
+const string SET_OTHERSX = "OthersX";
+const string SET_OTHERSY = "OthersY";
+const string SET_ALTFILT_LOW = "AltFiltLow";
+const string SET_ALTFILT_HIGH = "AltFiltHigh";
+const string SET_GRID = "GridEnabled";
+const string SET_TAGS = "TagsEnabled";
+const string SET_QCKLOOK = "QckLookEnabled";
+const string SET_OVERLAY = "OverlayEnabled";
+const string SET_AREASEL = "SelectedArea";
+const string SET_OVERLAYSEL = "SelectedOverlay";
+const string SET_POSTYPESEL = "SelectedPosType";
+
+const vector<CWaypoint> NatSM = {
+	CWaypoint("SM15W", 50.683, -15.0),
+	CWaypoint("SM20W", 50.833, -20.0),
+	CWaypoint("SM30W", 50.5, -30.0),
+	CWaypoint("SM40W", 49.266, -40.0),
+	CWaypoint("SM50W", 47.05, -50.0),
+	CWaypoint("SM53W", 46.166, -53.0),
+	CWaypoint("SM60W", 44.233, -60.0),
+	CWaypoint("SM65W", 42.766, -65.0),
+	CWaypoint("SM67W", 42.0, -67.0)
+};
+const vector<CWaypoint> NatSN = {
+	CWaypoint("SN67W", 40.416667, -67.0),
+	CWaypoint("SN65W", 41.666667, -65.0),
+	CWaypoint("SN60W", 43.116667, -60.0),
+	CWaypoint("SN525W", 45.166667, -52.5),
+	CWaypoint("SN50W", 45.9, -50.0),
+	CWaypoint("SN40W", 48.166667, -40.0),
+	CWaypoint("SN30W", 49.433333, -30.0),
+	CWaypoint("SN20W", 49.816667, -20.0),
+	CWaypoint("SN15W", 49.683333, -15.0)
+};
+const vector<CWaypoint> NatSO = {
+	CWaypoint("SO15W", 48.666667, -15.0),
+	CWaypoint("SO20W", 48.8, -20.0),
+	CWaypoint("SO30W", 48.366667, -30.0),
+	CWaypoint("SO40W", 47.066667, -40.0),
+	CWaypoint("SO50W", 44.75, -50.0),
+	CWaypoint("SO52W", 44.166667, -52.0),
+	CWaypoint("SO60W", 42.0, -60.0)
+};
+const vector<CWaypoint> NatSL = {
+	CWaypoint("SL50W", 57.0, -50.0),
+	CWaypoint("SL40W", 57.0, -40.0),
+	CWaypoint("SL30W", 56.0, -30.0),
+	CWaypoint("SL20W", 54.0, -20.0),
+	CWaypoint("SL15W", 52.0, -15.0)
+};
+const vector<CWaypoint> NatSP = {
+	CWaypoint("SP20W", 46.816667, -20.0),
+	CWaypoint("SP238W", 45.0, -23.883333),
+	CWaypoint("SP30W", 41.6, -30.0),
+	CWaypoint("SP40W", 34.366667, -40.0),
+	CWaypoint("SP477W", 27.0, -47.783333),
+	CWaypoint("SP50W", 24.633333, -50.0),
+	CWaypoint("SP556W", 18.0, -55.65)
+};
 
 bool CUtils::StringSplit(string str, char splitBy, vector<string>* ptrTokens) {
 	// Error if token does not exist

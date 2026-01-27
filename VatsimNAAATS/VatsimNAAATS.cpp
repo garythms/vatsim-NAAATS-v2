@@ -3,6 +3,7 @@
 #include "VatsimNAAATS.h"
 #include "EuroScopePlugIn.h"
 #include "NAAATS.h"
+#include "WebServer.h"
 #include <gdiplus.h>
 
 #ifdef _DEBUG
@@ -48,6 +49,9 @@ EuroScopePlugInInit(EuroScopePlugIn::CPlugIn** ppPlugInInstance)
 	// Instantiate logger as the very first thing we do
 	if (DEBUG_MODE)
 		CLogger::InstantiateLogFile();
+
+	// Start Virtual Server (Editable FDD)
+	CWebServer::Start(8080);
 }
 
 // Plugin exit
@@ -55,6 +59,10 @@ void __declspec (dllexport)
 EuroScopePlugInExit(void)
 {
 	AFX_MANAGE_STATE(AfxGetStaticModuleState())
+	
+	// Stop Virtual Server
+	CWebServer::Stop();
+
 	GdiplusShutdown(m_gdiplusToken);
 	delete pNAAATS;
 }
