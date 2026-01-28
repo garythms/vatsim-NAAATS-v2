@@ -496,7 +496,7 @@ void CHoppieClient::ParseCpdlcPacket(CCpdlcMessage& msg, const string& from, con
 bool CHoppieClient::SendCpdlc(const string& to, const string& message, int replyTo) {
 	if (!m_connected) return false;
 	
-	lock_guard<mutex> lock(m_mutex);
+	lock_guard<recursive_mutex> lock(m_mutex);
 	
 	// Build CPDLC packet format: /data2/<min>/<mrn>/<message>
 	string mrn = (replyTo > 0) ? to_string(replyTo) : "";
