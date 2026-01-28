@@ -208,6 +208,21 @@ void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen)
 	CBrush darkerBrush(ScreenBlue.ToCOLORREF());
 	CBrush lighterBrush(WindowBorder.ToCOLORREF());
 
+	// Check if plan is null
+	if (!primedPlan) {
+		// Create base window rectangle
+		CRect windowRect(topLeft.x, topLeft.y, topLeft.x + WINSZ_FLTPLN_WIDTH, topLeft.y + WINSZ_FLTPLN_HEIGHT_INIT);
+		dc->FillRect(windowRect, &darkerBrush);
+		
+		FontSelector::SelectNormalFont(16, dc);
+		dc->SetTextColor(TextWhite.ToCOLORREF());
+		dc->SetTextAlign(TA_CENTER);
+		dc->TextOutA(windowRect.left + (WINSZ_FLTPLN_WIDTH / 2), windowRect.top + (WINSZ_FLTPLN_HEIGHT_INIT / 2), "No Flight Plan Data");
+
+		dc->RestoreDC(iDC);
+		return;
+	}
+
 	// Select title font
 	FontSelector::SelectNormalFont(16, dc);
 	dc->SetTextColor(Black.ToCOLORREF());
