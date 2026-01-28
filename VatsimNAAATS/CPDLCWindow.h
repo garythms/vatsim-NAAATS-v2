@@ -27,6 +27,9 @@ private:
 	// Message compose
 	string composeText;
 	
+	// Async polling
+	std::future<void> m_pollFuture;
+
 public:
 	// Hoppie client instance (static so it persists)
 	static CHoppieClient* hoppieClient;

@@ -219,6 +219,8 @@ string CHoppieClient::HttpPost(const string& data) {
 }
 
 bool CHoppieClient::PingServer() {
+	lock_guard<recursive_mutex> lock(m_mutex);
+
 	if (m_logonCode.empty() || m_callsign.empty()) {
 		CLogger::Log(CLogType::ERR, "PingServer failed: logon code or callsign empty", "CHoppieClient::PingServer");
 		return false;
@@ -280,7 +282,7 @@ void CHoppieClient::Poll() {
 	
 	CLogger::Log(CLogType::NORM, "Starting poll for " + m_callsign, "CHoppieClient::Poll");
 	
-	lock_guard<mutex> lock(m_mutex);
+	lock_guard<recursive_mutex> lock(m_mutex);
 
 	try {
 		string postData = "logon=" + UrlEncode(m_logonCode) +

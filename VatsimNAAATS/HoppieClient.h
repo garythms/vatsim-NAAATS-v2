@@ -158,7 +158,7 @@ private:
 	MessageCallback m_onMessageReceived;
 	LogonRequestCallback m_onLogonRequest;
 	
-	mutex m_mutex;  // Thread safety for polling
+	recursive_mutex m_mutex;  // Thread safety for polling
 	
 	// Internal methods
 	string HttpPost(const string& data);

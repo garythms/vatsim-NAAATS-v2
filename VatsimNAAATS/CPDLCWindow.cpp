@@ -86,18 +86,32 @@ void CCPDLCWindow::MakeWindowItems() {
 }
 
 void CCPDLCWindow::Tick() {
+	// Check async status
+	if (m_pollFuture.valid()) {
+		if (m_pollFuture.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+			m_pollFuture.get();
+		}
+	}
+
 	// Auto-poll for messages when connected (every 15 seconds).
 	// This is intentionally independent of window visibility so CPDLC keeps working
 	// even when the window is closed.
 	if (IsConnected && hoppieClient != nullptr && hoppieClient->IsConnected()) {
+		// If polling, don't do anything
+		if (m_pollFuture.valid()) return;
+
 		time_t now = time(0);
 		time_t lastPoll = hoppieClient->GetLastPollTime();
 		if (lastPoll == 0 || (now - lastPoll) >= 15) {
-			hoppieClient->Poll();
-			CLogger::Log(CLogType::NORM, "Auto-polling Hoppie for messages", "CCPDLCWindow::Tick");
+			// Run poll and cleanup in background
+			m_pollFuture = std::async(std::launch::async, []() {
+				hoppieClient->Poll();
+				// Cleanup old acknowledged/closed messages (90 seconds)
+				hoppieClient->CleanupOldMessages(90);
+			});
+			
+			CLogger::Log(CLogType::NORM, "Auto-polling Hoppie for messages (Async)", "CCPDLCWindow::Tick");
 		}
-		// Cleanup old acknowledged/closed messages (90 seconds)
-		hoppieClient->CleanupOldMessages(90);
 	}
 }
 

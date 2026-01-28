@@ -194,6 +194,13 @@ void CFlightPlanWindow::MoveSubWindow(int id, POINT topLeft) {
 }
 
 void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
+	// Debug logging
+	if (primedPlan) {
+		CLogger::Log(CLogType::NORM, "RenderWindow: " + primedPlan->Callsign + " Valid=" + (primedPlan->IsValid ? "1" : "0"), "CFlightPlanWindow::RenderWindow");
+	} else {
+		CLogger::Log(CLogType::NORM, "RenderWindow: primedPlan is NULL", "CFlightPlanWindow::RenderWindow");
+	}
+
 	// Save device context
 	int iDC = dc->SaveDC();
 

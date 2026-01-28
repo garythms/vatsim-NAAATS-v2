@@ -928,11 +928,8 @@ void CCommonRenders::RenderRoutes(CDC* dc, Graphics* g, CRadarScreen* screen) {
 
 
 		// If route not there then we skip
-
-		if (route.size() == route.empty()) {
-
+		if (route.empty()) {
 			continue;
-
 		}
 
 
