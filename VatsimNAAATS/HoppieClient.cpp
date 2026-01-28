@@ -541,7 +541,7 @@ bool CHoppieClient::SendCpdlc(const string& to, const string& message, int reply
 bool CHoppieClient::SendTelex(const string& to, const string& message) {
 	if (!m_connected) return false;
 	
-	lock_guard<mutex> lock(m_mutex);
+	lock_guard<recursive_mutex> lock(m_mutex);
 	
 	string postData = "logon=" + UrlEncode(m_logonCode) +
 					  "&from=" + UrlEncode(m_callsign) +
@@ -712,7 +712,7 @@ void CHoppieClient::SetOnLogonRequest(LogonRequestCallback callback) {
 }
 
 void CHoppieClient::ClearAll() {
-	lock_guard<mutex> lock(m_mutex);
+	lock_guard<recursive_mutex> lock(m_mutex);
 	m_pendingMessages.clear();
 	m_connectedAircraft.clear();
 	m_nextMessageId = 1;

@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <gdiplus.h>
+#include <future>
 
 using namespace std;
 using namespace Gdiplus;
