@@ -30,6 +30,11 @@ int CUtils::SelectedOverlay = 800;
 int CUtils::PosType = 802;
 char CUtils::DllPathFile[_MAX_PATH];
 string CUtils::DllPath;
+string CUtils::ScreenCount = "1 Screen";
+string CUtils::HoppieCode = "";
+bool CUtils::MenuScroll = true;
+string CUtils::Station = "NATX";
+bool CUtils::AutoLogin = false;
 
 // Separation minima defaults (used by conflict logic / tools)
 int CUtils::SepMinimaVertical = 1000;
@@ -64,6 +69,13 @@ void CUtils::SavePluginData(CRadarScreen* screen) {
 	screen->SaveDataToAsr(SET_AREASEL.c_str(), "Selected area ownership.", to_string(AreaSelection).c_str());
 	screen->SaveDataToAsr(SET_OVERLAYSEL.c_str(), "Selected overlay.", to_string(SelectedOverlay).c_str());
 	screen->SaveDataToAsr(SET_POSTYPESEL.c_str(), "Selected position type.", to_string(PosType).c_str());
+
+	// New settings
+	screen->SaveDataToAsr(SET_SCREEN_COUNT.c_str(), "Number of screens used.", ScreenCount.c_str());
+	screen->SaveDataToAsr(SET_HOPPIE_CODE.c_str(), "Hoppie CPDLC code.", HoppieCode.c_str());
+	screen->SaveDataToAsr(SET_MENU_SCROLL.c_str(), "Menu bar scroll enabled.", MenuScroll ? "true" : "false");
+	screen->SaveDataToAsr(SET_STATION.c_str(), "Station identifier.", Station.c_str());
+	screen->SaveDataToAsr(SET_AUTO_LOGIN.c_str(), "CPDLC auto-accept inbound logons.", AutoLogin ? "true" : "false");
 }
 
 bool CUtils::WrapText(CDC* dc, string textToWrap, char wrapChar, int contentWidth,  vector<string>* ptrWrappedText) {
@@ -213,6 +225,11 @@ const string SET_OVERLAY = "OverlayEnabled";
 const string SET_AREASEL = "SelectedArea";
 const string SET_OVERLAYSEL = "SelectedOverlay";
 const string SET_POSTYPESEL = "SelectedPosType";
+const string SET_SCREEN_COUNT = "ScreenCount";
+const string SET_HOPPIE_CODE = "HoppieCode";
+const string SET_MENU_SCROLL = "MenuScroll";
+const string SET_STATION = "Station";
+const string SET_AUTO_LOGIN = "AutoLogin";
 
 const vector<CWaypoint> NatSM = {
 	CWaypoint("SM15W", 50.683, -15.0),
@@ -397,7 +414,6 @@ string CUtils::ParseToPhraseology(string rawInput, CMessageType type, string cal
 			bool isLevelRestriction = false;
 			bool isMachRestriction = false;
 			bool isRouteRestriction = false;
-
 			vector<string> restrictions = { "LCHG, MCHG, ATA", "ATB", "XAT", "UNABLE", "INT" };
 
 			// Restrictions
@@ -598,55 +614,458 @@ string CUtils::ParseToRaw(string callsign, CMessageType type, CAircraftFlightPla
 			returnString += ":LCHG:" + fp->FlightLevel;
 		}
 		if (copyRouteString != routeString) {
-			returnString += ":RERUTE:" + copyRouteString;
+			returnString += ":RERUTE:" + routeString;
 		}
 		
-		returnString += ":ATC/";
-		if (fp->Restrictions.empty()) {
-			returnString += "NULL";
-		}
-		else {
-			for (int i = 0; i < fp->Restrictions.size(); i++) {
-				if (fp->Restrictions[i].Type == CRestrictionType::LCHG) {
-					returnString += ":LCHG:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::MCHG) {
-					returnString += ":MCHG:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::EPC) {
-					returnString += ":EPC:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::RERUTE) {
-					returnString += ":RERUTE:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::RTD) {
-					returnString += ":RTD:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::UNABLE) {
-					returnString += ":UNABLE:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::ATA) {
-					returnString += ":ATA:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::ATB) {
-					returnString += ":ATB:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::XAT) {
-					returnString += ":XAT:" + fp->Restrictions[i].Content;
-				}
-				else if (fp->Restrictions[i].Type == CRestrictionType::INT) {
-					returnString += ":INT:" + fp->Restrictions[i].Content;
-				}
-			}
-		}
 		return returnString;
 	}
-	if (type == CMessageType::REVISION_REJECT) {
-		return fp->Callsign + ":REVISION_REJECT";
-	}
-	return "";  // Default return for unhandled message types
+	return "";
 }
-// Load plugin data
+
+// Convert coordinates to various type
+string CUtils::ConvertCoordinateFormat(string coordinateString, int format) { // format = 0 (slash format), 1 (xxxxN), 2 (xxNxxxW)
+	// Return var
+	string returnFormat;
+	try {
+		// First we make sure there are numbers
+		int isAllAlpha = true;
+		for (int j = 0; j < coordinateString.size(); j++) {
+			if (isdigit(coordinateString.at(j))) {
+				isAllAlpha = false;
+			}
+		}
+		// Check the current format of the input string
+		int currentFormat = -1;
+		if (coordinateString.find('/') != string::npos) {
+			currentFormat = 0;
+		}
+		else if (coordinateString.find('W') == string::npos && coordinateString.find('/') == string::npos && coordinateString.size() == 5) {
+			currentFormat = 1;
+		}
+		else if (coordinateString.find('W') != string::npos) {
+			currentFormat = 2;
+		}
+
+		// Check the current format, if -1 or matches, just return the input string
+		if (currentFormat == -1 || currentFormat == format || isAllAlpha || coordinateString.size() > 7) {
+			return coordinateString;
+		}
+
+		// Otherwise, change the format
+		if (format == 0) {
+			if (currentFormat == 1) {
+				returnFormat = coordinateString.substr(0, 2) + "/" + coordinateString.substr(2, 2);
+
+			}
+			else if (currentFormat == 2) {
+				returnFormat = coordinateString.substr(0, 2) + "/" + coordinateString.substr(4, 2);
+			}
+		}
+		else if (format == 1) {
+			if (currentFormat == 0) {
+				returnFormat = coordinateString.substr(0, 2) + coordinateString.substr(3, 2) + "N";
+			}
+			else if (currentFormat == 2) {
+				returnFormat = coordinateString.substr(0, 2) + coordinateString.substr(4, 2) + "N";
+			}
+		}
+		else {
+			if (currentFormat == 0) {
+				returnFormat = coordinateString.substr(0, 2) + "N0" + coordinateString.substr(3, 2) + "W";
+			}
+			else if (currentFormat == 1) {
+				returnFormat = coordinateString.substr(0, 2) + "N0" + coordinateString.substr(2, 2) + "W";
+			}
+		}
+	}
+	catch (exception & ex) {
+		// Return the old one if an exception occurs
+		return coordinateString;
+	}
+	
+	// Return the string
+	return returnFormat;
+}
+
+bool CUtils::GetAircraftDirection(int heading) {
+	if ((heading <= 359) && (heading >= 180)) {
+		return false; // Westbound
+	}
+	else if ((heading >= 0) && (heading <= 179)) {
+
+		return true; // Eastbound
+	}
+	return false;  // Default - treat as westbound
+}
+
+bool CUtils::IsEntryPoint(string pointName, bool side) {
+	if (side) { // Gander
+		if (find(pointsGander.begin(), pointsGander.end(), pointName) != pointsGander.end()) {
+			return true; // Match
+		}
+		else {
+			return false; // No match
+		}
+	}
+	else { // Shanwick
+		if (find(pointsShanwick.begin(), pointsShanwick.end(), pointName) != pointsShanwick.end()) {
+			return true; // Match
+		}
+		else {
+			return false; // No match
+		}
+	}
+}
+
+bool CUtils::IsExitPoint(string pointName, bool side) {
+	if (side) { // Gander
+		if (find(pointsShanwick.begin(), pointsShanwick.end(), pointName) != pointsShanwick.end()) {
+			return true; // Match
+		}
+		else {
+			return false; // No match
+		}
+	}
+	else { // Shanwick
+		if (find(pointsGander.begin(), pointsGander.end(), pointName) != pointsGander.end()) {
+			return true; // Match
+		}
+		else {
+			return false; // No match
+		}
+	}
+}
+
+bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool filtersDisabled) {
+	// Flag
+	bool valid = true;
+
+	// Flight plan & position
+	CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(target->GetCallsign());
+	CPosition pos = target->GetPosition().GetPosition();
+
+	// If no flight plan, not relevant
+	if (!fp.IsValid()) {
+		return false;
+	}
+
+	// Filter by altitude (unless disabled)
+	if (!filtersDisabled) {
+		if (fp.GetControllerAssignedData().GetClearedAltitude() < (AltFiltLow * 100) || fp.GetControllerAssignedData().GetClearedAltitude() > (AltFiltHigh * 100)) {
+			// Also check actual altitude
+			if (target->GetPosition().GetPressureAltitude() < (AltFiltLow * 100) || target->GetPosition().GetPressureAltitude() > (AltFiltHigh * 100)) {
+				return false;
+			}
+		}
+	}
+
+	// Check if in airspace
+	// TODO: Better check
+	if (pos.m_Longitude > -65.0 && pos.m_Longitude < -10.0 && pos.m_Latitude > 40.0 && pos.m_Latitude < 67.0) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+bool CUtils::IsAircraftEquipped(string rawRemarks, string rawAcInfo, char equipCode) {
+	// Check if the aircraft is equipped
+	if (rawAcInfo.find(equipCode) != string::npos) {
+		return true;
+	}
+	return false;
+}
+
+CPosition CUtils::PositionFromLatLon(double lat, double lon) {
+	CPosition pos;
+	pos.m_Latitude = lat;
+	pos.m_Longitude = lon;
+	return pos;
+}
+
+int CUtils::GetMach(int groundSpeed, int speedSound) {
+	return (int)round(((double)groundSpeed / (double)speedSound) * 100);
+}
+
+CRadarTargetMode CUtils::GetTargetMode(int radarFlags) {
+	switch (radarFlags) {
+		case 0: return CRadarTargetMode::PRIMARY;
+		case 1: return CRadarTargetMode::SECONDARY_S;
+		case 2: return CRadarTargetMode::SECONDARY_C;
+		case 3: return CRadarTargetMode::ADS_B;
+		default: return CRadarTargetMode::PRIMARY;
+	}
+}
+
+int CUtils::GetTargetModeInt(int radarFlags) {
+	return radarFlags;
+}
+
+string CUtils::PadWithZeros(int width, int number) {
+	stringstream ss;
+	ss << setw(width) << setfill('0') << number;
+	return ss.str();
+}
+
+bool CUtils::IsAllAlpha(string str) {
+	for (int i = 0; i < str.size(); i++) {
+		if (!isalpha(str[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+string CUtils::GetSelcalCode(CFlightPlan* fpData) {
+	string remarks = fpData->GetFlightPlanData().GetRemarks();
+	size_t found = remarks.find(string("SEL/"));
+	if (found != string::npos) {
+		return remarks.substr(found + 4, 4);
+	}
+	return "";
+}
+
+string CUtils::GetSelcalForAircraft(CFlightPlan* fp) {
+    if (!fp) return "";
+
+    string fromRemarks = GetSelcalCode(fp);
+    if (fromRemarks.size() == 4) return fromRemarks;
+
+    const string cs = fp->GetCallsign();
+    auto it = SelcalStorage.find(cs);
+    if (it != SelcalStorage.end()) return it->second;
+
+    return "";
+}
+
+void CUtils::StoreSelcal(const string& callsign, const string& code) {
+	SelcalStorage[callsign] = code;
+}
+
+void CUtils::ClearStoredSelcal(const string& callsign) {
+	if (SelcalStorage.find(callsign) != SelcalStorage.end()) {
+		SelcalStorage.erase(callsign);
+	}
+}
+
+string CUtils::ParseZuluTime(bool delimit, int deltaTime, CFlightPlan* fp, int fix) {
+	time_t now = time(0);
+	tm* zuluTime = gmtime(&now);
+	int deltaMinutes = 0;
+	if (deltaTime != -1) {
+		deltaMinutes = deltaTime;
+	}
+	if (fix != -1 && fp) {
+		deltaMinutes = fp->GetExtractedRoute().GetPointDistanceInMinutes(fix);
+	}
+	int hours = zuluTime->tm_hour;
+	int minutes = zuluTime->tm_min + deltaMinutes;
+
+	if (minutes >= 60) {
+		int minRemainder = minutes % 60;
+		hours += (minutes - minRemainder) / 60;
+		minutes = minRemainder;
+	}
+
+	if (hours >= 24) {
+		hours = hours - 24;
+	}
+
+	string strHours = hours < 10 ? (hours == 0 ? "00" : "0" + to_string(hours)) : to_string(hours);
+	string strMinutes = minutes < 10 ? (minutes == 0 ? "00" : "0" + to_string(minutes)) : to_string(minutes);
+
+	return delimit ? (strHours + ":" + strMinutes) : (strHours + strMinutes);
+}
+
+int CUtils::GetDistanceBetweenPoints(POINT p1, POINT p2) {
+	return (int)sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
+}
+
+POINT CUtils::GetMidPoint(POINT p1, POINT p2) {
+	POINT p;
+	p.x = (p1.x + p2.x) / 2;
+	p.y = (p1.y + p2.y) / 2;
+	return p;
+}
+
+int CUtils::GetTimeDistanceSpeed(int distanceNM, int speedGS) {
+	// Time = Distance / Speed
+	return (int)round(((double)distanceNM / (double)speedGS) * 60);
+}
+
+double CUtils::GetDistanceSpeedTime(int speedGS, int timeSec) {
+	// Distance = Speed * Time
+	return (double)speedGS * ((double)timeSec / 3600);
+}
+
+double CUtils::MetresToNauticalMiles(double metres) {
+	return metres * 0.000539957;
+}
+
+double CUtils::ToRadians(double degrees) {
+	return degrees * (M_PI / 180);
+}
+
+double CUtils::ToDegrees(double radians) {
+	return radians * (180 / M_PI);
+}
+
+string CUtils::RoundDecimalPlaces(double num, int precision) {
+	stringstream ss;
+	ss << fixed << setprecision(precision) << num;
+	return ss.str();
+}
+
+double CUtils::GetPathAngle(double hdg1, double hdg2) {
+	// Convert to radians
+	double hdg1Rad = ToRadians(hdg1);
+	double hdg2Rad = ToRadians(hdg2);
+
+	// Get vectors
+	double u[] = { sin(hdg1Rad), cos(hdg1Rad) };
+	double v[] = { sin(hdg2Rad), cos(hdg2Rad) };
+
+	// Dot product
+	double dotProduct = u[0] * v[0] + u[1] * v[1];
+
+	// Angle
+	double angle = ToDegrees(acos(dotProduct));
+
+	return angle;
+}
+
+CPosition CUtils::GetPointDistanceBearing(CPosition position, int distanceMetres, int heading) {
+	// Earth radius
+	double R = 6371e3;
+
+	// Convert to radians
+	double lat1 = ToRadians(position.m_Latitude);
+	double lon1 = ToRadians(position.m_Longitude);
+	double brng = ToRadians(heading);
+
+	// Calculate
+	double lat2 = asin(sin(lat1) * cos(distanceMetres / R) + cos(lat1) * sin(distanceMetres / R) * cos(brng));
+	double lon2 = lon1 + atan2(sin(brng) * sin(distanceMetres / R) * cos(lat1), cos(distanceMetres / R) - sin(lat1) * sin(lat2));
+
+	// Return
+	CPosition pos;
+	pos.m_Latitude = ToDegrees(lat2);
+	pos.m_Longitude = ToDegrees(lon2);
+	return pos;
+}
+
+POINT CUtils::GetIntersectionFromPointBearing(POINT position1, POINT position2, double bearing1, double bearing2) {
+	// Convert to radians
+	double b1 = ToRadians(bearing1);
+	double b2 = ToRadians(bearing2);
+
+	// Calculate
+	double x1 = position1.x;
+	double y1 = position1.y;
+	double x2 = position2.x;
+	double y2 = position2.y;
+
+	// Slopes
+	double m1 = tan(M_PI / 2 - b1);
+	double m2 = tan(M_PI / 2 - b2);
+
+	// Intercepts
+	double c1 = y1 - m1 * x1;
+	double c2 = y2 - m2 * x2;
+
+	// Intersection
+	double x = (c2 - c1) / (m1 - m2);
+	double y = m1 * x + c1;
+
+	// Return
+	POINT p;
+	p.x = (long)x;
+	p.y = (long)y;
+	return p;
+}
+
+string CUtils::GetLatLonString(CPosition* pos, bool space, int precision, bool showDecimal) {
+	// Latitude
+	string lat = "";
+	double latVal = pos->m_Latitude;
+	if (latVal < 0) {
+		latVal = abs(latVal);
+		lat = "S";
+	}
+	else {
+		lat = "N";
+	}
+	if (latVal < 10) {
+		lat += "0";
+	}
+	lat += to_string((int)latVal);
+	if (space) {
+		lat += " ";
+	}
+	// Minutes
+	double latMin = (latVal - (int)latVal) * 60;
+	if (latMin < 10) {
+		lat += "0";
+	}
+	lat += to_string((int)latMin);
+	if (showDecimal) {
+		// Seconds
+		double latSec = (latMin - (int)latMin) * 60;
+		lat += ".";
+		if (latSec < 10) {
+			lat += "0";
+		}
+		lat += to_string((int)latSec);
+	}
+	
+	// Longitude
+	string lon = "";
+	double lonVal = pos->m_Longitude;
+	if (lonVal < 0) {
+		lonVal = abs(lonVal);
+		lon = "W";
+	}
+	else {
+		lon = "E";
+	}
+	if (lonVal < 100) {
+		lon += "0";
+	}
+	if (lonVal < 10) {
+		lon += "0";
+	}
+	lon += to_string((int)lonVal);
+	if (space) {
+		lon += " ";
+	}
+	// Minutes
+	double lonMin = (lonVal - (int)lonVal) * 60;
+	if (lonMin < 10) {
+		lon += "0";
+	}
+	lon += to_string((int)lonMin);
+	if (showDecimal) {
+		// Seconds
+		double lonSec = (lonMin - (int)lonMin) * 60;
+		lon += ".";
+		if (lonSec < 10) {
+			lon += "0";
+		}
+		lon += to_string((int)lonSec);
+	}
+
+	return lat + " " + lon;
+}
+
+HANDLE CUtils::GetESProcess() {
+	// Get the process ID
+	DWORD pid = GetCurrentProcessId();
+
+	// Get the handle
+	return OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+}
+
 void CUtils::LoadPluginData(CRadarScreen* screen) {
 	// Strings to parse data
 	const char* stra;
@@ -717,747 +1136,34 @@ void CUtils::LoadPluginData(CRadarScreen* screen) {
 		PosType = stoi(stra);
 	}
 
-	// Show a user message saying that the plugin was loaded successfully
-	screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("version " + PLUGIN_VERSION + " initialised.").c_str(), false, false, false, false, false);
-
-	if (IS_ALPHA)
-		screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("This is a BETA version. Please report any issues at: https://github.com/garythms/vatsim-NAAATS-v2").c_str(), false, false, false, false, false);
-}
-
-// Returns the requested format, or returns the same string if the format was unchanged
-string CUtils::ConvertCoordinateFormat(string coordinateString, int format) { // format = 0 (slash format), 1 (xxxxN), 2 (xxNxxxW)
-	// Return var
-	string returnFormat;
-	try {
-		// First we make sure there are numbers
-		int isAllAlpha = true;
-		for (int j = 0; j < coordinateString.size(); j++) {
-			if (isdigit(coordinateString.at(j))) {
-				isAllAlpha = false;
-			}
-		}
-		// Check the current format of the input string
-		int currentFormat = -1;
-		if (coordinateString.find('/') != string::npos) {
-			currentFormat = 0;
-		}
-		else if (coordinateString.find('W') == string::npos && coordinateString.find('/') == string::npos && coordinateString.size() == 5) {
-			currentFormat = 1;
-		}
-		else if (coordinateString.find('W') != string::npos) {
-			currentFormat = 2;
-		}
-
-		// Check the current format, if -1 or matches, just return the input string
-		if (currentFormat == -1 || currentFormat == format || isAllAlpha || coordinateString.size() > 7) {
-			return coordinateString;
-		}
-
-		// Otherwise, change the format
-		if (format == 0) {
-			if (currentFormat == 1) {
-				returnFormat = coordinateString.substr(0, 2) + "/" + coordinateString.substr(2, 2);
-
-			}
-			else if (currentFormat == 2) {
-				returnFormat = coordinateString.substr(0, 2) + "/" + coordinateString.substr(4, 2);
-			}
-		}
-		else if (format == 1) {
-			if (currentFormat == 0) {
-				returnFormat = coordinateString.substr(0, 2) + coordinateString.substr(3, 2) + "N";
-			}
-			else if (currentFormat == 2) {
-				returnFormat = coordinateString.substr(0, 2) + coordinateString.substr(4, 2) + "N";
-			}
-		}
-		else {
-			if (currentFormat == 0) {
-				returnFormat = coordinateString.substr(0, 2) + "N0" + coordinateString.substr(3, 2) + "W";
-			}
-			else if (currentFormat == 1) {
-				returnFormat = coordinateString.substr(0, 2) + "N0" + coordinateString.substr(2, 2) + "W";
-			}
-		}
+	// Screen Count
+	stra = screen->GetDataFromAsr(SET_SCREEN_COUNT.c_str());
+	if (stra != NULL) {
+		ScreenCount = stra;
 	}
-	catch (exception & ex) {
-		// Return the old one if an exception occurs
-		return coordinateString;
-	}
-	
-	// Return the string
-	return returnFormat;
-}
 
-
-bool CUtils::GetAircraftDirection(int heading) {
-	if ((heading <= 359) && (heading >= 180)) {
-		return false; // Westbound
+	// Hoppie Code
+	stra = screen->GetDataFromAsr(SET_HOPPIE_CODE.c_str());
+	if (stra != NULL) {
+		HoppieCode = stra;
 	}
-	else if ((heading >= 0) && (heading <= 179)) {
 
-		return true; // Eastbound
+	// Menu Scroll
+	stra = screen->GetDataFromAsr(SET_MENU_SCROLL.c_str());
+	if (stra != NULL) {
+		MenuScroll = (stra[0] == 't');
 	}
-	return false;  // Default - treat as westbound
-}
 
-bool CUtils::IsEntryPoint(string pointName, bool side) {
-	if (side) { // Gander
-		if (find(pointsGander.begin(), pointsGander.end(), pointName) != pointsGander.end()) {
-			return true; // Match
-		}
-		else {
-			return false; // No match
-		}
+	// Station
+	stra = screen->GetDataFromAsr(SET_STATION.c_str());
+	if (stra != NULL) {
+		Station = stra;
 	}
-	else { // Shanwick
-		if (find(pointsShanwick.begin(), pointsShanwick.end(), pointName) != pointsShanwick.end()) {
-			return true; // Match
-		}
-		else {
-			return false; // No match
-		}
+
+	// Auto Login
+	stra = screen->GetDataFromAsr(SET_AUTO_LOGIN.c_str());
+	if (stra != NULL) {
+		AutoLogin = (stra[0] == 't');
 	}
 }
 
-bool CUtils::IsExitPoint(string pointName, bool side) {
-	if (side) { // Gander
-		if (find(pointsShanwick.begin(), pointsShanwick.end(), pointName) != pointsShanwick.end()) {
-			return true; // Match
-		}
-		else {
-			return false; // No match
-		}
-	}
-	else { // Shanwick
-		if (find(pointsGander.begin(), pointsGander.end(), pointName) != pointsGander.end()) {
-			return true; // Match
-		}
-		else {
-			return false; // No match
-		}
-	}
-}
-
-bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool filtersDisabled) {
-	// Flag
-	bool valid = true;
-
-	// Flight plan & position
-	CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(target->GetCallsign());
-	CPosition pos = target->GetPosition().GetPosition();
-
-	// Time and direction
-	int entryMinutes = fp.GetSectorEntryMinutes();
-
-	/// We check the selection values
-	// Position type
-	// Direction & area selection
-	bool direction = GetAircraftDirection(target->GetPosition().GetReportedHeadingTrueNorth());
-	int areaSel = AreaSelection;
-	if (PosType == 800) {
-
-		// If greater than sixty minutes out or already in the airspace
-		if (entryMinutes < 0)
-			valid = false;
-		if (entryMinutes == 0 || entryMinutes > 120) {  // Extended from 60 to 120 minutes
-			valid = false;
-		}
-		
-		// If wrong direction don't show
-		if (direction && areaSel == 802 && entryMinutes != 0) {
-			valid = false;
-		}
-		if (!direction && areaSel == 801 && entryMinutes != 0) {
-			valid = false;
-		}
-	}
-	else if (PosType == 801) {
-		// If not ever going to enter, or greater than 120 min out (extended from 60)
-		if (entryMinutes < 0)
-			valid = false;
-		if (entryMinutes > 120) {
-			valid = false;
-		}
-
-		// If wrong direction don't show
-		if (direction && areaSel == 802 && entryMinutes != 0) {
-			valid = false;
-		}
-		if (!direction && areaSel == 801 && entryMinutes != 0) {
-			valid = false;
-		}
-
-		// Check now to not display aircraft east/west of certain longitude based on area selection
-		if (areaSel == 802 && pos.m_Longitude < -34 && entryMinutes == 0) {
-			valid = false;
-		}
-		if (areaSel == 801 && pos.m_Longitude > -26 && entryMinutes == 0) {
-			valid = false;
-		}
-	}
-	else {
-		// If not ever going to enter, or greater than 90 min out (extended from 20)
-		if (entryMinutes < 0)
-			valid = false;
-		if (entryMinutes > 90) {
-			valid = false;
-		}
-
-		// If wrong direction don't show
-		if (direction && areaSel == 802 && entryMinutes != 0) {
-			valid = false;
-		}
-		if (!direction && areaSel == 801 && entryMinutes != 0) {
-			valid = false;
-		}
-
-		// Check now to not display aircraft east/west of certain longitude based on area selection
-		if (areaSel == 802 && pos.m_Longitude < -34 && entryMinutes == 0) {
-			valid = false;
-		}
-		if (areaSel == 801 && pos.m_Longitude > -26 && entryMinutes == 0) {
-			valid = false;
-		}
-	}	
-
-	/// However we should keep them on the screen if they aren't long out of the airspace
-	CAircraftFlightPlan* acFp = CDataHandler::GetFlightData(target->GetCallsign());
-	if (acFp->IsValid) {
-		// Current time
-		time_t now = time(0);
-
-		// Get the difference in seconds
-		int diffSecs = (int)now - ((int)now + ((int)acFp->ExitTime * 60));
-
-		// If greater than 10 minutes
-		if (diffSecs > 600) {
-			valid = false;
-		}
-		if (diffSecs >= 0 && diffSecs <= 600) {
-			valid = true; // Override postype stuff
-		}
-	}
-	
-	string callsign = (string)screen->GetPlugIn()->ControllerMyself().GetCallsign();
-	if (!screen->GetPlugIn()->ControllerMyself().IsController() || callsign.find("SUP") != string::npos) {
-
-		if (pos.m_Longitude > -70 && pos.m_Longitude < -5)
-			valid = true;
-		if (pos.m_Latitude < 80 && pos.m_Longitude < -35)
-			valid = true;
-	}
-
-	// Lastly let's check if they are assumed
-	if (fp.GetTrackingControllerIsMe()) {
-		valid = true;
-	}
-
-	// Let's check if filtering disabled
-	if (filtersDisabled) { // ALL btn is pressed
-		// If not ever going to enter, or greater than 180 min out (extended from 90)
-		if (entryMinutes < 0)
-			valid = false;
-		if (entryMinutes > 180) {
-			valid = false;
-		}
-		else {
-			valid = true;
-		}
-	}
-
-	return valid;
-}
-
-bool CUtils::IsAircraftEquipped(string rawRemarks, string rawAcInfo, char equipCode) {
-	// Check for PBN string code
-	size_t pbnFound = rawRemarks.find("PBN/");
-
-	// Extract B1 & B2 if they exist
-	if (pbnFound != string::npos) {
-		pbnFound += 4;
-		for (char c = rawRemarks[pbnFound]; c != ' '; c = rawRemarks[pbnFound]) {
-			if (c == 'B' && (rawRemarks[pbnFound + 1] == '1' || rawRemarks[pbnFound + 1] == '2')) {
-				return true;
-			}
-			// Increment
-			pbnFound++;
-		}
-		// We didn't find one so return false
-		return false;
-	}
-
-	// Check equipment code
-	if (equipCode != '?') {
-		// Check if it L
-		if (equipCode == 'L')
-			return true; // Aircraft is AGCS equipped
-		return false;
-	}
-	return false;  // Default - not equipped
-}
-
-// Get radar target mode
-CRadarTargetMode CUtils::GetTargetMode(int radarFlags) {
-	// Switch the flags
-	switch (radarFlags) {
-		case 0:
-			return CRadarTargetMode::ADS_B;
-			break;
-		case 1:
-		case 7:
-			return CRadarTargetMode::PRIMARY;
-			break;
-		case 3:
-		case 2:
-			return CRadarTargetMode::SECONDARY_C;
-			break;
-		case 6:
-			return CRadarTargetMode::SECONDARY_S;
-			break;
-		default:
-			return CRadarTargetMode::ADS_B;
-	}
-}
-
-// Get radar target mode
-int CUtils::GetTargetModeInt(int radarFlags)
-{
-	// Switch the flags
-	switch (radarFlags) {
-	case 0:
-		return 0;
-		break;
-	case 1:
-	case 7:
-		return 1;
-		break;
-	case 3:
-	case 2:
-		return 2;
-		break;
-	case 6:
-		return 3;
-		break;
-	default:
-		return 3;
-	}
-}
-
-CPosition CUtils::PositionFromLatLon(double lat, double lon) {
-	// Latitude
-	int degrees = (int)floor(lat);
-	double minutes = (lat - (double)degrees) * 60;
-	double seconds = (minutes - floor(minutes)) * 60;
-	degrees = abs(degrees); // Get absolute value
-	string degreesFormatted;
-	string minutesFormatted;
-	string secondsFormatted;
-	if (degrees < 10) { // Format degrees
-		degreesFormatted = "N" + to_string(0) + to_string(0) + to_string(degrees);
-	}
-	else if (degrees < 100) {
-		degreesFormatted = "N" + to_string(0) + to_string(degrees);
-	}
-	else {
-		degreesFormatted = "N" + to_string(degrees);
-	}
-	if (minutes < 10) { // Format minutes
-		minutesFormatted = to_string(0) + to_string((int)minutes);
-	}
-	else if (minutes == 0) {
-		minutesFormatted = to_string(0) + to_string(0);
-	}
-	else {
-		minutesFormatted = to_string((int)minutes);
-	}
-	if (seconds < 10 && seconds > 0) { // Format seconds
-		secondsFormatted = to_string(0) + to_string(seconds);
-	}
-	else if (minutes == 0) {
-		secondsFormatted = to_string(0) + to_string(0);
-	}
-	else {
-		secondsFormatted = to_string(seconds);
-	}
-	string latitude = degreesFormatted + "." + minutesFormatted + "." + secondsFormatted;
-	// Longitude
-	degrees = (int)ceil(lon);
-	minutes = (lon - (double)degrees) * 60;
-	seconds = (minutes - floor(minutes)) * 60;
-	degrees = abs(degrees); // Get absolute value
-	if (degrees < 10) { // Format degrees
-		degreesFormatted = "W" + to_string(0) + to_string(0) + to_string(abs(degrees));
-	}
-	else if (degrees < 100) {
-		degreesFormatted = "W" + to_string(0) + to_string(abs(degrees));
-	}
-	else {
-		degreesFormatted = "W" + to_string(abs(degrees));
-	}
-	if (minutes < 10) { // Format minutes
-		minutesFormatted = to_string(0) + to_string((int)minutes);
-	}
-	else if (minutes == 0) {
-		minutesFormatted = to_string(0) + to_string(0);
-	}
-	else {
-		minutesFormatted = to_string((int)minutes);
-	}
-	if (seconds < 10 && seconds > 0) { // Format seconds
-		secondsFormatted = to_string(0) + to_string(seconds);
-	}
-	else if (seconds == 0) {
-		secondsFormatted = to_string(0) + to_string(0);
-	}
-	else {
-		secondsFormatted = to_string(seconds);
-	}
-	string longitude = degreesFormatted + "." + minutesFormatted + "." + secondsFormatted;
-
-	// Return
-	CPosition pos;
-	pos.LoadFromStrings(longitude.c_str(), latitude.c_str());
-	return pos;
-}
-
-int CUtils::GetMach(int groundSpeed, int speedSound) {
-	double result = ((double)groundSpeed / (double)speedSound) * 100.0;
-	return (int)result;
-}
-
-string CUtils::RoundDecimalPlaces(double num, int precision) {
-	std::stringstream ss;
-	ss << std::fixed << setprecision(precision) << num;
-	return ss.str();
-}
-
-string CUtils::PadWithZeros(int width, int number) {
-	std::stringstream ss;
-	ss << setfill('0') << setw(width) << number;
-	return ss.str();
-}
-
-bool CUtils::IsAllAlpha(string str) {
-	// Check whether there are any numbers in the item
-	bool isAllAlpha = true;
-	for (int i = 0; i < str.size(); i++) {
-		if (isdigit(str[i])) {
-			isAllAlpha = false;
-		}
-	}
-
-	return isAllAlpha;
-}
-
-string CUtils::GetSelcalCode(CFlightPlan* fpData) {
-	// Get SELCAL code
-	string remarks = fpData->GetFlightPlanData().GetRemarks();
-	size_t found = remarks.find(string("SEL/"));
-	// If found
-	if (found != string::npos) {
-		return remarks.substr(found + 4, 4);
-	}
-	return "";
-}
-
-string CUtils::GetSelcalForAircraft(CFlightPlan* fp) {
-    if (!fp) return "";
-
-    // 1) Prefer SEL/XXXX from remarks
-    string fromRemarks = GetSelcalCode(fp);
-    if (fromRemarks.size() == 4) return fromRemarks;
-
-    // 2) Fall back to locally stored SELCAL for this callsign
-    const string cs = fp->GetCallsign();
-    auto it = SelcalStorage.find(cs);
-    if (it != SelcalStorage.end()) return it->second;
-
-    return "";
-}
-
-void CUtils::StoreSelcal(const string& callsign, const string& code) {
-    if (callsign.empty()) return;
-    if (code.size() != 4) return;
-    SelcalStorage[callsign] = code;
-}
-
-void CUtils::ClearStoredSelcal(const string& callsign) {
-    if (callsign.empty()) return;
-    SelcalStorage.erase(callsign);
-}
-
-
-string CUtils::ParseZuluTime(bool delimit, int deltaTime, CFlightPlan* fp, int fix) {
-	time_t now = time(0);
-	tm* zuluTime = gmtime(&now);
-	int deltaMinutes = 0;
-	if (deltaTime != -1) {
-		deltaMinutes = deltaTime;
-	}
-	if (fix != -1) {
-		deltaMinutes = fp->GetExtractedRoute().GetPointDistanceInMinutes(fix);
-	}
-	int hours = zuluTime->tm_hour;
-	int minutes = zuluTime->tm_min + deltaMinutes;
-
-	if (minutes >= 60) {
-		// Get minutes
-		int minRemainder = minutes % 60;
-
-		// Get number of hours
-		hours += (minutes - minRemainder) / 60;
-
-		// Reassign number of minutes
-		minutes = minRemainder;
-	}
-
-	// Check if over 24 hours
-	if (hours >= 24) {
-		hours = hours - 24;
-	}
-
-
-	// Pad for zeros
-	string strHours;
-	if (hours < 10) {
-		if (hours == 0) {
-			strHours = "00";
-		}
-		else {
-			strHours = "0" + to_string(hours);
-		}
-	}
-	else {
-		strHours = to_string(hours);
-	}
-
-	string strMinutes;
-	if (minutes < 10) {
-		if (minutes == 0) {
-			strMinutes = "00";
-		}
-		else {
-			strMinutes = "0" + to_string(minutes);
-		}
-	}
-	else {
-		strMinutes = to_string(minutes);
-	}
-
-	if (delimit) {
-		return strHours + ":" + strMinutes;
-	}
-	else {
-		return strHours + strMinutes;
-	}
-}
-
-int CUtils::GetDistanceBetweenPoints(POINT p1, POINT p2) {
-	// Get distance
-	return sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
-}
-
-POINT CUtils::GetMidPoint(POINT p1, POINT p2) {
-	// Return midpoint
-	return { (p1.x + p2.x) / 2, (p1.y + p2.y) / 2 };
-}
-
-int CUtils::GetTimeDistanceSpeed(int distanceNM, int speedGS) {
-	// Get time in minutes
-	int temp = ((float)distanceNM / (float)speedGS) * 60;
-	return ((float)distanceNM / (float)speedGS) * 60;
-}
-
-double CUtils::GetDistanceSpeedTime(int speedGS, int timeSec) {
-	// Get distance in metres
-	return ((float)speedGS * 0.514444) * ((float)timeSec);
-}
-
-double CUtils::ToRadians(double degrees) {
-	return degrees / 180.0 * M_PI;
-}
-
-double CUtils::ToDegrees(double radians) {
-	return radians / M_PI * 180.0;
-}
-
-double CUtils::MetresToNauticalMiles(double metres) {
-	return double(metres * 0.00053996);
-}
- 
-template <typename T> int sign(T val) {
-	return (T(0) < val) - (val < T(0));
-}
-
-// This algorithm is a general solution to get the angle of intersection to any given path
-double CUtils::GetPathAngle(double hdg1, double hdg2) {
-	// Get theta
-	double theta = abs(hdg2 - hdg1);
-
-	// If the angle is obtuse, the aircraft are approaching, so minus 180
-	if (theta > 90) return theta - 180;
-
-	// Otherwise just return theta
-	return theta;
-}
-
-CPosition CUtils::GetPointDistanceBearing(CPosition position, int distanceMetres, int heading) {
-
-	// Get distance in nautical miles
-	double distance = MetresToNauticalMiles(distanceMetres) / 60 * M_PI / 180;
-
-	// Convert track heading and coordinates to radians
-	double track = ToRadians(heading);
-	double lat = ToRadians(position.m_Latitude);
-	double lon = ToRadians(position.m_Longitude);
-
-	// Calculate lat
-	double newLat = asin(sin(lat) * cos(distance) + cos(lat) * sin(distance) * cos(track));
-
-	// Calculate lon
-	double newLon = cos(newLat) == 0 ? lon : fmod(lon + asin(sin(track) * sin(distance) / cos(newLat)) + M_PI, 2 * M_PI) - M_PI;
-	
-	// Return
-	CPosition newPos;
-	newPos.m_Latitude = CUtils::ToDegrees(newLat);
-	newPos.m_Longitude = CUtils::ToDegrees(newLon);
-	return newPos;
-}
-
-// Get the intersection between two vectors from two screen coordinates and bearings
-// This algorithm utilises Euclidean geometry, taking advantage of the available conversions between lat/lon and screen coordinates to get accurate points. 
-// If this creates inaccuracies, I will re-do the algorithm in non-Euclidian terms.
-POINT CUtils::GetIntersectionFromPointBearing(POINT position1, POINT position2, double bearing1, double bearing2) {
-	/* We solve the linear system using Cramer's rule: 
-	 * ax1 - y1 = b 
-	 * cx2 - y2 = d
-	 * to find our intercept. (Origin is 0,0 to lat/lon)
-	 * 
-	 * Cramer's rule in terms of this solution: 
-	 * Ax = b => xi = det(Ai)/det(A) | i = 1, 2
-	 * 
-	 * We use trigonometry to convert the bearings into positive and negative slopes:
-	 * slope = 1 / tan(bearing) where bearing is in radians
-	 */
-	
-	// Get the slopes
-	double slope1 = 1.0 / tan(ToRadians(bearing1));
-	double slope2 = 1.0 / tan(ToRadians(bearing2));
-
-	// Get our b and d values
-	double b = (slope1 * position1.x) + position1.y;
-	double d = (slope2 * position2.x) + position2.y;
-
-	// Calculate determinents using the coefficient matrix:
-	// [slope1][1]
-	// [slope2][1]
-	// and the answer matrix:
-	// [b]
-	// [d]
-	double determinent = slope1 - slope2;
-	double detX = b - d;
-	double detY = (slope1 * d) - (slope2 * b);
-
-	// From the determinents, get our new X and Y values
-	int newX = round(detX / determinent);
-	int newY = round(detY / determinent);
-
-	// Return the screen coordinates
-	return POINT({ newX, newY });
-}
-
-HANDLE CUtils::GetESProcess()
-{
-	CString strProcessName = "EuroScope.exe";
-
-	DWORD aProcesses[1024], cbNeeded, cProcesses;
-	if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded))
-		return NULL;
-
-	// Calculate how many process identifiers were returned.
-	cProcesses = cbNeeded / sizeof(DWORD);
-
-	// Print the name and process identifier for each process.
-	for (unsigned int i = 0; i < cProcesses; i++)
-	{
-		DWORD dwProcessID = aProcesses[i];
-		// Get a handle to the process
-		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, dwProcessID);
-
-		// Get the process name
-		TCHAR szEachProcessName[MAX_PATH];
-		if (NULL != hProcess)
-		{
-			HMODULE hMod;
-			DWORD cbNeeded;
-
-			// Iterate
-			if (EnumProcessModules(hProcess, &hMod, sizeof(hMod), &cbNeeded))
-			{
-				GetModuleBaseName(hProcess, hMod, szEachProcessName, sizeof(szEachProcessName) / sizeof(TCHAR));
-			}
-		}
-
-		// Return
-		if (strProcessName.CompareNoCase(szEachProcessName) == 0)
-			return hProcess;
-
-		CloseHandle(hProcess);
-	}
-
-	return NULL;
-}
-
-string CUtils::GetLatLonString(CPosition* pos, bool space, int precision, bool showDecimal) { 
-	// Result string
-	string res;
-
-	// Parse latitude
-	if (pos->m_Latitude >= 0) {
-		if (showDecimal)
-			res += "N" + (precision == -1 ? to_string(pos->m_Latitude) : RoundDecimalPlaces(pos->m_Latitude, precision));
-		else
-			res += "N" + to_string((int)(pow(10, 2) * pos->m_Latitude));
-	}
-	else {
-		if (showDecimal)
-			res += "S" + (precision == -1 ? to_string(abs(pos->m_Latitude)) : RoundDecimalPlaces(abs(pos->m_Latitude), precision));
-		else
-			res += "S" + to_string((int)(pow(10, 2) * abs(pos->m_Latitude)));
-	}
-
-	// Parse longitude
-	if (pos->m_Longitude > 0) {
-		if (space) {
-			if (showDecimal)
-				res += " E" + (precision == -1 ? to_string(pos->m_Longitude) : RoundDecimalPlaces(pos->m_Longitude, precision));
-			else
-				res += " E" + to_string((int)(pow(10, 2) * abs(pos->m_Longitude)));
-		}
-		else {
-			if (showDecimal)
-				res += "E" + (precision == -1 ? to_string(pos->m_Longitude) : RoundDecimalPlaces(pos->m_Longitude, precision));
-			else
-				res += "E" + to_string((int)(pow(10, 2) * abs(pos->m_Longitude)));
-		}
-	}		
-	else {
-		if (space) {
-			if (showDecimal)
-				res += " W" + (precision == -1 ? to_string(abs(pos->m_Longitude)) : RoundDecimalPlaces(abs(pos->m_Longitude), precision));
-			else
-				res += " W" + to_string((int)(pow(10, 2) * abs(pos->m_Longitude)));
-		}
-		else {
-			if (showDecimal)
-				res += "W" + (precision == -1 ? to_string(abs(pos->m_Longitude)) : RoundDecimalPlaces(abs(pos->m_Longitude), precision));
-			else
-				res += "W" + to_string((int)(pow(10, 2) * abs(pos->m_Longitude)));
-		}
-	}
-		
-
-	// Return result
-	return res;
-}

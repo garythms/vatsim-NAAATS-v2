@@ -19,6 +19,7 @@ namespace Colours {
 	const Color TargetBlue(130, 175, 192);
 	const Color LightGreen(81, 188, 161);
 	const Color ScreenBlue(59, 110, 179);
+	const Color DarkBackground(30, 30, 30);
 	const Color LightBackground(165, 199, 249);
 	const Color NoReadBk(254, 255, 199 );
 	const Color RouteBox(195, 219, 255);

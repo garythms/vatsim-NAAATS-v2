@@ -7,16 +7,20 @@
 #include <iomanip>
 #include <algorithm>
 
-const string HOPPIE_URL = "http://www.hoppie.nl/acars/system/connect.html";
+const string HOPPIE_URL = "https://www.hoppie.nl/acars/system/connect.html";
 
 CHoppieClient::CHoppieClient() 
-	: m_connected(false), m_nextMessageId(1), m_lastPollTime(0), m_soundEnabled(true) {
+	: m_connected(false), m_nextMessageId(1), m_lastPollTime(0), m_soundEnabled(true), m_hInternet(nullptr) {
 	// Default sound path - will be in plugin directory
 	m_soundPath = "";
 }
 
 CHoppieClient::~CHoppieClient() {
 	Disconnect();
+	if (m_hInternet) {
+		InternetCloseHandle(m_hInternet);
+		m_hInternet = nullptr;
+	}
 }
 
 void CHoppieClient::SetLogonCode(const string& code) {
@@ -25,6 +29,10 @@ void CHoppieClient::SetLogonCode(const string& code) {
 
 void CHoppieClient::SetCallsign(const string& callsign) {
 	m_callsign = callsign;
+}
+
+void CHoppieClient::SetAutoLogin(bool enabled) {
+	m_autoLogin = enabled;
 }
 
 string CHoppieClient::GetCurrentTimestamp() {
@@ -37,98 +45,177 @@ string CHoppieClient::GetCurrentTimestamp() {
 }
 
 string CHoppieClient::UrlEncode(const string& str) {
-	string result;
+	string encoded = "";
+	char buf[4];
+	
 	for (char c : str) {
 		if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-			result += c;
-		}
-		else if (c == ' ') {
-			result += '+';
+			encoded += c;
 		}
 		else {
-			stringstream ss;
-			ss << '%' << uppercase << hex << setfill('0') << setw(2) << (int)(unsigned char)c;
-			result += ss.str();
+			sprintf_s(buf, "%%%02X", c);
+			encoded += buf;
 		}
 	}
-	return result;
+	
+	return encoded;
+}
+
+bool CHoppieClient::IsLoggedOn(const string& callsign) {
+	if (m_connectedAircraft.find(callsign) != m_connectedAircraft.end()) {
+		return m_connectedAircraft[callsign].LoggedOn;
+	}
+	return false;
 }
 
 string CHoppieClient::HttpPost(const string& data) {
 	string response;
+	int maxRetries = 1; // Retry once if session reset is needed
 	
-	HINTERNET hInternet = InternetOpenA("vNAAATS-CPDLC/2.0", 
+	for (int attempt = 0; attempt <= maxRetries; attempt++) {
+		// Ensure internet handle is open
+		if (!m_hInternet) {
+			m_hInternet = InternetOpenA("vNAAATS-CPDLC/2.0", 
 										INTERNET_OPEN_TYPE_PRECONFIG, 
 										NULL, NULL, 0);
-	if (!hInternet) {
-		DWORD error = GetLastError();
-		CLogger::Log(CLogType::ERR, "Failed to open internet handle. Error: " + to_string(error), "CHoppieClient::HttpPost");
-		return "error {connection failed - no internet handle}";
-	}
-	
-	// Connect to the Hoppie server
-	HINTERNET hConnect = InternetConnectA(hInternet,
-										  "www.hoppie.nl",
-										  INTERNET_DEFAULT_HTTP_PORT,
-										  NULL, NULL,
-										  INTERNET_SERVICE_HTTP,
-										  0, 0);
-	
-	if (!hConnect) {
-		DWORD error = GetLastError();
-		CLogger::Log(CLogType::ERR, "Failed to connect to Hoppie server. Error: " + to_string(error), "CHoppieClient::HttpPost");
-		InternetCloseHandle(hInternet);
-		return "error {connection failed - error " + to_string(error) + "}";
-	}
-	
-	// Open HTTP request
-	HINTERNET hRequest = HttpOpenRequestA(hConnect,
-										  "POST",
-										  "/acars/system/connect.html",
-										  NULL, NULL, NULL,
-										  INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE,
-										  0);
-	
-	if (!hRequest) {
-		DWORD error = GetLastError();
-		CLogger::Log(CLogType::ERR, "Failed to open HTTP request. Error: " + to_string(error), "CHoppieClient::HttpPost");
-		InternetCloseHandle(hConnect);
-		InternetCloseHandle(hInternet);
-		return "error {request failed - error " + to_string(error) + "}";
-	}
-	
-	// Set headers for POST
-	string headers = "Content-Type: application/x-www-form-urlencoded";
-	
-	CLogger::Log(CLogType::NORM, "Sending POST to Hoppie: " + data, "CHoppieClient::HttpPost");
-	
-	// Send the request
-	BOOL result = HttpSendRequestA(hRequest,
-								   headers.c_str(),
-								   (DWORD)headers.length(),
-								   (LPVOID)data.c_str(),
-								   (DWORD)data.length());
-	
-	if (result) {
-		char buffer[8192];
-		DWORD bytesRead;
-		while (InternetReadFile(hRequest, buffer, sizeof(buffer) - 1, &bytesRead) && bytesRead > 0) {
-			buffer[bytesRead] = '\0';
-			response += buffer;
+			if (!m_hInternet) {
+				DWORD error = GetLastError();
+				m_lastStatusMessage = "InternetOpen failed: " + to_string(error);
+				CLogger::Log(CLogType::ERR, "Failed to open internet handle. Error: " + to_string(error), "CHoppieClient::HttpPost");
+				return "error {connection failed - no internet handle}";
+			}
+			
+			// Set timeouts (15 seconds)
+			DWORD timeout = 15000;
+			InternetSetOption(m_hInternet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeout, sizeof(timeout));
+			InternetSetOption(m_hInternet, INTERNET_OPTION_SEND_TIMEOUT, &timeout, sizeof(timeout));
+			InternetSetOption(m_hInternet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeout, sizeof(timeout));
 		}
-		CLogger::Log(CLogType::NORM, "Response received: " + response, "CHoppieClient::HttpPost");
-	}
-	else {
-		DWORD error = GetLastError();
-		CLogger::Log(CLogType::ERR, "HTTP request failed. Error: " + to_string(error), "CHoppieClient::HttpPost");
-		response = "error {request failed - error " + to_string(error) + "}";
+		
+		// Connect to the Hoppie server
+		HINTERNET hConnect = InternetConnectA(m_hInternet,
+											  "www.hoppie.nl",
+											  INTERNET_DEFAULT_HTTPS_PORT,
+											  NULL, NULL,
+											  INTERNET_SERVICE_HTTP,
+											  0, 0);
+		
+		if (!hConnect) {
+			DWORD error = GetLastError();
+			
+			// Handle resource exhaustion (Error 1450)
+			if (error == ERROR_NO_SYSTEM_RESOURCES || error == 1450) {
+				CLogger::Log(CLogType::ERR, "Resource exhaustion (1450) detected. Resetting Internet Session.", "CHoppieClient::HttpPost");
+				if (m_hInternet) {
+					InternetCloseHandle(m_hInternet);
+					m_hInternet = nullptr; 
+				}
+				
+				// Retry loop will handle re-opening
+				if (attempt < maxRetries) {
+					CLogger::Log(CLogType::NORM, "Retrying connection after session reset...", "CHoppieClient::HttpPost");
+					continue;
+				}
+				
+				return "error {resource exhaustion - session reset failed}";
+			}
+
+			m_lastStatusMessage = "InternetConnect failed: " + to_string(error);
+			CLogger::Log(CLogType::ERR, "Failed to connect to Hoppie server. Error: " + to_string(error), "CHoppieClient::HttpPost");
+			// Don't close m_hInternet here as it might be temporary network issue
+			return "error {connection failed - error " + to_string(error) + "}";
+		}
+		
+		// Open HTTP request
+		HINTERNET hRequest = HttpOpenRequestA(hConnect,
+											  "POST",
+											  "/acars/system/connect.html",
+											  NULL, NULL, NULL,
+											  INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_SECURE,
+											  0);
+		
+		if (!hRequest) {
+			DWORD error = GetLastError();
+			
+			// Handle resource exhaustion (Error 1450)
+			if (error == ERROR_NO_SYSTEM_RESOURCES || error == 1450) {
+				CLogger::Log(CLogType::ERR, "Resource exhaustion (1450) detected in OpenRequest. Resetting Internet Session.", "CHoppieClient::HttpPost");
+				InternetCloseHandle(hConnect);
+				if (m_hInternet) {
+					InternetCloseHandle(m_hInternet);
+					m_hInternet = nullptr;
+				}
+				
+				if (attempt < maxRetries) {
+					CLogger::Log(CLogType::NORM, "Retrying request after session reset...", "CHoppieClient::HttpPost");
+					continue;
+				}
+				return "error {resource exhaustion - session reset failed}";
+			}
+
+			m_lastStatusMessage = "HttpOpenRequest failed: " + to_string(error);
+			CLogger::Log(CLogType::ERR, "Failed to open HTTP request. Error: " + to_string(error), "CHoppieClient::HttpPost");
+			InternetCloseHandle(hConnect);
+			return "error {request failed - error " + to_string(error) + "}";
+		}
+		
+		// Set headers for POST
+		string headers = "Content-Type: application/x-www-form-urlencoded";
+		
+		CLogger::Log(CLogType::NORM, "Sending POST to Hoppie: " + data, "CHoppieClient::HttpPost");
+		
+		// Send the request
+		BOOL result = HttpSendRequestA(hRequest,
+									   headers.c_str(),
+									   (DWORD)headers.length(),
+									   (LPVOID)data.c_str(),
+									   (DWORD)data.length());
+		
+		if (result) {
+			char buffer[8192];
+			DWORD bytesRead;
+			while (InternetReadFile(hRequest, buffer, sizeof(buffer) - 1, &bytesRead) && bytesRead > 0) {
+				buffer[bytesRead] = '\0';
+				response += buffer;
+			}
+			CLogger::Log(CLogType::NORM, "Response received: " + response, "CHoppieClient::HttpPost");
+			
+			// Success! Clean up handles and return response
+			InternetCloseHandle(hRequest);
+			InternetCloseHandle(hConnect);
+			return response.empty() ? "error {no response}" : response;
+		}
+		else {
+			DWORD error = GetLastError();
+			m_lastStatusMessage = "HttpSendRequest failed: " + to_string(error);
+			CLogger::Log(CLogType::ERR, "HTTP request failed. Error: " + to_string(error), "CHoppieClient::HttpPost");
+			response = "error {request failed - error " + to_string(error) + "}";
+			
+			// Also check for 1450 here
+			if (error == ERROR_NO_SYSTEM_RESOURCES || error == 1450) {
+				InternetCloseHandle(hRequest);
+				InternetCloseHandle(hConnect);
+				if (m_hInternet) {
+					InternetCloseHandle(m_hInternet);
+					m_hInternet = nullptr;
+				}
+				
+				if (attempt < maxRetries) {
+					CLogger::Log(CLogType::NORM, "Retrying send after session reset...", "CHoppieClient::HttpPost");
+					continue;
+				}
+				return "error {resource exhaustion - session reset failed}";
+			}
+		}
+		
+		InternetCloseHandle(hRequest);
+		InternetCloseHandle(hConnect);
+		// Do NOT close m_hInternet here
+		
+		return response;
 	}
 	
-	InternetCloseHandle(hRequest);
-	InternetCloseHandle(hConnect);
-	InternetCloseHandle(hInternet);
-	
-	return response.empty() ? "error {no response}" : response;
+	return "error {max retries exceeded}";
 }
 
 bool CHoppieClient::PingServer() {
@@ -147,6 +234,16 @@ bool CHoppieClient::PingServer() {
 	
 	string response = HttpPost(postData);
 	bool success = response.find("ok") == 0;
+	
+	if (!success) {
+		if (response.find("error") == 0) {
+			m_lastStatusMessage = "Hoppie Error: " + response;
+		} else {
+			m_lastStatusMessage = "Unknown server response: " + response;
+		}
+	} else {
+		m_lastStatusMessage = "Connected successfully";
+	}
 	
 	CLogger::Log(success ? CLogType::NORM : CLogType::ERR, 
 				 "Ping server response: " + response + " (success=" + (success ? "true" : "false") + ")", 
@@ -184,19 +281,27 @@ void CHoppieClient::Poll() {
 	CLogger::Log(CLogType::NORM, "Starting poll for " + m_callsign, "CHoppieClient::Poll");
 	
 	lock_guard<mutex> lock(m_mutex);
-	
-	string postData = "logon=" + UrlEncode(m_logonCode) +
-					  "&from=" + UrlEncode(m_callsign) +
-					  "&to=SERVER" +
-					  "&type=poll" +
-					  "&packet=";
-	
-	string response = HttpPost(postData);
-	m_lastPollTime = time(0);
-	
-	CLogger::Log(CLogType::NORM, "Poll response: " + response, "CHoppieClient::Poll");
-	
-	ParseResponse(response);
+
+	try {
+		string postData = "logon=" + UrlEncode(m_logonCode) +
+						  "&from=" + UrlEncode(m_callsign) +
+						  "&to=SERVER" +
+						  "&type=poll" +
+						  "&packet=";
+		
+		string response = HttpPost(postData);
+		m_lastPollTime = time(0);
+		
+		CLogger::Log(CLogType::NORM, "Poll response: " + response, "CHoppieClient::Poll");
+		
+		ParseResponse(response);
+	}
+	catch (const std::exception& e) {
+		CLogger::Log(CLogType::ERR, string("Exception in Poll: ") + e.what(), "CHoppieClient::Poll");
+	}
+	catch (...) {
+		CLogger::Log(CLogType::ERR, "Unknown exception in Poll", "CHoppieClient::Poll");
+	}
 }
 
 void CHoppieClient::ParseResponse(const string& response) {
@@ -257,11 +362,12 @@ void CHoppieClient::ParseResponse(const string& response) {
 		msg.ReplyToId = -1;
 		
 		// Parse CPDLC-specific format
+		bool shouldAlert = true;
 		if (type == "cpdlc") {
-			ParseCpdlcPacket(from, content);
+			ParseCpdlcPacket(msg, from, content);
 			
 			// Check for logon request
-			string upperContent = content;
+			string upperContent = msg.Content; // Use parsed content
 			transform(upperContent.begin(), upperContent.end(), upperContent.begin(), ::toupper);
 			
 			if (upperContent.find("REQUEST LOGON") != string::npos ||
@@ -275,7 +381,12 @@ void CHoppieClient::ParseResponse(const string& response) {
 					m_connectedAircraft[from] = ac;
 				}
 				
-				if (m_onLogonRequest) {
+				if (m_autoLogin) {
+					AcceptLogon(from);
+					CLogger::Log(CLogType::NORM, "Auto-accepted logon from " + from, "CHoppieClient::ParseResponse");
+					shouldAlert = false;
+				}
+				else if (m_onLogonRequest) {
 					m_onLogonRequest(from);
 				}
 			}
@@ -306,6 +417,16 @@ void CHoppieClient::ParseResponse(const string& response) {
 											 "CHoppieClient::ParseResponse");
 								break;
 							}
+							// Check for release message
+							if (pendingUpper.find("NO FURTHER ATC AVAILABLE") != string::npos) {
+								// Mark original message as acknowledged
+								pendingMsg.Status = CpdlcMessageStatus::ACKNOWLEDGED;
+								// Auto-disconnect this aircraft
+								DisconnectAircraft(from);
+								CLogger::Log(CLogType::NORM, "Auto-disconnected " + from + " after WILCO to RELEASE message", 
+											 "CHoppieClient::ParseResponse");
+								break;
+							}
 						}
 					}
 				}
@@ -321,11 +442,13 @@ void CHoppieClient::ParseResponse(const string& response) {
 		}
 		
 		// Play notification sound
-		PlayMessageSound();
-		
-		// Trigger CPDLC button flash alert on menu bar
-		CMenuBar::CpdlcAlert = true;
-		CMenuBar::CpdlcAlertTime = time(0);
+		if (shouldAlert) {
+			PlayMessageSound();
+			
+			// Trigger CPDLC button flash alert on menu bar
+			CMenuBar::CpdlcAlert = true;
+			CMenuBar::CpdlcAlertTime = time(0);
+		}
 		
 		// Callback
 		if (m_onMessageReceived) {
@@ -340,7 +463,7 @@ void CHoppieClient::ParseResponse(const string& response) {
 	}
 }
 
-void CHoppieClient::ParseCpdlcPacket(const string& from, const string& content) {
+void CHoppieClient::ParseCpdlcPacket(CCpdlcMessage& msg, const string& from, const string& content) {
 	// CPDLC format: /data2/<min>/<mrn>/<message>
 	if (content.find("/data2/") == 0) {
 		size_t firstSlash = 7;  // After "/data2/"
@@ -354,20 +477,17 @@ void CHoppieClient::ParseCpdlcPacket(const string& from, const string& content) 
 		string mrn = content.substr(secondSlash + 1, thirdSlash - secondSlash - 1);
 		string message = content.substr(thirdSlash + 1);
 		
-		// Update the last pending message with parsed data
-		if (!m_pendingMessages.empty()) {
-			CCpdlcMessage& lastMsg = m_pendingMessages.back();
-			try {
-				lastMsg.Id = stoi(min);
-				if (!mrn.empty()) {
-					lastMsg.ReplyToId = stoi(mrn);
-				}
+		// Update the message with parsed data
+		try {
+			msg.Id = stoi(min);
+			if (!mrn.empty()) {
+				msg.ReplyToId = stoi(mrn);
 			}
-			catch (...) {
-				// Parse error, ignore
-			}
-			lastMsg.Content = message;
 		}
+		catch (...) {
+			// Parse error, ignore
+		}
+		msg.Content = message;
 	}
 }
 

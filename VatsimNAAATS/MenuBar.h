@@ -65,6 +65,8 @@ class CMenuBar
 		static const int BTN_CPDLC = 29;
 		static const int BTN_FDD = 33;
 		static const int BTN_VACS = 34;
+		static const int BTN_SCROLL_LEFT = 35;
+		static const int BTN_SCROLL_RIGHT = 36;
 
 		// CPDLC alert state (used by HoppieClient / CPDLCWindow to flash the button)
 		static bool CpdlcAlert;
@@ -84,6 +86,8 @@ class CMenuBar
 		map<int, CDropDown> dropDowns;
 
 	private:
+		int m_scrollOffset = 0;
+		int m_maxScroll = 0;
 		// Menu bar objects
 		map<int, CWinButton> buttons;
 		map<int, CTextInput> textInputs;

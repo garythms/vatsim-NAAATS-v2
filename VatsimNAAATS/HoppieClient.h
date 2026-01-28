@@ -61,6 +61,7 @@ public:
 	// Configuration
 	void SetLogonCode(const string& code);
 	void SetCallsign(const string& callsign);
+	void SetAutoLogin(bool enabled);
 	string GetCallsign() const { return m_callsign; }
 	string GetLogonCode() const { return m_logonCode; }
 	
@@ -131,13 +132,21 @@ public:
 	
 	// Clear all data
 	void ClearAll();
+
+	// Check if aircraft is logged on
+	bool IsLoggedOn(const string& callsign);
+
+	// Status message for connection errors
+	string GetLastStatusMessage() const { return m_lastStatusMessage; }
 	
 private:
 	string m_logonCode;
 	string m_callsign;
 	bool m_connected;
+	bool m_autoLogin;
 	int m_nextMessageId;
 	time_t m_lastPollTime;
+	string m_lastStatusMessage;
 	
 	// Sound
 	string m_soundPath;
@@ -155,7 +164,10 @@ private:
 	string HttpPost(const string& data);
 	string HttpGet(const string& url);
 	void ParseResponse(const string& response);
-	void ParseCpdlcPacket(const string& from, const string& content);
+	void ParseCpdlcPacket(CCpdlcMessage& msg, const string& from, const string& content);
 	string GetCurrentTimestamp();
 	string UrlEncode(const string& str);
+
+	// WinInet handle
+	HINTERNET m_hInternet;
 };

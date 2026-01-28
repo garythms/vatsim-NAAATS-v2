@@ -6,7 +6,7 @@ bool CLogger::initialised = false;
 bool CLogger::initialisedAc = false;
 
 void CLogger::Log(CLogType type, string text, string invokedBy) {
-	if (DEBUG_MODE) {
+	if (DEBUG_MODE || (ERROR_LOGGING && (type == CLogType::WARN || type == CLogType::ERR || type == CLogType::EXC || type == CLogType::INIT))) {
 		// Prefix
 		string prefix = GeneratePrefix(type);
 
@@ -25,6 +25,28 @@ void CLogger::Log(CLogType type, string text, string invokedBy) {
 		log << prefix.c_str() << invokedBy << text.c_str() << "\n";
 		log.close();
 	}
+}
+
+LONG WINAPI CLogger::UnhandledExceptionHandler(EXCEPTION_POINTERS* pExceptionInfo) {
+	string errorMsg = "CRASH: Unhandled exception caught! Code: ";
+	char buffer[32];
+	sprintf_s(buffer, "0x%08X", pExceptionInfo->ExceptionRecord->ExceptionCode);
+	errorMsg += buffer;
+	errorMsg += " Address: ";
+	sprintf_s(buffer, "0x%p", pExceptionInfo->ExceptionRecord->ExceptionAddress);
+	errorMsg += buffer;
+
+	// Force log
+	Log(CLogType::EXC, errorMsg, "UnhandledExceptionHandler");
+
+	// Also try to write a separate crash dump file marker
+	ofstream crashFile;
+	string crashPath = CUtils::DllPath + "\\vNAAATS_CRASH.txt";
+	crashFile.open(crashPath.c_str(), std::ios_base::app | std::ios_base::out);
+	crashFile << errorMsg << "\n";
+	crashFile.close();
+
+	return EXCEPTION_CONTINUE_SEARCH; // Let other handlers (EuroScope/Windows) handle it too so we don't hide it completely
 }
 
 void CLogger::DebugLog(CRadarScreen* screen, string text) {

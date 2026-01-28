@@ -34,7 +34,12 @@ CRadarDisplay::CRadarDisplay()
 	npWindow = new CNotePad({ 300, 300 }, { 800, 200 }); // TODO: save settings
 	cpdlcWindow = new CCPDLCWindow({ 600, 200 }); // TODO: save settings
 	fddWindow = new CFddWindow({ 200, 200 }); // Initial position
+	setupWindow = new CSetupWindow({ 400, 250 }); // Setup/profile
 	menuBar = new CMenuBar();
+
+	// Load settings
+	CUtils::LoadPluginData(this);
+
 	asel = GetPlugIn()->FlightPlanSelectASEL().GetCallsign();
 	fiveSecondTimer = clock();
 	tenSecondTimer = clock();
@@ -55,8 +60,11 @@ CRadarDisplay::~CRadarDisplay()
 	delete npWindow;
 	delete cpdlcWindow;
 	delete fddWindow;
+	delete setupWindow;
 	delete inboundList;
 	delete otherList;
+	delete conflictList;
+	delete menuBar;
 }
 
 void CRadarDisplay::PopulateProgramData() {
@@ -124,6 +132,11 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 	// Graphics object
 	Graphics g(hDC);
+
+	// Check for CPDLC releases
+	if (cpdlcWindow != nullptr) {
+		cpdlcWindow->CheckForRelease(this);
+	}
 
 	// 5 second timer
 	double fiveSecT = (double)(clock() - fiveSecondTimer) / ((double)CLOCKS_PER_SEC);
@@ -758,6 +771,11 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 		if (menuBar->IsButtonPressed(CMenuBar::BTN_NOTEPAD)) {
 			npWindow->RenderWindow(&dc, &g, this);
 		}
+		// Draw setup window if button pressed
+		if (menuBar->IsButtonPressed(CMenuBar::BTN_SETUP)) {
+			if (setupWindow->IsClosed) setupWindow->IsClosed = false;
+			setupWindow->RenderWindow(&dc, &g, this);
+		}
 
 		// Finally, reset the clocks if time has been exceeded
 		if (fiveSecT >= 5) {
@@ -1069,6 +1087,9 @@ void CRadarDisplay::OnMoveScreenObject(int ObjectType, const char* sObjectId, PO
 		if (string(sObjectId) == "WIN_FDD")
 			fddWindow->MoveWindow(Area);
 
+		if (string(sObjectId) == "WIN_SETUP")
+			setupWindow->MoveWindow(Area);
+
 		CUtils::TrackWindowX = Area.left;
 		CUtils::TrackWindowY = Area.top;
 	}
@@ -1106,6 +1127,12 @@ void CRadarDisplay::OnOverScreenObject(int ObjectType, const char* sObjectId, PO
 			menuBar->OnOverDropDownItem(atoi(sObjectId));
 		}
 	}
+	// CPDLC Window
+	else if (ObjectType == WIN_CPDLC) {
+		if (atoi(sObjectId) >= 800) {
+			cpdlcWindow->OnOverDropDownItem(atoi(sObjectId));
+		}
+	}
 	// If it is a message
 	else if (ObjectType == ACTV_MESSAGE) {
 		msgWindow->SelectedMessage = atoi(sObjectId);
@@ -1114,6 +1141,12 @@ void CRadarDisplay::OnOverScreenObject(int ObjectType, const char* sObjectId, PO
 	if (ObjectType == SCREEN_TAG_CS_BTN) {
 		CAcTargets::ButtonStates[sObjectId] = true;
 	}
+
+	// Setup window
+	if (ObjectType == WIN_SETUP) {
+		// Handled to ensure clickability
+	}
+
 	// TODO: button state reset
 	// Refresh
 	RequestRefresh();
@@ -1121,6 +1154,8 @@ void CRadarDisplay::OnOverScreenObject(int ObjectType, const char* sObjectId, PO
 
 void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, POINT Pt, RECT Area, int Button)
 {
+	CLogger::Log(CLogType::NORM, "OnClickScreenObject: Type=" + to_string(ObjectType) + " ID=" + string(sObjectId), "CRadarDisplay::OnClickScreenObject");
+
 	// If menu button
 	if (ObjectType == MENBAR) {
 		if (Button == BUTTON_RIGHT) { // Toggle buttons
@@ -1347,8 +1382,19 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 				GetPlugIn()->OpenPopupEdit(Area, atoi(sObjectId), "");
 		}
 
+		// Setup window
+		if (ObjectType == WIN_SETUP) {
+			CLogger::Log(CLogType::NORM, "WIN_SETUP Click detected. ID: " + string(sObjectId), "CRadarDisplay::OnClickScreenObject");
+			if (setupWindow->IsTextInput(atoi(sObjectId))) {
+				GetPlugIn()->OpenPopupEdit(Area, atoi(sObjectId), setupWindow->GetTextValue(atoi(sObjectId)).c_str());
+			}
+			else {
+				CLogger::Log(CLogType::NORM, "WIN_SETUP Click on non-text object. ID: " + string(sObjectId), "CRadarDisplay::OnClickScreenObject");
+			}
+		}
+
 		// If a flight plan window text entry
-			if (ObjectType == WIN_FLTPLN) {
+		if (ObjectType == WIN_FLTPLN) {
 				// Only allow editing when the input is actually active.
 				// The previous condition used (A != DISABLED || A != INACTIVE) which is always true.
 				if (fltPlnWindow->IsTextInput(atoi(sObjectId)) &&
@@ -1420,6 +1466,8 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 
 void CRadarDisplay::OnButtonDownScreenObject(int ObjectType, const char* sObjectId, POINT Pt, RECT Area, int Button)
 {
+	CLogger::Log(CLogType::NORM, "OnButtonDownScreenObject: Type=" + to_string(ObjectType) + " ID=" + string(sObjectId), "CRadarDisplay::OnButtonDownScreenObject");
+
 	// Track info window
 	if (ObjectType == WIN_TCKINFO) {
 		trackWindow->ButtonDown(atoi(sObjectId));
@@ -1449,6 +1497,12 @@ void CRadarDisplay::OnButtonDownScreenObject(int ObjectType, const char* sObject
 	if (ObjectType == WIN_CPDLC) {
 		if (sObjectId && (isdigit(sObjectId[0]) || sObjectId[0] == '-'))
 			cpdlcWindow->ButtonDown(atoi(sObjectId));
+	}
+
+	// Setup window
+	if (ObjectType == WIN_SETUP) {
+		CLogger::Log(CLogType::NORM, "WIN_SETUP ButtonDown detected. ID: " + string(sObjectId), "CRadarDisplay::OnButtonDownScreenObject");
+		setupWindow->ButtonDown(atoi(sObjectId));
 	}
 
 	// Menu bar
@@ -1520,6 +1574,15 @@ void CRadarDisplay::OnButtonUpScreenObject(int ObjectType, const char* sObjectId
 		}
 	}
 
+	// Setup window
+	if (ObjectType == WIN_SETUP) {
+		CLogger::Log(CLogType::NORM, "WIN_SETUP ButtonUp detected. ID: " + string(sObjectId), "CRadarDisplay::OnButtonUpScreenObject");
+		if (atoi(sObjectId) == CSetupWindow::BTN_CLOSE) {
+			menuBar->SetButtonState(CMenuBar::BTN_SETUP, CInputState::INACTIVE);
+		}
+		setupWindow->ButtonUp(atoi(sObjectId), this);
+	}
+
 	// Menu bar
 	if (ObjectType == MENBAR) {
 		// Clear active routes
@@ -1586,6 +1649,11 @@ void CRadarDisplay::OnFunctionCall(int FunctionId, const char* sItemString, POIN
 	// CPDLC window text input
 	if (cpdlcWindow->IsTextInput(FunctionId)) {
 		cpdlcWindow->SetTextValue(this, FunctionId, string(sItemString));
+	}
+
+	// Setup window text input
+	if (setupWindow->IsTextInput(FunctionId)) {
+		setupWindow->SetTextValue(this, FunctionId, string(sItemString));
 	}
 }
 

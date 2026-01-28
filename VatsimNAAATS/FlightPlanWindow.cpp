@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "FlightPlanWindow.h"
+#include "CPDLCWindow.h"
 #include "Constants.h"
 #include "Styles.h"
 #include "Utils.h"
@@ -2764,6 +2765,18 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 		}
 		if (id == BTN_XCHANGE_TRACK) {
 			if (screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).GetTrackingControllerIsMe()) {
+				// CPDLC Release
+				if (CCPDLCWindow::GetHoppieClient() != nullptr && CCPDLCWindow::GetHoppieClient()->IsConnected() && CCPDLCWindow::GetHoppieClient()->IsLoggedOn(primedPlan->Callsign)) {
+					// Check if we are already pending
+					if (CCPDLCWindow::PendingRelease.find(primedPlan->Callsign) == CCPDLCWindow::PendingRelease.end()) {
+						string msg = "NO FURTHER ATC AVAILABLE MONITOR ADVISORY/UNICOM 122.800 SERVICE TERMINATED";
+						CCPDLCWindow::GetHoppieClient()->SendCpdlc(primedPlan->Callsign, msg);
+						CCPDLCWindow::PendingRelease[primedPlan->Callsign] = true;
+						screen->GetPlugIn()->DisplayUserMessage("CPDLC", "Release Pending", "Waiting for WILCO/ROGER to release tag.", true, false, false, false, false);
+						return; // Wait for response
+					}
+				}
+
 				CLogger::Log(CLogType::NORM, "Attempting to drop aircraft " + primedPlan->Callsign + ".", "CRadarDisplay::OnRefresh");
 				screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).EndTracking();
 				primedPlan->Sector = "-1";
@@ -2893,6 +2906,14 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 		if (id == BTN_XCHANGE_TRANSFER) {
 			try {
 				CLogger::Log(CLogType::NORM, "Initiating handoff of aircraft " + primedPlan->Callsign + " to station " + selectedAuthority + ".", "CRadarDisplay::OnRefresh");
+				
+				// CPDLC Handoff
+				if (CCPDLCWindow::GetHoppieClient() != nullptr && CCPDLCWindow::GetHoppieClient()->IsConnected() && CCPDLCWindow::GetHoppieClient()->IsLoggedOn(primedPlan->Callsign)) {
+					string msg = "CONTACT " + selectedAuthority + " REQ XXX.XX";
+					CCPDLCWindow::GetHoppieClient()->SendCpdlc(primedPlan->Callsign, msg);
+					// Disconnect is handled on WILCO/ROGER response in HoppieClient
+				}
+
 				screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).InitiateHandoff(selectedAuthority.c_str());
 				SetButtonState(BTN_XCHANGE_TRANSFER, CInputState::DISABLED);
 				windowButtons[BTN_XCHANGE_TRACK].Label = "Track";

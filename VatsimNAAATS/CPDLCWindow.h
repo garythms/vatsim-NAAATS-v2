@@ -73,6 +73,30 @@ public:
 	// Selection
 	void SelectAircraft(const string& callsign);
 	void SelectMessage(int messageId);
+	void OnOverDropDownItem(int id);
+
+	// Pending release map (Callsign -> isPending)
+	static map<string, bool> PendingRelease;
+	static map<string, bool> PendingHandoff;
+
+	// Station structure
+	struct CPDLCStation {
+		string Code;
+		string Name;
+		string Radio;
+	};
+	static map<string, CPDLCStation> Stations;
+	static void InitializeStations();
+	static CPDLCStation* GetStationByController(string controllerCallsign);
+
+	// Handoff event
+	void OnHandoffAccepted(CRadarScreen* screen, string callsign, string nextController);
+
+	// Check for pending releases
+	static void CheckForRelease(CRadarScreen* screen);
+
+	// Cleanup static resources
+	static void Cleanup();
 	
 	// Window size
 	static const int WINSZ_CPDLC_WIDTH = 650;
@@ -107,6 +131,9 @@ public:
 	static const int TXT_LOGON_CODE = 5100;
 	static const int TXT_COMPOSE = 5101;
 	static const int TXT_STATION = 5102;  // Station callsign input
+	
+	// Checkbox definitions
+	static const int CHK_AUTO_LOGIN = 300;
 	
 	// Message type buttons for compose
 	static const int BTN_MSG_CLIMB = 20;

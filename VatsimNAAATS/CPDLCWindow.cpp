@@ -11,6 +11,9 @@ using namespace Colours;
 
 // Static member initialization
 CHoppieClient* CCPDLCWindow::hoppieClient = nullptr;
+map<string, bool> CCPDLCWindow::PendingRelease;
+map<string, bool> CCPDLCWindow::PendingHandoff;
+map<string, CCPDLCWindow::CPDLCStation> CCPDLCWindow::Stations;
 
 CCPDLCWindow::CCPDLCWindow(POINT topLeft) : CBaseWindow(topLeft) {
 	// Make buttons
@@ -115,7 +118,7 @@ void CCPDLCWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	int sDC = dc->SaveDC();
 	
 	// Brushes
-	CBrush darkerBrush(ScreenBlue.ToCOLORREF());
+	CBrush darkerBrush(DarkBackground.ToCOLORREF());
 	CBrush lighterBrush(WindowBorder.ToCOLORREF());
 	
 	// Main window rectangle
@@ -132,7 +135,7 @@ void CCPDLCWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	// Add screen objects for window dragging (match other windows)
 	screen->AddScreenObject(WINDOW, "WIN_CPDLC", windowRect, true, "");
 	screen->AddScreenObject(WINDOW, "CPDLC", titleRect, true, "");
-	dc->FillSolidRect(titleRect, ScreenBlue.ToCOLORREF());
+	dc->FillSolidRect(titleRect, ButtonPressed.ToCOLORREF());
 	
 	// Title text
 	FontSelector::SelectNormalFont(15, dc);
@@ -178,7 +181,7 @@ void CCPDLCWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 
 void CCPDLCWindow::RenderLoginPanel(CDC* dc, Graphics* g, CRadarScreen* screen, CRect area) {
 	// Panel background
-	CBrush panelBrush(ScreenBlue.ToCOLORREF());
+	CBrush panelBrush(DarkBackground.ToCOLORREF());
 	dc->FillRect(area, &panelBrush);
 	dc->Draw3dRect(area, BevelDark.ToCOLORREF(), BevelLight.ToCOLORREF());
 	
@@ -211,7 +214,7 @@ void CCPDLCWindow::RenderLoginPanel(CDC* dc, Graphics* g, CRadarScreen* screen, 
 
 void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* screen, CRect area) {
 	// Panel background
-	CBrush panelBrush(ScreenBlue.ToCOLORREF());
+	CBrush panelBrush(DarkBackground.ToCOLORREF());
 	dc->FillRect(area, &panelBrush);
 	dc->Draw3dRect(area, BevelDark.ToCOLORREF(), BevelLight.ToCOLORREF());
 	
@@ -362,7 +365,7 @@ void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 
 void CCPDLCWindow::RenderAircraftPanel(CDC* dc, Graphics* g, CRadarScreen* screen, CRect area) {
 	// Panel background
-	CBrush panelBrush(ScreenBlue.ToCOLORREF());
+	CBrush panelBrush(DarkBackground.ToCOLORREF());
 	dc->FillRect(area, &panelBrush);
 	dc->Draw3dRect(area, BevelDark.ToCOLORREF(), BevelLight.ToCOLORREF());
 	
@@ -440,7 +443,7 @@ void CCPDLCWindow::RenderAircraftPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 
 void CCPDLCWindow::RenderComposePanel(CDC* dc, Graphics* g, CRadarScreen* screen, CRect area) {
 	// Panel background
-	CBrush panelBrush(ScreenBlue.ToCOLORREF());
+	CBrush panelBrush(DarkBackground.ToCOLORREF());
 	dc->FillRect(area, &panelBrush);
 	dc->Draw3dRect(area, BevelDark.ToCOLORREF(), BevelLight.ToCOLORREF());
 	
@@ -820,4 +823,43 @@ bool CCPDLCWindow::IsButtonPressed(int id) {
 		return windowButtons[id].State == CInputState::ACTIVE;
 	}
 	return false;
+}
+
+void CCPDLCWindow::CheckForRelease(CRadarScreen* screen) {
+	vector<string> toRemove;
+	for (auto const& item : PendingRelease) {
+		string callsign = item.first;
+		// Check if the aircraft is still being tracked by us
+		CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
+		if (target.IsValid()) {
+			CFlightPlan fp = target.GetCorrelatedFlightPlan();
+			if (fp.IsValid()) {
+				// If tracking controller is empty or not us, it's released
+				string trackingController = fp.GetTrackingControllerId();
+				string myId = screen->GetPlugIn()->ControllerMyself().GetCallsign();
+				
+				if (trackingController != myId) {
+					toRemove.push_back(callsign);
+				}
+			}
+		} else {
+			// Target invalid (logged off?), remove
+			toRemove.push_back(callsign);
+		}
+	}
+	
+	for (const string& cs : toRemove) {
+		PendingRelease.erase(cs);
+	}
+}
+
+void CCPDLCWindow::OnOverDropDownItem(int id) {
+	// Handle dropdown hover if needed
+}
+
+void CCPDLCWindow::Cleanup() {
+	if (hoppieClient != nullptr) {
+		delete hoppieClient;
+		hoppieClient = nullptr;
+	}
 }

@@ -24,6 +24,7 @@ extern const string PLUGIN_AUTHOR;
 extern const string PLUGIN_COPYRIGHT;
 const bool IS_ALPHA = false;
 const bool DEBUG_MODE = false;
+const bool ERROR_LOGGING = true; // Always log errors/crashes
 
 // Sector file & geo constants
 const int SECTELEMENT_COORD_IDX = 7;
@@ -102,6 +103,8 @@ const int WIN_FLTPLN_TSFR = 106;
 const int WIN_CPDLC = 107;
 // FDD window object handle
 const int WIN_FDD = 108;
+// Setup window object handle
+const int WIN_SETUP = 109;
 
 // Text inputs and functions
 const int ALTFILT_TEXT = 200;
@@ -119,6 +122,8 @@ const int LIST_CONFLICT = 303;
 const int DRP_AREA_EGGX = 801;
 const int DRP_AREA_CZQX = 802;
 const int DRP_AREA_BDBX = 803;
+const int DRP_STATION = 810;
+const int CHK_AUTO_LOGIN = 811;
 const int DRP_OVL_ALL = 800;
 const int DRP_OVL_EAST = 801;
 const int DRP_OVL_WEST = 802;
@@ -141,6 +146,11 @@ extern const string SET_OVERLAY;
 extern const string SET_AREASEL;
 extern const string SET_OVERLAYSEL;
 extern const string SET_POSTYPESEL;
+extern const string SET_SCREEN_COUNT;
+extern const string SET_HOPPIE_CODE;
+extern const string SET_MENU_SCROLL;
+extern const string SET_STATION;
+extern const string SET_AUTO_LOGIN;
 
 /// ENUMS
 // Path type enum

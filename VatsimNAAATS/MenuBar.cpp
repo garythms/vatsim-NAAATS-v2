@@ -21,7 +21,7 @@ std::time_t CMenuBar::CpdlcAlertTime = 0;
 
 CMenuBar::CMenuBar() {
 	// Button defaults
-	buttons[BTN_SETUP] = CWinButton(BTN_SETUP, MENBAR, "Setup", CInputState::DISABLED, 46);
+	buttons[BTN_SETUP] = CWinButton(BTN_SETUP, MENBAR, "Setup", CInputState::INACTIVE, 46);
 	buttons[BTN_NOTEPAD] = CWinButton(BTN_NOTEPAD, MENBAR, "NotePad", CInputState::DISABLED, 78);
 	buttons[BTN_ADSC] = CWinButton(BTN_ADSC, MENBAR, "Flight Data", CInputState::INACTIVE, 80);
 	buttons[BTN_TCKINFO] = CWinButton(BTN_TCKINFO, MENBAR, "Track Info", CInputState::INACTIVE, 78);
@@ -53,6 +53,8 @@ CMenuBar::CMenuBar() {
 	buttons[BTN_SELCAL] = CWinButton(BTN_SELCAL, MENBAR, "SELCAL", CInputState::INACTIVE, 55);
 	buttons[BTN_FDD] = CWinButton(BTN_FDD, MENBAR, "FDD", CInputState::INACTIVE, 45);
 	buttons[BTN_VACS] = CWinButton(BTN_VACS, MENBAR, "VACS", CInputState::INACTIVE, 45);
+	buttons[BTN_SCROLL_LEFT] = CWinButton(BTN_SCROLL_LEFT, MENBAR, "<", CInputState::INACTIVE, 25);
+	buttons[BTN_SCROLL_RIGHT] = CWinButton(BTN_SCROLL_RIGHT, MENBAR, ">", CInputState::INACTIVE, 25);
 
 	// Text inputs
 	textInputs[TXT_SEARCH] = CTextInput(TXT_SEARCH, MENBAR, "Search A/C: ", "", 100, CInputState::ACTIVE);
@@ -99,8 +101,19 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	const int kDropY = 4;    // Dropdown row
 	const int kDropH = 22;   // Dropdown height
 
-	// Panel boundaries
-	const int P1 = radarArea.left;
+	// Disable scroll if setting is off
+	if (!CUtils::MenuScroll) {
+		m_scrollOffset = 0;
+	}
+
+	// Compute max scroll based on total content width
+	int totalPanelsWidth = RECT1_WIDTH + RECT2_WIDTH + RECT3_WIDTH + RECT4_WIDTH + RECT5_WIDTH + RECT7_WIDTH;
+	m_maxScroll = max(0, totalPanelsWidth - (int)(radarArea.right - radarArea.left - 300));
+	if (m_scrollOffset < 0) m_scrollOffset = 0;
+	if (m_scrollOffset > m_maxScroll) m_scrollOffset = m_maxScroll;
+
+	// Panel boundaries (apply horizontal scroll offset)
+	const int P1 = radarArea.left - m_scrollOffset;
 	const int P2 = P1 + RECT1_WIDTH;
 	const int P3 = P2 + RECT2_WIDTH;
 	const int P4 = P3 + RECT3_WIDTH;
@@ -117,7 +130,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 
 	// Draw panels (only non-zero width panels)
 	int panelWidths[] = { RECT1_WIDTH, RECT2_WIDTH, RECT3_WIDTH, RECT4_WIDTH, RECT5_WIDTH, RECT7_WIDTH };
-	int menuOffsetX = radarArea.left;
+	int menuOffsetX = radarArea.left - m_scrollOffset;
 	for (int i = 0; i < 6; i++) {
 		if (panelWidths[i] > 0) {
 			CRect rect1(menuOffsetX, top + 1, menuOffsetX + panelWidths[i], top + MENBAR_HEIGHT - 2);
@@ -316,6 +329,13 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	// VACS - Row 2
 	CCommonRenders::RenderButton(dc, screen, { offsetX, top + kRow2Y }, buttons[BTN_VACS].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_VACS]);
 
+	// Scroll arrows fixed on far right
+	if (CUtils::MenuScroll && m_maxScroll > 0) {
+		int rightX = radarArea.left + screenWidth - 60;
+		CCommonRenders::RenderButton(dc, screen, { rightX, top + kRow1Y }, buttons[BTN_SCROLL_LEFT].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_SCROLL_LEFT]);
+		CCommonRenders::RenderButton(dc, screen, { rightX + buttons[BTN_SCROLL_LEFT].Width + 5, top + kRow1Y }, buttons[BTN_SCROLL_RIGHT].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_SCROLL_RIGHT]);
+	}
+
 	// Reset text color
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 
@@ -496,6 +516,18 @@ void CMenuBar::ButtonPress(int id, int button, CRadarScreen* screen = nullptr) {
 			// Press the button (but not for instant-action buttons)
 			if (GetButtonState(id) != CInputState::DISABLED && id != BTN_RTEDEL && id != BTN_SELCAL && id != BTN_VACS)
 				SetButtonState(id, CInputState::ACTIVE);
+
+			// Scroll handling
+			if (CUtils::MenuScroll) {
+				if (id == BTN_SCROLL_LEFT) {
+					m_scrollOffset -= 200;
+					if (m_scrollOffset < 0) m_scrollOffset = 0;
+				}
+				if (id == BTN_SCROLL_RIGHT) {
+					m_scrollOffset += 200;
+					if (m_scrollOffset > m_maxScroll) m_scrollOffset = m_maxScroll;
+				}
+			}
 
 			// Grid
 			if (id == BTN_GRID) {

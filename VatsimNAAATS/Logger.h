@@ -24,6 +24,9 @@ class CLogger
 		// Generate the log file
 		static void InstantiateLogFile();
 		
+		// Crash handler
+		static LONG WINAPI UnhandledExceptionHandler(EXCEPTION_POINTERS* pExceptionInfo);
+
 	private:
 		// The file to log to
 		static string logFilePath;

@@ -17,6 +17,7 @@
 #include "MessageWindow.h"
 #include "CPDLCWindow.h"
 #include "FddWindow.h"
+#include "SetupWindow.h"
 
 using namespace std;
 using namespace EuroScopePlugIn;
@@ -94,5 +95,5 @@ class CRadarDisplay : public CRadarScreen
 		CNotePad* npWindow = nullptr;
 		CCPDLCWindow* cpdlcWindow = nullptr;
 		CFddWindow* fddWindow = nullptr;
+		CSetupWindow* setupWindow = nullptr;
 };
-

@@ -36,6 +36,11 @@ class CUtils { // TODO: refactor into namespace
 		static int SepMinimaVertical;
 		static int SepMinimaLateral;
 		static int SepMinimaLongitudinal;
+		static string ScreenCount; // save
+		static string HoppieCode; // save
+		static bool MenuScroll; // save
+		static string Station; // save
+		static bool AutoLogin; // save
 
 		// SELCAL local storage (callsign -> code)
 		static map<string, string> SelcalStorage;

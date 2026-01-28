@@ -47,8 +47,10 @@ EuroScopePlugInInit(EuroScopePlugIn::CPlugIn** ppPlugInInstance)
 	CUtils::DllPath.resize(CUtils::DllPath.size() - strlen("VatsimNAAATS.dll"));
 
 	// Instantiate logger as the very first thing we do
-	if (DEBUG_MODE)
-		CLogger::InstantiateLogFile();
+	CLogger::InstantiateLogFile();
+
+	// Set crash handler
+	SetUnhandledExceptionFilter(CLogger::UnhandledExceptionHandler);
 
 	// Start Virtual Server (Editable FDD)
 	CWebServer::Start(8080);
