@@ -38,7 +38,20 @@ const string HTML_CONTENT = R"HTML(
             font-weight: bold;
             display: flex;
             align-items: center;
+            justify-content: space-between;
         }
+
+        .header-btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .header-btn:hover { background-color: #2563eb; }
 
         .flight-strip {
             display: flex;
@@ -110,7 +123,10 @@ const string HTML_CONTENT = R"HTML(
 </head>
 <body>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-        <h2 style="margin:0; color:white;">Flight Data Display</h2>
+        <div style="display:flex; align-items:center;">
+            <h2 style="margin:0; color:white;">Flight Data Display</h2>
+            <button class="header-btn" onclick="openCpdlc()">CPDLC</button>
+        </div>
         <div id="status" style="color: #888; font-size: 0.9em;">Connecting...</div>
     </div>
     <div id="container"></div>
@@ -118,6 +134,10 @@ const string HTML_CONTENT = R"HTML(
     <script>
         let currentData = [];
         let isEditing = false; // Flag to pause updates
+
+        async function openCpdlc() {
+            await save('SYSTEM', 'COMMAND', 'OPEN_CPDLC');
+        }
 
         async function fetchData() {
             if (isEditing) return; // Don't refresh while editing

@@ -75,9 +75,21 @@ string CHoppieClient::HttpPost(const string& data) {
 	for (int attempt = 0; attempt <= maxRetries; attempt++) {
 		// Ensure internet handle is open
 		if (!m_hInternet) {
+			// Try PRECONFIG first (respects system proxy)
 			m_hInternet = InternetOpenA("vNAAATS-CPDLC/2.0", 
 										INTERNET_OPEN_TYPE_PRECONFIG, 
 										NULL, NULL, 0);
+			
+			// If failed, try DIRECT
+			if (!m_hInternet) {
+				DWORD error = GetLastError();
+				CLogger::Log(CLogType::WARN, "InternetOpen PRECONFIG failed (Error " + to_string(error) + "), trying DIRECT.", "CHoppieClient::HttpPost");
+				
+				m_hInternet = InternetOpenA("vNAAATS-CPDLC/2.0", 
+											INTERNET_OPEN_TYPE_DIRECT, 
+											NULL, NULL, 0);
+			}
+
 			if (!m_hInternet) {
 				DWORD error = GetLastError();
 				m_lastStatusMessage = "InternetOpen failed: " + to_string(error);

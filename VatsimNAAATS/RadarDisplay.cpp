@@ -148,6 +148,9 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 	if ((double)(clock() - lastWebSync) / ((double)CLOCKS_PER_SEC) >= 1.0) {
 		lastWebSync = clock();
 
+		// Refresh track data from EuroScope
+		CDataHandler::PopulateLatestTrackData(GetPlugIn());
+
 		// 1. Push data to WebServer
 		json root = json::array();
 		for (auto& kv : CDataHandler::GetFlights()) {
@@ -243,6 +246,15 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 						fp->SELCAL = value;
 						// Also update local storage so it persists across refreshes
 						CUtils::SelcalStorage[callsign] = value;
+					}
+				}
+				else if (callsign == "SYSTEM" && field == "COMMAND") {
+					if (value == "OPEN_CPDLC") {
+						if (cpdlcWindow) {
+							cpdlcWindow->IsClosed = false;
+							if (menuBar) menuBar->SetButtonState(CMenuBar::BTN_CPDLC, CInputState::ACTIVE);
+							CLogger::Log(CLogType::NORM, "Opening CPDLC window via FDD request", "CRadarDisplay::OnRefresh");
+						}
 					}
 				}
 			}
