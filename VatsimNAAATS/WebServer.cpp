@@ -1,6 +1,7 @@
 
 #include "pch.h"
 #include "WebServer.h"
+#include "Logger.h"
 #include <iostream>
 #include <sstream>
 
@@ -9,6 +10,7 @@ thread CWebServer::serverThread;
 string CWebServer::currentData = "[]";
 mutex CWebServer::dataMutex;
 vector<string> CWebServer::pendingUpdates;
+SOCKET CWebServer::listenSocket = INVALID_SOCKET;
 
 // Simple HTML for the FDD interface
 const string HTML_CONTENT = R"HTML(
@@ -397,8 +399,10 @@ void CWebServer::Start(int port) {
 
 void CWebServer::Stop() {
 	isRunning = false;
-	// Sockets don't close cleanly in a simple blocking loop without more logic, 
-	// but this sets the flag. In a real app we'd close the socket to break accept().
+	if (listenSocket != INVALID_SOCKET) {
+		closesocket(listenSocket);
+		listenSocket = INVALID_SOCKET;
+	}
 }
 
 void CWebServer::SetData(string jsonData) {
@@ -423,63 +427,116 @@ void CWebServer::ServerLoop(int port) {
 	WSADATA wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-	SOCKET listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	sockaddr_in serverAddr;
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
 	serverAddr.sin_port = htons(port);
 
-	bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
-	listen(listenSocket, SOMAXCONN);
+	if (bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+		CLogger::Log(CLogType::ERR, "WebServer bind failed. Port: " + to_string(port), "CWebServer::ServerLoop");
+		closesocket(listenSocket);
+		WSACleanup();
+		return;
+	}
+	
+	if (listen(listenSocket, SOMAXCONN) == SOCKET_ERROR) {
+		CLogger::Log(CLogType::ERR, "WebServer listen failed.", "CWebServer::ServerLoop");
+		closesocket(listenSocket);
+		WSACleanup();
+		return;
+	}
+
+	CLogger::Log(CLogType::NORM, "WebServer started on port " + to_string(port), "CWebServer::ServerLoop");
 
 	while (isRunning) {
 		SOCKET clientSocket = accept(listenSocket, NULL, NULL);
 		if (clientSocket != INVALID_SOCKET) {
-			HandleClient(clientSocket);
-			closesocket(clientSocket);
+			thread t(HandleClient, clientSocket);
+			t.detach();
+		}
+		else {
+			if (!isRunning) break;
+			int err = WSAGetLastError();
+			if (err != WSAEINTR) {
+				CLogger::Log(CLogType::ERR, "WebServer accept failed. Error: " + to_string(err), "CWebServer::ServerLoop");
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
 	}
 
-	closesocket(listenSocket);
+	if (listenSocket != INVALID_SOCKET) {
+		closesocket(listenSocket);
+		listenSocket = INVALID_SOCKET;
+	}
 	WSACleanup();
 }
 
 void CWebServer::HandleClient(SOCKET clientSocket) {
-	char buffer[4096];
-	int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
-	if (bytesReceived > 0) {
-		buffer[bytesReceived] = 0;
-		string request(buffer);
-		stringstream ss(request);
-		string method, path;
-		ss >> method >> path;
+	try {
+		// Set receive timeout to 3 seconds to prevent hanging
+		DWORD timeout = 3000;
+		setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
 
-		if (method == "GET") {
-			if (path == "/data") {
-				string data;
-				{
-					lock_guard<mutex> lock(dataMutex);
-					data = currentData;
+		char buffer[4096];
+		int bytesReceived = recv(clientSocket, buffer, sizeof(buffer) - 1, 0);
+		if (bytesReceived > 0) {
+			buffer[bytesReceived] = 0;
+			string request(buffer);
+			stringstream ss(request);
+			string method, path;
+			ss >> method >> path;
+
+			// Debug log for data requests (only log once per 10s to avoid spam if needed, or just log)
+			// CLogger::Log(CLogType::INFO, "WebServer request: " + method + " " + path, "CWebServer::HandleClient");
+
+			if (method == "GET") {
+				if (path == "/data") {
+					string data;
+					{
+						lock_guard<mutex> lock(dataMutex);
+						data = currentData;
+					}
+					// Log if data is empty, might explain "no data" issue
+					if (data.empty() || data == "[]") {
+						// CLogger::Log(CLogType::WARN, "WebServer sending empty data.", "CWebServer::HandleClient");
+					}
+					string response = GenerateResponse(data);
+					send(clientSocket, response.c_str(), response.length(), 0);
 				}
-				string response = GenerateResponse(data);
-				send(clientSocket, response.c_str(), response.length(), 0);
+				else {
+					string response = GenerateResponse(HTML_CONTENT, "text/html");
+					send(clientSocket, response.c_str(), response.length(), 0);
+				}
 			}
-			else {
-				string response = GenerateResponse(HTML_CONTENT, "text/html");
-				send(clientSocket, response.c_str(), response.length(), 0);
+			else if (method == "POST" && path == "/update") {
+				// Find body (after double CRLF)
+				size_t bodyPos = request.find("\r\n\r\n");
+				if (bodyPos != string::npos) {
+					string body = request.substr(bodyPos + 4);
+					
+					// Basic parsing of JSON body to pendingUpdates
+					// Assuming body is valid JSON like {"callsign": "...", "field": "...", "value": "..."}
+					{
+						lock_guard<mutex> lock(dataMutex);
+						pendingUpdates.push_back(body);
+					}
+					
+					string response = GenerateResponse("{\"status\":\"ok\"}", "application/json");
+					send(clientSocket, response.c_str(), response.length(), 0);
+				}
 			}
 		}
-		else if (method == "POST" && path == "/update") {
-			// Find body (after double CRLF)
-			size_t bodyPos = request.find("\r\n\r\n");
-			if (bodyPos != string::npos) {
-				string body = request.substr(bodyPos + 4);
-				lock_guard<mutex> lock(dataMutex);
-				pendingUpdates.push_back(body);
-			}
-			string response = GenerateResponse("{\"status\":\"ok\"}");
-			send(clientSocket, response.c_str(), response.length(), 0);
-		}
+
+		closesocket(clientSocket);
+	}
+	catch (exception& ex) {
+		CLogger::Log(CLogType::ERR, "WebServer client handling failed: " + string(ex.what()), "CWebServer::HandleClient");
+		closesocket(clientSocket);
+	}
+	catch (...) {
+		CLogger::Log(CLogType::ERR, "WebServer client handling failed with unknown error.", "CWebServer::HandleClient");
+		closesocket(clientSocket);
 	}
 }
 
@@ -488,6 +545,7 @@ string CWebServer::GenerateResponse(string content, string contentType) {
 	ss << "HTTP/1.1 200 OK\r\n";
 	ss << "Content-Type: " << contentType << "\r\n";
 	ss << "Content-Length: " << content.length() << "\r\n";
+	ss << "Connection: close\r\n";
 	ss << "Access-Control-Allow-Origin: *\r\n";
 	ss << "\r\n";
 	ss << content;

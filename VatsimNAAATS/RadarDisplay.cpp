@@ -148,14 +148,22 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 	if ((double)(clock() - lastWebSync) / ((double)CLOCKS_PER_SEC) >= 1.0) {
 		lastWebSync = clock();
 
-		// Refresh track data from EuroScope
-		CDataHandler::PopulateLatestTrackData(GetPlugIn());
+		// Async track update check (every 10 minutes)
+		static clock_t lastTrackUpdate = 0;
+		if (lastTrackUpdate == 0 || (double)(clock() - lastTrackUpdate) / ((double)CLOCKS_PER_SEC) >= 600.0) {
+			lastTrackUpdate = clock();
+			CDataHandler::PopulateLatestTrackDataAsync(GetPlugIn());
+		}
 
 		// 1. Push data to WebServer
 		json root = json::array();
+		int totalFlights = 0;
+		int visibleFlights = 0;
+
 		for (auto& kv : CDataHandler::GetFlights()) {
 			auto& flight = kv.second;
 			if (!flight.IsValid) continue;
+			totalFlights++;
 
 			json f;
 			f["Callsign"] = flight.Callsign;
@@ -166,20 +174,29 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 			// Logic for FL display format
 			string flStr = flight.FlightLevel;
+			bool filtered = false;
 			try {
 				int flVal = stoi(flStr);
 				
 				// Filter out aircraft below FL200
 				// If value > 1000, it's feet (e.g. 35000). Threshold 20000.
 				// If value <= 1000, it's FL (e.g. 350). Threshold 200.
+				/*
 				if (flVal > 1000) {
-					if (flVal < 20000) continue;
-					flStr = to_string(flVal / 100);
+					if (flVal < 20000) filtered = true;
+					else flStr = to_string(flVal / 100);
 				} else {
-					if (flVal < 200) continue;
+					if (flVal < 200) filtered = true;
 				}
+				*/
+				// For debugging, show ALL aircraft
+				if (flVal > 1000) flStr = to_string(flVal / 100);
 			}
 			catch (...) {}
+
+			if (filtered) continue;
+			visibleFlights++;
+
 			f["FlightLevel"] = flStr;
 
 			f["Mach"] = flight.Mach;
@@ -227,6 +244,41 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 			root.push_back(f);
 		}
+
+		// Add metadata for debugging
+		json meta;
+		meta["totalFlights"] = totalFlights;
+		meta["visibleFlights"] = visibleFlights;
+		meta["serverTime"] = (long long)time(0);
+		
+		// If root is empty, we should still send an object containing the meta if possible, 
+		// but the frontend expects an array of flights. 
+		// Let's wrapping it: { "flights": [...], "meta": {...} }
+		// But that breaks existing frontend.
+		// Alternatively, just append a special "meta" object to the array?
+		// Or stick to the array and rely on CLogger for debug.
+		
+		// Let's log to CLogger every 10 seconds if counts are low
+		if (tenSecT >= 10.0) {
+			tenSecondTimer = clock(); // Reset timer to prevent spam
+
+			if (totalFlights == 0) {
+				// Check if EuroScope has any targets
+				int esTargets = 0;
+				CRadarTarget rt = GetPlugIn()->RadarTargetSelectFirst();
+				while (rt.IsValid()) {
+					esTargets++;
+					rt = GetPlugIn()->RadarTargetSelectNext(rt);
+				}
+				
+				if (esTargets > 0) {
+					CLogger::Log(CLogType::WARN, "FSS: No internal flight data, but EuroScope has " + to_string(esTargets) + " targets. Check relevance filters (Alt/Lat/Lon).", "CRadarDisplay::OnRefresh");
+				}
+			} else {
+				CLogger::Log(CLogType::NORM, "FSS: " + to_string(visibleFlights) + "/" + to_string(totalFlights) + " flights visible.", "CRadarDisplay::OnRefresh");
+			}
+		}
+
 		CWebServer::SetData(root.dump());
 
 		// 2. Pull updates from WebServer
@@ -443,7 +495,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 		bool direction;
 
 		// Draw routes
-		if (CRoutesHelper::ActiveRoutes.size() != CRoutesHelper::ActiveRoutes.empty() && CRoutesHelper::ActiveRoutes.size() != 0) {
+		if (!CRoutesHelper::ActiveRoutes.empty()) {
 			CCommonRenders::RenderRoutes(&dc, &g, this);
 		}
 
@@ -811,9 +863,10 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 // Data updates
 void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 {
-	// Check if they are relevant on the screen
-	bool filtersDisabled = menuBar->IsButtonPressed(CMenuBar::BTN_ALL);
-	if (CUtils::IsAircraftRelevant(this, &RadarTarget, filtersDisabled)) {
+	// Force filtersDisabled=true to ensure we track all aircraft in the sector for FSS/CPDLC purposes,
+	// regardless of what the user is currently filtering on their radar screen.
+	// CUtils::IsAircraftRelevant will still filter out invalid flight plans.
+	if (CUtils::IsAircraftRelevant(this, &RadarTarget, true)) {
 		// They are relevant so get the flight plan
 		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(RadarTarget.GetCallsign());
 
@@ -844,19 +897,8 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 			string selcal = CUtils::GetSelcalForAircraft(&fpData);
 			fp->SELCAL = selcal != "" ? selcal : "N/A";
 
-			// Download the vNAAATS network data on the plane
-			try {
-				CLogger::Log(CLogType::NORM, "Polling vNAAATS network to update " + string(RadarTarget.GetCallsign()), "CRadarDisplay::OnRadarTargetPositionUpdate");
-				CUtils::CNetworkAsyncData* data = new CUtils::CNetworkAsyncData();
-				data->Screen = this;
-				data->Callsign = fp->Callsign;
-				if (!fp->IsFirstUpdate) fp->IsFirstUpdate = true;
-				_beginthread(CDataHandler::DownloadNetworkAircraft, 0, (void*)data); // Async
-			}
-			catch (std::exception & ex) {
-				CLogger::DebugLog(this, "An exception occurred. " + *ex.what());
-			}			
-
+			if (!fp->IsFirstUpdate) fp->IsFirstUpdate = true;
+			
 			// Timer
 			double thirtySecT = (double)(clock() - thirtySecondTimer) / ((double)CLOCKS_PER_SEC);
 
@@ -922,11 +964,7 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 					if (activeCode == STILL_ACTIVE && GetPlugIn()->ControllerMyself().IsValid()) {
 						if (netFP->Relevant != fp->IsRelevant) {
 							fp->IsRelevant = netFP->Relevant;
-							CUtils::CNetworkAsyncData* newData = new CUtils::CNetworkAsyncData();
-							newData->Screen = this;
-							newData->Callsign = fp->Callsign;
-							newData->FP = netFP;
-							_beginthread(CDataHandler::UpdateNetworkAircraft, 0, (void*)newData); // Async
+							// UpdateNetworkAircraft removed (defunct API)
 						}
 					}
 				}
@@ -951,6 +989,9 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 }
 
 void CRadarDisplay::OnFlightPlanDisconnect(CFlightPlan FlightPlan) {
+	// Remove from data handler to prevent ghosts in FSS/CPDLC
+	CDataHandler::DeleteFlightData(FlightPlan.GetCallsign());
+
 	// Close the flight plan window immediately and cancel the ASEL so that we don't get a crash
 	if (FlightPlan.GetCallsign() == asel) {
 		menuBar->SetButtonState(CMenuBar::BTN_FLIGHTPLAN, CInputState::INACTIVE);
@@ -1021,11 +1062,7 @@ void CRadarDisplay::OnFlightPlanDisconnect(CFlightPlan FlightPlan) {
 				if (activeCode == STILL_ACTIVE && GetPlugIn()->ControllerMyself().IsValid()) {
 					if (netFP->Relevant != primedPlan->IsRelevant) {
 						primedPlan->IsRelevant = netFP->Relevant;
-						CUtils::CNetworkAsyncData* newData = new CUtils::CNetworkAsyncData();
-						newData->Screen = this;
-						newData->Callsign = primedPlan->Callsign;
-						newData->FP = netFP;
-						_beginthread(CDataHandler::UpdateNetworkAircraft, 0, (void*)newData); // Async
+						// UpdateNetworkAircraft removed (defunct API)
 					}
 				}
 			}
@@ -1445,7 +1482,7 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 	}
 
 	if (Button == BUTTON_RIGHT) {
-		if (ObjectType == SCREEN_TAG || ObjectType == SCREEN_TAG_CS) {
+		if (ObjectType == SCREEN_TAG || ObjectType == SCREEN_TAG_CS || ObjectType == 2 || ObjectType == 3) {
 			/// Set route drawing
 			// Make sure flight plan exists otherwise it will crash, and also that they aren't PIV aircraft
 			if (CDataHandler::GetFlightData(string(sObjectId))->IsValid && string(sObjectId) != aircraftSel1 && string(sObjectId) != aircraftSel2) {
@@ -1466,6 +1503,11 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 				}
 				else {
 					CLogger::Log(CLogType::NORM, "Enabling route draw for: " + string(sObjectId), "CRadarDisplay::OnClickScreenObject");
+					// Ensure route is calculated
+					CAircraftFlightPlan* fp = CDataHandler::GetFlightData(string(sObjectId));
+					if (fp && fp->Route.empty()) {
+						CDataHandler::UpdateFlightData(this, string(sObjectId), true);
+					}
 					CRoutesHelper::ActiveRoutes.push_back(string(sObjectId));
 				}
 			}

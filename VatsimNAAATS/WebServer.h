@@ -31,4 +31,5 @@ private:
 	static string currentData;
 	static mutex dataMutex;
 	static vector<string> pendingUpdates; // Stores updates from client to be processed by DLL
+	static SOCKET listenSocket;
 };

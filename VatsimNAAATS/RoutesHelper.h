@@ -3,6 +3,7 @@
 #include "Constants.h"
 #include "Structures.h"
 #include "Utils.h"
+#include <mutex>
 
 using namespace std;
 using namespace EuroScopePlugIn;
@@ -12,12 +13,18 @@ class CRoutesHelper
 	public:
 		// Current NAT tracks
 		static map<string, CTrack> CurrentTracks;
+		static mutex TracksMutex;
 
 		// Current TMI
 		static string CurrentTMI;
 
 		// Active aircraft routes to draw
 		static vector<string> ActiveRoutes;
+
+		// Fix cache for thread-safe lookups
+		static map<string, CPosition> FixCache;
+		static mutex FixCacheMutex;
+		static void InitialiseFixCache(CRadarScreen* screen);
 
 		// Get a route
 		static bool GetRoute(CRadarScreen* screen, vector<CRoutePosition>* routeVector, string callsign, CAircraftFlightPlan* copy = nullptr);
@@ -29,6 +36,6 @@ class CRoutesHelper
 		static int ParseRoute(CRadarScreen* screen, string callsign, string rawInput, bool isTrack = false, CAircraftFlightPlan* copy = nullptr);
 
 		// Is on a NAT track
-		static string OnNatTrack(CRadarScreen* screen, string callsign);
+		static string OnNatTrack(CRadarScreen* screen, string callsign, string routeString = "", bool disableEuroScopeFetch = false);
 };
 

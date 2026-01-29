@@ -757,16 +757,19 @@ bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool
 				return false;
 			}
 		}
+
+		// Check if in airspace only if filters are enabled
+		// TODO: Better check
+		if (pos.m_Longitude > -65.0 && pos.m_Longitude < -10.0 && pos.m_Latitude > 40.0 && pos.m_Latitude < 67.0) {
+			return true;
+		}
+		else {
+			return false;
+		}
 	}
 
-	// Check if in airspace
-	// TODO: Better check
-	if (pos.m_Longitude > -65.0 && pos.m_Longitude < -10.0 && pos.m_Latitude > 40.0 && pos.m_Latitude < 67.0) {
-		return true;
-	}
-	else {
-		return false;
-	}
+	// If filters disabled, show everything
+	return true;
 }
 
 bool CUtils::IsAircraftEquipped(string rawRemarks, string rawAcInfo, char equipCode) {
@@ -891,6 +894,7 @@ POINT CUtils::GetMidPoint(POINT p1, POINT p2) {
 
 int CUtils::GetTimeDistanceSpeed(int distanceNM, int speedGS) {
 	// Time = Distance / Speed
+	if (speedGS <= 0) return 0; // Prevent division by zero
 	return (int)round(((double)distanceNM / (double)speedGS) * 60);
 }
 

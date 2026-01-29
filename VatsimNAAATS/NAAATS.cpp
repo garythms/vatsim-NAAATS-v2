@@ -12,9 +12,15 @@ CNAAATSPlugin::CNAAATSPlugin() : CPlugIn(COMPATIBILITY_CODE, PLUGIN_NAME.c_str()
 {
 	// Register the display
 	this->Register();
+
+	// Start VATSIM data fetcher
+	CDataHandler::StartVatsimDataFetcher();
 }
 
 CNAAATSPlugin::~CNAAATSPlugin() {
+	// Stop VATSIM data fetcher
+	CDataHandler::StopVatsimDataFetcher();
+
 	// Cleanup static resources
 	CCPDLCWindow::Cleanup();
 }

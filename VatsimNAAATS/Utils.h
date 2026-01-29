@@ -153,10 +153,20 @@ class CUtils { // TODO: refactor into namespace
 
 		// We need this struct for flight plan threading
 		struct CAsyncData {
-			CRadarScreen* Screen;
-			string Callsign;
-			CAircraftFlightPlan* FP = nullptr;
-		};
+		CRadarScreen* Screen;
+		string Callsign;
+		CAircraftFlightPlan* FP = nullptr;
+		vector<CWaypoint> ExtractedRoute;
+		int ExtractedRouteCalculatedIndex = 0;
+		// Thread-safe copies of flight plan data
+		vector<string> RouteRaw;
+		string Track;
+		string RawRouteString;
+		// Aircraft state
+		bool Direction; // true=East, false=West
+		CPosition Position; // Snapshot of aircraft position
+		bool PositionValid;
+	};
 
 		// This is for asyncing vNAAATS API data
 		struct CNetworkAsyncData {

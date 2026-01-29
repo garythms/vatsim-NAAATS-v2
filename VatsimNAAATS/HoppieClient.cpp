@@ -75,13 +75,15 @@ string CHoppieClient::HttpPost(const string& data) {
 	for (int attempt = 0; attempt <= maxRetries; attempt++) {
 		// Ensure internet handle is open
 		if (!m_hInternet) {
-			// Try PRECONFIG first (respects system proxy)
+			// If this is a retry (attempt > 0), try DIRECT to bypass potential proxy issues
+			DWORD accessType = (attempt > 0) ? INTERNET_OPEN_TYPE_DIRECT : INTERNET_OPEN_TYPE_PRECONFIG;
+			
 			m_hInternet = InternetOpenA("vNAAATS-CPDLC/2.0", 
-										INTERNET_OPEN_TYPE_PRECONFIG, 
+										accessType, 
 										NULL, NULL, 0);
 			
-			// If failed, try DIRECT
-			if (!m_hInternet) {
+			// If PRECONFIG failed immediately, try DIRECT fallback immediately
+			if (!m_hInternet && accessType == INTERNET_OPEN_TYPE_PRECONFIG) {
 				DWORD error = GetLastError();
 				CLogger::Log(CLogType::WARN, "InternetOpen PRECONFIG failed (Error " + to_string(error) + "), trying DIRECT.", "CHoppieClient::HttpPost");
 				
@@ -134,7 +136,18 @@ string CHoppieClient::HttpPost(const string& data) {
 
 			m_lastStatusMessage = "InternetConnect failed: " + to_string(error);
 			CLogger::Log(CLogType::ERR, "Failed to connect to Hoppie server. Error: " + to_string(error), "CHoppieClient::HttpPost");
-			// Don't close m_hInternet here as it might be temporary network issue
+			
+			// Force reset to try alternate connection method (DIRECT) on next attempt
+			if (m_hInternet) {
+				InternetCloseHandle(m_hInternet);
+				m_hInternet = nullptr;
+			}
+			
+			if (attempt < maxRetries) {
+				CLogger::Log(CLogType::NORM, "Retrying connection with alternate settings...", "CHoppieClient::HttpPost");
+				continue;
+			}
+			
 			return "error {connection failed - error " + to_string(error) + "}";
 		}
 		
@@ -217,6 +230,18 @@ string CHoppieClient::HttpPost(const string& data) {
 					continue;
 				}
 				return "error {resource exhaustion - session reset failed}";
+			}
+			
+			// Handle general failures for retry/fallback
+			if (attempt < maxRetries) {
+				InternetCloseHandle(hRequest);
+				InternetCloseHandle(hConnect);
+				if (m_hInternet) {
+					InternetCloseHandle(m_hInternet);
+					m_hInternet = nullptr;
+				}
+				CLogger::Log(CLogType::NORM, "Retrying send after failure...", "CHoppieClient::HttpPost");
+				continue;
 			}
 		}
 		

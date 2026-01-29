@@ -4,8 +4,10 @@
 string CLogger::logFilePath = "";
 bool CLogger::initialised = false;
 bool CLogger::initialisedAc = false;
+recursive_mutex CLogger::logMutex;
 
 void CLogger::Log(CLogType type, string text, string invokedBy) {
+	lock_guard<recursive_mutex> lock(logMutex);
 	if (DEBUG_MODE || (ERROR_LOGGING && (type == CLogType::WARN || type == CLogType::ERR || type == CLogType::EXC || type == CLogType::INIT))) {
 		// Prefix
 		string prefix = GeneratePrefix(type);
@@ -55,6 +57,7 @@ void CLogger::DebugLog(CRadarScreen* screen, string text) {
 
 void CLogger::LogAircraftDebugInfo(string text) // Debug logger for some raw AC data
 {
+	lock_guard<recursive_mutex> lock(logMutex);
 	// Open, write then close
 	ofstream log;
 	if (!initialisedAc) { // Overwrite first time

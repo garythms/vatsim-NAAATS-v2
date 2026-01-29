@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <windows.h>
+#include <mutex>
 #include "Utils.h"
 
 using namespace std;
@@ -31,6 +32,9 @@ class CLogger
 		// The file to log to
 		static string logFilePath;
 		
+		// Mutex for thread safety
+		static recursive_mutex logMutex;
+
 		// Get log prefix (ID + date and time)
 		static string GeneratePrefix(CLogType type);
 

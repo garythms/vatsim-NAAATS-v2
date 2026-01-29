@@ -2334,6 +2334,97 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 				data->Screen = screen;
 				data->Callsign = primedPlan->Callsign;
 				data->FP = id == TXT_TCK_CPY ? &copiedPlan : nullptr;
+
+				// Populate aircraft state and route data for thread safety
+				CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
+				if (target.IsValid()) {
+					data->Position = target.GetPosition().GetPosition();
+					data->Direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
+					data->PositionValid = true;
+				}
+				else {
+					data->PositionValid = false;
+					data->Direction = true;
+				}
+
+				EuroScopePlugIn::CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
+				
+				// If direct selection fails or returns empty route, try correlated flight plan
+				const char* routeStr = fp.IsValid() ? fp.GetFlightPlanData().GetRoute() : nullptr;
+				if (!fp.IsValid() || routeStr == nullptr || routeStr[0] == '\0') {
+					CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
+					if (target.IsValid()) {
+						CFlightPlan correlatedFP = target.GetCorrelatedFlightPlan();
+						if (correlatedFP.IsValid()) {
+							fp = correlatedFP;
+							CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Used correlated flight plan for " + primedPlan->Callsign, "CFlightPlanWindow");
+						}
+					}
+				}
+
+				// If still missing, try VATSIM Data API
+				string vatsimRoute = "";
+				if (!fp.IsValid() || fp.GetFlightPlanData().GetRoute()[0] == '\0') {
+					vatsimRoute = CDataHandler::GetVatsimRoute(primedPlan->Callsign);
+					if (!vatsimRoute.empty()) {
+						CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Used VATSIM API data for " + primedPlan->Callsign, "CFlightPlanWindow");
+					}
+				}
+
+				if (fp.IsValid()) {
+					data->RawRouteString = fp.GetFlightPlanData().GetRoute();
+					if (data->RawRouteString.empty() && !vatsimRoute.empty()) {
+						data->RawRouteString = vatsimRoute;
+					}
+					EuroScopePlugIn::CFlightPlanExtractedRoute route = fp.GetExtractedRoute();
+					if (route.GetPointsNumber() > 0) {
+						for (int i = 0; i < route.GetPointsNumber(); i++) {
+							CWaypoint wp;
+							wp.Name = route.GetPointName(i);
+							wp.Position = route.GetPointPosition(i);
+							data->ExtractedRoute.push_back(wp);
+						}
+						data->ExtractedRouteCalculatedIndex = route.GetPointsCalculatedIndex();
+					} else {
+						CLogger::Log(CLogType::WARN, "Instantiate/TextChange: Extracted route empty for " + primedPlan->Callsign, "CFlightPlanWindow");
+						// Try to populate from VATSIM route string if extracted route failed
+						if (!vatsimRoute.empty()) {
+							vector<string> parts;
+							CUtils::StringSplit(vatsimRoute, ' ', &parts);
+							CRoutesHelper::InitialiseFixCache(screen);
+							lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
+							for (const string& part : parts) {
+								if (CRoutesHelper::FixCache.find(part) != CRoutesHelper::FixCache.end()) {
+									CWaypoint wp;
+									wp.Name = part;
+									wp.Position = CRoutesHelper::FixCache[part];
+									data->ExtractedRoute.push_back(wp);
+								}
+							}
+							if (!data->ExtractedRoute.empty()) data->ExtractedRouteCalculatedIndex = 0;
+						}
+					}
+				} else if (!vatsimRoute.empty()) {
+					data->RawRouteString = vatsimRoute;
+					CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Using VATSIM data without ES flight plan for " + primedPlan->Callsign, "CFlightPlanWindow");
+					// Populate ExtractedRoute from VATSIM string
+					vector<string> parts;
+					CUtils::StringSplit(vatsimRoute, ' ', &parts);
+					CRoutesHelper::InitialiseFixCache(screen);
+					lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
+					for (const string& part : parts) {
+						if (CRoutesHelper::FixCache.find(part) != CRoutesHelper::FixCache.end()) {
+							CWaypoint wp;
+							wp.Name = part;
+							wp.Position = CRoutesHelper::FixCache[part];
+							data->ExtractedRoute.push_back(wp);
+						}
+					}
+					if (!data->ExtractedRoute.empty()) data->ExtractedRouteCalculatedIndex = 0;
+				} else {
+					CLogger::Log(CLogType::WARN, "Instantiate/TextChange: Flight plan invalid and no VATSIM data for " + primedPlan->Callsign, "CFlightPlanWindow");
+				}
+
 				_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*)data); // Async
 
 				// Set the error to false
@@ -2383,6 +2474,41 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 				data->Screen = screen;
 				data->Callsign = primedPlan->Callsign;
 				data->FP = id == TXT_CPY_RTE ? &copiedPlan : nullptr;
+
+				// Populate aircraft state and route data for thread safety
+				CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
+				if (target.IsValid()) {
+					data->Position = target.GetPosition().GetPosition();
+					data->Direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
+					data->PositionValid = true;
+				}
+				else {
+					data->PositionValid = false;
+					data->Direction = true;
+				}
+
+				EuroScopePlugIn::CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
+				if (fp.IsValid()) {
+					data->RawRouteString = fp.GetFlightPlanData().GetRoute();
+					EuroScopePlugIn::CFlightPlanExtractedRoute route = fp.GetExtractedRoute();
+					for (int i = 0; i < route.GetPointsNumber(); i++) {
+						CWaypoint wp;
+						wp.Name = route.GetPointName(i);
+						wp.Position = route.GetPointPosition(i);
+						data->ExtractedRoute.push_back(wp);
+					}
+					data->ExtractedRouteCalculatedIndex = route.GetPointsCalculatedIndex();
+				}
+
+				// Fallback to VATSIM if empty
+				if (data->RawRouteString.empty()) {
+					string vatsimRoute = CDataHandler::GetVatsimRoute(primedPlan->Callsign);
+					if (!vatsimRoute.empty()) {
+						data->RawRouteString = vatsimRoute;
+						CLogger::Log(CLogType::NORM, "FlightPlanWindow: Used VATSIM API data for " + primedPlan->Callsign, "CFlightPlanWindow");
+					}
+				}
+
 				_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*) data); // Async
 
 				// Set the error to false
@@ -2977,11 +3103,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 					}
 
 					// Post data to the database
-					CUtils::CNetworkAsyncData* data = new CUtils::CNetworkAsyncData();
-					data->Screen = screen;
-					data->Callsign = primedPlan->Callsign;
-					data->FP = netFP;
-					_beginthread(CDataHandler::UpdateNetworkAircraft, 0, (void*)data); // Async
+					// UpdateNetworkAircraft removed (defunct API)
 				}
 			}
 			catch (std::exception & ex) {

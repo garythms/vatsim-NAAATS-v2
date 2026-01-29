@@ -714,10 +714,13 @@ void CCPDLCWindow::Connect(CRadarScreen* screen) {
 	}
 	else {
 		IsConnected = false;
+		string errorDetail = "";
+		if (hoppieClient) errorDetail = "\nDetails: " + hoppieClient->GetLastStatusMessage();
+		
 		screen->GetPlugIn()->DisplayUserMessage("CPDLC", "Error", 
-			"Failed to connect to Hoppie ACARS. Check your logon code and internet connection.", 
+			("Failed to connect to Hoppie ACARS. Check your logon code and internet connection." + errorDetail).c_str(), 
 			true, true, false, true, false);
-		CLogger::Log(CLogType::ERR, "CPDLC connection failed", "CCPDLCWindow::Connect");
+		CLogger::Log(CLogType::ERR, "CPDLC connection failed. " + errorDetail, "CCPDLCWindow::Connect");
 	}
 }
 
