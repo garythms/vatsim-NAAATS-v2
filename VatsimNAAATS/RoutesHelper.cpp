@@ -688,19 +688,50 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 				string wpName = extractedRoutePoints[i].Name;
 				size_t slashPos = wpName.find('/');
 				if (slashPos != string::npos) {
-					wpName = wpName.substr(0, slashPos);
+					// Only strip if it's NOT a coordinate format (e.g. 54/30)
+					bool isCoord = false;
+					if (slashPos > 0 && slashPos < wpName.length() - 1) {
+						if (isdigit((unsigned char)wpName[slashPos - 1]) && isdigit((unsigned char)wpName[slashPos + 1])) {
+							isCoord = true;
+						}
+					}
+					if (!isCoord) wpName = wpName.substr(0, slashPos);
 				}
 
 				if (entryPoint == -1) { // Check entry point
-					if (CUtils::IsEntryPoint(wpName, direction ? true : false)) {
+					if (CUtils::IsEntryPoint(wpName, direction)) {
 						entryPoint = i;
-						continue;
 					}
 				}
-				if (exitPoint == -1) { // Exit point
-					if (CUtils::IsExitPoint(wpName, direction ? true : false)) {
-						exitPoint = i;
-						break;
+				// Always update exit point to the LAST occurrence of an exit fix
+				if (CUtils::IsExitPoint(wpName, direction)) {
+					exitPoint = i;
+				}
+			}
+
+			// Geographic fallback if fixes not found in flight plan
+			if (entryPoint == -1) {
+				for (int i = 0; i < extractedRoutePoints.size(); i++) {
+					double lon = extractedRoutePoints[i].Position.m_Longitude;
+					if (direction) { // Westbound (Eastbound in vNAAATS logic? Let's check direction usage)
+						// vNAAATS direction: true = Westbound? 
+						// RadarDisplay.cpp: direction = CUtils::GetAircraftDirection(...)
+						// Utils.cpp: GetAircraftDirection returns true for Eastbound (0-179), false for Westbound (180-359)
+						// Wait, DataHandler.cpp line 466: data.Direction = (heading > 180 && heading < 360); // Westbound
+						// Let's assume true = Westbound based on DataHandler.cpp and FddWindow.cpp
+						if (lon < 5.0 && lon > -70.0) { entryPoint = i; break; }
+					} else { // Eastbound
+						if (lon > -70.0 && lon < 5.0) { entryPoint = i; break; }
+					}
+				}
+			}
+			if (exitPoint == -1) {
+				for (int i = (entryPoint == -1 ? 0 : entryPoint); i < extractedRoutePoints.size(); i++) {
+					double lon = extractedRoutePoints[i].Position.m_Longitude;
+					if (direction) { // Westbound
+						if (lon < 5.0 && lon > -70.0) { exitPoint = i; }
+					} else { // Eastbound
+						if (lon > -70.0 && lon < 5.0) { exitPoint = i; }
 					}
 				}
 			}
@@ -708,7 +739,7 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			// If on track
 			bool routeFetched = false;
 			if (trackReturned != "") {
-				// 1. Add Entry Point if found
+				// 1. Add Entry Point if found and it's not the same as the first track point
 				if (entryPoint != -1) {
 					CWaypoint point;
 					point.Name = CUtils::ConvertCoordinateFormat(extractedRoutePoints[entryPoint].Name, 0);
@@ -716,37 +747,15 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 					parsedRoute.push_back(point);
 				}
 
-			// 2. Add Track Coordinates
-			// Check concorde
-			if (trackReturned.size() == 2) {
-				if (trackReturned == "SM") {
-					parsedRoute.insert(parsedRoute.end(), NatSM.begin(), NatSM.end());
-					routeFetched = true;
-				}
-				else if (trackReturned == "SN") {
-					parsedRoute.insert(parsedRoute.end(), NatSN.begin(), NatSN.end());
-					routeFetched = true;
-				}
-				else if (trackReturned == "SP") {
-					parsedRoute.insert(parsedRoute.end(), NatSP.begin(), NatSP.end());
-					routeFetched = true;
-				}
-				else if (trackReturned == "SL") {
-					parsedRoute.insert(parsedRoute.end(), NatSL.begin(), NatSL.end());
-					routeFetched = true;
-				}
-				else if (trackReturned == "SO") {
-					parsedRoute.insert(parsedRoute.end(), NatSO.begin(), NatSO.end());
-					routeFetched = true;
-				}
-			}
-
-			if (!routeFetched) {
+				// 2. Add Track Coordinates
 				// Re-fetch track from global map to ensure we have the latest route names
 				lock_guard<mutex> lock(TracksMutex);
 				if (CurrentTracks.find(trackReturned) != CurrentTracks.end()) {
 					CTrack& activeTrack = CurrentTracks[trackReturned];
 					for (int i = 0; i < activeTrack.Route.size(); i++) {
+						// Skip if this is the same as the entry point we just added
+						if (!parsedRoute.empty() && parsedRoute.back().Name == activeTrack.Route[i]) continue;
+
 						CWaypoint point;
 						point.Name = activeTrack.Route[i];
 						if (i < activeTrack.RouteRaw.size()) {
@@ -756,66 +765,38 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 					}
 					routeFetched = true;
 				}
-			}
 
-				// 3. Add Exit Point if found
+				// 3. Add Exit Point if found and it's not the same as the last point added
 				if (exitPoint != -1) {
 					CWaypoint point;
 					point.Name = CUtils::ConvertCoordinateFormat(extractedRoutePoints[exitPoint].Name, 0);
 					point.Position = extractedRoutePoints[exitPoint].Position;
-					parsedRoute.push_back(point);
+					
+					if (parsedRoute.empty() || parsedRoute.back().Name != point.Name) {
+						parsedRoute.push_back(point);
+					}
 				}
 			}
 			else {
-				// Track id
+				// Random Route
 				trackId = "RR";
 
-				// Entry and exit points
-				int start = entryPoint == -1 ? 0 : entryPoint;
-				int stop = exitPoint == -1 ? extractedRoutePoints.size() : exitPoint + 1;
+				if (entryPoint != -1 && exitPoint != -1) {
+					for (int i = entryPoint; i <= exitPoint; i++) {
+						// Filter logic: Only Entry, Exit, or Coordinates
+						bool isEntry = (i == entryPoint);
+						bool isExit = (i == exitPoint);
+						bool isCoordinate = !CUtils::IsAllAlpha(extractedRoutePoints[i].Name);
 
-				// Geographic fallback if fixes not found
-				if (entryPoint == -1) {
-					for (int i = 0; i < extractedRoutePoints.size(); i++) {
-						double lon = extractedRoutePoints[i].Position.m_Longitude;
-						if (direction) { // Westbound
-							if (lon < 5.0 && lon > -70.0) { start = i; break; }
-						} else { // Eastbound
-							if (lon > -70.0 && lon < 5.0) { start = i; break; }
-						}
-					}
-				}
-				if (exitPoint == -1) {
-					for (int i = extractedRoutePoints.size() - 1; i >= 0; i--) {
-						double lon = extractedRoutePoints[i].Position.m_Longitude;
-						if (direction) { // Westbound
-							if (lon < 5.0 && lon > -70.0) { stop = i + 1; break; }
-						} else { // Eastbound
-							if (lon > -70.0 && lon < 5.0) { stop = i + 1; break; }
-						}
-					}
-				}
-
-				// Get entry and exit points
-				for (int i = start; i < stop; i++) {
-					// Filter logic: Only Entry, Exit, or Coordinates (including NAT track points which have numbers)
-					// If entryPoint is -1 (not found), start is calculatedIndex. We just treat start as the beginning of the segment.
-					bool isEntry = (entryPoint != -1 && i == entryPoint);
-					bool isExit = (exitPoint != -1 && i == exitPoint);
-					// Check if coordinate (has numbers)
-					bool isCoordinate = !CUtils::IsAllAlpha(extractedRoutePoints[i].Name);
-
-					if (isEntry || isExit || isCoordinate || (entryPoint == -1 && i == start) || (exitPoint == -1 && i == stop - 1)) {
-						// First check if position is within reasonable longitudinal and lateral bounds
-						if (extractedRoutePoints[i].Position.m_Longitude >= -180 && extractedRoutePoints[i].Position.m_Longitude <= 180
-							&& extractedRoutePoints[i].Position.m_Latitude >= -90 && extractedRoutePoints[i].Position.m_Latitude <= 90) {
-							// Now make the waypoint
+						if (isEntry || isExit || isCoordinate) {
 							CWaypoint point;
 							point.Name = CUtils::ConvertCoordinateFormat(extractedRoutePoints[i].Name, 0);
 							point.Position = extractedRoutePoints[i].Position;
 
-							// Add waypoint to parsed vector
-							parsedRoute.push_back(point);
+							// Avoid duplicates
+							if (parsedRoute.empty() || parsedRoute.back().Name != point.Name) {
+								parsedRoute.push_back(point);
+							}
 						}
 					}
 				}
@@ -1031,7 +1012,6 @@ int CRoutesHelper::ParseRoute(CRadarScreen* screen, string callsign, string rawI
 }
 
 string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string routeString, bool disableEuroScopeFetch) {
-	lock_guard<mutex> lock(TracksMutex);
 	try {
 		// Flight plan
 		string route = routeString;
@@ -1042,90 +1022,53 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 			}
 		}
 
-		// Get route and begin search
-		size_t found = route.find(string(" NAT"));
-		size_t trackIdIndex = string::npos;
-		bool isConcorde = false;
+		// Normalize route string for searching
+		string normRoute = " " + route + " ";
+		for (auto& c : normRoute) c = toupper((unsigned char)c);
 
-		// Iterate through occurrences
+		// 1. Search for " NAT X " or " NATX " pattern
+		size_t found = normRoute.find(" NAT");
 		while (found != string::npos) {
-			// " NAT" is 4 chars.
-			// Format expected: " NATx " or " NATx" (end of string)
-			// Indices: found (space), found+1 (N), found+2 (A), found+3 (T), found+4 (ID)
-			
-			// Check if we have enough chars for ID
-			if (found + 4 < route.size()) {
-				// Check if this is a standalone " NAT" (not part of "NATAL")
-				// We check char at found+5. It must be space or end of string.
-				bool isValidTerminator = false;
-				if (found + 5 >= route.size()) {
-					isValidTerminator = true; // End of string
-				}
-				else if (route.at(found + 5) == 0x20) {
-					isValidTerminator = true; // Space
-				}
-				else {
-					// Check for Concorde (2-letter ID)
-					// Format: " NATSM "
-					// found+4=S, found+5=M. found+6 must be space/EOS.
-					if (found + 6 >= route.size() || route.at(found + 6) == 0x20) {
-						char c1 = route.at(found + 4);
-						char c2 = route.at(found + 5);
-						// Check if it matches Concorde tracks
-						if ((c2 == 'L' || c2 == 'M' || c2 == 'N' || c2 == 'O' || c2 == 'P') && 
-							(c1 == 'S')) { // Concorde tracks usually start with S? The original code checked c2 for L/M/N/O/P.
-							// Original code checked route.at(found+5) for L,M,N,O,P.
-							// It didn't explicitly check found+4 but assumed it was part of ID.
-							// Let's assume found+4 and found+5 form the ID.
-							trackIdIndex = found + 4;
-							isConcorde = true;
-							break;
+			// Check if it's " NAT " or " NATX"
+			if (found + 4 < normRoute.size()) {
+				char nextChar = normRoute[found + 4];
+				string trackId = "";
+				
+				if (nextChar == ' ') { // " NAT B"
+					if (found + 5 < normRoute.size() && isalpha((unsigned char)normRoute[found + 5])) {
+						trackId = normRoute.substr(found + 5, 1);
+						// Check for 2nd char (Concorde)
+						if (found + 6 < normRoute.size() && isalpha((unsigned char)normRoute[found + 6]) && normRoute[found + 7] == ' ') {
+							trackId += normRoute[found + 6];
 						}
+					}
+				} else if (isalpha((unsigned char)nextChar)) { // " NATB"
+					trackId = normRoute.substr(found + 4, 1);
+					// Check for 2nd char (Concorde)
+					if (found + 5 < normRoute.size() && isalpha((unsigned char)normRoute[found + 5]) && normRoute[found + 6] == ' ') {
+						trackId += normRoute[found + 5];
 					}
 				}
 
-				if (isValidTerminator) {
-					// Check if format is " NAT B" or " NATB"
-					if (route.at(found + 4) == 0x20) trackIdIndex = found + 5;
-					else trackIdIndex = found + 4;
-					isConcorde = false;
-					break;
+				if (!trackId.empty()) {
+					lock_guard<mutex> lock(TracksMutex);
+					if (CurrentTracks.find(trackId) != CurrentTracks.end()) {
+						return trackId;
+					}
 				}
 			}
-
-			// Not found or invalid, search next
-			found = route.find(string(" NAT"), found + 1);
+			found = normRoute.find(" NAT", found + 1);
 		}
 
-		// If found
-		if (trackIdIndex != string::npos) {
-			string trackId;
-			if (isConcorde) {
-				if (trackIdIndex + 1 < route.size()) {
-					trackId.push_back(route.at(trackIdIndex));
-					trackId.push_back(route.at(trackIdIndex + 1));
-				}
-			} else {
-				trackId.push_back(route.at(trackIdIndex));
-			}
-
-			// Check if it exists
-			if (CurrentTracks.find(trackId) != CurrentTracks.end())
-				return trackId;
-		}
-
-		// Not on a NAT by keyword (or track not found), check by sequence
+		// 2. Fuzzy match sequence of coordinates
 		vector<string> tokens;
 		CUtils::StringSplit(route, ' ', &tokens);
 
-		// Normalize all tokens for comparison
 		vector<string> normalizedTokens;
 		for (string t : tokens) {
 			if (t.empty()) continue;
-			// Strip speed/level info if present
 			size_t slashPos = t.find('/');
 			if (slashPos != string::npos) {
-				// Check if it's a coordinate format (e.g. 54/30) or speed/level (e.g. N0450/F350)
 				if (slashPos > 0 && slashPos < t.length() - 1) {
 					if (!isdigit((unsigned char)t[slashPos - 1]) || !isdigit((unsigned char)t[slashPos + 1])) {
 						t = t.substr(0, slashPos);
@@ -1133,45 +1076,37 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 				}
 			}
 			string normalized = CUtils::ConvertCoordinateFormat(t, 0);
-			// Ensure uppercase
 			for (auto& c : normalized) c = toupper((unsigned char)c);
 			normalizedTokens.push_back(normalized);
 		}
 
+		lock_guard<mutex> lock(TracksMutex);
 		for (auto const& kv : CurrentTracks) {
 			const string& id = kv.first;
 			const CTrack& t = kv.second;
-			
 			if (t.Route.size() == 0) continue;
 
-			// Normalize track route points
-			vector<string> normalizedTrackRoute;
-			for (string tr : t.Route) {
-				string normalized = CUtils::ConvertCoordinateFormat(tr, 0);
-				for (auto& c : normalized) c = toupper((unsigned char)c);
-				normalizedTrackRoute.push_back(normalized);
-			}
-
-			// Count how many track points match the flight's route
 			int matchCount = 0;
-			for (const string& trPoint : normalizedTrackRoute) {
+			for (const string& trPoint : t.Route) {
+				string normTr = CUtils::ConvertCoordinateFormat(trPoint, 0);
+				for (auto& c : normTr) c = toupper((unsigned char)c);
+
 				for (const string& flPoint : normalizedTokens) {
-					if (trPoint == flPoint) {
+					if (normTr == flPoint) {
 						matchCount++;
 						break;
 					}
 				}
 			}
 
-			// If 2 or more points match, it's highly likely this track
 			if (matchCount >= 2) {
 				return id;
 			}
 		}
+
 		return "";
 	}
 	catch (std::exception & ex) {
-		// CLogger::DebugLog(screen, "An exception occurred. " + *ex.what()); // REMOVED FOR THREAD SAFETY
 		CLogger::Log(CLogType::ERR, "An error occurred. Callsign: " + callsign + "\nVerbose details: " + *ex.what(), "CRoutesHelper::OnNatTrack");
 		return "";
 	}
