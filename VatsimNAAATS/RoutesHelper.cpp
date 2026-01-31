@@ -159,18 +159,24 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 					}
 				}
 
-				if (found) {
-					for (auto& pt : trackPoints) {
-						CRoutePosition position;
-						position.Fix = tid;
-						position.PositionRaw = pt;
-						position.Estimate = "--";
-						position.DistanceFromLastPoint = 0;
-						position.FlightLevel = target.IsValid() ? target.GetPosition().GetFlightLevel() / 100 : 0;
-						routeVector->push_back(position);
-					}
-					continue;
+		if (found) {
+			for (int k = 0; k < trackPoints.size(); k++) {
+				CRoutePosition position;
+				// Use the actual waypoint name from the track definition if available
+				lock_guard<mutex> lock(TracksMutex);
+				if (CurrentTracks.find(tid) != CurrentTracks.end() && k < CurrentTracks.at(tid).Route.size()) {
+					position.Fix = CurrentTracks.at(tid).Route[k];
+				} else {
+					position.Fix = tid; // Fallback
 				}
+				position.PositionRaw = trackPoints[k];
+				position.Estimate = "--";
+				position.DistanceFromLastPoint = 0;
+				position.FlightLevel = target.IsValid() ? target.GetPosition().GetFlightLevel() / 100 : 0;
+				routeVector->push_back(position);
+			}
+			continue;
+		}
 			}
 
 			CRoutePosition position;
@@ -1079,7 +1085,9 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 				}
 
 				if (isValidTerminator) {
-					trackIdIndex = found + 4;
+					// Check if format is " NAT B" or " NATB"
+					if (route.at(found + 4) == 0x20) trackIdIndex = found + 5;
+					else trackIdIndex = found + 4;
 					isConcorde = false;
 					break;
 				}
@@ -1104,65 +1112,63 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 			// Check if it exists
 			if (CurrentTracks.find(trackId) != CurrentTracks.end())
 				return trackId;
-			else
-				return "";
 		}
-		else { // Not on a NAT by keyword, check by sequence
-			vector<string> tokens;
-			CUtils::StringSplit(route, ' ', &tokens);
 
-			// Normalize all tokens for comparison
-			vector<string> normalizedTokens;
-			for (string t : tokens) {
-				if (t.empty()) continue;
-				// Strip speed/level info if present
-				size_t slashPos = t.find('/');
-				if (slashPos != string::npos) {
-					// Check if it's a coordinate format (e.g. 54/30) or speed/level (e.g. N0450/F350)
-					if (slashPos > 0 && slashPos < t.length() - 1) {
-						if (!isdigit((unsigned char)t[slashPos - 1]) || !isdigit((unsigned char)t[slashPos + 1])) {
-							t = t.substr(0, slashPos);
-						}
+		// Not on a NAT by keyword (or track not found), check by sequence
+		vector<string> tokens;
+		CUtils::StringSplit(route, ' ', &tokens);
+
+		// Normalize all tokens for comparison
+		vector<string> normalizedTokens;
+		for (string t : tokens) {
+			if (t.empty()) continue;
+			// Strip speed/level info if present
+			size_t slashPos = t.find('/');
+			if (slashPos != string::npos) {
+				// Check if it's a coordinate format (e.g. 54/30) or speed/level (e.g. N0450/F350)
+				if (slashPos > 0 && slashPos < t.length() - 1) {
+					if (!isdigit((unsigned char)t[slashPos - 1]) || !isdigit((unsigned char)t[slashPos + 1])) {
+						t = t.substr(0, slashPos);
 					}
 				}
-				string normalized = CUtils::ConvertCoordinateFormat(t, 0);
-				// Ensure uppercase
+			}
+			string normalized = CUtils::ConvertCoordinateFormat(t, 0);
+			// Ensure uppercase
+			for (auto& c : normalized) c = toupper((unsigned char)c);
+			normalizedTokens.push_back(normalized);
+		}
+
+		for (auto const& kv : CurrentTracks) {
+			const string& id = kv.first;
+			const CTrack& t = kv.second;
+			
+			if (t.Route.size() == 0) continue;
+
+			// Normalize track route points
+			vector<string> normalizedTrackRoute;
+			for (string tr : t.Route) {
+				string normalized = CUtils::ConvertCoordinateFormat(tr, 0);
 				for (auto& c : normalized) c = toupper((unsigned char)c);
-				normalizedTokens.push_back(normalized);
+				normalizedTrackRoute.push_back(normalized);
 			}
 
-			for (auto const& kv : CurrentTracks) {
-				const string& id = kv.first;
-				const CTrack& t = kv.second;
-				
-				if (t.Route.size() == 0) continue;
-
-				// Normalize track route points
-				vector<string> normalizedTrackRoute;
-				for (string tr : t.Route) {
-					string normalized = CUtils::ConvertCoordinateFormat(tr, 0);
-					for (auto& c : normalized) c = toupper((unsigned char)c);
-					normalizedTrackRoute.push_back(normalized);
-				}
-
-				// Count how many track points match the flight's route
-				int matchCount = 0;
-				for (const string& trPoint : normalizedTrackRoute) {
-					for (const string& flPoint : normalizedTokens) {
-						if (trPoint == flPoint) {
-							matchCount++;
-							break;
-						}
+			// Count how many track points match the flight's route
+			int matchCount = 0;
+			for (const string& trPoint : normalizedTrackRoute) {
+				for (const string& flPoint : normalizedTokens) {
+					if (trPoint == flPoint) {
+						matchCount++;
+						break;
 					}
 				}
-
-				// If 2 or more points match, it's highly likely this track
-				if (matchCount >= 2) {
-					return id;
-				}
 			}
-			return "";
+
+			// If 2 or more points match, it's highly likely this track
+			if (matchCount >= 2) {
+				return id;
+			}
 		}
+		return "";
 	}
 	catch (std::exception & ex) {
 		// CLogger::DebugLog(screen, "An exception occurred. " + *ex.what()); // REMOVED FOR THREAD SAFETY

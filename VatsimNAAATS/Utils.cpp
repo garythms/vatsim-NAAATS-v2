@@ -641,6 +641,15 @@ string CUtils::ConvertCoordinateFormat(string coordinateString, int format) { //
 		// Check the current format of the input string
 		int currentFormat = -1;
 		if (coordinateString.find('/') != string::npos) {
+			// Check if it contains N/W letters (e.g. 51N/20W)
+			if (coordinateString.find('N') != string::npos || coordinateString.find('W') != string::npos) {
+				// Normalize 51N/20W to 51/20
+				string normalized;
+				for (char c : coordinateString) {
+					if (isdigit((unsigned char)c) || c == '/') normalized += c;
+				}
+				coordinateString = normalized;
+			}
 			currentFormat = 0;
 		}
 		else if (coordinateString.find('W') == string::npos && coordinateString.find('/') == string::npos && coordinateString.size() == 5) {
