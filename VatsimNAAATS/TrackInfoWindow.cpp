@@ -87,7 +87,13 @@ void CTrackInfoWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	dc->TextOutA(((windowRect.right + windowRect.left) / 2) + 10, buttonBarRect.top + 16, MsgDataRefresh.c_str());
 	
 	// Get a rectangle for the content
-	int contentSize = CRoutesHelper::CurrentTracks.size() * 45; // We minus 25 because 25 extra is always added on at the end of the loop
+	map<string, CTrack> tracksToRender;
+	{
+		lock_guard<mutex> lock(CRoutesHelper::TracksMutex);
+		tracksToRender = CRoutesHelper::CurrentTracks;
+	}
+
+	int contentSize = tracksToRender.size() * 45; // We minus 25 because 25 extra is always added on at the end of the loop
 	CRect scrollContent(windowRect.left, windowRect.top + WINSZ_TITLEBAR_HEIGHT, windowRect.right, windowRect.top + WINSZ_TITLEBAR_HEIGHT + contentSize);
 	/// Scroll bar mechanics
 	scrollWindowSize = WINSZ_TCKINFO_HEIGHT - (buttonBarRect.Height() + 3) -  (titleRect.Height() + 1); // Size of the window (which is also the size of the track for the scroll grip)
@@ -130,7 +136,7 @@ void CTrackInfoWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	int contentOffsetY = 25;
 	string spacer = "SPACER"; // To use GetTextExtent() for a consistent sized spacer
 	// Draw lines
-	for (auto kv : CRoutesHelper::CurrentTracks) {
+	for (auto const& kv : tracksToRender) {
 		int content = (int)scrollContent.top + contentOffsetY;
 		if (windowRect.top + contentOffsetY >= clipContent.top && windowRect.top + contentOffsetY <= clipContent.bottom) {
 			dc->TextOutA(windowRect.left + offsetX, windowRect.top + offsetY, "TCK");

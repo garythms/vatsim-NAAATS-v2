@@ -687,171 +687,88 @@ void CCommonRenders::RenderTracks(CDC* dc, Graphics* g, CRadarScreen* screen, CO
 
 
 	// Loop tracks
+	map<string, CTrack> tracksToRender;
+	{
+		lock_guard<mutex> lock(CRoutesHelper::TracksMutex);
+		tracksToRender = CRoutesHelper::CurrentTracks;
+	}
 
-	for (auto kv : CRoutesHelper::CurrentTracks) {
-
+	for (auto const& kv : tracksToRender) {
 		// Show eastbound/eastbound only if that type is selected
-
 		if (type == COverlayType::TCKS_EAST && kv.second.Direction != CTrackDirection::EAST) {
-
 			continue;
-
 		}
-
 		else if (type == COverlayType::TCKS_WEST && kv.second.Direction != CTrackDirection::WEST) {
-
 			continue;
-
 		}
-
 		
-
 		// Show selected overlays
-
 		if (type == COverlayType::TCKS_SEL) {
-
 			vector<string> tracks;
-
 			menubar->GetSelectedTracks(tracks);
-
 			bool show = false;
-
 			for (int i = 0; i < tracks.size(); i++) {
-
 				if (kv.first == tracks[i]) {
-
 					show = true;
-
 				}
-
 			}
-
 			if (!show) {
-
 				continue;
-
 			}
-
 		}
 
-
-
-		// Build resolved route positions - look up named waypoints from sector file
-
+		// Build resolved route positions - look up named waypoints from cache
 		vector<CPosition> resolvedRoute;
-
 		for (size_t i = 0; i < kv.second.Route.size(); i++) {
-
 			CPosition pos;
-
 			bool found = false;
-
 			
-
 			// Check if we have a valid coordinate in RouteRaw (same index if sizes match)
-
 			if (i < kv.second.RouteRaw.size()) {
-
 				pos = kv.second.RouteRaw[i];
-
-				// Check if position is valid (NAT region is 40N-70N latitude)
-
+				// Check if position is valid
 				if (pos.m_Latitude > 30.0 && pos.m_Latitude < 80.0) {
-
 					found = true;
-
 				}
-
 			}
-
 			
-
-			// If not found, try to look up the waypoint name from sector file
-
+			// If not found, try to look up the waypoint name from cache
 			if (!found) {
-
 				string waypointName = kv.second.Route[i];
-
-				CSectorElement fix;
-
-				for (fix = screen->GetPlugIn()->SectorFileElementSelectFirst(EuroScopePlugIn::SECTOR_ELEMENT_FIX);
-
-					fix.IsValid();
-
-					fix = screen->GetPlugIn()->SectorFileElementSelectNext(fix, EuroScopePlugIn::SECTOR_ELEMENT_FIX)) {
-
-					if (waypointName == fix.GetName()) {
-
-						if (fix.GetPosition(&pos, 0)) {
-
-							found = true;
-
-						}
-
-						break;
-
-					}
-
+				lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
+				if (CRoutesHelper::FixCache.count(waypointName)) {
+					pos = CRoutesHelper::FixCache[waypointName];
+					found = true;
 				}
-
 			}
-
 			
-
 			// Only add valid positions
-
 			if (found) {
-
 				resolvedRoute.push_back(pos);
-
 			}
-
 		}
-
 		
-
 		// Skip if no valid route points
-
 		if (resolvedRoute.empty()) {
-
 			continue;
-
 		}
-
-
 
 		// Move to start and draw 
-
 		POINT pointCoord = screen->ConvertCoordFromPositionToPixel(resolvedRoute[0]);
-
 		string id = kv.first;
-
 		if (kv.second.Direction == CTrackDirection::EAST) {
-
 			dc->TextOutA(pointCoord.x - 12, pointCoord.y - 5, id.c_str());
-
 		}
-
 		else {
-
 			dc->TextOutA(pointCoord.x + 12, pointCoord.y - 5, id.c_str());
-
 		}
-
-
 
 		// Draw lines
-
 		for (size_t i = 0; i < resolvedRoute.size(); i++) {
-
 			POINT nextPoint = screen->ConvertCoordFromPositionToPixel(resolvedRoute[i]);
-
 			g->DrawLine(&pen, pointCoord.x, pointCoord.y, nextPoint.x, nextPoint.y);
-
 			pointCoord = nextPoint;
-
 		}
-
 	}
 
 

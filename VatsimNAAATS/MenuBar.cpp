@@ -374,12 +374,15 @@ map<int, CWinButton> CMenuBar::GetToggleButtons() {
 
 void CMenuBar::MakeDropDownItems(int id) {
 	if (id == DRP_TCKCTRL) {
-		map<string, bool> map;
-		for (auto kv : CRoutesHelper::CurrentTracks) {
-			map.insert(make_pair(kv.first, true));
+		map<string, bool> trackMap;
+		{
+			lock_guard<mutex> lock(CRoutesHelper::TracksMutex);
+			for (auto const& kv : CRoutesHelper::CurrentTracks) {
+				trackMap.insert(make_pair(kv.first, true));
+			}
 		}
 		dropDowns[DRP_TCKCTRL].Items.clear();
-		dropDowns[DRP_TCKCTRL].MakeItems(&map);
+		dropDowns[DRP_TCKCTRL].MakeItems(&trackMap);
 	}
 }
 

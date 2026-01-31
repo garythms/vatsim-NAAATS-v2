@@ -233,8 +233,12 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 
 	// Parse the json
 	try {
-		if (!CRoutesHelper::CurrentTracks.empty()) {
-			CRoutesHelper::CurrentTracks.clear();
+		// Clear current tracks (thread-safe)
+		{
+			lock_guard<mutex> lock(CRoutesHelper::TracksMutex);
+			if (!CRoutesHelper::CurrentTracks.empty()) {
+				CRoutesHelper::CurrentTracks.clear();
+			}
 		}
 
 		auto jsonArray = json::parse(responseString);
@@ -285,7 +289,11 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 				track.validTo = jsonArray[i].at("valid_to").get<string>();
 			}
 
-			CRoutesHelper::CurrentTracks.insert(make_pair(track.Identifier, track));
+			// Add to map (thread-safe)
+			{
+				lock_guard<mutex> lock(CRoutesHelper::TracksMutex);
+				CRoutesHelper::CurrentTracks.insert(make_pair(track.Identifier, track));
+			}
 		}
 		
 		return 0;
