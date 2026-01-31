@@ -448,8 +448,6 @@ void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen)
 	}
 
 	// Cleanup
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 
 	// Restore device context
 	dc->RestoreDC(iDC);
@@ -538,9 +536,63 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 					}
 					else {
 						// Write coordinate down
-						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, (to_string((int)abs(rte[i].PositionRaw.m_Latitude)) + "N").c_str());
+						string displayLat, displayLon;
+						string coordText = rte[i].Fix;
+						if (coordText.empty()) {
+							// Construct from raw if empty
+							displayLat = to_string((int)abs(rte[i].PositionRaw.m_Latitude)) + "N";
+							displayLon = to_string((int)abs(rte[i].PositionRaw.m_Longitude)) + "W";
+						}
+						else {
+							// Try to convert to slash format (e.g. 54/30)
+							string shortFormat = CUtils::ConvertCoordinateFormat(coordText, 0);
+							size_t slashPos = shortFormat.find('/');
+							size_t sfSpacePos = shortFormat.find(' ');
+
+							if (sfSpacePos != string::npos) {
+								displayLat = shortFormat.substr(0, sfSpacePos);
+								displayLon = shortFormat.substr(sfSpacePos + 1);
+							}
+							else if (slashPos != string::npos) {
+								// It successfully converted or was already short
+								displayLat = shortFormat.substr(0, slashPos) + "N";
+								displayLon = shortFormat.substr(slashPos + 1) + "W";
+							}
+							else if (coordText.size() == 11) {
+								// Long format 5430N03000W
+								string latPart = coordText.substr(0, 5); // 5430N
+								if (latPart.size() == 5 && latPart.substr(2, 2) == "00") {
+									displayLat = latPart.substr(0, 2) + latPart.substr(4, 1);
+								}
+								else {
+									displayLat = latPart;
+								}
+
+								string lonPart = coordText.substr(5);    // 03000W
+								
+								// Check if longitude minutes are 00
+								if (lonPart.size() == 6 && lonPart.substr(3, 2) == "00") {
+									// 03000W -> 030W
+									displayLon = lonPart.substr(0, 3) + lonPart.substr(5, 1);
+								} else {
+									displayLon = lonPart;
+								}
+
+								// Strip leading zero from longitude if desired, e.g. 030W -> 30W
+								if (displayLon.size() > 1 && displayLon[0] == '0') {
+									displayLon = displayLon.substr(1);
+								}
+							}
+							else {
+								// Fallback
+								displayLat = to_string((int)abs(rte[i].PositionRaw.m_Latitude)) + "N";
+								displayLon = to_string((int)abs(rte[i].PositionRaw.m_Longitude)) + "W";
+							}
+						}
+
+						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLat.c_str());
 						offsetY += 27;
-						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, (to_string((int)abs(rte[i].PositionRaw.m_Longitude)) + "W").c_str());
+						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLon.c_str());
 						offsetY += 27;						
 						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
 						offsetY = 2;
@@ -649,11 +701,6 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 	CCommonRenders::RenderTextInput(dc, screen, { dataBarRect.left + 5, rteBox.bottom + 43 }, WINSZ_FLTPLN_WIDTH - 13, 20, &textInputs.at(boxType));
 
 	// Cleanup
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
-	DeleteObject(lightBackground);
-	DeleteObject(evenLighterBackground);
-	DeleteObject(routeBox);
 
 	return dataBarRect;
 }
@@ -759,8 +806,6 @@ void CFlightPlanWindow::RenderConflictWindow(CDC* dc, Graphics* g, CRadarScreen*
 	}
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 void CFlightPlanWindow::RenderMessageWindow(CDC* dc, Graphics* g, CRadarScreen* screen, POINT bottomLeft)
@@ -872,8 +917,6 @@ void CFlightPlanWindow::RenderMessageWindow(CDC* dc, Graphics* g, CRadarScreen* 
 	}
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 void CFlightPlanWindow::RenderClearanceWindow(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft)
@@ -1006,8 +1049,6 @@ void CFlightPlanWindow::RenderClearanceWindow(CDC* dc, Graphics* g, CRadarScreen
 
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 // Todo: modify this to make more suitable for voice clearances, and for position report entry and fix bugs
@@ -1102,12 +1143,75 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 			}
 			else {
 				// Write coordinate down
-				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, (to_string((int)abs(rte[i].PositionRaw.m_Latitude)) + "N").c_str());
+				string displayLat, displayLon;
+				string coordText = rte[i].Fix;
+				if (coordText.empty()) {
+					// Construct from raw if empty
+					displayLat = to_string((int)abs(rte[i].PositionRaw.m_Latitude)) + "N";
+					displayLon = to_string((int)abs(rte[i].PositionRaw.m_Longitude)) + "W";
+				}
+				else {
+					// Check for space separated (our new format from Utils)
+					size_t spacePos = coordText.find(' ');
+					if (spacePos != string::npos) {
+						displayLat = coordText.substr(0, spacePos);
+						displayLon = coordText.substr(spacePos + 1);
+					}
+					else {
+						// Try to convert to slash format (e.g. 54/30)
+						string shortFormat = CUtils::ConvertCoordinateFormat(coordText, 0);
+						size_t slashPos = shortFormat.find('/');
+						size_t sfSpacePos = shortFormat.find(' ');
+
+						if (sfSpacePos != string::npos) {
+							displayLat = shortFormat.substr(0, sfSpacePos);
+							displayLon = shortFormat.substr(sfSpacePos + 1);
+						}
+						else if (slashPos != string::npos) {
+							// It successfully converted or was already short
+							displayLat = shortFormat.substr(0, slashPos) + "N";
+							displayLon = shortFormat.substr(slashPos + 1) + "W";
+						}
+						else if (coordText.size() == 11) {
+							// Long format 5430N03000W fallback
+							string latPart = coordText.substr(0, 5); // 5430N
+							if (latPart.size() == 5 && latPart.substr(2, 2) == "00") {
+								displayLat = latPart.substr(0, 2) + latPart.substr(4, 1);
+							}
+							else {
+								displayLat = latPart;
+							}
+
+							string lonPart = coordText.substr(5);    // 03000W
+
+							// Check if longitude minutes are 00
+							if (lonPart.size() == 6 && lonPart.substr(3, 2) == "00") {
+								// 03000W -> 030W
+								displayLon = lonPart.substr(0, 3) + lonPart.substr(5, 1);
+							}
+							else {
+								displayLon = lonPart;
+							}
+
+							// Strip leading zero from longitude if desired, e.g. 030W -> 30W
+							if (displayLon.size() > 1 && displayLon[0] == '0') {
+								displayLon = displayLon.substr(1);
+							}
+						}
+						else {
+							// Fallback
+							displayLat = to_string((int)abs(rte[i].PositionRaw.m_Latitude)) + "N";
+							displayLon = to_string((int)abs(rte[i].PositionRaw.m_Longitude)) + "W";
+						}
+					}
+				}
+
+				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLat.c_str());
 				offsetY += 28;
-				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, (to_string((int)abs(rte[i].PositionRaw.m_Longitude)) + "W").c_str());
+				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLon.c_str());
 				offsetY += 28;
 				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
-				offsetY = 2;
+				offsetY += 2;
 				offsetX += dc->GetTextExtent(rte[i].Fix.c_str()).cx + 15;
 			}
 		}
@@ -1175,8 +1279,6 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 		windowButtons[BTN_MAN_SUBMIT].State = CInputState::INACTIVE;
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft)
@@ -1246,13 +1348,10 @@ void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* scr
 
 		offsetX = buttonBarRect.right - 73;
 	}
-	// BUG: last element with header overdrwa the window
-	//		TEMP FIX: use counter
 	// Draw checkboxes
 	int offsetY = 0;
 	int contentOffsetY = 0;
 	int totalcontent = 0;
-	int count = 1;
 	for (int i = CHK_COORD_CZQOV; i <= CHK_COORD_ENRV; i++) {
 		if (i == CHK_COORD_CZQOV || i == CHK_COORD_EISNV || i == CHK_COORD_PLANV)
 		{
@@ -1261,46 +1360,41 @@ void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* scr
 		totalcontent += 20;
 	}
 	for (int i = CHK_COORD_CZQOV; i <= CHK_COORD_ENRV; i++) {
-		bool headerOffset = false;
-		if (!(contentOffsetY < scrollBars[SCRL_COORD_STATIONS].WindowPos)) {
-			// Headers
-			CRect rect(stations.left, stations.top + offsetY, stations.right - 1, stations.top + offsetY + dc->GetTextExtent("ABCD").cy);
-			if (!(contentOffsetY > scrollBars[SCRL_COORD_STATIONS].WindowPos + scrollBars[SCRL_COORD_STATIONS].FrameSize)) {
-				if (i == CHK_COORD_CZQOV) {
-					dc->FillSolidRect(rect, ButtonPressed.ToCOLORREF());
-					dc->TextOutA(stations.left + 35, stations.top + offsetY, "Oceanic");
-					offsetY += 20;
-					headerOffset = true;
-				}
-				else if (i == CHK_COORD_EISNV) {
-					dc->FillSolidRect(rect, ButtonPressed.ToCOLORREF());
-					dc->TextOutA(stations.left + 35, stations.top + offsetY, "Domestic");
-					offsetY += 20;
-					headerOffset = true;
-				}
-				else if (i == CHK_COORD_PLANV) {
-					if (count == 8) break;
-					dc->FillSolidRect(rect, ButtonPressed.ToCOLORREF());
-					dc->TextOutA(stations.left + 35, stations.top + offsetY, "Misc");
-					offsetY += 20;
-					headerOffset = true;
-				}
+		bool hasHeader = (i == CHK_COORD_CZQOV || i == CHK_COORD_EISNV || i == CHK_COORD_PLANV);
+
+		// Header
+		if (hasHeader) {
+			if (contentOffsetY >= scrollBars[SCRL_COORD_STATIONS].WindowPos &&
+				contentOffsetY < scrollBars[SCRL_COORD_STATIONS].WindowPos + scrollBars[SCRL_COORD_STATIONS].FrameSize) {
+				
+				CRect rect(stations.left, stations.top + offsetY, stations.right - 1, stations.top + offsetY + dc->GetTextExtent("ABCD").cy);
+				dc->FillSolidRect(rect, ButtonPressed.ToCOLORREF());
+				
+				string headerText = "";
+				if (i == CHK_COORD_CZQOV) headerText = "Oceanic";
+				else if (i == CHK_COORD_EISNV) headerText = "Domestic";
+				else if (i == CHK_COORD_PLANV) headerText = "Misc";
+
+				dc->TextOutA(stations.left + 35, stations.top + offsetY, headerText.c_str());
+				offsetY += 20;
 			}
+			contentOffsetY += 20;
 		}
 
-		if (!(contentOffsetY < scrollBars[SCRL_COORD_STATIONS].WindowPos)) {
+		// Item
+		if (contentOffsetY >= scrollBars[SCRL_COORD_STATIONS].WindowPos &&
+			contentOffsetY < scrollBars[SCRL_COORD_STATIONS].WindowPos + scrollBars[SCRL_COORD_STATIONS].FrameSize) {
+
 			CRect box;
-			if (!(contentOffsetY > scrollBars[SCRL_COORD_STATIONS].WindowPos + scrollBars[SCRL_COORD_STATIONS].FrameSize)) {
-				// Checkboxes
-				box = CCommonRenders::RenderCheckBox(dc, g, screen, { stations.left + 5, stations.top + offsetY }, 15, &checkBoxes.at(i));
-				CCommonRenders::RenderCheckBox(dc, g, screen, { stations.right - 40, stations.top + offsetY }, 15, &checkBoxes.at(i + 56)); // The manual one
-			}
+			// Checkboxes
+			box = CCommonRenders::RenderCheckBox(dc, g, screen, { stations.left + 5, stations.top + offsetY }, 15, &checkBoxes.at(i));
+			CCommonRenders::RenderCheckBox(dc, g, screen, { stations.right - 40, stations.top + offsetY }, 15, &checkBoxes.at(i + 56)); // The manual one
+			
 			// Text
 			dc->TextOutA(box.right + 15, box.top - 1, checkBoxes.at(i).Label.c_str());
 			offsetY += 20;
-			count++;
 		}
-		contentOffsetY += headerOffset ? 40 : 20;
+		contentOffsetY += 20;
 	}
 
 	// Scroll bar values
@@ -1324,8 +1418,6 @@ void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* scr
 	dc->DrawEdge(coordWindow, EDGE_RAISED, BF_RECT);
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 void CFlightPlanWindow::RenderHistoryModal(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft)
@@ -1395,8 +1487,6 @@ void CFlightPlanWindow::RenderHistoryModal(CDC* dc, Graphics* g, CRadarScreen* s
 	dc->DrawEdge(histWindow, EDGE_RAISED, BF_RECT);
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 void CFlightPlanWindow::RenderATCRestrictModal(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft)
@@ -1532,8 +1622,6 @@ void CFlightPlanWindow::RenderATCRestrictModal(CDC* dc, Graphics* g, CRadarScree
 	dc->DrawEdge(atcrWindow, EDGE_RAISED, BF_RECT);
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 void CFlightPlanWindow::RenderExchangeModal(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft)
@@ -1712,8 +1800,6 @@ void CFlightPlanWindow::RenderExchangeModal(CDC* dc, Graphics* g, CRadarScreen* 
 	dc->DrawEdge(coordWindow, EDGE_RAISED, BF_RECT);
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft)
@@ -1850,8 +1936,6 @@ void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarSc
 	dc->DrawEdge(atcrWindow, EDGE_RAISED, BF_RECT);
 
 	// Clean up
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 }
 
 bool CFlightPlanWindow::IsButtonPressed(int id) {
@@ -1884,8 +1968,16 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 
 	// Get the data
 	CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
-	if (!fp->IsValid) {
+
+	// If the flight plan is missing or uninitialized, try to update it
+	if (fp == nullptr || (fp->IsValid && (fp->Type.empty() || fp->RouteRaw.empty()))) {
+		CDataHandler::UpdateFlightData(screen, callsign, true);
+		fp = CDataHandler::GetFlightData(callsign);
+	}
+
+	if (fp == nullptr || !fp->IsValid) {
 		primedPlan = new CAircraftFlightPlan();
+		primedPlan->Callsign = callsign; // Ensure callsign is set even if invalid
 		return;
 	}
 	else {
@@ -2015,13 +2107,79 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 			}
 		}
 		else {
-			if (!primedPlan->Route.empty()) {
+			if (!primedPlan->Route.empty() || !primedPlan->RouteRaw.empty()) {
 				// Set route
 				string route;
-				for (int i = 0; i < fp->Route.size(); i++) {
-					route += primedPlan->Route[i].Name + " ";
+				bool direction = primedPlan->Direction;
+
+				if (!primedPlan->Route.empty()) {
+					// Use parsed route
+					int startIdx = 0;
+					int endIdx = primedPlan->Route.size() - 1;
+					
+					// Find entry
+					for(int i=0; i<primedPlan->Route.size(); i++) {
+						if (CUtils::IsEntryPoint(primedPlan->Route[i].Name, direction)) {
+							startIdx = i;
+							break;
+						}
+					}
+					// Find exit
+					for(int i=startIdx; i<primedPlan->Route.size(); i++) {
+						if (CUtils::IsExitPoint(primedPlan->Route[i].Name, direction)) {
+							endIdx = i;
+							break;
+						}
+					}
+
+					for (int i = startIdx; i <= endIdx; i++) {
+						string name = primedPlan->Route[i].Name;
+						if (name == "DCT") continue;
+						if (!CUtils::IsAllAlpha(name)) {
+							name = CUtils::ConvertCoordinateFormat(name, 0);
+						}
+						route += name + " ";
+					}
 				}
-				route.pop_back(); // Get rid of extra space
+				else {
+					// Use raw route
+					int startIdx = 0;
+					int endIdx = primedPlan->RouteRaw.size() - 1;
+
+					// Find entry
+					for(int i=0; i<primedPlan->RouteRaw.size(); i++) {
+						string name = primedPlan->RouteRaw[i];
+						size_t slash = name.find('/');
+						if (slash != string::npos) name = name.substr(0, slash);
+						if (CUtils::IsEntryPoint(name, direction)) {
+							startIdx = i;
+							break;
+						}
+					}
+					// Find exit
+					for(int i=startIdx; i<primedPlan->RouteRaw.size(); i++) {
+						string name = primedPlan->RouteRaw[i];
+						size_t slash = name.find('/');
+						if (slash != string::npos) name = name.substr(0, slash);
+						if (CUtils::IsExitPoint(name, direction)) {
+							endIdx = i;
+							break;
+						}
+					}
+
+					for (int i = startIdx; i <= endIdx; i++) {
+						string name = primedPlan->RouteRaw[i];
+						size_t slash = name.find('/');
+						if (slash != string::npos) name = name.substr(0, slash);
+						
+						if (name == "DCT") continue;
+						if (!CUtils::IsAllAlpha(name)) {
+							name = CUtils::ConvertCoordinateFormat(name, 0);
+						}
+						route += name + " ";
+					}
+				}
+				if (!route.empty()) route.pop_back(); // Get rid of extra space
 				IsData = true;
 				SetTextValue(screen, CFlightPlanWindow::TXT_SPD, primedPlan->Mach);
 				SetTextValue(screen, CFlightPlanWindow::TXT_LEVEL, primedPlan->FlightLevel);
@@ -2032,7 +2190,43 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 					SetTextValue(screen, CFlightPlanWindow::TXT_TCK, primedPlan->Track);
 				}
 				else {
-					SetTextValue(screen, CFlightPlanWindow::TXT_RTE, route);
+					// Set content directly to bypass strict ParseRoute validation which fails on airways/procedures
+					textInputs[TXT_RTE].Content = route;
+					textInputs[TXT_RTE].Error = false;
+				}
+				
+				// If route is empty, we must trigger initialization (async) to parse points
+				// This applies to BOTH track and random route aircraft
+				if (primedPlan->Route.empty()) {
+					CUtils::CAsyncData* data = new CUtils::CAsyncData();
+					try {
+						data->Screen = screen;
+						data->Callsign = primedPlan->Callsign;
+						data->FP = nullptr;
+
+						// Populate aircraft state
+						CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
+						if (target.IsValid()) {
+							data->Position = target.GetPosition().GetPosition();
+							data->Direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
+							data->PositionValid = true;
+						}
+						else {
+							data->PositionValid = false;
+							data->Direction = true;
+						}
+
+						data->RouteRaw = primedPlan->RouteRaw;
+						data->Track = primedPlan->Track;
+
+						// Ensure FixCache is populated before async route parsing
+						CRoutesHelper::InitialiseFixCache(screen);
+
+						_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*)data);
+					}
+					catch (...) {
+						if (data) delete data;
+					}
 				}
 			}
 			else
@@ -2265,7 +2459,7 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		// Check if it is a string
 		bool isNumber = true;
 		for (int i = 0; i < content.size(); i++) { // Check if string
-			if (!isdigit(content[i])) return;
+			if (!isdigit((unsigned char)content[i])) return;
 		}
 		// It's a number, check the length
 		if (stoi(content) > 200 || stoi(content) < 1) return;
@@ -2287,7 +2481,7 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		// Check if it is a string
 		bool isNumber = true;
 		for (int i = 0; i < content.size(); i++) { // Check if string
-			if (!isdigit(content[i])) return;
+			if (!isdigit((unsigned char)content[i])) return;
 		}
 		// It's a number, check the length
 		if (stoi(content) > 999 || stoi(content) < 1) return;
@@ -2307,8 +2501,8 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		// Check if it is a string
 		bool isNumber = false;
 		for (int i = 0; i < content.size(); i++) { // Check if string
-			if (!isalpha(content[i])) return;
-			else content[i] = toupper(content[i]);
+			if (!isalpha((unsigned char)content[i])) return;
+			else content[i] = toupper((unsigned char)content[i]);
 		}
 
 		// If the input was "RR" then return 
@@ -2329,103 +2523,116 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		}
 		else {
 			if (status == 0) { // Validation success
+				// Clear current parsed route to force immediate fallback to RouteRaw for visual feedback
+				if (id == TXT_TCK || id == TXT_MAN_TCK) {
+					primedPlan->Route.clear();
+				} else if (id == TXT_TCK_CPY) {
+					copiedPlan.Route.clear();
+				}
+
 				// Generate the route
 				CUtils::CAsyncData* data = new CUtils::CAsyncData();
-				data->Screen = screen;
-				data->Callsign = primedPlan->Callsign;
-				data->FP = id == TXT_TCK_CPY ? &copiedPlan : nullptr;
+				try {
+					data->Screen = screen;
+					data->Callsign = primedPlan->Callsign;
+					data->FP = id == TXT_TCK_CPY ? &copiedPlan : nullptr;
 
-				// Populate aircraft state and route data for thread safety
-				CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
-				if (target.IsValid()) {
-					data->Position = target.GetPosition().GetPosition();
-					data->Direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
-					data->PositionValid = true;
-				}
-				else {
-					data->PositionValid = false;
-					data->Direction = true;
-				}
-
-				EuroScopePlugIn::CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
-				
-				// If direct selection fails or returns empty route, try correlated flight plan
-				const char* routeStr = fp.IsValid() ? fp.GetFlightPlanData().GetRoute() : nullptr;
-				if (!fp.IsValid() || routeStr == nullptr || routeStr[0] == '\0') {
+					// Populate aircraft state and route data for thread safety
 					CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
 					if (target.IsValid()) {
-						CFlightPlan correlatedFP = target.GetCorrelatedFlightPlan();
-						if (correlatedFP.IsValid()) {
-							fp = correlatedFP;
-							CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Used correlated flight plan for " + primedPlan->Callsign, "CFlightPlanWindow");
-						}
+						data->Position = target.GetPosition().GetPosition();
+						data->Direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
+						data->PositionValid = true;
 					}
-				}
+					else {
+						data->PositionValid = false;
+						data->Direction = true;
+					}
 
-				// If still missing, try VATSIM Data API
-				string vatsimRoute = "";
-				if (!fp.IsValid() || fp.GetFlightPlanData().GetRoute()[0] == '\0') {
-					vatsimRoute = CDataHandler::GetVatsimRoute(primedPlan->Callsign);
-					if (!vatsimRoute.empty()) {
-						CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Used VATSIM API data for " + primedPlan->Callsign, "CFlightPlanWindow");
-					}
-				}
-
-				if (fp.IsValid()) {
-					data->RawRouteString = fp.GetFlightPlanData().GetRoute();
-					if (data->RawRouteString.empty() && !vatsimRoute.empty()) {
-						data->RawRouteString = vatsimRoute;
-					}
-					EuroScopePlugIn::CFlightPlanExtractedRoute route = fp.GetExtractedRoute();
-					if (route.GetPointsNumber() > 0) {
-						for (int i = 0; i < route.GetPointsNumber(); i++) {
-							CWaypoint wp;
-							wp.Name = route.GetPointName(i);
-							wp.Position = route.GetPointPosition(i);
-							data->ExtractedRoute.push_back(wp);
-						}
-						data->ExtractedRouteCalculatedIndex = route.GetPointsCalculatedIndex();
-					} else {
-						CLogger::Log(CLogType::WARN, "Instantiate/TextChange: Extracted route empty for " + primedPlan->Callsign, "CFlightPlanWindow");
-						// Try to populate from VATSIM route string if extracted route failed
-						if (!vatsimRoute.empty()) {
-							vector<string> parts;
-							CUtils::StringSplit(vatsimRoute, ' ', &parts);
-							CRoutesHelper::InitialiseFixCache(screen);
-							lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
-							for (const string& part : parts) {
-								if (CRoutesHelper::FixCache.find(part) != CRoutesHelper::FixCache.end()) {
-									CWaypoint wp;
-									wp.Name = part;
-									wp.Position = CRoutesHelper::FixCache[part];
-									data->ExtractedRoute.push_back(wp);
-								}
+					EuroScopePlugIn::CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
+					
+					// If direct selection fails or returns empty route, try correlated flight plan
+					const char* routeStr = fp.IsValid() ? fp.GetFlightPlanData().GetRoute() : nullptr;
+					if (!fp.IsValid() || routeStr == nullptr || routeStr[0] == '\0') {
+						CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
+						if (target.IsValid()) {
+							CFlightPlan correlatedFP = target.GetCorrelatedFlightPlan();
+							if (correlatedFP.IsValid()) {
+								fp = correlatedFP;
+								CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Used correlated flight plan for " + primedPlan->Callsign, "CFlightPlanWindow");
 							}
-							if (!data->ExtractedRoute.empty()) data->ExtractedRouteCalculatedIndex = 0;
 						}
 					}
-				} else if (!vatsimRoute.empty()) {
-					data->RawRouteString = vatsimRoute;
-					CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Using VATSIM data without ES flight plan for " + primedPlan->Callsign, "CFlightPlanWindow");
-					// Populate ExtractedRoute from VATSIM string
-					vector<string> parts;
-					CUtils::StringSplit(vatsimRoute, ' ', &parts);
-					CRoutesHelper::InitialiseFixCache(screen);
-					lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
-					for (const string& part : parts) {
-						if (CRoutesHelper::FixCache.find(part) != CRoutesHelper::FixCache.end()) {
-							CWaypoint wp;
-							wp.Name = part;
-							wp.Position = CRoutesHelper::FixCache[part];
-							data->ExtractedRoute.push_back(wp);
-						}
-					}
-					if (!data->ExtractedRoute.empty()) data->ExtractedRouteCalculatedIndex = 0;
-				} else {
-					CLogger::Log(CLogType::WARN, "Instantiate/TextChange: Flight plan invalid and no VATSIM data for " + primedPlan->Callsign, "CFlightPlanWindow");
-				}
 
-				_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*)data); // Async
+					// If still missing, try VATSIM Data API
+					string vatsimRoute = "";
+					if (!fp.IsValid() || fp.GetFlightPlanData().GetRoute()[0] == '\0') {
+						vatsimRoute = CDataHandler::GetVatsimRoute(primedPlan->Callsign);
+						if (!vatsimRoute.empty()) {
+							CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Used VATSIM API data for " + primedPlan->Callsign, "CFlightPlanWindow");
+						}
+					}
+
+					if (fp.IsValid()) {
+						data->RawRouteString = content;
+						if (data->RawRouteString.empty() && !vatsimRoute.empty()) {
+							data->RawRouteString = vatsimRoute;
+						}
+						EuroScopePlugIn::CFlightPlanExtractedRoute route = fp.GetExtractedRoute();
+						if (route.GetPointsNumber() > 0) {
+							for (int i = 0; i < route.GetPointsNumber(); i++) {
+								CWaypoint wp;
+								wp.Name = route.GetPointName(i);
+								wp.Position = route.GetPointPosition(i);
+								data->ExtractedRoute.push_back(wp);
+							}
+							data->ExtractedRouteCalculatedIndex = route.GetPointsCalculatedIndex();
+						} else {
+							CLogger::Log(CLogType::WARN, "Instantiate/TextChange: Extracted route empty for " + primedPlan->Callsign, "CFlightPlanWindow");
+							// Try to populate from VATSIM route string if extracted route failed
+							if (!vatsimRoute.empty()) {
+								vector<string> parts;
+								CUtils::StringSplit(vatsimRoute, ' ', &parts);
+								CRoutesHelper::InitialiseFixCache(screen);
+								lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
+								for (const string& part : parts) {
+									if (CRoutesHelper::FixCache.find(part) != CRoutesHelper::FixCache.end()) {
+										CWaypoint wp;
+										wp.Name = part;
+										wp.Position = CRoutesHelper::FixCache[part];
+										data->ExtractedRoute.push_back(wp);
+									}
+								}
+								if (!data->ExtractedRoute.empty()) data->ExtractedRouteCalculatedIndex = 0;
+							}
+						}
+					} else if (!vatsimRoute.empty()) {
+						data->RawRouteString = vatsimRoute;
+						CLogger::Log(CLogType::NORM, "Instantiate/TextChange: Using VATSIM data without ES flight plan for " + primedPlan->Callsign, "CFlightPlanWindow");
+						// Populate ExtractedRoute from VATSIM string
+						vector<string> parts;
+						CUtils::StringSplit(vatsimRoute, ' ', &parts);
+						CRoutesHelper::InitialiseFixCache(screen);
+						lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
+						for (const string& part : parts) {
+							if (CRoutesHelper::FixCache.find(part) != CRoutesHelper::FixCache.end()) {
+								CWaypoint wp;
+								wp.Name = part;
+								wp.Position = CRoutesHelper::FixCache[part];
+								data->ExtractedRoute.push_back(wp);
+							}
+						}
+						if (!data->ExtractedRoute.empty()) data->ExtractedRouteCalculatedIndex = 0;
+					} else {
+						CLogger::Log(CLogType::WARN, "Instantiate/TextChange: Flight plan invalid and no VATSIM data for " + primedPlan->Callsign, "CFlightPlanWindow");
+					}
+
+					_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*)data); // Async
+				}
+				catch (...) {
+					if (data) delete data;
+					CLogger::Log(CLogType::ERR, "Exception during InitialiseRoute setup", "CFlightPlanWindow");
+				}
 
 				// Set the error to false
 				textInputs.find(id)->second.Error = false;
@@ -2469,47 +2676,61 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		}
 		else {
 			if (status == 0) { // Validation success
+				// Clear current parsed route to force immediate fallback to RouteRaw for visual feedback
+				if (id == TXT_RTE || id == TXT_MAN_RTE) {
+					primedPlan->Route.clear();
+				} else if (id == TXT_CPY_RTE) {
+					copiedPlan.Route.clear();
+				}
+
 				// Generate the route
 				CUtils::CAsyncData* data = new CUtils::CAsyncData();
-				data->Screen = screen;
-				data->Callsign = primedPlan->Callsign;
-				data->FP = id == TXT_CPY_RTE ? &copiedPlan : nullptr;
+				try {
+					data->Screen = screen;
+					data->Callsign = primedPlan->Callsign;
+					data->FP = id == TXT_CPY_RTE ? &copiedPlan : nullptr;
 
-				// Populate aircraft state and route data for thread safety
-				CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
-				if (target.IsValid()) {
-					data->Position = target.GetPosition().GetPosition();
-					data->Direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
-					data->PositionValid = true;
-				}
-				else {
-					data->PositionValid = false;
-					data->Direction = true;
-				}
-
-				EuroScopePlugIn::CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
-				if (fp.IsValid()) {
-					data->RawRouteString = fp.GetFlightPlanData().GetRoute();
-					EuroScopePlugIn::CFlightPlanExtractedRoute route = fp.GetExtractedRoute();
-					for (int i = 0; i < route.GetPointsNumber(); i++) {
-						CWaypoint wp;
-						wp.Name = route.GetPointName(i);
-						wp.Position = route.GetPointPosition(i);
-						data->ExtractedRoute.push_back(wp);
+					// Populate aircraft state and route data for thread safety
+					CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str());
+					if (target.IsValid()) {
+						data->Position = target.GetPosition().GetPosition();
+						data->Direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
+						data->PositionValid = true;
 					}
-					data->ExtractedRouteCalculatedIndex = route.GetPointsCalculatedIndex();
-				}
-
-				// Fallback to VATSIM if empty
-				if (data->RawRouteString.empty()) {
-					string vatsimRoute = CDataHandler::GetVatsimRoute(primedPlan->Callsign);
-					if (!vatsimRoute.empty()) {
-						data->RawRouteString = vatsimRoute;
-						CLogger::Log(CLogType::NORM, "FlightPlanWindow: Used VATSIM API data for " + primedPlan->Callsign, "CFlightPlanWindow");
+					else {
+						data->PositionValid = false;
+						data->Direction = true;
 					}
-				}
 
-				_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*) data); // Async
+					// Use the parsed route data
+					if (id == TXT_CPY_RTE) {
+						data->RouteRaw = copiedPlan.RouteRaw;
+						data->Track = copiedPlan.Track;
+						data->RawRouteString = content;
+					}
+					else {
+						data->RouteRaw = primedPlan->RouteRaw;
+						data->Track = primedPlan->Track;
+						data->RawRouteString = content;
+					}
+
+					// Fallback to VATSIM if empty
+					if (data->RawRouteString.empty()) {
+						string vatsimRoute = CDataHandler::GetVatsimRoute(primedPlan->Callsign);
+						if (!vatsimRoute.empty()) {
+							data->RawRouteString = vatsimRoute;
+							CLogger::Log(CLogType::NORM, "FlightPlanWindow: Used VATSIM API data for " + primedPlan->Callsign, "CFlightPlanWindow");
+						}
+					}
+
+						// Ensure FixCache is populated before async route parsing
+						CRoutesHelper::InitialiseFixCache(screen);
+					_beginthread(CRoutesHelper::InitialiseRoute, 0, (void*)data); // Async
+				}
+				catch (...) {
+					if (data) delete data;
+					CLogger::Log(CLogType::ERR, "Exception during InitialiseRoute setup", "CFlightPlanWindow");
+				}
 
 				// Set the error to false
 				textInputs.find(id)->second.Error = false;
@@ -2534,8 +2755,8 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 	// Set the text
 	if (textInputs.find(id) != textInputs.end()) {
 		for (int i = 0; i < content.size(); i++) { // Check if string
-			if (isalpha(content[i])) 
-				content[i] = toupper(content[i]);
+			if (isalpha((unsigned char)content[i])) 
+				content[i] = toupper((unsigned char)content[i]);
 		}
 		textInputs.find(id)->second.Content = content;
 	}
@@ -2803,9 +3024,11 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 					textInputs[TXT_TCK].State = CInputState::DISABLED;
 					textInputs[TXT_RTE].State = CInputState::DISABLED;
 
+					CNetworkFlightPlan* netFP = nullptr;
+					CUtils::CNetworkAsyncData* data = nullptr;
 					try {
 						// Create network object
-						CNetworkFlightPlan* netFP = new CNetworkFlightPlan();
+						netFP = new CNetworkFlightPlan();
 						netFP->Callsign = primedPlan->Callsign;
 						netFP->Type = primedPlan->Type;
 						netFP->AssignedLevel = stoi(primedPlan->FlightLevel);
@@ -2841,15 +3064,16 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 						}
 
 						// Post data to the database
-						CUtils::CNetworkAsyncData* data = new CUtils::CNetworkAsyncData();
+						data = new CUtils::CNetworkAsyncData();
 						data->Screen = screen;
 						data->Callsign = primedPlan->Callsign;
 						data->FP = netFP;
 						_beginthread(CDataHandler::PostNetworkAircraft, 0, (void*)data); // Async
 					}
 					catch (std::exception & ex) {
-						CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
-						
+						if (data) delete data;
+						else if (netFP) delete netFP;
+						// CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
 					}					
 				}
 				else { // Delete this duplicate code nonsense
@@ -2902,11 +3126,14 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 							data->Callsign = primedPlan->Callsign;
 							data->FP = netFP;
 							_beginthread(CDataHandler::UpdateNetworkAircraft, 0, (void*)data); // Async
+						} else {
+							delete netFP;
 						}
 					}
 					catch (std::exception & ex) {
-						CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
-						CLogger::Log(CLogType::ERR, "An error occurred whilst trying to update network data. Callsign: " + netFP->Callsign, "");
+						if (netFP) delete netFP;
+						// // // CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
+				CLogger::Log(CLogType::ERR, "An error occurred whilst trying to update network data. Callsign: " + netFP->Callsign, "");
 					}					
 				}
 			}
@@ -2995,6 +3222,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 				SetButtonState(BTN_MANENTRY, CInputState::INACTIVE);
 			}
 			else {
+				CNetworkFlightPlan* netFP = nullptr;
 				try {
 					CLogger::Log(CLogType::NORM, "Attempting to track aircraft " + primedPlan->Callsign + ".", "CRadarDisplay::OnRefresh");
 					screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).StartTracking();
@@ -3003,7 +3231,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 					windowButtons[BTN_XCHANGE_TRACK].Label = "Release";
 					textInputs[TXT_XCHANGE_CURRENT].Content = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).GetTrackingControllerCallsign();
 					if (primedPlan->IsValid && primedPlan->IsCleared) {
-						CNetworkFlightPlan* netFP = new CNetworkFlightPlan();
+						netFP = new CNetworkFlightPlan();
 						netFP->Callsign = primedPlan->Callsign;
 						netFP->Type = primedPlan->Type;
 						netFP->AssignedLevel = stoi(primedPlan->FlightLevel);
@@ -3047,11 +3275,13 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 					}
 				}
 				catch (std::exception & ex) {
+					if (netFP) delete netFP;
 					CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
 				}
 			}
 		}
 		if (id == BTN_XCHANGE_TRANSFER) {
+			CNetworkFlightPlan* netFP = nullptr;
 			try {
 				CLogger::Log(CLogType::NORM, "Initiating handoff of aircraft " + primedPlan->Callsign + " to station " + selectedAuthority + ".", "CRadarDisplay::OnRefresh");
 				
@@ -3067,7 +3297,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 				windowButtons[BTN_XCHANGE_TRACK].Label = "Track";
 				selectedAuthority = "";
 				if (primedPlan->IsValid && primedPlan->IsCleared) {
-					CNetworkFlightPlan* netFP = new CNetworkFlightPlan();
+					netFP = new CNetworkFlightPlan();
 					netFP->Callsign = primedPlan->Callsign;
 					netFP->Type = primedPlan->Type;
 					netFP->AssignedLevel = stoi(primedPlan->FlightLevel);
@@ -3107,6 +3337,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 				}
 			}
 			catch (std::exception & ex) {
+				if (netFP) delete netFP;
 				CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
 			}
 		}

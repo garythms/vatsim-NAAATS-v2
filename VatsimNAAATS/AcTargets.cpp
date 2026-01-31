@@ -83,6 +83,8 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 	CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(cs.c_str());
 
 	CAircraftFlightPlan* acFP = CDataHandler::GetFlightData(cs);
+	if (acFP == nullptr)
+		return;
 
 
 
@@ -381,11 +383,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 
 			// Cleanup
-
 			g->EndContainer(gContainer);
-
-			DeleteObject(&points);
-
 	}
 
 	else if (showDiamond) {
@@ -477,11 +475,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 
 		// Cleanup
-
 		g->EndContainer(gContainer);
-
-		DeleteObject(&diamond);
-
 	}
 
 	else {
@@ -583,11 +577,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 
 		// Cleanup
-
 		g->EndContainer(gContainer);
-
-		DeleteObject(&points);
-
 	}
 
 
@@ -679,14 +669,6 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 		else
 
 			g->DrawLine(&pen2, acPoint.x, acPoint.y, ptlPoint.x, ptlPoint.y);
-
-
-
-		// Cleanup
-
-		DeleteObject(&pen);
-
-		DeleteObject(&pen2);
 
 	}
 
@@ -796,16 +778,6 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 			g->DrawEllipse(&pen2, temp);
 
-		
-
-
-
-		// Cleanup
-
-		DeleteObject(&pen);
-
-		DeleteObject(&pen2);
-
 	}
 
 	
@@ -817,30 +789,6 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 
 	// Deallocate
-
-	DeleteObject(&orangeBrush);
-
-	DeleteObject(&yellowBrush);
-
-	DeleteObject(&redBrush);
-
-	DeleteObject(&whiteBrush);
-
-	DeleteObject(&blueBrush);
-
-	DeleteObject(&gContainer);
-
-	DeleteObject(&acPoint);
-
-	DeleteObject(&bluePen);
-
-	DeleteObject(&whitePen);
-
-	DeleteObject(&orangePen);
-
-	DeleteObject(&redPen);
-
-	DeleteObject(&yellowPen);
 
 
 
@@ -1520,15 +1468,6 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 
 		// Clean up
-
-		DeleteObject(pen);
-
-		DeleteObject(&white);
-
-		DeleteObject(&textColour);
-
-
-
 		// Compute render time and store it
 
 		clock_t t = clock();
@@ -1810,18 +1749,8 @@ void CAcTargets::RenderSelectionHalo(Graphics* g, CRadarScreen* screen, CRadarTa
 
 
 	// Draw halo
-
 	Rect temp(acPoint.x - 50, acPoint.y - 50, 50 * 2, 50 * 2);
-
 	Pen pen(&white, 1);
-
 	g->DrawEllipse(&pen, temp);
-
-
-
-	// Cleanup
-
-	DeleteObject(&pen);
-
 }
 

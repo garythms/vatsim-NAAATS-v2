@@ -340,7 +340,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 
 	// Clean up
-	DeleteObject(&brush);
+
 
 	// Restore
 	dc->RestoreDC(sDC);

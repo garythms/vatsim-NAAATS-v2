@@ -167,8 +167,13 @@ void CCommonRenders::RenderTextInput(CDC* dc, CRadarScreen* screen, POINT topLef
 
 
 	// Draw text
-
-	dc->TextOutA(rect.left + 3, rect.top + 2, obj->Content.c_str());
+	if (obj->Error) {
+		dc->SetTextColor(RGB(255, 0, 0)); // Red for error
+		dc->TextOutA(rect.left + 3, rect.top + 2, "SYNTAX");
+	}
+	else {
+		dc->TextOutA(rect.left + 3, rect.top + 2, obj->Content.c_str());
+	}
 
 
 
@@ -244,10 +249,6 @@ CRect CCommonRenders::RenderCheckBox(CDC* dc, Graphics* g, CRadarScreen* screen,
 	dc->RestoreDC(sDC);
 
 	// Clean up
-
-	DeleteObject(&white);
-
-	DeleteObject(&grey);
 
 
 
@@ -459,13 +460,7 @@ void CCommonRenders::RenderDropDown(CDC* dc, Graphics* g, CRadarScreen* screen, 
 
 
 
-	// Clean up
 
-	DeleteObject(&brush);
-
-	DeleteObject(&darkerPen);
-
-	DeleteObject(&white);
 
 
 
@@ -650,12 +645,6 @@ void CCommonRenders::RenderScrollBar(CDC* dc, Graphics* g, CRadarScreen* screen,
 
 
 	// Cleanup
-
-	DeleteObject(&brush);
-
-	DeleteObject(&lighterPen);
-
-	DeleteObject(&darkerPen);
 
 
 
@@ -869,8 +858,6 @@ void CCommonRenders::RenderTracks(CDC* dc, Graphics* g, CRadarScreen* screen, CO
 
 	// Cleanup
 
-	DeleteObject(&pen);
-
 
 
 	// Restore context
@@ -1007,10 +994,6 @@ void CCommonRenders::RenderRoutes(CDC* dc, Graphics* g, CRadarScreen* screen) {
 
 
 	// Cleanup
-
-	DeleteObject(&pen);
-
-	DeleteObject(&brush);
 
 
 
@@ -1169,12 +1152,6 @@ void CCommonRenders::RenderQDM(CDC* dc, Graphics* g, CRadarScreen* screen, CPosi
 
 
 	// Cleanup
-
-	DeleteObject(&pen);
-
-	DeleteObject(&brush);
-
-
 
 	// Restore context
 

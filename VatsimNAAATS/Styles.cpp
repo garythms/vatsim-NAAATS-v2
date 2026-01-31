@@ -7,6 +7,7 @@ CFont FontSelector::normalFont14;
 CFont FontSelector::normalFont15;
 CFont FontSelector::normalFont16;
 CFont FontSelector::normalFont30;
+CFont FontSelector::boldFont14;
 CFont FontSelector::monoFont12;
 CFont FontSelector::monoFont14;
 CFont FontSelector::monoFont15;

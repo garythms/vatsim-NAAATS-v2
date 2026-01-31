@@ -32,6 +32,7 @@ class CRadarDisplay : public CRadarScreen
 
 		// Custom methods	
 		void PopulateProgramData();
+		void OpenFlightPlanWindow(string callsign);
 
 		// Public properties
 		CPosition RulerPoint1;
@@ -96,4 +97,5 @@ class CRadarDisplay : public CRadarScreen
 		CCPDLCWindow* cpdlcWindow = nullptr;
 		CFddWindow* fddWindow = nullptr;
 		CSetupWindow* setupWindow = nullptr;
+		bool fddUrlShown = false;
 };

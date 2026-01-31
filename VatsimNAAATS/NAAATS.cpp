@@ -13,8 +13,9 @@ CNAAATSPlugin::CNAAATSPlugin() : CPlugIn(COMPATIBILITY_CODE, PLUGIN_NAME.c_str()
 	// Register the display
 	this->Register();
 
-	// Start VATSIM data fetcher
-	CDataHandler::StartVatsimDataFetcher();
+	// VATSIM data fetcher is now started lazily when first radar target is detected
+	// This prevents interference with EuroScope's VATSIM authentication
+	// See RadarDisplay::OnRefresh for the lazy start
 }
 
 CNAAATSPlugin::~CNAAATSPlugin() {

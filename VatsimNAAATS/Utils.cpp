@@ -390,6 +390,8 @@ string CUtils::ParseToPhraseology(string rawInput, CMessageType type, string cal
 		else if (type == CMessageType::REVISION_ISSUE) {
 			// Flight data
 			CAircraftFlightPlan* primedPlan = CDataHandler::GetFlightData(callsign);
+			if (primedPlan == nullptr)
+				return "";
 			string returnString;
 			// Split the current message
 			vector<string> splitString;
@@ -596,6 +598,8 @@ string CUtils::ParseToRaw(string callsign, CMessageType type, CAircraftFlightPla
 	if (type == CMessageType::REVISION_ISSUE) {
 		// Flight data
 		CAircraftFlightPlan* primedPlan = CDataHandler::GetFlightData(callsign);
+		if (primedPlan == nullptr)
+			return "";
 		string returnString;
 		string routeString;
 		for (int i = 0; i < primedPlan->RouteRaw.size(); i++)
@@ -630,7 +634,7 @@ string CUtils::ConvertCoordinateFormat(string coordinateString, int format) { //
 		// First we make sure there are numbers
 		int isAllAlpha = true;
 		for (int j = 0; j < coordinateString.size(); j++) {
-			if (isdigit(coordinateString.at(j))) {
+			if (isdigit((unsigned char)coordinateString.at(j))) {
 				isAllAlpha = false;
 			}
 		}
@@ -642,12 +646,15 @@ string CUtils::ConvertCoordinateFormat(string coordinateString, int format) { //
 		else if (coordinateString.find('W') == string::npos && coordinateString.find('/') == string::npos && coordinateString.size() == 5) {
 			currentFormat = 1;
 		}
-		else if (coordinateString.find('W') != string::npos) {
+		else if (coordinateString.find('W') != string::npos && coordinateString.size() == 7) {
 			currentFormat = 2;
+		}
+		else if (coordinateString.size() == 11 && (coordinateString.find('N') != string::npos || coordinateString.find('S') != string::npos) && (coordinateString.find('W') != string::npos || coordinateString.find('E') != string::npos)) {
+			currentFormat = 3; // Long format: 5430N03000W
 		}
 
 		// Check the current format, if -1 or matches, just return the input string
-		if (currentFormat == -1 || currentFormat == format || isAllAlpha || coordinateString.size() > 7) {
+		if (currentFormat == -1 || currentFormat == format || isAllAlpha || coordinateString.size() > 11) {
 			return coordinateString;
 		}
 
@@ -660,6 +667,21 @@ string CUtils::ConvertCoordinateFormat(string coordinateString, int format) { //
 			else if (currentFormat == 2) {
 				returnFormat = coordinateString.substr(0, 2) + "/" + coordinateString.substr(4, 2);
 			}
+			else if (currentFormat == 3) {
+				// 5430N03000W -> 5430N 30W (or 54N 30W)
+				string latPart = coordinateString.substr(0, 5);
+				string lonPart = coordinateString.substr(5);
+
+				string shortLat = latPart;
+				if (latPart.substr(2, 2) == "00") shortLat = latPart.substr(0, 2) + latPart.substr(4, 1);
+
+				string shortLon = lonPart;
+				if (lonPart.substr(3, 2) == "00") shortLon = lonPart.substr(0, 3) + lonPart.substr(5, 1);
+
+				if (shortLon.size() > 1 && shortLon[0] == '0') shortLon = shortLon.substr(1);
+
+				returnFormat = shortLat + " " + shortLon;
+			}
 		}
 		else if (format == 1) {
 			if (currentFormat == 0) {
@@ -668,13 +690,23 @@ string CUtils::ConvertCoordinateFormat(string coordinateString, int format) { //
 			else if (currentFormat == 2) {
 				returnFormat = coordinateString.substr(0, 2) + coordinateString.substr(4, 2) + "N";
 			}
+			else if (currentFormat == 3) {
+				if (coordinateString.substr(2, 2) == "00" && coordinateString.substr(8, 2) == "00")
+					returnFormat = coordinateString.substr(0, 2) + coordinateString.substr(6, 2) + "N";
+				else return coordinateString;
+			}
 		}
-		else {
+		else { // Format 2
 			if (currentFormat == 0) {
 				returnFormat = coordinateString.substr(0, 2) + "N0" + coordinateString.substr(3, 2) + "W";
 			}
 			else if (currentFormat == 1) {
 				returnFormat = coordinateString.substr(0, 2) + "N0" + coordinateString.substr(2, 2) + "W";
+			}
+			else if (currentFormat == 3) {
+				if (coordinateString.substr(2, 2) == "00" && coordinateString.substr(8, 2) == "00")
+					returnFormat = coordinateString.substr(0, 2) + "N0" + coordinateString.substr(6, 2) + "W";
+				else return coordinateString;
 			}
 		}
 	}
@@ -813,7 +845,7 @@ string CUtils::PadWithZeros(int width, int number) {
 
 bool CUtils::IsAllAlpha(string str) {
 	for (int i = 0; i < str.size(); i++) {
-		if (!isalpha(str[i])) {
+		if (!isalpha((unsigned char)str[i])) {
 			return false;
 		}
 	}

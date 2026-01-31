@@ -49,7 +49,7 @@ string CHoppieClient::UrlEncode(const string& str) {
 	char buf[4];
 	
 	for (char c : str) {
-		if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+		if (isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~') {
 			encoded += c;
 		}
 		else {

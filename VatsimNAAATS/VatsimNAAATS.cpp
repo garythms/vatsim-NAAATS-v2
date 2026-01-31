@@ -4,6 +4,7 @@
 #include "EuroScopePlugIn.h"
 #include "NAAATS.h"
 #include "WebServer.h"
+#include "Styles.h"
 #include <gdiplus.h>
 
 #ifdef _DEBUG
@@ -64,6 +65,9 @@ EuroScopePlugInExit(void)
 	
 	// Stop Virtual Server
 	CWebServer::Stop();
+
+	// Destroy fonts
+	FontSelector::DestroyFonts();
 
 	GdiplusShutdown(m_gdiplusToken);
 	delete pNAAATS;

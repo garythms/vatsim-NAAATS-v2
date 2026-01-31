@@ -20,6 +20,7 @@ public:
 	static void SetData(string jsonData);
 	static bool HasPendingUpdates();
 	static string GetPendingUpdates();
+	static int GetRunningPort();
 
 private:
 	static void ServerLoop(int port);
@@ -32,4 +33,5 @@ private:
 	static mutex dataMutex;
 	static vector<string> pendingUpdates; // Stores updates from client to be processed by DLL
 	static SOCKET listenSocket;
+	static atomic<int> runningPort;
 };

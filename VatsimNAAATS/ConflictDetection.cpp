@@ -56,9 +56,6 @@ void CConflictDetection::RBLTool(CDC* dc, Graphics* g, CRadarScreen* screen, str
 	dc->RestoreDC(iDC);
 
 	// Clean up
-	DeleteObject(&orangePen);
-	DeleteObject(&yellowPen);
-	DeleteObject(&redPen);
 }
 
 void CConflictDetection::SepTool(CDC* dc, Graphics* g, CRadarScreen* screen, string targetA, string targetB) {
@@ -174,9 +171,6 @@ void CConflictDetection::SepTool(CDC* dc, Graphics* g, CRadarScreen* screen, str
 	dc->RestoreDC(iDC);
 
 	// Clean up
-	DeleteObject(&orangePen);
-	DeleteObject(&yellowPen);
-	DeleteObject(&redPen);
 }
 
 void CConflictDetection::PIVTool(CRadarScreen* screen, string targetA, string targetB) {
@@ -202,6 +196,7 @@ void CConflictDetection::PIVTool(CRadarScreen* screen, string targetA, string ta
 bool CConflictDetection::ProbeTool(CRadarScreen* screen, string callsign, map<string, vector<CSepStatus>>* statuses, CAircraftFlightPlan* copy) {
 	// Get the aircraft flight plan
 	CAircraftFlightPlan* fp = copy != nullptr ? copy : CDataHandler::GetFlightData(callsign);
+	if (fp == nullptr) return false;
 
 	// Clear statuses first up
 	statuses->clear();
@@ -479,12 +474,6 @@ void CConflictDetection::RenderPIV(CDC* dc, Graphics* g, CRadarScreen* screen, s
 	}
 
 	// Cleanup
-	DeleteObject(&pen);
-	DeleteObject(&yellowPen);
-	DeleteObject(&redPen);
-	DeleteObject(&brush);
-	
-	// Restore context
 	dc->RestoreDC(iDC);
 }
 

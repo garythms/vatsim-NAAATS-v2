@@ -88,5 +88,5 @@ void COtherList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen) {
 	}
 
 	// Cleanup
-	DeleteObject(&brush);
+	dc->RestoreDC(sDC);
 }

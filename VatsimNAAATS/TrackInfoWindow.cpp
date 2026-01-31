@@ -169,8 +169,6 @@ void CTrackInfoWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	dc->DrawEdge(windowRect, EDGE_RAISED, BF_RECT);
 
 	// Cleanup
-	DeleteObject(darkerBrush);
-	DeleteObject(lighterBrush);
 
 	// Restore device context
 	dc->RestoreDC(iDC);

@@ -63,6 +63,15 @@ public:
 		lFont.lfHeight = 30;
 		normalFont30.CreateFontIndirect(&lFont);
 
+		// Get face for bold font
+		memset(&lFont, 0, sizeof(LOGFONT));
+		strcpy_s(lFont.lfFaceName, _T("Arial"));
+		// Bold weight
+		lFont.lfWeight = FW_BOLD;
+		// Size 14
+		lFont.lfHeight = 14;
+		boldFont14.CreateFontIndirect(&lFont);
+
 		// Get the face
 		strcpy_s(lFont.lfFaceName, _T("Lucida Console"));
 		// Normal weight
@@ -101,6 +110,34 @@ public:
 		return 0;
 	}
 
+	static void DestroyFonts() {
+		if (!fontsInitialised) return;
+
+		// Delete normal fonts
+		normalFont14.DeleteObject();
+		normalFont15.DeleteObject();
+		normalFont16.DeleteObject();
+		normalFont30.DeleteObject();
+		boldFont14.DeleteObject();
+
+		// Delete mono fonts
+		monoFont12.DeleteObject();
+		monoFont14.DeleteObject();
+		monoFont15.DeleteObject();
+
+		// Delete ATC fonts
+		atcFont14.DeleteObject();
+		atcFont15.DeleteObject();
+		atcFont16.DeleteObject();
+		atcFont18.DeleteObject();
+
+		// Remove resource
+		RemoveFontResource((LPCSTR)(CUtils::DllPath + "\\vNAAATS.ttf").c_str());
+
+		fontsInitialised = false;
+		CLogger::Log(CLogType::NORM, "Fonts destroyed.", "FontSelector");
+	}
+
 	static void SelectNormalFont(int size, CDC* dc) {
 		// Select font based on font size
 		if (size == 14) {
@@ -114,6 +151,13 @@ public:
 		}
 		else if (size == 30) {
 			dc->SelectObject(normalFont30);
+		}
+	}
+
+	static void SelectBoldFont(int size, CDC* dc) {
+		// Select font based on font size
+		if (size == 14) {
+			dc->SelectObject(boldFont14);
 		}
 	}
 
@@ -151,6 +195,7 @@ public:
 		static CFont normalFont15;
 		static CFont normalFont16;
 		static CFont normalFont30;
+		static CFont boldFont14;
 		static CFont monoFont12;
 		static CFont monoFont14;
 		static CFont monoFont15;

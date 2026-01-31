@@ -97,8 +97,11 @@ class CDataHandler
 
 		static int CreateFlightData(CRadarScreen* screen, string callsign);
 
-		
+		// Mutex locking for safe iteration
+		static void LockFlights() { flightsMutex.lock(); }
+		static void UnlockFlights() { flightsMutex.unlock(); }
 
+		
 		// Deletes a flight data object out of the flights map
 		static int DeleteFlightData(string callsign);
 		
@@ -112,11 +115,13 @@ class CDataHandler
 
 		// NATTrak clearance functions
 
+		static void FetchNatTrakClearancesAsync(void* args);
 		static int FetchNatTrakClearances(CPlugIn* plugin);
+		static bool IsNatTrakFetcherRunning() { return natTrakFetcherRunning; }
 
 		static CNatTrakStatus GetNatTrakStatus(const string& callsign);
 
-		static CNatTrakClearance* GetNatTrakClearance(const string& callsign);
+		static bool GetNatTrakClearance(const string& callsign, CNatTrakClearance& outClearance);
 
 		static time_t GetLastNatTrakFetch() { return lastNatTrakFetch; }
 
@@ -190,17 +195,13 @@ class CDataHandler
 
 		// Flight data storage
 		static map<string, CAircraftFlightPlan> flights;
+		static mutex flightsMutex;
 		
-		// VATSIM Data Cache
-		static map<string, string> vatsimRouteCache;
-		static mutex vatsimCacheMutex;
-		static bool vatsimFetcherRunning;
-		static thread vatsimFetcherThread;
-		static void VatsimFetcherLoop();
-
 		// NATTrak clearance storage
 
 		static map<string, CNatTrakClearance> natTrakClearances;
+		static mutex natTrakMutex;
+		static bool natTrakFetcherRunning;
 
 		static time_t lastNatTrakFetch;
 

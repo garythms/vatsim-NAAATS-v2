@@ -126,7 +126,7 @@ void CInboundList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen)
 	}	
 
 	// Cleanup
-	DeleteObject(&brush);
+
 
 	// Restore device context
 	dc->RestoreDC(sDC);

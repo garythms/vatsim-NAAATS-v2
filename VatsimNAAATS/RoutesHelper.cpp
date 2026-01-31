@@ -27,21 +27,271 @@ void CRoutesHelper::InitialiseFixCache(CRadarScreen* screen) {
 			FixCache[fix.GetName()] = pos;
 		}
 	}
-	// Log count
-	// CLogger::Log(CLogType::INFO, "FixCache initialized with " + to_string(FixCache.size()) + " fixes.", "CRoutesHelper::InitialiseFixCache");
+
+	// Load VORs
+	for (fix = screen->GetPlugIn()->SectorFileElementSelectFirst(EuroScopePlugIn::SECTOR_ELEMENT_VOR);
+		fix.IsValid();
+		fix = screen->GetPlugIn()->SectorFileElementSelectNext(fix, EuroScopePlugIn::SECTOR_ELEMENT_VOR)) {
+
+		CPosition pos;
+		if (fix.GetPosition(&pos, 0)) {
+			FixCache[fix.GetName()] = pos;
+		}
+	}
+
+	// Load NDBs
+	for (fix = screen->GetPlugIn()->SectorFileElementSelectFirst(EuroScopePlugIn::SECTOR_ELEMENT_NDB);
+		fix.IsValid();
+		fix = screen->GetPlugIn()->SectorFileElementSelectNext(fix, EuroScopePlugIn::SECTOR_ELEMENT_NDB)) {
+
+		CPosition pos;
+		if (fix.GetPosition(&pos, 0)) {
+			FixCache[fix.GetName()] = pos;
+		}
+	}
 }
 
-bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* routeVector, string callsign, CAircraftFlightPlan* copy) {\
+bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* routeVector, string callsign, CAircraftFlightPlan* copy) {
 	try {
 		// Get the flight plan
 		CAircraftFlightPlan* fp = copy != nullptr ? copy : CDataHandler::GetFlightData(callsign);
 
 	
 		// Check validity
-	if (!fp->IsValid || fp->Route.size() == 0) {
-		if (fp->IsValid && fp->Route.empty()) {
-			CLogger::Log(CLogType::WARN, "Route vector empty for " + callsign + ". RouteRaw size: " + to_string(fp->RouteRaw.size()), "CRoutesHelper::GetRoute");
+	if (fp == nullptr || !fp->IsValid) {
+		return false;
+	}
+	
+	// If Route is empty but RouteRaw has data, build route from RouteRaw
+	if (fp->Route.empty() && !fp->RouteRaw.empty()) {
+		// Build temporary route from RouteRaw for display
+		// This allows displaying coordinates while async parsing completes
+		bool direction = true;
+		CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
+		if (target.IsValid()) {
+			direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
 		}
+		
+		// Find entry and exit indices in RouteRaw
+			int startIdx = 0;
+			int endIdx = fp->RouteRaw.size() - 1;
+			
+			for (int i = 0; i < fp->RouteRaw.size(); i++) {
+				string name = fp->RouteRaw[i];
+				size_t slash = name.find('/');
+				if (slash != string::npos) {
+					// Only strip if it's NOT a coordinate format (e.g. 54/30)
+					bool isCoord = false;
+					if (slash > 0 && slash < name.length() - 1) {
+						if (isdigit((unsigned char)name[slash - 1]) && isdigit((unsigned char)name[slash + 1])) {
+							isCoord = true;
+						}
+					}
+					if (!isCoord) name = name.substr(0, slash);
+				}
+				if (CUtils::IsEntryPoint(name, direction)) {
+					startIdx = i;
+					break;
+				}
+			}
+			for (int i = startIdx; i < fp->RouteRaw.size(); i++) {
+				string name = fp->RouteRaw[i];
+				size_t slash = name.find('/');
+				if (slash != string::npos) {
+					// Only strip if it's NOT a coordinate format (e.g. 54/30)
+					bool isCoord = false;
+					if (slash > 0 && slash < name.length() - 1) {
+						if (isdigit((unsigned char)name[slash - 1]) && isdigit((unsigned char)name[slash + 1])) {
+							isCoord = true;
+						}
+					}
+					if (!isCoord) name = name.substr(0, slash);
+				}
+				if (CUtils::IsExitPoint(name, direction)) {
+					endIdx = i;
+					break;
+				}
+			}
+			
+			int totalDistance = 0;
+			CPosition lastPos;
+			bool lastPosValid = false;
+			
+			for (int i = startIdx; i <= endIdx && i < fp->RouteRaw.size(); i++) {
+				string waypointName = fp->RouteRaw[i];
+				size_t slash = waypointName.find('/');
+				if (slash != string::npos) {
+					// Only strip if it's NOT a coordinate format (e.g. 54/30)
+					bool isCoord = false;
+					if (slash > 0 && slash < waypointName.length() - 1) {
+						if (isdigit((unsigned char)waypointName[slash - 1]) && isdigit((unsigned char)waypointName[slash + 1])) {
+							isCoord = true;
+						}
+					}
+					if (!isCoord) waypointName = waypointName.substr(0, slash);
+				}
+				
+				if (waypointName == "DCT") continue;
+			
+			// Check for NAT track
+			string tid = "";
+			if (waypointName.size() > 3 && waypointName.substr(0, 3) == "NAT") {
+				tid = waypointName.substr(3);
+			}
+			else if (waypointName == "NAT" && i + 1 < fp->RouteRaw.size()) {
+				tid = fp->RouteRaw[i + 1];
+				i++;
+			}
+
+			if (!tid.empty()) {
+				vector<CPosition> trackPoints;
+				bool found = false;
+				if (tid == "SM") { for (const auto& wp : NatSM) trackPoints.push_back(wp.Position); found = true; }
+				else if (tid == "SN") { for (const auto& wp : NatSN) trackPoints.push_back(wp.Position); found = true; }
+				else if (tid == "SP") { for (const auto& wp : NatSP) trackPoints.push_back(wp.Position); found = true; }
+				else if (tid == "SL") { for (const auto& wp : NatSL) trackPoints.push_back(wp.Position); found = true; }
+				else if (tid == "SO") { for (const auto& wp : NatSO) trackPoints.push_back(wp.Position); found = true; }
+				else {
+					lock_guard<mutex> lock(TracksMutex);
+					if (CurrentTracks.find(tid) != CurrentTracks.end()) {
+						trackPoints = CurrentTracks.at(tid).RouteRaw;
+						found = true;
+					}
+				}
+
+				if (found) {
+					for (auto& pt : trackPoints) {
+						CRoutePosition position;
+						position.Fix = tid;
+						position.PositionRaw = pt;
+						position.Estimate = "--";
+						position.DistanceFromLastPoint = 0;
+						position.FlightLevel = target.IsValid() ? target.GetPosition().GetFlightLevel() / 100 : 0;
+						routeVector->push_back(position);
+					}
+					continue;
+				}
+			}
+
+			CRoutePosition position;
+			position.Fix = waypointName;
+			
+			// Try to parse position from coordinate format
+			CPosition pos;
+			pos.m_Latitude = 0.0;
+			pos.m_Longitude = 0.0;
+			
+			// Check if it's a coordinate (has numbers)
+			bool isCoordinate = !CUtils::IsAllAlpha(waypointName);
+			
+			if (isCoordinate) {
+				// Parse coordinate
+				string s = waypointName;
+				try {
+					if (s.length() == 5 && isdigit((unsigned char)s[0]) && isdigit((unsigned char)s[1]) && 
+						isdigit((unsigned char)s[2]) && isdigit((unsigned char)s[3]) && isalpha((unsigned char)s[4])) {
+						// 5430N format
+						pos.m_Latitude = stod(s.substr(0, 2));
+						pos.m_Longitude = -(stod(s.substr(2, 2)));
+					}
+					else if (s.length() == 5 && isdigit((unsigned char)s[0]) && isdigit((unsigned char)s[1]) && 
+						s[2] == '/' && isdigit((unsigned char)s[3]) && isdigit((unsigned char)s[4])) {
+						// 58/20 format
+						pos.m_Latitude = stod(s.substr(0, 2));
+						pos.m_Longitude = -(stod(s.substr(3, 2)));
+					}
+					else if (s.length() == 7) {
+						// 54N030W format
+						pos.m_Latitude = stod(s.substr(0, 2));
+						double lon = stod(s.substr(3, 3));
+						if (s[6] == 'W') lon = -lon;
+						pos.m_Longitude = lon;
+					}
+					else if (s.length() == 11) {
+						// 5430N03000W format
+						double latDeg = stod(s.substr(0, 2));
+						double latMin = stod(s.substr(2, 2));
+						pos.m_Latitude = latDeg + (latMin / 60.0);
+						if (s[4] == 'S') pos.m_Latitude = -pos.m_Latitude;
+						
+						double lonDeg = stod(s.substr(5, 3));
+						double lonMin = stod(s.substr(8, 2));
+						double lon = lonDeg + (lonMin / 60.0);
+						if (s[10] == 'W') lon = -lon;
+						pos.m_Longitude = lon;
+					}
+				} catch (...) {}
+			}
+			else {
+				// Try fix cache lookup
+				lock_guard<mutex> lock(FixCacheMutex);
+				if (FixCache.find(waypointName) != FixCache.end()) {
+					pos = FixCache[waypointName];
+				}
+				else {
+					// Last resort: live EuroScope lookup
+					CSectorElement liveFix = screen->GetPlugIn()->SectorFileElementSelectFirst(EuroScopePlugIn::SECTOR_ELEMENT_FIX);
+					bool liveFound = false;
+					// This is expensive so we should avoid it if possible, but it's a good fallback
+					// Actually, let's try VOR and NDB too if FIX fails
+					int types[] = { EuroScopePlugIn::SECTOR_ELEMENT_FIX, EuroScopePlugIn::SECTOR_ELEMENT_VOR, EuroScopePlugIn::SECTOR_ELEMENT_NDB };
+					for (int type : types) {
+						for (liveFix = screen->GetPlugIn()->SectorFileElementSelectFirst(type);
+							liveFix.IsValid();
+							liveFix = screen->GetPlugIn()->SectorFileElementSelectNext(liveFix, type)) {
+							if (waypointName == liveFix.GetName()) {
+								liveFix.GetPosition(&pos, 0);
+								FixCache[waypointName] = pos; // Cache it for next time
+								liveFound = true;
+								break;
+							}
+						}
+						if (liveFound) break;
+					}
+				}
+			}
+			
+			position.PositionRaw = pos;
+			
+			// Calculate estimate if we have valid position and target
+			if (target.IsValid() && (pos.m_Latitude != 0.0 || pos.m_Longitude != 0.0)) {
+				bool isPassed = false;
+				if (!direction) { // Westbound
+					isPassed = target.GetPosition().GetPosition().m_Longitude <= pos.m_Longitude;
+				} else { // Eastbound
+					isPassed = target.GetPosition().GetPosition().m_Longitude >= pos.m_Longitude;
+				}
+				
+				if (!isPassed) {
+					if (!lastPosValid) {
+						totalDistance = target.GetPosition().GetPosition().DistanceTo(pos);
+					} else {
+						totalDistance += lastPos.DistanceTo(pos);
+					}
+					position.Estimate = CUtils::ParseZuluTime(false, CUtils::GetTimeDistanceSpeed((int)round(totalDistance), target.GetPosition().GetReportedGS()));
+					position.DistanceFromLastPoint = lastPosValid ? lastPos.DistanceTo(pos) : target.GetPosition().GetPosition().DistanceTo(pos);
+				} else {
+					position.Estimate = "--";
+					position.DistanceFromLastPoint = 0;
+				}
+				position.FlightLevel = target.GetPosition().GetFlightLevel() / 100;
+				
+				lastPos = pos;
+				lastPosValid = true;
+			} else {
+				position.Estimate = "--";
+				position.DistanceFromLastPoint = 0;
+				position.FlightLevel = 0;
+			}
+			
+			routeVector->push_back(position);
+		}
+		
+		return !routeVector->empty();
+	}
+	
+	// Original logic for when Route is populated
+	if (fp->Route.size() == 0) {
 		return false;
 	}
 
@@ -52,13 +302,38 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 		bool direction = true;
 		if (target.IsValid()) {
 			direction = CUtils::GetAircraftDirection(target.GetPosition().GetReportedHeadingTrueNorth());
+		} else {
+			// Use flight plan direction if target invalid
+			// fp->Direction: True = Westbound, False = Eastbound
+			// direction: True = Eastbound, False = Westbound
+			direction = !fp->Direction;
+		}
+
+		// Filter route to Oceanic Entry/Exit points
+		int startIndex = 0;
+		int endIndex = fp->Route.size() - 1;
+
+		// Find Entry Point
+		for (int i = 0; i < fp->Route.size(); i++) {
+			if (fp->Route[i].Name == "AIRCRAFT" || CUtils::IsEntryPoint(fp->Route[i].Name, direction)) {
+				startIndex = i;
+				break;
+			}
+		}
+
+		// Find Exit Point (search after startIndex)
+		for (int i = startIndex; i < fp->Route.size(); i++) {
+			if (CUtils::IsExitPoint(fp->Route[i].Name, direction)) {
+				endIndex = i;
+				break;
+			}
 		}
 	
 		// Loop through each route item
 		int totalDistance = 0;
 
-		// Iterate through the already filtered route
-		for (int idx = 0; idx < fp->Route.size(); idx++) {
+		// Iterate through the filtered route
+		for (int idx = startIndex; idx <= endIndex; idx++) {
 				// Create position	
 				CRoutePosition position;
 
@@ -133,19 +408,24 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 	// Convert args
 	CUtils::CAsyncData* data = (CUtils::CAsyncData*) args;
 	try {
-		// Flight plan
-		CAircraftFlightPlan* fp = data->FP != nullptr ? data->FP : CDataHandler::GetFlightData(data->Callsign);
+		// Flight plan data copies
+		vector<string> routeRaw;
+		string trackId;
+		
+		// If data has copies, use them (preferred)
+		if (!data->RouteRaw.empty()) routeRaw = data->RouteRaw;
+		if (!data->Track.empty()) trackId = data->Track;
 
-		// Use thread-safe data copies if available
-		vector<string> routeRaw = data->RouteRaw;
-		string trackId = data->Track;
-
-		// Fallback to fp if data copies are empty (legacy behavior protection)
-		if (routeRaw.empty() && fp != nullptr) {
-			routeRaw = fp->RouteRaw;
-		}
-		if (trackId.empty() && fp != nullptr) {
-			trackId = fp->Track;
+		// Check if we need to fetch from shared memory (fallback)
+		// NOTE: Fetching from shared memory is dangerous if map changes.
+		// We use a local copy if we must.
+		if (routeRaw.empty() || trackId.empty()) {
+			CAircraftFlightPlan fpCopy;
+			CDataHandler::GetFlightData(data->Callsign, fpCopy);
+			if (fpCopy.IsValid) {
+				if (routeRaw.empty()) routeRaw = fpCopy.RouteRaw;
+				if (trackId.empty()) trackId = fpCopy.Track;
+			}
 		}
 
 		// Try to parse raw route string if routeRaw is still empty
@@ -169,8 +449,8 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 		string trackReturned = "";
 
 		// First we check if they have a route string
-		// PRIORITY: Use ExtractedRoute if available (from EuroScope), otherwise fallback to manual parsing
-		if (data->ExtractedRoute.empty() && !routeRaw.empty() && routeRaw.size() > 0) { // Get their route as per the route string
+		// PRIORITY: Use manual parsing if RouteRaw is provided (manual update), otherwise use ExtractedRoute
+		if (!routeRaw.empty() && routeRaw.size() > 0) { // Get their route as per the route string
 			// Manual parsing with Entry/Exit/Coord filtering
 			vector<CWaypoint> tempRoute;
 			bool direction = data->Direction;
@@ -182,13 +462,20 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 				// Strip speed/level data
 				size_t slashPos = waypointName.find('/');
 				if (slashPos != string::npos) {
-					waypointName = waypointName.substr(0, slashPos);
+					// Only strip if it's NOT a coordinate format (e.g. 54/30)
+					bool isCoord = false;
+					if (slashPos > 0 && slashPos < waypointName.length() - 1) {
+						if (isdigit((unsigned char)waypointName[slashPos - 1]) && isdigit((unsigned char)waypointName[slashPos + 1])) {
+							isCoord = true;
+						}
+					}
+					if (!isCoord) waypointName = waypointName.substr(0, slashPos);
 				}
 
 				// Check alpha
 				bool isAllAlpha = true;
 				for (char c : waypointName) {
-					if (isdigit(c)) isAllAlpha = false;
+					if (isdigit((unsigned char)c)) isAllAlpha = false;
 				}
 
 				if (isAllAlpha) {
@@ -238,7 +525,13 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 						point.Name = waypointName;
 						point.Position = FixCache[waypointName];
 					}
+					else if (waypointName == "AIRCRAFT") {
+						point.Name = waypointName;
+						point.Position = data->Position;
+					}
 					else {
+						// Fix not found in cache - keep the waypoint name but mark position as invalid
+						// Entry/exit points are essential even without exact position
 						point.Name = waypointName;
 						point.Position.m_Latitude = 0.0;
 						point.Position.m_Longitude = 0.0;
@@ -249,20 +542,39 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 					CPosition pos;
 					try {
 						string s = waypointName;
-						if (s.length() == 5 && isdigit(s[0]) && isdigit(s[1]) && isdigit(s[2]) && isdigit(s[3]) && isalpha(s[4])) {
+						if (s.length() == 5 && isdigit((unsigned char)s[0]) && isdigit((unsigned char)s[1]) && isdigit((unsigned char)s[2]) && isdigit((unsigned char)s[3]) && isalpha((unsigned char)s[4])) {
 							pos.m_Latitude = stod(s.substr(0, 2));
 							pos.m_Longitude = -(stod(s.substr(2, 2)));
 						}
-						else if (s.length() == 7 && isdigit(s[0]) && isdigit(s[1]) && isalpha(s[2]) && isdigit(s[3]) && isdigit(s[4]) && isdigit(s[5]) && isalpha(s[6])) {
+						else if (s.length() == 5 && isdigit((unsigned char)s[0]) && isdigit((unsigned char)s[1]) && s[2] == '/' && isdigit((unsigned char)s[3]) && isdigit((unsigned char)s[4])) {
+							// 58/20 format
+							pos.m_Latitude = stod(s.substr(0, 2));
+							pos.m_Longitude = -(stod(s.substr(3, 2)));
+						}
+						else if (s.length() == 7 && isdigit((unsigned char)s[0]) && isdigit((unsigned char)s[1]) && isalpha((unsigned char)s[2]) && isdigit((unsigned char)s[3]) && isdigit((unsigned char)s[4]) && isdigit((unsigned char)s[5]) && isalpha((unsigned char)s[6])) {
 							pos.m_Latitude = stod(s.substr(0, 2));
 							double lon = stod(s.substr(3, 3));
 							if (s[6] == 'W') lon = -lon;
 							pos.m_Longitude = lon;
 						}
+						else if (s.length() == 11 && isdigit((unsigned char)s[0]) && isdigit((unsigned char)s[1]) && isdigit((unsigned char)s[2]) && isdigit((unsigned char)s[3]) && isalpha((unsigned char)s[4]) &&
+							isdigit((unsigned char)s[5]) && isdigit((unsigned char)s[6]) && isdigit((unsigned char)s[7]) && isdigit((unsigned char)s[8]) && isdigit((unsigned char)s[9]) && isalpha((unsigned char)s[10])) {
+							// 5430N03000W
+							double latDeg = stod(s.substr(0, 2));
+							double latMin = stod(s.substr(2, 2));
+							pos.m_Latitude = latDeg + (latMin / 60.0);
+							if (s[4] == 'S') pos.m_Latitude = -pos.m_Latitude;
+
+							double lonDeg = stod(s.substr(5, 3));
+							double lonMin = stod(s.substr(8, 2));
+							double lon = lonDeg + (lonMin / 60.0);
+							if (s[10] == 'W') lon = -lon;
+							pos.m_Longitude = lon;
+						}
 						else {
 							if (s.length() >= 5) {
 								pos.m_Latitude = stod(s.substr(0, 2));
-								if (!isdigit(s[2])) {
+								if (!isdigit((unsigned char)s[2])) {
 									pos.m_Longitude = -(stod(s.substr(3, 2)));
 								}
 								else {
@@ -270,14 +582,14 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 								}
 							}
 							else {
-								pos.m_Latitude = 0.0;
-								pos.m_Longitude = 0.0;
+								// Can't parse - skip this waypoint
+								continue;
 							}
 						}
 					}
 					catch (...) {
-						pos.m_Latitude = 0.0;
-						pos.m_Longitude = 0.0;
+						// Parse error - skip this waypoint
+						continue;
 					}
 					point.Name = waypointName;
 					point.Position = pos;
@@ -302,14 +614,14 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 				bool isEnt = (entryIdx != -1 && i == entryIdx);
 				bool isExt = (exitIdx != -1 && i == exitIdx);
 				bool isCoord = !CUtils::IsAllAlpha(tempRoute[i].Name);
-				if (isEnt || isExt || isCoord) {
+				bool isAircraft = tempRoute[i].Name == "AIRCRAFT";
+				if (isEnt || isExt || isCoord || isAircraft) {
 					parsedRoute.push_back(tempRoute[i]);
 				}
 			}
 		}
 		else { // We get the route as per their VATSIM flight plan if no route string
 			// Target, flight plan and route
-			// CRadarTarget target = data->Screen->GetPlugIn()->RadarTargetSelect(data->Callsign.c_str());
 			
 			// Use pre-fetched route if available (thread-safe)
 			vector<CWaypoint> extractedRoutePoints;
@@ -349,7 +661,7 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 						trackReturned = "";
 					}
 					// Track id
-					fp->Track = trackReturned;
+					trackId = trackReturned;
 				}
 			}
 
@@ -437,7 +749,7 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			}
 			else {
 				// Track id
-				fp->Track = "RR";
+				trackId = "RR";
 
 				// Entry and exit points
 				int start = entryPoint == -1 ? 0 : entryPoint;
@@ -470,14 +782,16 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 		}
 
 		// Return the vector
-		CDataHandler::SetRoute(data->Callsign, &parsedRoute, fp->Track, data->FP != nullptr ? data->FP : nullptr);
+		// Use nullptr for last argument as we don't have a safe pointer to the map entry
+		CDataHandler::SetRoute(data->Callsign, &parsedRoute, trackId, nullptr);
 
 		// Cleanup
-		delete args;
+		delete data;
 	}
 	catch (std::exception & ex) {
-		CLogger::DebugLog(data->Screen, "An exception occurred. " + *ex.what());
+		// CLogger::DebugLog(data->Screen, "An exception occurred. " + *ex.what());
 		CLogger::Log(CLogType::ERR, "An error occurred. Callsign: " + data->Callsign + "\nVerbose details: " + *ex.what(), "CRoutesHelper::InitialiseRoute");
+		delete data;
 	}
 }
 
@@ -553,47 +867,82 @@ int CRoutesHelper::ParseRoute(CRadarScreen* screen, string callsign, string rawI
 				tokens.push_back(intermediate);
 			}
 
+			// Check if the route string contains a NAT track keyword or sequence
+			string foundTrack = OnNatTrack(screen, callsign, rawInput, true);
+			if (foundTrack != "") {
+				track = foundTrack;
+			}
+
 			// Loop the tokens
 			for (int i = 0; i < tokens.size(); i++) {
 				// Check if digits
 				bool isAllAlpha = true;
 				for (int j = 0; j < tokens.at(i).size(); j++) {
-					if (isdigit(tokens.at(i).at(j))) {
+					if (isdigit((unsigned char)tokens.at(i).at(j))) {
 						isAllAlpha = false;
 					}
 				}
 
 				// If waypoint check the size
 				if (isAllAlpha) {
-					// Reject if greater or less than 5
-					if (tokens.at(i).size() < 5 || tokens.at(i).size() > 5) {
+					// Reject if greater than 5 or less than 2 (VORs are 3, NDBs 2-3, Intersections 5)
+					// Also explicitly allow DCT and AIRCRAFT (which gets stripped later)
+					if ((tokens.at(i).size() < 2 || tokens.at(i).size() > 5) && tokens.at(i) != "DCT" && tokens.at(i) != "AIRCRAFT") {
 						return 1;
 					}
 					else {
 						// Otherwise make uppercase and push back
 						string waypoint;
 						for (int j = 0; j < tokens.at(i).size(); j++) {
-							waypoint += toupper(tokens.at(i)[j]);
+							waypoint += toupper((unsigned char)tokens.at(i)[j]);
 						}
 						route.push_back(waypoint);
 					}
 				}
 				else { // It's a coordinate
-					if (tokens.at(i).size() < 5 || tokens.at(i).size() > 5) {
+					// Allow 3 chars (30W), 4 chars (030W), 5 chars (54/30, 5430N), 7 chars (54N030W), 11 chars (5430N03000W)
+					if (tokens.at(i).size() != 3 && tokens.at(i).size() != 4 && tokens.at(i).size() != 5 && tokens.at(i).size() != 7 && tokens.at(i).size() != 11) {
 						return 1;
 					}
 					else {
 						// Check manually
-						if (!isdigit(tokens.at(i)[0]))
+						string s = tokens.at(i);
+						if (!isdigit((unsigned char)s[0]) || !isdigit((unsigned char)s[1]))
 							return 1;
-						if (!isdigit(tokens.at(i)[1]))
-							return 1;
-						if (tokens.at(i)[2] != '/')
-							return 1;
-						if (!isdigit(tokens.at(i)[3]))
-							return 1;
-						if (!isdigit(tokens.at(i)[4]))
-							return 1;
+
+						if (s.size() == 3) {
+							// 30W
+							if (!isalpha((unsigned char)s[2])) return 1;
+						}
+						else if (s.size() == 4) {
+							// 030W
+							if (!isdigit((unsigned char)s[2]) || !isalpha((unsigned char)s[3])) return 1;
+						}
+						else if (s.size() == 5) {
+							// 54/30 or 5430N
+							if (s[2] == '/') {
+								if (!isdigit((unsigned char)s[3]) || !isdigit((unsigned char)s[4])) return 1;
+							}
+							else if (isdigit((unsigned char)s[2])) {
+								if (!isdigit((unsigned char)s[3]) || !isalpha((unsigned char)s[4])) return 1;
+							}
+							else {
+								return 1;
+							}
+						}
+						else if (s.size() == 7) {
+							// 54N030W
+							if (!isalpha((unsigned char)s[2])) return 1;
+							if (!isdigit((unsigned char)s[3]) || !isdigit((unsigned char)s[4]) || !isdigit((unsigned char)s[5])) return 1;
+							if (!isalpha((unsigned char)s[6])) return 1;
+						}
+						else if (s.size() == 11) {
+							// 5430N03000W
+							if (!isdigit((unsigned char)s[2]) || !isdigit((unsigned char)s[3])) return 1;
+							if (!isalpha((unsigned char)s[4])) return 1;
+							if (!isdigit((unsigned char)s[5]) || !isdigit((unsigned char)s[6]) || !isdigit((unsigned char)s[7]) || !isdigit((unsigned char)s[8]) || !isdigit((unsigned char)s[9])) return 1;
+							if (!isalpha((unsigned char)s[10])) return 1;
+						}
 
 						// We got here so push it
 						route.push_back(tokens.at(i));
@@ -615,15 +964,18 @@ int CRoutesHelper::ParseRoute(CRadarScreen* screen, string callsign, string rawI
 			}
 		}
 		else {
-			CDataHandler::GetFlightData(callsign)->Track = track;
-			CDataHandler::GetFlightData(callsign)->RouteRaw.clear();
-			for (int i = 0; i < route.size(); i++) {
-				if (route[i] == "AIRCRAFT") {
-					route.at(i).erase();
-					continue;
+			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
+			if (fp) {
+				fp->Track = track;
+				fp->RouteRaw.clear();
+				for (int i = 0; i < route.size(); i++) {
+					if (route[i] == "AIRCRAFT") {
+						route.at(i).erase();
+						continue;
+					}
+
+					fp->RouteRaw.push_back(route[i]);
 				}
-					
-				CDataHandler::GetFlightData(callsign)->RouteRaw.push_back(route[i]);
 			}
 		}
 
@@ -720,12 +1072,35 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 			else
 				return "";
 		}
-		else { // Not on a NAT
+		else { // Not on a NAT by keyword, check by sequence
+			vector<string> tokens;
+			CUtils::StringSplit(route, ' ', &tokens);
+
+			for (auto const& kv : CurrentTracks) {
+				const string& id = kv.first;
+				const CTrack& t = kv.second;
+				if (t.Route.size() > 0 && t.Route.size() <= tokens.size()) {
+					for (int i = 0; i <= (int)tokens.size() - (int)t.Route.size(); i++) {
+						bool match = true;
+						for (int j = 0; j < t.Route.size(); j++) {
+							string token = tokens[i + j];
+							for (auto& c : token) c = toupper((unsigned char)c);
+							if (token != t.Route[j]) {
+								match = false;
+								break;
+							}
+						}
+						if (match) {
+							return id;
+						}
+					}
+				}
+			}
 			return "";
 		}
 	}
 	catch (std::exception & ex) {
-		CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
+		// CLogger::DebugLog(screen, "An exception occurred. " + *ex.what()); // REMOVED FOR THREAD SAFETY
 		CLogger::Log(CLogType::ERR, "An error occurred. Callsign: " + callsign + "\nVerbose details: " + *ex.what(), "CRoutesHelper::OnNatTrack");
 		return "";
 	}
