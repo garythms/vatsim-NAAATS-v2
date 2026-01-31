@@ -597,7 +597,8 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 				tempRoute.push_back(point);
 			}
 
-			// Filter tempRoute
+			// Filter tempRoute: Show only points between entry and exit fixes, plus any coordinates.
+			// If no entry/exit fix is found, use geographic bounds (-5W to -65W).
 			int entryIdx = -1;
 			int exitIdx = -1;
 			for (int i = 0; i < tempRoute.size(); i++) {
@@ -605,6 +606,28 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			}
 			for (int i = tempRoute.size() - 1; i >= 0; i--) {
 				if (CUtils::IsExitPoint(tempRoute[i].Name, direction)) { exitIdx = i; break; }
+			}
+
+			// Geographic fallback if fixes not found
+			if (entryIdx == -1) {
+				for (int i = 0; i < tempRoute.size(); i++) {
+					double lon = tempRoute[i].Position.m_Longitude;
+					if (direction) { // Westbound
+						if (lon < 5.0 && lon > -70.0) { entryIdx = i; break; }
+					} else { // Eastbound
+						if (lon > -70.0 && lon < 5.0) { entryIdx = i; break; }
+					}
+				}
+			}
+			if (exitIdx == -1) {
+				for (int i = tempRoute.size() - 1; i >= 0; i--) {
+					double lon = tempRoute[i].Position.m_Longitude;
+					if (direction) { // Westbound
+						if (lon < 5.0 && lon > -70.0) { exitIdx = i; break; }
+					} else { // Eastbound
+						if (lon > -70.0 && lon < 5.0) { exitIdx = i; break; }
+					}
+				}
 			}
 
 			int start = (entryIdx != -1) ? entryIdx : 0;
@@ -615,7 +638,10 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 				bool isExt = (exitIdx != -1 && i == exitIdx);
 				bool isCoord = !CUtils::IsAllAlpha(tempRoute[i].Name);
 				bool isAircraft = tempRoute[i].Name == "AIRCRAFT";
-				if (isEnt || isExt || isCoord || isAircraft) {
+				// If on a track, include all points between entry and exit
+				bool onTrack = (trackReturned != "" && trackReturned != "RR");
+				
+				if (isEnt || isExt || isCoord || isAircraft || onTrack) {
 					parsedRoute.push_back(tempRoute[i]);
 				}
 			}
@@ -755,6 +781,28 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 				int start = entryPoint == -1 ? 0 : entryPoint;
 				int stop = exitPoint == -1 ? extractedRoutePoints.size() : exitPoint + 1;
 
+				// Geographic fallback if fixes not found
+				if (entryPoint == -1) {
+					for (int i = 0; i < extractedRoutePoints.size(); i++) {
+						double lon = extractedRoutePoints[i].Position.m_Longitude;
+						if (direction) { // Westbound
+							if (lon < 5.0 && lon > -70.0) { start = i; break; }
+						} else { // Eastbound
+							if (lon > -70.0 && lon < 5.0) { start = i; break; }
+						}
+					}
+				}
+				if (exitPoint == -1) {
+					for (int i = extractedRoutePoints.size() - 1; i >= 0; i--) {
+						double lon = extractedRoutePoints[i].Position.m_Longitude;
+						if (direction) { // Westbound
+							if (lon < 5.0 && lon > -70.0) { stop = i + 1; break; }
+						} else { // Eastbound
+							if (lon > -70.0 && lon < 5.0) { stop = i + 1; break; }
+						}
+					}
+				}
+
 				// Get entry and exit points
 				for (int i = start; i < stop; i++) {
 					// Filter logic: Only Entry, Exit, or Coordinates (including NAT track points which have numbers)
@@ -764,7 +812,7 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 					// Check if coordinate (has numbers)
 					bool isCoordinate = !CUtils::IsAllAlpha(extractedRoutePoints[i].Name);
 
-					if (isEntry || isExit || isCoordinate) {
+					if (isEntry || isExit || isCoordinate || (entryPoint == -1 && i == start) || (exitPoint == -1 && i == stop - 1)) {
 						// First check if position is within reasonable longitudinal and lateral bounds
 						if (extractedRoutePoints[i].Position.m_Longitude >= -180 && extractedRoutePoints[i].Position.m_Longitude <= 180
 							&& extractedRoutePoints[i].Position.m_Latitude >= -90 && extractedRoutePoints[i].Position.m_Latitude <= 90) {
@@ -1076,24 +1124,48 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 			vector<string> tokens;
 			CUtils::StringSplit(route, ' ', &tokens);
 
+			// Normalize all tokens for comparison
+			vector<string> normalizedTokens;
+			for (string t : tokens) {
+				// Strip speed/level info if present
+				size_t slashPos = t.find('/');
+				if (slashPos != string::npos) {
+					// Check if it's a coordinate format (e.g. 54/30) or speed/level (e.g. N0450/F350)
+					if (slashPos > 0 && slashPos < t.length() - 1) {
+						if (!isdigit((unsigned char)t[slashPos - 1]) || !isdigit((unsigned char)t[slashPos + 1])) {
+							t = t.substr(0, slashPos);
+						}
+					}
+				}
+				normalizedTokens.push_back(CUtils::ConvertCoordinateFormat(t, 0));
+			}
+
 			for (auto const& kv : CurrentTracks) {
 				const string& id = kv.first;
 				const CTrack& t = kv.second;
-				if (t.Route.size() > 0 && t.Route.size() <= tokens.size()) {
-					for (int i = 0; i <= (int)tokens.size() - (int)t.Route.size(); i++) {
-						bool match = true;
-						for (int j = 0; j < t.Route.size(); j++) {
-							string token = tokens[i + j];
-							for (auto& c : token) c = toupper((unsigned char)c);
-							if (token != t.Route[j]) {
-								match = false;
-								break;
-							}
-						}
-						if (match) {
-							return id;
+				
+				if (t.Route.size() == 0) continue;
+
+				// Normalize track route points
+				vector<string> normalizedTrackRoute;
+				for (string tr : t.Route) {
+					normalizedTrackRoute.push_back(CUtils::ConvertCoordinateFormat(tr, 0));
+				}
+
+				// Count how many track points match the flight's route
+				int matchCount = 0;
+				for (const string& trPoint : normalizedTrackRoute) {
+					for (const string& flPoint : normalizedTokens) {
+						if (trPoint == flPoint) {
+							matchCount++;
+							break;
 						}
 					}
+				}
+
+				// If 2 or more points match, it's highly likely this track
+				if (matchCount >= 2) {
+					return id;
 				}
 			}
 			return "";
