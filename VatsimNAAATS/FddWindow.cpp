@@ -606,8 +606,8 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	y = contentRect.top - scrollOffset;
 	int rowCounter = 0;
 
+	// 1. Render all Westbound sections first (Blue)
 	for (const string& trackId : trackKeys) {
-		// Render Westbound section first (Blue)
 		if (westboundByTrack.count(trackId) && !westboundByTrack[trackId].empty()) {
 			auto& aircraft = westboundByTrack[trackId];
 			int trackedCount = 0;
@@ -632,8 +632,10 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 				rowCounter++;
 			}
 		}
-		
-		// Render Eastbound section (Yellow)
+	}
+	
+	// 2. Render all Eastbound sections (Yellow)
+	for (const string& trackId : trackKeys) {
 		if (eastboundByTrack.count(trackId) && !eastboundByTrack[trackId].empty()) {
 			auto& aircraft = eastboundByTrack[trackId];
 			int trackedCount = 0;
