@@ -14,6 +14,9 @@ class CNAAATSPlugin : public CPlugIn
 
 		// OnRadarScreenCreated event
 		CRadarScreen* OnRadarScreenCreated(const char* sDisplayName, bool NeedRadarContent, bool GeoReferenced, bool CanBeSaved, bool CanBeCreated);
+
+		// OnTimer event
+		void OnTimer(int Counter);
 	private:
 		// Register the radar display
 		void Register();

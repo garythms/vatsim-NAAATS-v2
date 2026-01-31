@@ -12,10 +12,6 @@ CNAAATSPlugin::CNAAATSPlugin() : CPlugIn(COMPATIBILITY_CODE, PLUGIN_NAME.c_str()
 {
 	// Register the display
 	this->Register();
-
-	// VATSIM data fetcher is now started lazily when first radar target is detected
-	// This prevents interference with EuroScope's VATSIM authentication
-	// See RadarDisplay::OnRefresh for the lazy start
 }
 
 CNAAATSPlugin::~CNAAATSPlugin() {
@@ -34,6 +30,30 @@ CRadarScreen* CNAAATSPlugin::OnRadarScreenCreated(const char* sDisplayName, bool
 	}
 
 	return nullptr;
+}
+
+void CNAAATSPlugin::OnTimer(int Counter)
+{
+	// Check connection status to start/stop VATSIM data fetcher
+	// This is more reliable than checking for radar targets and avoids interference with startup auth
+	static bool vatsimFetcherStarted = false;
+	int connType = GetConnectionType();
+
+	if (!vatsimFetcherStarted) {
+		// Start if connected directly or via proxy
+		if (connType == CONNECTION_TYPE_DIRECT || connType == CONNECTION_TYPE_VIA_PROXY) {
+			CDataHandler::StartVatsimDataFetcher();
+			vatsimFetcherStarted = true;
+			CLogger::Log(CLogType::NORM, "VATSIM data fetcher started (connection detected via OnTimer)", "CNAAATSPlugin::OnTimer");
+		}
+	} else {
+		// Stop if disconnected
+		if (connType == CONNECTION_TYPE_NO) {
+			CDataHandler::StopVatsimDataFetcher();
+			vatsimFetcherStarted = false;
+			CLogger::Log(CLogType::NORM, "VATSIM data fetcher stopped (disconnected via OnTimer)", "CNAAATSPlugin::OnTimer");
+		}
+	}
 }
 
 void CNAAATSPlugin::Register() {

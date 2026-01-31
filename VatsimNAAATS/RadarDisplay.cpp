@@ -148,20 +148,6 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 		cpdlcWindow->CheckForRelease(this);
 	}
 
-	// Lazy start of VATSIM data fetcher - only starts when user is connected
-	// This prevents interference with EuroScope's VATSIM authentication
-	static bool vatsimFetcherStarted = false;
-	if (!vatsimFetcherStarted) {
-		// Check if user is connected by looking for any radar target
-		CRadarTarget rt = GetPlugIn()->RadarTargetSelectFirst();
-		if (rt.IsValid()) {
-			// User is connected, safe to start fetcher
-			CDataHandler::StartVatsimDataFetcher();
-			vatsimFetcherStarted = true;
-			CLogger::Log(CLogType::NORM, "VATSIM data fetcher started (user connected)", "CRadarDisplay::OnRefresh");
-		}
-	}
-
 	// 5 second timer
 	double fiveSecT = (double)(clock() - fiveSecondTimer) / ((double)CLOCKS_PER_SEC);
 	// 10 second timer
