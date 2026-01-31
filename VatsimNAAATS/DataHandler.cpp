@@ -210,6 +210,12 @@ CPosition CDataHandler::ParseTrackWaypoint(const string& waypoint) {
 			// Assuming North / West for NAT
 			pos.m_Latitude = lat;
 			pos.m_Longitude = -lon;
+		} else {
+			// Named fix lookup
+			lock_guard<mutex> lock(CRoutesHelper::FixCacheMutex);
+			if (CRoutesHelper::FixCache.find(waypoint) != CRoutesHelper::FixCache.end()) {
+				pos = CRoutesHelper::FixCache[waypoint];
+			}
 		}
 	} catch (...) {}
 	

@@ -505,11 +505,12 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 							lock_guard<mutex> lock(TracksMutex);
 							if (CurrentTracks.find(tid) != CurrentTracks.end()) {
 								auto& trackObj = CurrentTracks.at(tid);
-								for (int k = 0; k < trackObj.RouteRaw.size(); k++) {
+								for (int k = 0; k < trackObj.Route.size(); k++) {
 									CWaypoint tp;
-									if (k < trackObj.Route.size()) tp.Name = trackObj.Route[k];
-									else tp.Name = trackObj.Identifier;
-									tp.Position = trackObj.RouteRaw[k];
+									tp.Name = trackObj.Route[k];
+									if (k < trackObj.RouteRaw.size()) {
+										tp.Position = trackObj.RouteRaw[k];
+									}
 									tempRoute.push_back(tp);
 								}
 								isTrack = true;
@@ -668,27 +669,8 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 
 			// Get NAT track (if they are on it)
 			trackReturned = OnNatTrack(data->Screen, data->Callsign.c_str(), data->RawRouteString, true);
-			CTrack track;
 			if (trackReturned != "") { // If on a track
-				// Check if it is concorde first
-				if (trackReturned.size() == 1) {
-					bool loopBreak = false;
-				{
-					lock_guard<mutex> lock(TracksMutex);
-					for (auto kv : CRoutesHelper::CurrentTracks) {
-						if (kv.first == trackReturned) { // Assign track to the returned box
-							track = kv.second;
-							loopBreak = true;
-							break;
-						}
-					}
-				}
-					if (!loopBreak) { // If for some reason the pilot's track doesn't exist, ignore it
-						trackReturned = "";
-					}
-					// Track id
-					trackId = trackReturned;
-				}
+				trackId = trackReturned;
 			}
 
 			// Find our entry and exit points regardless of track status
@@ -728,42 +710,47 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 					parsedRoute.push_back(point);
 				}
 
-				// 2. Add Track Coordinates
-				// Check concorde
-				if (trackReturned.size() == 2) {
-					if (trackReturned == "SM") {
-						parsedRoute.insert(parsedRoute.end(), NatSM.begin(), NatSM.end());
-						routeFetched = true;
-					}
-					else if (trackReturned == "SN") {
-						parsedRoute.insert(parsedRoute.end(), NatSN.begin(), NatSN.end());
-						routeFetched = true;
-					}
-					else if (trackReturned == "SP") {
-						parsedRoute.insert(parsedRoute.end(), NatSP.begin(), NatSP.end());
-						routeFetched = true;
-					}
-					else if (trackReturned == "SL") {
-						parsedRoute.insert(parsedRoute.end(), NatSL.begin(), NatSL.end());
-						routeFetched = true;
-					}
-					else {
-						parsedRoute.insert(parsedRoute.end(), NatSO.begin(), NatSO.end());
-						routeFetched = true;
-					}
+			// 2. Add Track Coordinates
+			// Check concorde
+			if (trackReturned.size() == 2) {
+				if (trackReturned == "SM") {
+					parsedRoute.insert(parsedRoute.end(), NatSM.begin(), NatSM.end());
+					routeFetched = true;
 				}
+				else if (trackReturned == "SN") {
+					parsedRoute.insert(parsedRoute.end(), NatSN.begin(), NatSN.end());
+					routeFetched = true;
+				}
+				else if (trackReturned == "SP") {
+					parsedRoute.insert(parsedRoute.end(), NatSP.begin(), NatSP.end());
+					routeFetched = true;
+				}
+				else if (trackReturned == "SL") {
+					parsedRoute.insert(parsedRoute.end(), NatSL.begin(), NatSL.end());
+					routeFetched = true;
+				}
+				else if (trackReturned == "SO") {
+					parsedRoute.insert(parsedRoute.end(), NatSO.begin(), NatSO.end());
+					routeFetched = true;
+				}
+			}
 
-				if (!routeFetched) {
-					for (int i = 0; i < track.RouteRaw.size(); i++) {
-						// Make waypoint
+			if (!routeFetched) {
+				// Re-fetch track from global map to ensure we have the latest route names
+				lock_guard<mutex> lock(TracksMutex);
+				if (CurrentTracks.find(trackReturned) != CurrentTracks.end()) {
+					CTrack& activeTrack = CurrentTracks[trackReturned];
+					for (int i = 0; i < activeTrack.Route.size(); i++) {
 						CWaypoint point;
-						point.Name = track.Route[i];
-						point.Position = track.RouteRaw[i];
-
-						// Add to route vector
+						point.Name = activeTrack.Route[i];
+						if (i < activeTrack.RouteRaw.size()) {
+							point.Position = activeTrack.RouteRaw[i];
+						}
 						parsedRoute.push_back(point);
 					}
+					routeFetched = true;
 				}
+			}
 
 				// 3. Add Exit Point if found
 				if (exitPoint != -1) {
@@ -1127,6 +1114,7 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 			// Normalize all tokens for comparison
 			vector<string> normalizedTokens;
 			for (string t : tokens) {
+				if (t.empty()) continue;
 				// Strip speed/level info if present
 				size_t slashPos = t.find('/');
 				if (slashPos != string::npos) {
@@ -1137,7 +1125,10 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 						}
 					}
 				}
-				normalizedTokens.push_back(CUtils::ConvertCoordinateFormat(t, 0));
+				string normalized = CUtils::ConvertCoordinateFormat(t, 0);
+				// Ensure uppercase
+				for (auto& c : normalized) c = toupper((unsigned char)c);
+				normalizedTokens.push_back(normalized);
 			}
 
 			for (auto const& kv : CurrentTracks) {
@@ -1149,7 +1140,9 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 				// Normalize track route points
 				vector<string> normalizedTrackRoute;
 				for (string tr : t.Route) {
-					normalizedTrackRoute.push_back(CUtils::ConvertCoordinateFormat(tr, 0));
+					string normalized = CUtils::ConvertCoordinateFormat(tr, 0);
+					for (auto& c : normalized) c = toupper((unsigned char)c);
+					normalizedTrackRoute.push_back(normalized);
 				}
 
 				// Count how many track points match the flight's route
