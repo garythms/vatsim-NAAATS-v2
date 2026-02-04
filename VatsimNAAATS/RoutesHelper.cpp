@@ -89,12 +89,15 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 					}
 					if (!isCoord) name = name.substr(0, slash);
 				}
-				if (CUtils::IsEntryPoint(name, direction) || CUtils::IsCoord(name)) {
+				if (IsOceanicEntryPoint(name, direction) || CUtils::IsCoord(name)) {
 					if (startIdx == -1) startIdx = i;
 					endIdx = i;
 				}
-				if (CUtils::IsExitPoint(name, direction)) {
+				if (IsOceanicExitPoint(name, direction)) {
 					endIdx = i;
+					// Once we find an exit point, we can stop updating endIdx 
+					// unless another exit point or coordinate is found later.
+					// Actually, the last exit point in the route is usually the one we want.
 				}
 			}
 			
@@ -122,6 +125,15 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 				}
 				
 				if (waypointName == "DCT") continue;
+				
+				// Filter: Only include waypoints that are Oceanic points, Coordinates, or NAT Tracks
+				bool isOceanic = IsOceanicEntryPoint(waypointName, direction) || IsOceanicExitPoint(waypointName, direction) || CUtils::IsCoord(waypointName);
+				bool isNatPattern = (waypointName.size() > 3 && waypointName.substr(0, 3) == "NAT");
+				
+				if (!isOceanic && !isNatPattern && waypointName != "NAT") {
+					// Skip non-oceanic points (airways, SIDs, etc.)
+					continue;
+				}
 			
 			// Check for NAT track
 			string tid = "";
@@ -322,7 +334,7 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 
 		// Find Entry Point
 		for (int i = 0; i < fp->Route.size(); i++) {
-			if (fp->Route[i].Name == "AIRCRAFT" || CUtils::IsEntryPoint(fp->Route[i].Name, direction)) {
+			if (fp->Route[i].Name == "AIRCRAFT" || IsOceanicEntryPoint(fp->Route[i].Name, direction) || CUtils::IsCoord(fp->Route[i].Name)) {
 				startIndex = i;
 				break;
 			}
@@ -330,9 +342,8 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 
 		// Find Exit Point (search after startIndex)
 		for (int i = startIndex; i < fp->Route.size(); i++) {
-			if (CUtils::IsExitPoint(fp->Route[i].Name, direction)) {
+			if (IsOceanicExitPoint(fp->Route[i].Name, direction) || CUtils::IsCoord(fp->Route[i].Name)) {
 				endIndex = i;
-				break;
 			}
 		}
 	
@@ -341,6 +352,10 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 
 		// Iterate through the filtered route
 		for (int idx = startIndex; idx <= endIndex; idx++) {
+				// Filter out non-oceanic waypoints
+				bool isOceanic = IsOceanicEntryPoint(fp->Route[idx].Name, direction) || IsOceanicExitPoint(fp->Route[idx].Name, direction) || CUtils::IsCoord(fp->Route[idx].Name);
+				if (!isOceanic && fp->Route[idx].Name != "AIRCRAFT") continue;
+
 				// Create position	
 				CRoutePosition position;
 
@@ -610,30 +625,30 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			int entryIdx = -1;
 			int exitIdx = -1;
 			for (int i = 0; i < tempRoute.size(); i++) {
-				if (CUtils::IsEntryPoint(tempRoute[i].Name, direction)) { entryIdx = i; break; }
+				if (IsOceanicEntryPoint(tempRoute[i].Name, direction)) { entryIdx = i; break; }
 			}
 			for (int i = tempRoute.size() - 1; i >= 0; i--) {
-				if (CUtils::IsExitPoint(tempRoute[i].Name, direction)) { exitIdx = i; break; }
+				if (IsOceanicExitPoint(tempRoute[i].Name, direction)) { exitIdx = i; break; }
 			}
 
 			// Geographic fallback if fixes not found
 			if (entryIdx == -1) {
 				for (int i = 0; i < tempRoute.size(); i++) {
 					double lon = tempRoute[i].Position.m_Longitude;
-					if (direction) { // Westbound
-						if (lon < 5.0 && lon > -70.0) { entryIdx = i; break; }
-					} else { // Eastbound
-						if (lon > -70.0 && lon < 5.0) { entryIdx = i; break; }
+					if (direction) { // Eastbound
+						if (lon > -70.0 && lon < -40.0) { entryIdx = i; break; }
+					} else { // Westbound
+						if (lon < 5.0 && lon > -20.0) { entryIdx = i; break; }
 					}
 				}
 			}
 			if (exitIdx == -1) {
 				for (int i = tempRoute.size() - 1; i >= 0; i--) {
 					double lon = tempRoute[i].Position.m_Longitude;
-					if (direction) { // Westbound
-						if (lon < 5.0 && lon > -70.0) { exitIdx = i; break; }
-					} else { // Eastbound
-						if (lon > -70.0 && lon < 5.0) { exitIdx = i; break; }
+					if (direction) { // Eastbound
+						if (lon < 5.0 && lon > -20.0) { exitIdx = i; break; }
+					} else { // Westbound
+						if (lon > -70.0 && lon < -40.0) { exitIdx = i; break; }
 					}
 				}
 			}
@@ -698,41 +713,33 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 					}
 					if (!isCoord) wpName = wpName.substr(0, slashPos);
 				}
-
-				if (entryPoint == -1) { // Check entry point
-					if (CUtils::IsEntryPoint(wpName, direction)) {
-						entryPoint = i;
-					}
+				if (IsOceanicEntryPoint(wpName, direction) || CUtils::IsCoord(wpName)) {
+					if (entryPoint == -1) entryPoint = i;
+					exitPoint = i;
 				}
-				// Always update exit point to the LAST occurrence of an exit fix
-				if (CUtils::IsExitPoint(wpName, direction)) {
+				if (IsOceanicExitPoint(wpName, direction)) {
 					exitPoint = i;
 				}
 			}
 
-			// Geographic fallback if fixes not found in flight plan
+			// Geographic fallback if fixes not found
 			if (entryPoint == -1) {
 				for (int i = 0; i < extractedRoutePoints.size(); i++) {
 					double lon = extractedRoutePoints[i].Position.m_Longitude;
-					if (direction) { // Westbound (Eastbound in vNAAATS logic? Let's check direction usage)
-						// vNAAATS direction: true = Westbound? 
-						// RadarDisplay.cpp: direction = CUtils::GetAircraftDirection(...)
-						// Utils.cpp: GetAircraftDirection returns true for Eastbound (0-179), false for Westbound (180-359)
-						// Wait, DataHandler.cpp line 466: data.Direction = (heading > 180 && heading < 360); // Westbound
-						// Let's assume true = Westbound based on DataHandler.cpp and FddWindow.cpp
-						if (lon < 5.0 && lon > -70.0) { entryPoint = i; break; }
-					} else { // Eastbound
-						if (lon > -70.0 && lon < 5.0) { entryPoint = i; break; }
+					if (direction) { // Eastbound
+						if (lon > -70.0 && lon < -40.0) { entryPoint = i; break; }
+					} else { // Westbound
+						if (lon < 5.0 && lon > -20.0) { entryPoint = i; break; }
 					}
 				}
 			}
 			if (exitPoint == -1) {
 				for (int i = (entryPoint == -1 ? 0 : entryPoint); i < extractedRoutePoints.size(); i++) {
 					double lon = extractedRoutePoints[i].Position.m_Longitude;
-					if (direction) { // Westbound
-						if (lon < 5.0 && lon > -70.0) { exitPoint = i; }
-					} else { // Eastbound
-						if (lon > -70.0 && lon < 5.0) { exitPoint = i; }
+					if (direction) { // Eastbound
+						if (lon < 5.0 && lon > -20.0) { exitPoint = i; }
+					} else { // Westbound
+						if (lon > -70.0 && lon < -40.0) { exitPoint = i; }
 					}
 				}
 			}
@@ -1017,6 +1024,58 @@ int CRoutesHelper::ParseRoute(CRadarScreen* screen, string callsign, string rawI
 	}
 
 	return 0;
+}
+
+bool CRoutesHelper::IsOceanicEntryPoint(string pointName, bool eastbound) {
+	// 1. Check static lists
+	if (CUtils::IsEntryPoint(pointName, eastbound)) return true;
+
+	// 2. Check active tracks from natTrak
+	lock_guard<mutex> lock(TracksMutex);
+	for (auto const& kv : CurrentTracks) {
+		const CTrack& t = kv.second;
+		if (t.Route.empty()) continue;
+		
+		// If aircraft is eastbound, we look for points on the West side (Gander)
+		// If aircraft is westbound, we look for points on the East side (Shanwick)
+		if (eastbound) {
+			// Eastbound entry points are at the beginning of Eastbound tracks 
+			// or end of Westbound tracks
+			if (t.Direction == CTrackDirection::EAST && t.Route.front() == pointName) return true;
+			if (t.Direction == CTrackDirection::WEST && t.Route.back() == pointName) return true;
+		} else {
+			// Westbound entry points are at the beginning of Westbound tracks
+			// or end of Eastbound tracks
+			if (t.Direction == CTrackDirection::WEST && t.Route.front() == pointName) return true;
+			if (t.Direction == CTrackDirection::EAST && t.Route.back() == pointName) return true;
+		}
+	}
+	return false;
+}
+
+bool CRoutesHelper::IsOceanicExitPoint(string pointName, bool eastbound) {
+	// 1. Check static lists
+	if (CUtils::IsExitPoint(pointName, eastbound)) return true;
+
+	// 2. Check active tracks from natTrak
+	lock_guard<mutex> lock(TracksMutex);
+	for (auto const& kv : CurrentTracks) {
+		const CTrack& t = kv.second;
+		if (t.Route.empty()) continue;
+
+		if (eastbound) {
+			// Eastbound exit points are at the end of Eastbound tracks
+			// or start of Westbound tracks
+			if (t.Direction == CTrackDirection::EAST && t.Route.back() == pointName) return true;
+			if (t.Direction == CTrackDirection::WEST && t.Route.front() == pointName) return true;
+		} else {
+			// Westbound exit points are at the end of Westbound tracks
+			// or start of Eastbound tracks
+			if (t.Direction == CTrackDirection::WEST && t.Route.back() == pointName) return true;
+			if (t.Direction == CTrackDirection::EAST && t.Route.front() == pointName) return true;
+		}
+	}
+	return false;
 }
 
 string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string routeString, bool disableEuroScopeFetch) {

@@ -305,16 +305,22 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			if (!fp.IsValid()) continue;
 			
 			// Relevance filter: Only show if tracked by me, or within the oceanic region + buffer
-			// Oceanic region roughly between 10W and 50W.
-			// Let's use 5W to 60W as the active FDD range to keep it around ~40 aircraft.
+			// Oceanic region roughly between 5W and 65W.
 			double lon = rt.GetPosition().GetPosition().m_Longitude;
-			bool isRelevantRegion = (lon < -5.0 && lon > -60.0);
+			bool isRelevantRegion = (lon < 5.0 && lon > -70.0);
 			if (!fp.GetTrackingControllerIsMe() && !isRelevantRegion) continue;
 
-			// FL200+ filter
+			// Altitude filter - use configured filters from CUtils
 			int flVal = rt.GetPosition().GetFlightLevel();
 			if (flVal == 0) flVal = fp.GetFlightPlanData().GetFinalAltitude();
-			if (flVal < 20000 && flVal != 0) continue; // Only show aircraft above FL200
+			
+			// Default to FL200 if filters are not set (0)
+			int lowFilter = CUtils::AltFiltLow > 0 ? CUtils::AltFiltLow * 100 : 20000;
+			int highFilter = CUtils::AltFiltHigh > 0 ? CUtils::AltFiltHigh * 100 : 60000;
+
+			if (flVal < lowFilter || flVal > highFilter) {
+				if (flVal != 0) continue; // Allow 0 if it's unknown/ground
+			}
 
 			string callsign = fp.GetCallsign();
 			

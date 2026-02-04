@@ -862,11 +862,34 @@ bool CUtils::IsAllAlpha(string str) {
 }
 
 bool CUtils::IsCoord(string str) {
+	// Must have digits
+	bool hasDigit = false;
 	for (int i = 0; i < str.size(); i++) {
 		if (isdigit((unsigned char)str.at(i))) {
+			hasDigit = true;
+			break;
+		}
+	}
+	if (!hasDigit) return false;
+
+	// Common oceanic coordinate formats:
+	// 5440N (5 chars, ends in N/S)
+	// 58/20 (5 chars, has slash)
+	// 54N040W (7 chars, N/S and W/E)
+	// 6230N040W (9 chars, N/S and W/E)
+	// 5430N04000W (11 chars, N/S and W/E)
+	
+	if (str.length() == 5) {
+		if (str[4] == 'N' || str[4] == 'S') return true;
+		if (str.find('/') != string::npos) return true;
+	}
+	if (str.length() == 7 || str.length() == 9 || str.length() == 11) {
+		if ((str.find('N') != string::npos || str.find('S') != string::npos) &&
+			(str.find('W') != string::npos || str.find('E') != string::npos)) {
 			return true;
 		}
 	}
+
 	return false;
 }
 

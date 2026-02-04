@@ -35,6 +35,10 @@ class CRoutesHelper
 		// Parse a raw route
 		static int ParseRoute(CRadarScreen* screen, string callsign, string rawInput, bool isTrack = false, CAircraftFlightPlan* copy = nullptr);
 
+		// Helper to check if a point is an entry/exit point based on active tracks
+		static bool IsOceanicEntryPoint(string pointName, bool eastbound);
+		static bool IsOceanicExitPoint(string pointName, bool eastbound);
+
 		// Is on a NAT track
 		static string OnNatTrack(CRadarScreen* screen, string callsign, string routeString = "", bool disableEuroScopeFetch = false);
 };
