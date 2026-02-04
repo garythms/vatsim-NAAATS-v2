@@ -227,11 +227,8 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 	string line;
 
 	if (tagsOn) {
-
-		line = string(fp.GetTrackingControllerId()) != "" ? string(fp.GetTrackingControllerId()) : "";
-
+		line = (acFP != nullptr && !acFP->Track.empty()) ? acFP->Track : "";
 		dc->TextOutA(acPoint.x, acPoint.y - 20, line.c_str());
-
 	}
 
 
