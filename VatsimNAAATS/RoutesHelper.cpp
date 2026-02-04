@@ -828,13 +828,20 @@ int CRoutesHelper::ParseRoute(CRadarScreen* screen, string callsign, string rawI
 		// Deal with track
 		if (isTrack) {
 			lock_guard<mutex> lock(TracksMutex);
-			if (rawInput.size() < 3) {
-				if (CRoutesHelper::CurrentTracks.find(rawInput) != CRoutesHelper::CurrentTracks.end()) {
-					route = CRoutesHelper::CurrentTracks.at(rawInput).Route;
-					track = CRoutesHelper::CurrentTracks.at(rawInput).Identifier;
+			if (rawInput.size() <= 2) {
+				// Convert to uppercase
+				string trackInput = rawInput;
+				for (auto& c : trackInput) c = toupper((unsigned char)c);
+
+				if (CRoutesHelper::CurrentTracks.find(trackInput) != CRoutesHelper::CurrentTracks.end()) {
+					route = CRoutesHelper::CurrentTracks.at(trackInput).Route;
+					track = CRoutesHelper::CurrentTracks.at(trackInput).Identifier;
 				}
 				else {
-					return 1;
+					// Even if not found in current tracks, allow setting the track ID
+					// This handles cases where tracks are manually assigned or not yet in the map
+					track = trackInput;
+					route.clear(); // We don't have a defined route for an unknown track ID
 				}
 			}
 			else {

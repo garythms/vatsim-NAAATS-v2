@@ -223,6 +223,9 @@ void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen)
 		return;
 	}
 
+	// Sync fields from source of truth
+	RefreshSyncFields(screen);
+
 	// Select title font
 	FontSelector::SelectNormalFont(16, dc);
 	dc->SetTextColor(Black.ToCOLORREF());
@@ -2284,6 +2287,34 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 	}
 }
 
+void CFlightPlanWindow::RefreshSyncFields(CRadarScreen* screen) {
+	if (!primedPlan || !primedPlan->IsValid) return;
+
+	// Only sync if not currently being edited (not focused)
+	// Since we don't have a focus state, we check if the input is INACTIVE or just check for changes
+	
+	// SELCAL
+	if (textInputs[TXT_SELCAL].Content != primedPlan->SELCAL) {
+		textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
+	}
+
+	// Flight Level
+	if (textInputs[TXT_LEVEL].Content != primedPlan->FlightLevel) {
+		textInputs[TXT_LEVEL].Content = primedPlan->FlightLevel;
+	}
+
+	// Mach
+	string machStr = primedPlan->Mach;
+	if (!machStr.empty() && machStr[0] != 'M') {
+		try {
+			machStr = "M" + CUtils::PadWithZeros(3, stoi(machStr));
+		} catch (...) {}
+	}
+	if (textInputs[TXT_SPD].Content != machStr) {
+		textInputs[TXT_SPD].Content = machStr;
+	}
+}
+
 void CFlightPlanWindow::ParseRestriction(string content, CRestrictionType type) {
 	CFlightRestriction restriction;
 	// Parse restriction
@@ -2466,6 +2497,13 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 
 		if (id == TXT_SPD || id == TXT_MAN_SPD) {
 			primedPlan->Mach = content;
+			// Update EuroScope assigned mach
+			CFlightPlan esFp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
+			if (esFp.IsValid()) {
+				try {
+					esFp.GetControllerAssignedData().SetAssignedMach(stoi(content) * 10);
+				} catch (...) {}
+			}
 		}
 		else if (id == TXT_SPD_CPY) {
 			copiedPlan.Mach = content;
@@ -2489,6 +2527,13 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		// Assign
 		if (id == TXT_LEVEL || id == TXT_MAN_FL) {
 			primedPlan->FlightLevel = content;
+			// Update EuroScope assigned level
+			CFlightPlan esFp = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str());
+			if (esFp.IsValid()) {
+				try {
+					esFp.GetControllerAssignedData().SetClearedAltitude(stoi(content) * 100);
+				} catch (...) {}
+			}
 		}
 		else if (id == TXT_LEVEL_CPY) {
 			copiedPlan.FlightLevel = content;

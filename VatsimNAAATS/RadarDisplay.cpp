@@ -256,8 +256,15 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			}
 
 			// Flight level from radar target or flight plan
-			// flVal already calculated above for filter
-			string flStr = to_string(flVal > 1000 ? flVal / 100 : flVal);
+			// Use flight plan value if available, otherwise radar
+			string flStr = (flight && flight->IsValid) ? flight->FlightLevel : "";
+			if (flStr == "000" || flStr.empty()) {
+				int flV = rt.GetPosition().GetFlightLevel();
+				if (flV > 1000) flV /= 100;
+				char flBuf[10];
+				sprintf_s(flBuf, "%03d", flV);
+				flStr = flBuf;
+			}
 			f["FlightLevel"] = flStr;
 
 			// Tracking info
@@ -288,8 +295,40 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
 				if (fp && fp->IsValid) {
-					if (field == "FlightLevel") fp->FlightLevel = value;
-					else if (field == "Mach") fp->Mach = value;
+					if (field == "FlightLevel") {
+						// Format to 3 digits
+						try {
+							int fl = stoi(value);
+							char buf[10];
+							sprintf_s(buf, "%03d", fl);
+							value = buf;
+						} catch (...) {}
+						
+						fp->FlightLevel = value;
+						CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+						if (esFp.IsValid()) {
+							try {
+								esFp.GetControllerAssignedData().SetClearedAltitude(stoi(value) * 100);
+							} catch (...) {}
+						}
+					}
+					else if (field == "Mach") {
+						// Format to 3 digits
+						try {
+							int m = stoi(value);
+							char buf[10];
+							sprintf_s(buf, "%03d", m);
+							value = buf;
+						} catch (...) {}
+
+						fp->Mach = value;
+						CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+						if (esFp.IsValid()) {
+							try {
+								esFp.GetControllerAssignedData().SetAssignedMach(stoi(value) * 10);
+							} catch (...) {}
+						}
+					}
 					else if (field == "SELCAL") {
 						fp->SELCAL = value;
 						// Also update local storage so it persists across refreshes

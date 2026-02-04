@@ -407,19 +407,33 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 		data.Etd = "0000";
 	}
 
-	data.FlightLevel = to_string(fp.GetControllerAssignedData().GetClearedAltitude());
-	if (data.FlightLevel == "0") data.FlightLevel = to_string(fp.GetFlightPlanData().GetFinalAltitude());
-	
-	// If still 0, try current radar altitude
-	if (data.FlightLevel == "0") {
+	// Flight level
+	int flVal = fp.GetControllerAssignedData().GetClearedAltitude();
+	if (flVal == 0) flVal = fp.GetFlightPlanData().GetFinalAltitude();
+	if (flVal == 0) {
 		CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
 		if (rt.IsValid()) {
-			data.FlightLevel = to_string(rt.GetPosition().GetFlightLevel());
+			flVal = rt.GetPosition().GetFlightLevel();
 		}
 	}
+	if (flVal > 1000) flVal /= 100;
+	
+	char flBuf[10];
+	sprintf_s(flBuf, "%03d", flVal);
+	data.FlightLevel = flBuf;
 
-	data.Mach = to_string(fp.GetControllerAssignedData().GetAssignedMach());
-	if (data.Mach == "0") data.Mach = "0"; // TODO: Fix mach retrieval
+	// Mach
+	int machVal = fp.GetControllerAssignedData().GetAssignedMach();
+	if (machVal == 0) {
+		// Try to get from filed TAS/Mach
+		machVal = fp.GetFlightPlanData().GetTrueAirspeed();
+	}
+	if (machVal > 1000) machVal /= 10; // Handle M.82 as 820 or 82
+	if (machVal > 100) machVal %= 100; // Ensure 2 digits for Mach (e.g. 82)
+	
+	char machBuf[10];
+	sprintf_s(machBuf, "%03d", machVal);
+	data.Mach = machBuf;
 	
 	// Sector
 	const char* sectorId = fp.GetTrackingControllerId();
@@ -451,22 +465,36 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 			// Determine track from route
 		// Pass true for disableEuroScopeFetch because we already fetched/provided the route
 		// OnNatTrack is thread safe (uses TracksMutex)
-		string trackId = CRoutesHelper::OnNatTrack(screen, callsign, route, true);
+		string detectedTrack = CRoutesHelper::OnNatTrack(screen, callsign, route, true);
 		
-		if (!trackId.empty()) {
-			data.Track = trackId;
-			// Set direction from track if it's a NAT track
+		if (!detectedTrack.empty()) {
+			data.Track = detectedTrack;
+		} else {
+			// If no track detected in route, only set to RR if it's not already a valid NAT track
+			// This preserves manual track assignments made via the Flight Plan window
+			bool isExistingTrackValid = false;
+			{
+				lock_guard<mutex> trackLock(CRoutesHelper::TracksMutex);
+				// A valid track is either in the current tracks map, or is a single/double letter ID (manual override)
+				if (CRoutesHelper::CurrentTracks.find(data.Track) != CRoutesHelper::CurrentTracks.end()
+					|| (data.Track.length() <= 2 && data.Track != "RR" && !data.Track.empty())) {
+					isExistingTrackValid = true;
+				}
+			}
+
+			if (!isExistingTrackValid) {
+				data.Track = "RR";
+			}
+		}
+
+		// Update direction if it's a known NAT track
+		if (data.Track != "RR" && !data.Track.empty()) {
 			lock_guard<mutex> trackLock(CRoutesHelper::TracksMutex);
-			if (CRoutesHelper::CurrentTracks.find(trackId) != CRoutesHelper::CurrentTracks.end()) {
-				data.Direction = (CRoutesHelper::CurrentTracks[trackId].Direction == CTrackDirection::WEST);
+			if (CRoutesHelper::CurrentTracks.find(data.Track) != CRoutesHelper::CurrentTracks.end()) {
+				data.Direction = (CRoutesHelper::CurrentTracks[data.Track].Direction == CTrackDirection::WEST);
 			}
 		} else {
-			data.Track = "RR";
-			// Determine direction for Random Route from departure/arrival or current heading
-			// Simplified: check departure vs destination longitude or use EuroScope's own direction
-			double originLon = 0, destLon = 0;
-			// We can't easily get airport coordinates here without a full database, 
-			// so let's use a simpler heuristic or EuroScope's heading
+			// Determine direction for Random Route from current heading
 			CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
 			if (rt.IsValid()) {
 				int heading = rt.GetPosition().GetReportedHeading();

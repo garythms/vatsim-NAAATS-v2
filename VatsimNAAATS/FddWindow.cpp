@@ -234,13 +234,13 @@ void CFddWindow::RenderMachDropdown(CDC* dc, Graphics* g, CRadarScreen* screen) 
 	vector<string> machOptions;
 	for (int m = 70; m <= 99; m++) {
 		char buf[10];
-		sprintf_s(buf, "M%03d", m);
+		sprintf_s(buf, "%03d", m);
 		machOptions.push_back(buf);
 	}
-	// Add M100, M105, ... M200 (by 5s is cleaner for display)
+	// Add 100, 105, ... 200
 	for (int m = 100; m <= 200; m += 5) {
 		char buf[10];
-		sprintf_s(buf, "M%03d", m);
+		sprintf_s(buf, "%03d", m);
 		machOptions.push_back(buf);
 	}
 	
@@ -866,6 +866,14 @@ void CFddWindow::HandleButton(string id, CRadarDisplay* display) {
 		
 		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
 		if (fp) {
+			// Format to 3 digits
+			try {
+				int fl = stoi(value);
+				char buf[10];
+				sprintf_s(buf, "%03d", fl);
+				value = buf;
+			} catch (...) {}
+
 			fp->FlightLevel = value;
 			CFlightPlan esFp = display->GetPlugIn()->FlightPlanSelect(callsign.c_str());
 			if (esFp.IsValid()) {
@@ -886,7 +894,21 @@ void CFddWindow::HandleButton(string id, CRadarDisplay* display) {
 		
 		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
 		if (fp) {
+			// Format to 3 digits
+			try {
+				int m = stoi(value);
+				char buf[10];
+				sprintf_s(buf, "%03d", m);
+				value = buf;
+			} catch (...) {}
+
 			fp->Mach = value;
+			CFlightPlan esFp = display->GetPlugIn()->FlightPlanSelect(callsign.c_str());
+			if (esFp.IsValid()) {
+				try {
+					esFp.GetControllerAssignedData().SetAssignedMach(stoi(value) * 10);
+				} catch (...) {}
+			}
 		}
 		HideDropdowns();
 		return;

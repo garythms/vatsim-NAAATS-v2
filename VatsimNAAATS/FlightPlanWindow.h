@@ -57,6 +57,7 @@ class CFlightPlanWindow : public CBaseWindow
 		// Fill data
 		void Instantiate(CRadarScreen* screen, string callsign, CMessage* msg = nullptr);
 		void ParseRestriction(string content, CRestrictionType type);
+		void RefreshSyncFields(CRadarScreen* screen);
 
 		// Panel states
 		bool IsData = false;
