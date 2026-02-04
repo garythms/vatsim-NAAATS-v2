@@ -575,14 +575,25 @@ int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) {
 			clearance.Callsign = item.at("callsign").get<string>();
 			clearance.RequestId = item.at("id").get<int>();
 			
-			// NATTrack status: 0 = Pending, 1 = Processed
-			int status = item.at("status").get<int>();
-			if (status == 0) clearance.Status = CNatTrakStatus::PENDING;
-			else if (status == 1) clearance.Status = CNatTrakStatus::CLEARED;
-			else clearance.Status = CNatTrakStatus::UNKNOWN;
+			// NATTrack status parsing
+			if (item.at("status").is_string()) {
+				string statusStr = item.at("status").get<string>();
+				if (statusStr == "PENDING") clearance.Status = CNatTrakStatus::PENDING;
+				else if (statusStr == "CLEARED") clearance.Status = CNatTrakStatus::CLEARED;
+				else clearance.Status = CNatTrakStatus::UNKNOWN;
+			} else {
+				int status = item.at("status").get<int>();
+				if (status == 0) clearance.Status = CNatTrakStatus::PENDING;
+				else if (status == 1) clearance.Status = CNatTrakStatus::CLEARED;
+				else clearance.Status = CNatTrakStatus::UNKNOWN;
+			}
 
 			// Optional fields
-			if (item.contains("track") && !item.at("track").is_null()) clearance.Nat = item.at("track").get<string>();
+			if (item.contains("nat") && !item.at("nat").is_null()) clearance.Nat = item.at("nat").get<string>();
+			else if (item.contains("track") && !item.at("track").is_null()) clearance.Nat = item.at("track").get<string>();
+			
+			if (item.contains("fix") && !item.at("fix").is_null()) clearance.Fix = item.at("fix").get<string>();
+
 			if (item.contains("level") && !item.at("level").is_null()) {
 				if (item.at("level").is_number()) {
 					clearance.Level = to_string(item.at("level").get<int>());
@@ -590,6 +601,18 @@ int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) {
 					clearance.Level = item.at("level").get<string>();
 				}
 			}
+
+			if (item.contains("mach") && !item.at("mach").is_null()) {
+				if (item.at("mach").is_number()) {
+					clearance.Mach = to_string(item.at("mach").get<double>());
+				} else {
+					clearance.Mach = item.at("mach").get<string>();
+				}
+			}
+
+			if (item.contains("estimating_time") && !item.at("estimating_time").is_null()) clearance.EstimatingTime = item.at("estimating_time").get<string>();
+			if (item.contains("clearance_issued") && !item.at("clearance_issued").is_null()) clearance.ClearanceIssued = item.at("clearance_issued").get<string>();
+			if (item.contains("extra_info") && !item.at("extra_info").is_null()) clearance.ExtraInfo = item.at("extra_info").get<string>();
 			
 			natTrakClearances[clearance.Callsign] = clearance;
 		}
