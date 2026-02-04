@@ -89,11 +89,12 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 					}
 					if (!isCoord) name = name.substr(0, slash);
 				}
-				if (IsOceanicEntryPoint(name, direction) || CUtils::IsCoord(name)) {
+				bool isEastbound = !direction;
+				if (IsOceanicEntryPoint(name, isEastbound) || CUtils::IsCoord(name)) {
 					if (startIdx == -1) startIdx = i;
 					endIdx = i;
 				}
-				if (IsOceanicExitPoint(name, direction)) {
+				if (IsOceanicExitPoint(name, isEastbound)) {
 					endIdx = i;
 					// Once we find an exit point, we can stop updating endIdx 
 					// unless another exit point or coordinate is found later.
@@ -624,18 +625,19 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			// If no entry/exit fix is found, use geographic bounds (-5W to -65W).
 			int entryIdx = -1;
 			int exitIdx = -1;
+			bool isEastbound = !direction;
 			for (int i = 0; i < tempRoute.size(); i++) {
-				if (IsOceanicEntryPoint(tempRoute[i].Name, direction)) { entryIdx = i; break; }
+				if (IsOceanicEntryPoint(tempRoute[i].Name, isEastbound)) { entryIdx = i; break; }
 			}
 			for (int i = tempRoute.size() - 1; i >= 0; i--) {
-				if (IsOceanicExitPoint(tempRoute[i].Name, direction)) { exitIdx = i; break; }
+				if (IsOceanicExitPoint(tempRoute[i].Name, isEastbound)) { exitIdx = i; break; }
 			}
 
 			// Geographic fallback if fixes not found
 			if (entryIdx == -1) {
 				for (int i = 0; i < tempRoute.size(); i++) {
 					double lon = tempRoute[i].Position.m_Longitude;
-					if (direction) { // Eastbound
+					if (isEastbound) { // Eastbound
 						if (lon > -70.0 && lon < -40.0) { entryIdx = i; break; }
 					} else { // Westbound
 						if (lon < 5.0 && lon > -20.0) { entryIdx = i; break; }
@@ -645,7 +647,7 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			if (exitIdx == -1) {
 				for (int i = tempRoute.size() - 1; i >= 0; i--) {
 					double lon = tempRoute[i].Position.m_Longitude;
-					if (direction) { // Eastbound
+					if (isEastbound) { // Eastbound
 						if (lon < 5.0 && lon > -20.0) { exitIdx = i; break; }
 					} else { // Westbound
 						if (lon > -70.0 && lon < -40.0) { exitIdx = i; break; }
@@ -698,7 +700,8 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			// Find our entry and exit points regardless of track status
 			int entryPoint = -1;
 			int exitPoint = -1;
-			bool direction = data->Direction; // Use pre-fetched direction
+			bool direction = data->Direction; // True = Westbound, False = Eastbound
+			bool isEastbound = !direction;
 			
 			for (int i = 0; i < extractedRoutePoints.size(); i++) {
 				string wpName = extractedRoutePoints[i].Name;
@@ -713,11 +716,11 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 					}
 					if (!isCoord) wpName = wpName.substr(0, slashPos);
 				}
-				if (IsOceanicEntryPoint(wpName, direction) || CUtils::IsCoord(wpName)) {
+				if (IsOceanicEntryPoint(wpName, isEastbound) || CUtils::IsCoord(wpName)) {
 					if (entryPoint == -1) entryPoint = i;
 					exitPoint = i;
 				}
-				if (IsOceanicExitPoint(wpName, direction)) {
+				if (IsOceanicExitPoint(wpName, isEastbound)) {
 					exitPoint = i;
 				}
 			}
@@ -726,7 +729,7 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			if (entryPoint == -1) {
 				for (int i = 0; i < extractedRoutePoints.size(); i++) {
 					double lon = extractedRoutePoints[i].Position.m_Longitude;
-					if (direction) { // Eastbound
+					if (isEastbound) { // Eastbound
 						if (lon > -70.0 && lon < -40.0) { entryPoint = i; break; }
 					} else { // Westbound
 						if (lon < 5.0 && lon > -20.0) { entryPoint = i; break; }
@@ -736,7 +739,7 @@ void CRoutesHelper::InitialiseRoute(void* args) {
 			if (exitPoint == -1) {
 				for (int i = (entryPoint == -1 ? 0 : entryPoint); i < extractedRoutePoints.size(); i++) {
 					double lon = extractedRoutePoints[i].Position.m_Longitude;
-					if (direction) { // Eastbound
+					if (isEastbound) { // Eastbound
 						if (lon < 5.0 && lon > -20.0) { exitPoint = i; }
 					} else { // Westbound
 						if (lon > -70.0 && lon < -40.0) { exitPoint = i; }

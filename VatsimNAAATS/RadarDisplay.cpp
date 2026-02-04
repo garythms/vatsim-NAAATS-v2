@@ -207,6 +207,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 							esFp.GetControllerAssignedData().SetClearedAltitude(stoi(value) * 100);
 						} catch (...) {}
 					}
+					CLogger::Log(CLogType::NORM, "FDD: Updated FL for " + csTrimmed + " to " + value, "CRadarDisplay::OnRefresh");
 				}
 				else if (field == "Mach") {
 					// Strip any non-numeric characters (like M or .)
@@ -231,12 +232,16 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 							esFp.GetControllerAssignedData().SetAssignedMach(stoi(value) * 10);
 						} catch (...) {}
 					}
+					CLogger::Log(CLogType::NORM, "FDD: Updated Mach for " + csTrimmed + " to " + value, "CRadarDisplay::OnRefresh");
 				}
 				else if (field == "SELCAL") {
 					fp->SELCAL = value;
 					// Also update local storage so it persists across refreshes
 					CUtils::SelcalStorage[csTrimmed] = value;
+					CLogger::Log(CLogType::NORM, "FDD: Updated SELCAL for " + csTrimmed + " to " + value, "CRadarDisplay::OnRefresh");
 				}
+			} else {
+				// CLogger::Log(CLogType::DEBUG, "FDD: Received update for unknown aircraft: " + csTrimmed, "CRadarDisplay::OnRefresh");
 			}
 
 			// Handle system commands

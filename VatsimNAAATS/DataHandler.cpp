@@ -440,7 +440,7 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 		data.Etd = "0000";
 	}
 
-	// Flight level - only update if EuroScope has a value
+	// Flight level - only update if EuroScope has a valid value
 	int flVal = fp.GetControllerAssignedData().GetClearedAltitude();
 	if (flVal == 0) flVal = fp.GetFlightPlanData().GetFinalAltitude();
 	if (flVal == 0) {
@@ -454,13 +454,19 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 		if (flVal > 1000) flVal /= 100;
 		char flBuf[10];
 		sprintf_s(flBuf, "%03d", flVal);
-		data.FlightLevel = flBuf;
+		
+		// Only update if current is empty or if EuroScope value changed significantly
+		if (data.FlightLevel.empty() || data.FlightLevel == "000" || abs(stoi(data.FlightLevel) - flVal) > 5) {
+			data.FlightLevel = flBuf;
+		}
 	}
 
-	// Mach - only update if EuroScope has a value
+	// Mach - only update if EuroScope has a valid value
 	int machVal = fp.GetControllerAssignedData().GetAssignedMach();
+	bool isMach = true;
 	if (machVal == 0) {
 		machVal = fp.GetFlightPlanData().GetTrueAirspeed();
+		isMach = false;
 	}
 	
 	if (machVal > 0) {
@@ -470,12 +476,26 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 		
 		char machBuf[10];
 		sprintf_s(machBuf, "%03d", machVal);
-		data.Mach = machBuf;
+		
+		// Logic to prevent overwriting Mach with TAS
+		// If current value looks like Mach (e.g. 70-99) and new value looks like TAS (>100), don't overwrite
+		bool currentIsMach = !data.Mach.empty() && stoi(data.Mach) < 100;
+		bool newIsMach = machVal < 100;
+
+		if (data.Mach.empty() || (currentIsMach && newIsMach) || (!currentIsMach)) {
+			data.Mach = machBuf;
+		}
 	}
 	
 	// Sector
 	const char* sectorId = fp.GetTrackingControllerId();
 	data.Sector = sectorId ? sectorId : "";
+
+	// SELCAL - Update if EuroScope has it and we don't
+	string esSelcal = CUtils::GetSelcalCode(&fp);
+	if (!esSelcal.empty() && (data.SELCAL.empty() || data.SELCAL == "N/A")) {
+		data.SELCAL = esSelcal;
+	}
 
 	// Check NAT Track
 		if (updateRoute) {
@@ -519,17 +539,44 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 			}
 		}
 
-		// Update direction if it's a known NAT track
+		// Update direction
 		if (data.Track != "RR" && !data.Track.empty()) {
 			lock_guard<mutex> trackLock(CRoutesHelper::TracksMutex);
 			if (CRoutesHelper::CurrentTracks.find(data.Track) != CRoutesHelper::CurrentTracks.end()) {
 				data.Direction = (CRoutesHelper::CurrentTracks[data.Track].Direction == CTrackDirection::WEST);
 			}
 		} else {
-			CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
-			if (rt.IsValid()) {
-				int heading = rt.GetPosition().GetReportedHeading();
-				data.Direction = (heading > 180 && heading < 360);
+			// Heuristic for direction based on Departure/Destination
+			bool determined = false;
+			string dep = data.Depart;
+			string dest = data.Dest;
+			
+			if (dep.length() >= 2 && dest.length() >= 2) {
+				// Common European/East prefixes
+				string eastPrefixes[] = {"EB", "ED", "EE", "EF", "EG", "EH", "EI", "EK", "EL", "EN", "EP", "ES", "ET", "EU", "EV", "EY", "LF", "LS", "LO", "LH", "LI"};
+				// Common North American/West prefixes
+				string westPrefixes[] = {"C", "K", "M", "P", "T", "S"};
+
+				bool depEast = false;
+				for (const string& p : eastPrefixes) if (dep.substr(0, 2) == p) { depEast = true; break; }
+				bool destEast = false;
+				for (const string& p : eastPrefixes) if (dest.substr(0, 2) == p) { destEast = true; break; }
+				
+				bool depWest = false;
+				for (const string& p : westPrefixes) if (dep.substr(0, 1) == p) { depWest = true; break; }
+				bool destWest = false;
+				for (const string& p : westPrefixes) if (dest.substr(0, 1) == p) { destWest = true; break; }
+
+				if (depEast && destWest) { data.Direction = true; determined = true; } // Westbound
+				else if (depWest && destEast) { data.Direction = false; determined = true; } // Eastbound
+			}
+
+			if (!determined) {
+				CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
+				if (rt.IsValid()) {
+					int heading = rt.GetPosition().GetReportedHeading();
+					data.Direction = (heading > 180 && heading < 360);
+				}
 			}
 		}
 	}
