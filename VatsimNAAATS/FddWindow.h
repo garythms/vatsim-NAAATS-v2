@@ -44,6 +44,7 @@ public:
 	static const int BTN_TMI;
 	static const int BTN_TRACK;
 	static const int BTN_SELCAL;
+	static const int BTN_WEB;
 	
 	// Window dimensions
 	static const int WINSZ_FDD_WIDTH = 900;

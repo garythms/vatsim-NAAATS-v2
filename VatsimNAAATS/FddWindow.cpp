@@ -6,8 +6,10 @@
 #include "Utils.h"
 #include "RoutesHelper.h"
 #include "RadarDisplay.h"
+#include "WebServer.h"
 #include <algorithm>
 #include <windows.h>
+#include <shellapi.h>
 #include <vector>
 #include <map>
 #include <ctime>
@@ -58,6 +60,7 @@ const int CFddWindow::BTN_CLOSE = 100;
 const int CFddWindow::BTN_TMI = 101;
 const int CFddWindow::BTN_TRACK = 102;
 const int CFddWindow::BTN_SELCAL = 103;
+const int CFddWindow::BTN_WEB = 104;
 
 CFddWindow::CFddWindow(POINT topLeft) : CBaseWindow(topLeft) {
 	MakeWindowItems();
@@ -74,6 +77,7 @@ void CFddWindow::MakeWindowItems() {
 	windowButtons[BTN_TMI] = CWinButton(BTN_TMI, WIN_FDD, "TMI", CInputState::INACTIVE);
 	windowButtons[BTN_TRACK] = CWinButton(BTN_TRACK, WIN_FDD, "TRACK", CInputState::INACTIVE);
 	windowButtons[BTN_SELCAL] = CWinButton(BTN_SELCAL, WIN_FDD, "SELCAL", CInputState::INACTIVE);
+	windowButtons[BTN_WEB] = CWinButton(BTN_WEB, WIN_FDD, "BROWSER", CInputState::INACTIVE);
 }
 
 void CFddWindow::InitializeColumns(int windowWidth) {
@@ -399,6 +403,17 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	dc->SetTextAlign(TA_CENTER);
 	dc->TextOutA(selcalBtnRect.left + btnW/2, selcalBtnRect.top + 4, "SELCAL");
 	screen->AddScreenObject(WIN_FDD, to_string(BTN_SELCAL).c_str(), selcalBtnRect, false, "");
+	btnX += btnW + 10;
+
+	// BROWSER Button
+	CRect webBtnRect(btnX, btnY, btnX + btnW, btnY + btnH);
+	CBrush webBtnBrush(RGB(40, 60, 100)); // Blue for browser
+	dc->FillRect(webBtnRect, &webBtnBrush);
+	dc->DrawEdge(webBtnRect, EDGE_RAISED, BF_RECT);
+	dc->SetTextColor(RGB(255, 255, 255));
+	dc->SetTextAlign(TA_CENTER);
+	dc->TextOutA(webBtnRect.left + btnW/2, webBtnRect.top + 4, "BROWSER");
+	screen->AddScreenObject(WIN_FDD, to_string(BTN_WEB).c_str(), webBtnRect, false, "");
 	
 	// Legend
 	btnX = windowRect.right - 220;
@@ -827,6 +842,13 @@ void CFddWindow::ButtonUp(int id, CRadarScreen* screen) {
 					screen->GetPlugIn()->DisplayUserMessage("SELCAL", SelectedCallsign.c_str(), "No SELCAL code found.", true, true, false, true, false);
 				}
 			}
+		}
+	}
+	else if (id == BTN_WEB) {
+		int port = CWebServer::GetRunningPort();
+		if (port != 0) {
+			string url = "http://localhost:" + to_string(port);
+			ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
 		}
 	}
 
