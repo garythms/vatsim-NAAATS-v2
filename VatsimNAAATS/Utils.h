@@ -97,6 +97,9 @@ class CUtils { // TODO: refactor into namespace
 		// Check all alpha
 		static bool IsAllAlpha(string str);
 
+		// Check if string is a coordinate (has digits)
+		static bool IsCoord(string str);
+
 		// Find selcal code from remarks
 		static string GetSelcalCode(CFlightPlan* fpData);
 

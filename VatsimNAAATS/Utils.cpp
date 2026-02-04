@@ -861,6 +861,15 @@ bool CUtils::IsAllAlpha(string str) {
 	return true;
 }
 
+bool CUtils::IsCoord(string str) {
+	for (int i = 0; i < str.size(); i++) {
+		if (isdigit((unsigned char)str.at(i))) {
+			return true;
+		}
+	}
+	return false;
+}
+
 string CUtils::GetSelcalCode(CFlightPlan* fpData) {
 	string remarks = fpData->GetFlightPlanData().GetRemarks();
 	size_t found = remarks.find(string("SEL/"));

@@ -1402,12 +1402,16 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 			}
 		}
 	} else if (ObjectType == WIN_FDD) {
+		fddWindow->HandleButton(sObjectId, this);
+		if (sObjectId && isdigit((unsigned char)sObjectId[0])) {
+			fddWindow->SetButtonState(atoi(sObjectId), CInputState::ACTIVE);
+		}
 		if (atoi(sObjectId) == CFddWindow::BTN_CLOSE) {
 			fddWindow->IsClosed = true;
 			menuBar->SetButtonState(CMenuBar::BTN_FDD, CInputState::INACTIVE);
 		}
 	}
-
+	
 	// Left button actions
 	if (Button == BUTTON_LEFT) {
 		// If screen object is a tag

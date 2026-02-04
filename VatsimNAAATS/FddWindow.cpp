@@ -83,16 +83,16 @@ void CFddWindow::MakeWindowItems() {
 }
 
 void CFddWindow::InitializeColumns(int windowWidth) {
-	columns.CallsignX = 15;
-	columns.TypeX = 100;
-	columns.DepDestX = 150;
-	columns.FlightLevelX = 240;
-	columns.MachX = 300;
-	columns.SelcalX = 370;
-	columns.EntryFixX = 450;
-	columns.EntryTimeX = 520;
-	columns.ExitFixX = 590;
-	columns.ExitTimeX = 660;
+	columns.CallsignX = 25;
+	columns.TypeX = 110;
+	columns.DepDestX = 160;
+	columns.FlightLevelX = 250;
+	columns.MachX = 310;
+	columns.SelcalX = 380;
+	columns.EntryFixX = 460;
+	columns.EntryTimeX = 530;
+	columns.ExitFixX = 600;
+	columns.ExitTimeX = 670;
 	columns.DiscardX = windowWidth - 25;
 }
 
@@ -737,7 +737,7 @@ void CFddWindow::RenderStrip(CDC* dc, Graphics* g, CRadarScreen* screen, CAircra
 	else drawIndicator = false; // CLEARED (Processed) or other - no indicator
 
 	if (drawIndicator) {
-		CRect indicatorRect(rect.left, rect.top, rect.left + 12, rect.bottom - 1);
+		CRect indicatorRect(rect.left, rect.top, rect.left + 15, rect.bottom - 1);
 		CBrush ntBrush(ntColor);
 		dc->FillRect(indicatorRect, &ntBrush);
 	}

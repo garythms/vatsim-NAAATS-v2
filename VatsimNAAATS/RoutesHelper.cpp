@@ -73,8 +73,8 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 		}
 		
 		// Find entry and exit indices in RouteRaw
-			int startIdx = 0;
-			int endIdx = fp->RouteRaw.size() - 1;
+			int startIdx = -1;
+			int endIdx = -1;
 			
 			for (int i = 0; i < fp->RouteRaw.size(); i++) {
 				string name = fp->RouteRaw[i];
@@ -89,29 +89,19 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 					}
 					if (!isCoord) name = name.substr(0, slash);
 				}
-				if (CUtils::IsEntryPoint(name, direction)) {
-					startIdx = i;
-					break;
-				}
-			}
-			for (int i = startIdx; i < fp->RouteRaw.size(); i++) {
-				string name = fp->RouteRaw[i];
-				size_t slash = name.find('/');
-				if (slash != string::npos) {
-					// Only strip if it's NOT a coordinate format (e.g. 54/30)
-					bool isCoord = false;
-					if (slash > 0 && slash < name.length() - 1) {
-						if (isdigit((unsigned char)name[slash - 1]) && isdigit((unsigned char)name[slash + 1])) {
-							isCoord = true;
-						}
-					}
-					if (!isCoord) name = name.substr(0, slash);
+				if (CUtils::IsEntryPoint(name, direction) || CUtils::IsCoord(name)) {
+					if (startIdx == -1) startIdx = i;
+					endIdx = i;
 				}
 				if (CUtils::IsExitPoint(name, direction)) {
 					endIdx = i;
-					break;
 				}
 			}
+			
+			// If no start found, default to beginning
+			if (startIdx == -1) startIdx = 0;
+			// If no end found, default to end
+			if (endIdx == -1) endIdx = fp->RouteRaw.size() - 1;
 			
 			int totalDistance = 0;
 			CPosition lastPos;
@@ -1096,17 +1086,27 @@ string CRoutesHelper::OnNatTrack(CRadarScreen* screen, string callsign, string r
 			int matchCount = 0;
 			for (const string& trPoint : t.Route) {
 				string normTr = CUtils::ConvertCoordinateFormat(trPoint, 0);
+				if (normTr.empty()) continue;
 				for (auto& c : normTr) c = toupper((unsigned char)c);
 
 				for (const string& flPoint : normalizedTokens) {
+					if (flPoint.empty()) continue;
 					if (normTr == flPoint) {
 						matchCount++;
 						break;
 					}
+					// Also check for partial coordinate match (e.g. 54N040W matches 54/40)
+					if (normTr.length() >= 4 && flPoint.length() >= 4) {
+						if (normTr.substr(0, 2) == flPoint.substr(0, 2) && normTr.substr(normTr.length() - 2) == flPoint.substr(flPoint.length() - 2)) {
+							matchCount++;
+							break;
+						}
+					}
 				}
 			}
 
-			if (matchCount >= 2) {
+			// If at least 2 points match, or 1 point matches if the track is short
+			if (matchCount >= 2 || (matchCount >= 1 && t.Route.size() <= 2)) {
 				return id;
 			}
 		}

@@ -137,7 +137,7 @@ const string HTML_PART1 = R"HTML(
         
         .flight-strip {
             display: grid;
-            grid-template-columns: 80px 55px 80px 45px 45px 55px 1fr;
+            grid-template-columns: 100px 55px 80px 45px 45px 55px 1fr;
             gap: 4px;
             padding: 4px 8px;
             border-bottom: 1px solid #3a3a4a;
@@ -157,14 +157,14 @@ const string HTML_PART1 = R"HTML(
             left: 0;
             top: 0;
             bottom: 0;
-            width: 12px;
+            width: 15px;
         }
         .status-pending { background-color: #ecc94b; }
         .status-unknown { background-color: #f56565; }
         
         .flight-strip.westbound { background: #b4d5f5; color: #1a365d; }
         .flight-strip.westbound:nth-child(even) { background: #9ec5e8; }
-        .flight-strip.eastbound { background: #fef3c7; color: #744210; }
+        .flight-strip.eastbound { background: #fefcbf; color: #744210; }
         .flight-strip.eastbound:nth-child(even) { background: #fde68a; }
         
         .cell { 
@@ -172,7 +172,7 @@ const string HTML_PART1 = R"HTML(
             white-space: nowrap;
             text-overflow: ellipsis;
         }
-        .cell-callsign { font-weight: bold; }
+        .cell-callsign { font-weight: bold; padding-left: 10px; }
         
         /* Editable cells */
         .cell-edit {
