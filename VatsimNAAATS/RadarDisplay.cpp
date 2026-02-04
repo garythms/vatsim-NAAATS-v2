@@ -583,6 +583,9 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			COverlays::ShowCurrentOverlay(&dc, &g, this, menuBar);
 		}
 
+		// Draw adjacent sectors if online
+		CCommonRenders::RenderAdjacentSectors(&dc, &g, this, fltPlnWindow);
+
 		// Get first aircraft
 		CRadarTarget ac;
 		ac = GetPlugIn()->RadarTargetSelectFirst();

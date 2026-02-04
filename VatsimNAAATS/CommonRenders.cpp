@@ -1,8 +1,10 @@
 #include "pch.h"
 
 #include "CommonRenders.h"
-
+#include "FlightPlanWindow.h"
 #include "Styles.h"
+#include <vector>
+#include <map>
 
 
 
@@ -778,9 +780,90 @@ void CCommonRenders::RenderTracks(CDC* dc, Graphics* g, CRadarScreen* screen, CO
 
 
 	// Restore context
-
 	dc->RestoreDC(iDC);
+}
 
+void CCommonRenders::RenderAdjacentSectors(CDC* dc, Graphics* g, CRadarScreen* screen, void* fltPlnWindowPtr) {
+	if (!fltPlnWindowPtr) return;
+	CFlightPlanWindow* fltPlnWindow = (CFlightPlanWindow*)fltPlnWindowPtr;
+
+	// Mapping of callsign prefixes to sector boundary names
+	static map<string, string> AdjacentSectorMap = {
+		{"EISN", "EISN"},     // Shannon
+		{"EGPX", "EGPX"},     // Scottish
+		{"LFRR", "LFRR"},     // Brest
+		{"LPPO", "LPPO"},     // Santa Maria
+		{"BIRD", "BIRD"},     // Reykjavik
+		{"CZQX", "CZQX"},     // Gander
+		{"CZQM", "CZQM"},     // Moncton
+		{"CZUL", "CZUL"},     // Montreal
+		{"ZBW", "ZBW"},       // Boston
+		{"ZNY", "ZNY"}        // New York
+	};
+
+	// Iterate through online controllers
+	for (auto it = fltPlnWindow->onlineControllers.begin(); it != fltPlnWindow->onlineControllers.end(); ++it) {
+		string callsign = it->first;
+		CController controller = it->second;
+
+		string prefix = callsign.substr(0, 4);
+		if (AdjacentSectorMap.find(prefix) != AdjacentSectorMap.end()) {
+			string boundaryName = AdjacentSectorMap[prefix];
+
+			// Search for boundary element
+			CSectorElement element;
+			for (element = screen->GetPlugIn()->SectorFileElementSelectFirst(11); // 11 = SECTOR_ELEMENT_ARTC
+				element.IsValid();
+				element = screen->GetPlugIn()->SectorFileElementSelectNext(element, 11))
+			{
+				if (string(element.GetName()) == boundaryName) {
+					// Draw boundary
+					vector<Point> points;
+					CPosition pos;
+					for (int i = 0; element.GetPosition(&pos, i); ++i) {
+						POINT pt = screen->ConvertCoordFromPositionToPixel(pos);
+						points.push_back(Point(pt.x, pt.y));
+					}
+
+					if (!points.empty()) {
+						// Highlight area
+						SolidBrush highlightBrush(Color(40, 255, 255, 0)); // Semi-transparent yellow
+						g->FillPolygon(&highlightBrush, points.data(), points.size());
+
+						// Draw frequency label
+						int minX = points[0].X, maxX = points[0].X, minY = points[0].Y, maxY = points[0].Y;
+						for (size_t pIdx = 0; pIdx < points.size(); ++pIdx) {
+							if (points[pIdx].X < minX) minX = points[pIdx].X;
+							if (points[pIdx].X > maxX) maxX = points[pIdx].X;
+							if (points[pIdx].Y < minY) minY = points[pIdx].Y;
+							if (points[pIdx].Y > maxY) maxY = points[pIdx].Y;
+						}
+
+						POINT labelPt = { minX + (maxX - minX) / 2, minY + (maxY - minY) / 2 };
+
+						// Ensure it's on screen
+						CRect radarArea = screen->GetRadarArea();
+						if (labelPt.x < radarArea.left) labelPt.x = radarArea.left + 50;
+						if (labelPt.x > radarArea.right) labelPt.x = radarArea.right - 50;
+						if (labelPt.y < radarArea.top) labelPt.y = radarArea.top + 50;
+						if (labelPt.y > radarArea.bottom) labelPt.y = radarArea.bottom - 50;
+
+						char freqBuf[10];
+						sprintf_s(freqBuf, "%.3f", controller.GetPrimaryFrequency());
+						string label = string(element.GetName()) + " " + freqBuf;
+
+						int sDC = dc->SaveDC();
+						FontSelector::SelectATCFont(14, dc);
+						dc->SetTextColor(RGB(255, 255, 0)); // Yellow
+						dc->SetTextAlign(TA_CENTER);
+						dc->TextOutA(labelPt.x, labelPt.y, label.c_str());
+						dc->RestoreDC(sDC);
+					}
+					break; // Found it
+				}
+			}
+		}
+	}
 }
 
 
