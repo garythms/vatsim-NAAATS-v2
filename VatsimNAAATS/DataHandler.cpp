@@ -351,45 +351,65 @@ string CDataHandler::GetVatsimRoute(string callsign) {
 }
 
 CAircraftFlightPlan* CDataHandler::GetFlightData(string callsign) {
+	string cs = callsign;
+	cs.erase(cs.find_last_not_of(" \n\r\t") + 1);
+	for (auto& c : cs) c = toupper((unsigned char)c);
+
 	lock_guard<mutex> lock(flightsMutex);
-	if (flights.find(callsign) != flights.end()) {
-		return &flights.find(callsign)->second;
+	if (flights.find(cs) != flights.end()) {
+		return &flights.find(cs)->second;
 	}
 	return nullptr;
 }
 
 void CDataHandler::GetFlightData(string callsign, CAircraftFlightPlan& fp) {
+	string cs = callsign;
+	cs.erase(cs.find_last_not_of(" \n\r\t") + 1);
+	for (auto& c : cs) c = toupper((unsigned char)c);
+
 	lock_guard<mutex> lock(flightsMutex);
-	if (flights.find(callsign) != flights.end()) {
-		fp = flights.find(callsign)->second;
+	if (flights.find(cs) != flights.end()) {
+		fp = flights.find(cs)->second;
 	}
 }
 
 int CDataHandler::CreateFlightData(CRadarScreen* screen, string callsign) {
+	string cs = callsign;
+	cs.erase(cs.find_last_not_of(" \n\r\t") + 1);
+	for (auto& c : cs) c = toupper((unsigned char)c);
+
 	lock_guard<mutex> lock(flightsMutex);
-	if (flights.find(callsign) == flights.end()) {
-		flights[callsign] = CAircraftFlightPlan();
-		flights[callsign].Callsign = callsign;
-		flights[callsign].IsValid = true;
+	if (flights.find(cs) == flights.end()) {
+		flights[cs] = CAircraftFlightPlan();
+		flights[cs].Callsign = cs;
+		flights[cs].IsValid = true;
 	}
 	return 0;
 }
 
 int CDataHandler::DeleteFlightData(string callsign) {
+	string cs = callsign;
+	cs.erase(cs.find_last_not_of(" \n\r\t") + 1);
+	for (auto& c : cs) c = toupper((unsigned char)c);
+
 	lock_guard<mutex> lock(flightsMutex);
-	if (flights.find(callsign) != flights.end()) {
-		flights.erase(callsign);
+	if (flights.find(cs) != flights.end()) {
+		flights.erase(cs);
 	}
 	return 0;
 }
 
 int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool updateRoute) {
+	string csLookup = callsign;
+	csLookup.erase(csLookup.find_last_not_of(" \n\r\t") + 1);
+	for (auto& c : csLookup) c = toupper((unsigned char)c);
+
 	{
 		lock_guard<mutex> lock(flightsMutex);
-		if (flights.find(callsign) == flights.end()) {
-			flights[callsign] = CAircraftFlightPlan();
-			flights[callsign].Callsign = callsign;
-			flights[callsign].IsValid = true;
+		if (flights.find(csLookup) == flights.end()) {
+			flights[csLookup] = CAircraftFlightPlan();
+			flights[csLookup].Callsign = csLookup;
+			flights[csLookup].IsValid = true;
 		}
 	}
 
@@ -397,11 +417,11 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 	if (!fp.IsValid()) return 1;
 
 	lock_guard<mutex> lock(flightsMutex);
-	if (flights.find(callsign) == flights.end()) return 1; // It was deleted?
+	if (flights.find(csLookup) == flights.end()) return 1; // It was deleted?
 	
-	CAircraftFlightPlan& data = flights[callsign];
+	CAircraftFlightPlan& data = flights[csLookup];
 	const char* callsignStr = fp.GetCallsign();
-	data.Callsign = callsignStr ? callsignStr : "";
+	data.Callsign = csLookup; // Use trimmed uppercase version
 
 	const char* typeStr = fp.GetFlightPlanData().GetAircraftFPType();
 	data.Type = typeStr ? typeStr : "";
@@ -420,7 +440,7 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 		data.Etd = "0000";
 	}
 
-	// Flight level
+	// Flight level - only update if EuroScope has a value
 	int flVal = fp.GetControllerAssignedData().GetClearedAltitude();
 	if (flVal == 0) flVal = fp.GetFlightPlanData().GetFinalAltitude();
 	if (flVal == 0) {
@@ -429,26 +449,29 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 			flVal = rt.GetPosition().GetFlightLevel();
 		}
 	}
-	if (flVal > 1000) flVal /= 100;
 	
-	char flBuf[10];
-	sprintf_s(flBuf, "%03d", flVal);
-	data.FlightLevel = flBuf;
+	if (flVal > 0) {
+		if (flVal > 1000) flVal /= 100;
+		char flBuf[10];
+		sprintf_s(flBuf, "%03d", flVal);
+		data.FlightLevel = flBuf;
+	}
 
-	// Mach
+	// Mach - only update if EuroScope has a value
 	int machVal = fp.GetControllerAssignedData().GetAssignedMach();
 	if (machVal == 0) {
-		// Try to get from filed TAS/Mach
 		machVal = fp.GetFlightPlanData().GetTrueAirspeed();
 	}
 	
-	// Normalize Mach to 2 or 3 digits (e.g., 82 for .82, 105 for 1.05)
-	if (machVal >= 1000) machVal /= 10; // 8200 -> 820 or 820 -> 82? EuroScope usually uses Mach*100 or Mach*1000
-	if (machVal >= 500) machVal /= 10;  // 820 -> 82
-	
-	char machBuf[10];
-	sprintf_s(machBuf, "%03d", machVal);
-	data.Mach = machBuf;
+	if (machVal > 0) {
+		// Normalize Mach
+		if (machVal >= 1000) machVal /= 10;
+		if (machVal >= 500) machVal /= 10; 
+		
+		char machBuf[10];
+		sprintf_s(machBuf, "%03d", machVal);
+		data.Mach = machBuf;
+	}
 	
 	// Sector
 	const char* sectorId = fp.GetTrackingControllerId();
@@ -460,8 +483,7 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 			string route = routeStr ? routeStr : "";
 			// If EuroScope route is empty, try VATSIM API
 			if (route.empty()) {
-				// GetVatsimRoute is thread safe (uses its own mutex)
-				route = GetVatsimRoute(callsign);
+				route = GetVatsimRoute(csLookup);
 			}
 
 			// Populate RouteRaw
@@ -478,19 +500,14 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 			if (!s.empty()) data.RouteRaw.push_back(s);
 
 			// Determine track from route
-		// Pass true for disableEuroScopeFetch because we already fetched/provided the route
-		// OnNatTrack is thread safe (uses TracksMutex)
-		string detectedTrack = CRoutesHelper::OnNatTrack(screen, callsign, route, true);
+		string detectedTrack = CRoutesHelper::OnNatTrack(screen, csLookup, route, true);
 		
 		if (!detectedTrack.empty()) {
 			data.Track = detectedTrack;
 		} else {
-			// If no track detected in route, only set to RR if it's not already a valid NAT track
-			// This preserves manual track assignments made via the Flight Plan window
 			bool isExistingTrackValid = false;
 			{
 				lock_guard<mutex> trackLock(CRoutesHelper::TracksMutex);
-				// A valid track is either in the current tracks map, or is a single/double letter ID (manual override)
 				if (CRoutesHelper::CurrentTracks.find(data.Track) != CRoutesHelper::CurrentTracks.end()
 					|| (data.Track.length() <= 2 && data.Track != "RR" && !data.Track.empty())) {
 					isExistingTrackValid = true;
@@ -509,11 +526,9 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 				data.Direction = (CRoutesHelper::CurrentTracks[data.Track].Direction == CTrackDirection::WEST);
 			}
 		} else {
-			// Determine direction for Random Route from current heading
 			CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
 			if (rt.IsValid()) {
 				int heading = rt.GetPosition().GetReportedHeading();
-				// Westbound is roughly 180 to 360 degrees
 				data.Direction = (heading > 180 && heading < 360);
 			}
 		}
@@ -561,18 +576,32 @@ void CDataHandler::FetchNatTrakClearancesAsync(void* args) {
 
 int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) {
 	string response = FetchUrlWithWinInet(NatTrakClearanceURL);
-	if (response.empty()) return 1;
+	if (response.empty()) {
+		CLogger::Log(CLogType::NORM, "NATTrack API: Empty response or fetch failed.", "CDataHandler::FetchNatTrakClearances");
+		return 1;
+	}
 
 	try {
 		json jsonArray = json::parse(response);
-		if (!jsonArray.is_array()) return 1;
+		if (!jsonArray.is_array()) {
+			CLogger::Log(CLogType::NORM, "NATTrack API: Response is not an array.", "CDataHandler::FetchNatTrakClearances");
+			return 1;
+		}
 
 		lock_guard<mutex> lock(natTrakMutex);
+		// Instead of clearing, we mark all as "old" or just overwrite. 
+		// Actually, clearing is fine if the API returns the FULL list. 
+		// If it's partial, we might want to merge.
 		natTrakClearances.clear();
 
+		int count = 0;
 		for (auto& item : jsonArray) {
 			CNatTrakClearance clearance;
-			clearance.Callsign = item.at("callsign").get<string>();
+			string cs = item.at("callsign").get<string>();
+			cs.erase(cs.find_last_not_of(" \n\r\t") + 1);
+			for (auto& c : cs) c = toupper((unsigned char)c);
+			
+			clearance.Callsign = cs;
 			clearance.RequestId = item.at("id").get<int>();
 			
 			// NATTrack status parsing
@@ -615,30 +644,45 @@ int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) {
 			if (item.contains("extra_info") && !item.at("extra_info").is_null()) clearance.ExtraInfo = item.at("extra_info").get<string>();
 			
 			natTrakClearances[clearance.Callsign] = clearance;
+			count++;
 		}
 		lastNatTrakFetch = time(0);
+		CLogger::Log(CLogType::NORM, "NATTrack API: Successfully parsed " + to_string(count) + " clearances.", "CDataHandler::FetchNatTrakClearances");
 		return 0;
 	}
-	catch (...) {
+	catch (exception &ex) {
+		CLogger::Log(CLogType::ERR, "NATTrack API: Error parsing JSON: " + string(ex.what()), "CDataHandler::FetchNatTrakClearances");
 		return 1;
 	}
 }
 
-bool CDataHandler::GetNatTrakClearance(const string& callsign, CNatTrakClearance& outClearance) {
+CNatTrakStatus CDataHandler::GetNatTrakStatus(const string& callsign) {
+	string cs = callsign;
+	// Trim trailing spaces
+	cs.erase(cs.find_last_not_of(" \n\r\t") + 1);
+	// Convert to uppercase
+	for (auto& c : cs) c = toupper((unsigned char)c);
+
 	lock_guard<mutex> lock(natTrakMutex);
-	if (natTrakClearances.find(callsign) != natTrakClearances.end()) {
-		outClearance = natTrakClearances[callsign];
+	if (natTrakClearances.find(cs) != natTrakClearances.end()) {
+		return natTrakClearances[cs].Status;
+	}
+	return CNatTrakStatus::UNKNOWN;
+}
+
+bool CDataHandler::GetNatTrakClearance(const string& callsign, CNatTrakClearance& outClearance) {
+	string cs = callsign;
+	// Trim trailing spaces
+	cs.erase(cs.find_last_not_of(" \n\r\t") + 1);
+	// Convert to uppercase
+	for (auto& c : cs) c = toupper((unsigned char)c);
+
+	lock_guard<mutex> lock(natTrakMutex);
+	if (natTrakClearances.find(cs) != natTrakClearances.end()) {
+		outClearance = natTrakClearances[cs];
 		return true;
 	}
 	return false;
-}
-
-CNatTrakStatus CDataHandler::GetNatTrakStatus(const string& callsign) {
-	lock_guard<mutex> lock(natTrakMutex);
-	if (natTrakClearances.find(callsign) != natTrakClearances.end()) {
-		return natTrakClearances[callsign].Status;
-	}
-	return CNatTrakStatus::UNKNOWN;
 }
 
 // Session Stubs

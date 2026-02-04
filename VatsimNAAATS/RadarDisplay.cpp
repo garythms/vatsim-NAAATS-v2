@@ -184,7 +184,12 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			string field = update["field"];
 			string value = update["value"];
 
-			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
+			// Trim and uppercase callsign
+			string csTrimmed = callsign;
+			csTrimmed.erase(csTrimmed.find_last_not_of(" \n\r\t") + 1);
+			for (auto& c : csTrimmed) c = toupper((unsigned char)c);
+
+			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(csTrimmed);
 			if (fp && fp->IsValid) {
 				if (field == "FlightLevel") {
 					// Format to 3 digits
@@ -196,7 +201,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 					} catch (...) {}
 
 					fp->FlightLevel = value;
-					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 					if (esFp.IsValid()) {
 						try {
 							esFp.GetControllerAssignedData().SetClearedAltitude(stoi(value) * 100);
@@ -220,7 +225,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 					} catch (...) {}
 
 					fp->Mach = value;
-					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 					if (esFp.IsValid()) {
 						try {
 							esFp.GetControllerAssignedData().SetAssignedMach(stoi(value) * 10);
@@ -230,7 +235,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 				else if (field == "SELCAL") {
 					fp->SELCAL = value;
 					// Also update local storage so it persists across refreshes
-					CUtils::SelcalStorage[callsign] = value;
+					CUtils::SelcalStorage[csTrimmed] = value;
 				}
 			}
 
@@ -249,13 +254,13 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			if (field == "COMMAND") {
 				if (value == "SELECT") {
 					// Select aircraft in EuroScope
-					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 					if (esFp.IsValid()) {
 						GetPlugIn()->SetASELAircraft(esFp);
 					}
 				}
 				else if (value == "TRACK") {
-					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 					if (esFp.IsValid()) {
 						if (esFp.GetTrackingControllerIsMe()) {
 							esFp.EndTracking();
@@ -265,10 +270,10 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 					}
 				}
 				else if (value == "SELCAL") {
-					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 					if (esFp.IsValid()) {
 						string selcal = "";
-						CAircraftFlightPlan* flightData = CDataHandler::GetFlightData(callsign);
+						CAircraftFlightPlan* flightData = CDataHandler::GetFlightData(csTrimmed);
 						if (flightData && flightData->IsValid && !flightData->SELCAL.empty() && flightData->SELCAL != "N/A") {
 							selcal = flightData->SELCAL;
 						}
@@ -277,7 +282,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 						}
 						if (!selcal.empty() && selcal != "N/A") {
 							// Trigger SELCAL via EuroScope command
-							GetPlugIn()->DisplayUserMessage("SELCAL", callsign.c_str(), ("Sending SELCAL: " + selcal).c_str(), true, true, false, true, false);
+							GetPlugIn()->DisplayUserMessage("SELCAL", csTrimmed.c_str(), ("Sending SELCAL: " + selcal).c_str(), true, true, false, true, false);
 						}
 					}
 				}

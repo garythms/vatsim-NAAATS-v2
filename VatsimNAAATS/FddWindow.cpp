@@ -924,6 +924,10 @@ void CFddWindow::HandleButton(string id, CRadarDisplay* display) {
 		string callsign = id.substr(firstColon + 1, secondColon - firstColon - 1);
 		string value = id.substr(secondColon + 1);
 		
+		// Trim callsign for EuroScope
+		string csTrimmed = callsign;
+		csTrimmed.erase(csTrimmed.find_last_not_of(" \n\r\t") + 1);
+
 		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
 		if (fp) {
 			// Format to 3 digits
@@ -935,7 +939,7 @@ void CFddWindow::HandleButton(string id, CRadarDisplay* display) {
 			} catch (...) {}
 
 			fp->FlightLevel = value;
-			CFlightPlan esFp = display->GetPlugIn()->FlightPlanSelect(callsign.c_str());
+			CFlightPlan esFp = display->GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 			if (esFp.IsValid()) {
 				int fl = stoi(value);
 				esFp.GetControllerAssignedData().SetClearedAltitude(fl * 100);
@@ -952,6 +956,10 @@ void CFddWindow::HandleButton(string id, CRadarDisplay* display) {
 		string callsign = id.substr(firstColon + 1, secondColon - firstColon - 1);
 		string value = id.substr(secondColon + 1);
 		
+		// Trim callsign for EuroScope
+		string csTrimmed = callsign;
+		csTrimmed.erase(csTrimmed.find_last_not_of(" \n\r\t") + 1);
+
 		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
 		if (fp) {
 			// Strip any non-numeric characters (like M or .)
@@ -970,12 +978,27 @@ void CFddWindow::HandleButton(string id, CRadarDisplay* display) {
 			} catch (...) {}
 
 			fp->Mach = value;
-			CFlightPlan esFp = display->GetPlugIn()->FlightPlanSelect(callsign.c_str());
+			CFlightPlan esFp = display->GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 			if (esFp.IsValid()) {
 				try {
 					esFp.GetControllerAssignedData().SetAssignedMach(stoi(value) * 10);
 				} catch (...) {}
 			}
+		}
+		HideDropdowns();
+		return;
+	}
+
+	if (id.substr(0, 10) == "SELCALSEL:") {
+		// Format: SELCALSEL:callsign:value
+		size_t firstColon = id.find(':');
+		size_t secondColon = id.find(':', firstColon + 1);
+		string callsign = id.substr(firstColon + 1, secondColon - firstColon - 1);
+		string value = id.substr(secondColon + 1);
+
+		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
+		if (fp) {
+			fp->SELCAL = value;
 		}
 		HideDropdowns();
 		return;
