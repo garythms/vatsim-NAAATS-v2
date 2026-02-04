@@ -175,13 +175,125 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 		}
 
 		// 1. Push data to WebServer - only aircraft visible on scope
-		json root = json::array();
-		int visibleFlights = 0;
+		// 1. Pull updates from WebServer first
+	while (CWebServer::HasPendingUpdates()) {
+		string updateStr = CWebServer::GetPendingUpdates();
+		try {
+			auto update = json::parse(updateStr);
+			string callsign = update["callsign"];
+			string field = update["field"];
+			string value = update["value"];
 
-		// Iterate through actual radar targets visible on scope
-		for (CRadarTarget rt = GetPlugIn()->RadarTargetSelectFirst(); 
-			 rt.IsValid(); 
-			 rt = GetPlugIn()->RadarTargetSelectNext(rt)) {
+			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
+			if (fp && fp->IsValid) {
+				if (field == "FlightLevel") {
+					// Format to 3 digits
+					try {
+						int fl = stoi(value);
+						char buf[10];
+						sprintf_s(buf, "%03d", fl);
+						value = buf;
+					} catch (...) {}
+
+					fp->FlightLevel = value;
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					if (esFp.IsValid()) {
+						try {
+							esFp.GetControllerAssignedData().SetClearedAltitude(stoi(value) * 100);
+						} catch (...) {}
+					}
+				}
+				else if (field == "Mach") {
+					// Strip any non-numeric characters (like M or .)
+					string cleanValue = "";
+					for (char c : value) {
+						if (isdigit(c)) cleanValue += c;
+					}
+					value = cleanValue;
+
+					// Format to 3 digits
+					try {
+						int m = stoi(value);
+						char buf[10];
+						sprintf_s(buf, "%03d", m);
+						value = buf;
+					} catch (...) {}
+
+					fp->Mach = value;
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					if (esFp.IsValid()) {
+						try {
+							esFp.GetControllerAssignedData().SetAssignedMach(stoi(value) * 10);
+						} catch (...) {}
+					}
+				}
+				else if (field == "SELCAL") {
+					fp->SELCAL = value;
+					// Also update local storage so it persists across refreshes
+					CUtils::SelcalStorage[callsign] = value;
+				}
+			}
+
+			// Handle system commands
+			if (callsign == "SYSTEM" && field == "COMMAND") {
+				if (value == "OPEN_CPDLC") {
+					if (cpdlcWindow) {
+						cpdlcWindow->IsClosed = false;
+						if (menuBar) menuBar->SetButtonState(CMenuBar::BTN_CPDLC, CInputState::ACTIVE);
+						CLogger::Log(CLogType::NORM, "Opening CPDLC window via FDD request", "CRadarDisplay::OnRefresh");
+					}
+				}
+			}
+
+			// Handle aircraft commands
+			if (field == "COMMAND") {
+				if (value == "SELECT") {
+					// Select aircraft in EuroScope
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					if (esFp.IsValid()) {
+						GetPlugIn()->SetASELAircraft(esFp);
+					}
+				}
+				else if (value == "TRACK") {
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					if (esFp.IsValid()) {
+						if (esFp.GetTrackingControllerIsMe()) {
+							esFp.EndTracking();
+						} else {
+							esFp.StartTracking();
+						}
+					}
+				}
+				else if (value == "SELCAL") {
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					if (esFp.IsValid()) {
+						string selcal = "";
+						CAircraftFlightPlan* flightData = CDataHandler::GetFlightData(callsign);
+						if (flightData && flightData->IsValid && !flightData->SELCAL.empty() && flightData->SELCAL != "N/A") {
+							selcal = flightData->SELCAL;
+						}
+						if (selcal.empty()) {
+							selcal = CUtils::GetSelcalForAircraft(&esFp);
+						}
+						if (!selcal.empty() && selcal != "N/A") {
+							// Trigger SELCAL via EuroScope command
+							GetPlugIn()->DisplayUserMessage("SELCAL", callsign.c_str(), ("Sending SELCAL: " + selcal).c_str(), true, true, false, true, false);
+						}
+					}
+				}
+			}
+		}
+		catch (...) {}
+	}
+
+	// 2. Build current state
+	json root = json::array();
+	int visibleFlights = 0;
+
+	// Iterate through actual radar targets visible on scope
+	for (CRadarTarget rt = GetPlugIn()->RadarTargetSelectFirst(); 
+		 rt.IsValid(); 
+		 rt = GetPlugIn()->RadarTargetSelectNext(rt)) {
 			
 			// Get the correlated flight plan
 			CFlightPlan fp = rt.GetCorrelatedFlightPlan();
@@ -283,110 +395,6 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 		CLogger::Log(CLogType::NORM, "FDD Sync: Sending " + to_string(visibleFlights) + " visible flights to WebServer.", "CRadarDisplay::OnRefresh");
 		CWebServer::SetData(root.dump());
-
-		// 2. Pull updates from WebServer
-		while (CWebServer::HasPendingUpdates()) {
-			string updateStr = CWebServer::GetPendingUpdates();
-			try {
-				auto update = json::parse(updateStr);
-				string callsign = update["callsign"];
-				string field = update["field"];
-				string value = update["value"];
-
-				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
-				if (fp && fp->IsValid) {
-					if (field == "FlightLevel") {
-						// Format to 3 digits
-						try {
-							int fl = stoi(value);
-							char buf[10];
-							sprintf_s(buf, "%03d", fl);
-							value = buf;
-						} catch (...) {}
-						
-						fp->FlightLevel = value;
-						CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
-						if (esFp.IsValid()) {
-							try {
-								esFp.GetControllerAssignedData().SetClearedAltitude(stoi(value) * 100);
-							} catch (...) {}
-						}
-					}
-					else if (field == "Mach") {
-						// Format to 3 digits
-						try {
-							int m = stoi(value);
-							char buf[10];
-							sprintf_s(buf, "%03d", m);
-							value = buf;
-						} catch (...) {}
-
-						fp->Mach = value;
-						CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
-						if (esFp.IsValid()) {
-							try {
-								esFp.GetControllerAssignedData().SetAssignedMach(stoi(value) * 10);
-							} catch (...) {}
-						}
-					}
-					else if (field == "SELCAL") {
-						fp->SELCAL = value;
-						// Also update local storage so it persists across refreshes
-						CUtils::SelcalStorage[callsign] = value;
-					}
-				}
-				
-				// Handle system commands
-				if (callsign == "SYSTEM" && field == "COMMAND") {
-					if (value == "OPEN_CPDLC") {
-						if (cpdlcWindow) {
-							cpdlcWindow->IsClosed = false;
-							if (menuBar) menuBar->SetButtonState(CMenuBar::BTN_CPDLC, CInputState::ACTIVE);
-							CLogger::Log(CLogType::NORM, "Opening CPDLC window via FDD request", "CRadarDisplay::OnRefresh");
-						}
-					}
-				}
-				
-				// Handle aircraft commands
-				if (field == "COMMAND") {
-					if (value == "SELECT") {
-						// Select aircraft in EuroScope
-						CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
-						if (esFp.IsValid()) {
-							GetPlugIn()->SetASELAircraft(esFp);
-						}
-					}
-					else if (value == "TRACK") {
-						CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
-						if (esFp.IsValid()) {
-							if (esFp.GetTrackingControllerIsMe()) {
-								esFp.EndTracking();
-							} else {
-								esFp.StartTracking();
-							}
-						}
-					}
-					else if (value == "SELCAL") {
-						CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(callsign.c_str());
-						if (esFp.IsValid()) {
-							string selcal = "";
-							CAircraftFlightPlan* flightData = CDataHandler::GetFlightData(callsign);
-							if (flightData && flightData->IsValid && !flightData->SELCAL.empty() && flightData->SELCAL != "N/A") {
-								selcal = flightData->SELCAL;
-							}
-							if (selcal.empty()) {
-								selcal = CUtils::GetSelcalForAircraft(&esFp);
-							}
-							if (!selcal.empty() && selcal != "N/A") {
-								// Trigger SELCAL via EuroScope command
-								GetPlugIn()->DisplayUserMessage("SELCAL", callsign.c_str(), ("Sending SELCAL: " + selcal).c_str(), true, true, false, true, false);
-							}
-						}
-					}
-				}
-			}
-			catch (...) {}
-		}
 	}
 
 	// Run CPDLC background tasks (polling) regardless of window visibility.

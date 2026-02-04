@@ -428,8 +428,10 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 		// Try to get from filed TAS/Mach
 		machVal = fp.GetFlightPlanData().GetTrueAirspeed();
 	}
-	if (machVal > 1000) machVal /= 10; // Handle M.82 as 820 or 82
-	if (machVal > 100) machVal %= 100; // Ensure 2 digits for Mach (e.g. 82)
+	
+	// Normalize Mach to 2 or 3 digits (e.g., 82 for .82, 105 for 1.05)
+	if (machVal >= 1000) machVal /= 10; // 8200 -> 820 or 820 -> 82? EuroScope usually uses Mach*100 or Mach*1000
+	if (machVal >= 500) machVal /= 10;  // 820 -> 82
 	
 	char machBuf[10];
 	sprintf_s(machBuf, "%03d", machVal);

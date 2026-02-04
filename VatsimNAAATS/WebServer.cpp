@@ -397,7 +397,7 @@ const string HTML_PART2 = R"HTML(
 
         function showMachDropdown(el, callsign) {
             const opts = [];
-            for (let m = 90; m >= 74; m--) opts.push('M.' + m);
+            for (let m = 90; m >= 74; m--) opts.push('0' + m);
             showDropdown(el, callsign, 'Mach', opts);
         }
 
@@ -466,7 +466,6 @@ const string HTML_PART2 = R"HTML(
                     let fl = ac.FlightLevel || '';
                     if (parseInt(fl) > 1000) fl = String(Math.floor(parseInt(fl) / 100));
                     let mach = ac.Mach || '';
-                    if (mach && !mach.startsWith('M')) mach = 'M.' + mach;
                     const selcal = ac.SELCAL || 'N/A';
                     const type = ac.Type || '';
                     const dep = ac.Depart || '';

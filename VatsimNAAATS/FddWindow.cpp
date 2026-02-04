@@ -894,6 +894,13 @@ void CFddWindow::HandleButton(string id, CRadarDisplay* display) {
 		
 		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
 		if (fp) {
+			// Strip any non-numeric characters (like M or .)
+			string cleanValue = "";
+			for (char c : value) {
+				if (isdigit(c)) cleanValue += c;
+			}
+			value = cleanValue;
+
 			// Format to 3 digits
 			try {
 				int m = stoi(value);
