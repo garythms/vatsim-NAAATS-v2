@@ -83,16 +83,16 @@ void CFddWindow::MakeWindowItems() {
 }
 
 void CFddWindow::InitializeColumns(int windowWidth) {
-	columns.CallsignX = 25;
-	columns.TypeX = 110;
-	columns.DepDestX = 160;
-	columns.FlightLevelX = 250;
-	columns.MachX = 310;
-	columns.SelcalX = 380;
-	columns.EntryFixX = 460;
-	columns.EntryTimeX = 530;
-	columns.ExitFixX = 600;
-	columns.ExitTimeX = 670;
+	columns.CallsignX = 35;
+	columns.TypeX = 120;
+	columns.DepDestX = 170;
+	columns.FlightLevelX = 260;
+	columns.MachX = 320;
+	columns.SelcalX = 390;
+	columns.EntryFixX = 470;
+	columns.EntryTimeX = 540;
+	columns.ExitFixX = 610;
+	columns.ExitTimeX = 680;
 	columns.DiscardX = windowWidth - 25;
 }
 
@@ -881,11 +881,11 @@ void CFddWindow::ButtonUp(int id, CRadarScreen* screen) {
 	else if (id == BTN_NATTRAK) {
 		if (!SelectedCallsign.empty()) {
 			CNatTrakClearance ntClearance;
-			if (CDataHandler::GetNatTrakClearance(SelectedCallsign, ntClearance)) {
-				if (ntClearance.RequestId != 0) {
-					string url = "https://nattrak.vatsim.net/controllers/clx/rcl-msg/" + to_string(ntClearance.RequestId);
-					ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-				}
+			if (CDataHandler::GetNatTrakClearance(SelectedCallsign, ntClearance) && ntClearance.RequestId != 0) {
+				string url = "https://nattrak.vatsim.net/controllers/clx/rcl-msg/" + to_string(ntClearance.RequestId);
+				ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+			} else {
+				ShellExecuteA(NULL, "open", "https://nattrak.vatsim.net/controllers/clx", NULL, NULL, SW_SHOWNORMAL);
 			}
 		}
 	}

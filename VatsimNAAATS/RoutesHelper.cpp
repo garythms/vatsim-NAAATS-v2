@@ -203,6 +203,17 @@ bool CRoutesHelper::GetRoute(CRadarScreen* screen, vector<CRoutePosition>* route
 						if (s[6] == 'W') lon = -lon;
 						pos.m_Longitude = lon;
 					}
+					else if (s.length() == 9) {
+						// 6230N040W format
+						double latDeg = stod(s.substr(0, 2));
+						double latMin = stod(s.substr(2, 2));
+						pos.m_Latitude = latDeg + (latMin / 60.0);
+						if (s[4] == 'S') pos.m_Latitude = -pos.m_Latitude;
+
+						double lonDeg = stod(s.substr(5, 3));
+						pos.m_Longitude = -lonDeg;
+						if (s[8] == 'E') pos.m_Longitude = -pos.m_Longitude;
+					}
 					else if (s.length() == 11) {
 						// 5430N03000W format
 						double latDeg = stod(s.substr(0, 2));

@@ -167,12 +167,12 @@ const string HTML_PART1 = R"HTML(
         .flight-strip.eastbound { background: #fefcbf; color: #744210; }
         .flight-strip.eastbound:nth-child(even) { background: #fde68a; }
         
-        .cell { 
-            overflow: hidden; 
+        .cell {
             white-space: nowrap;
+            overflow: hidden;
             text-overflow: ellipsis;
         }
-        .cell-callsign { font-weight: bold; padding-left: 10px; }
+        .cell-callsign { font-weight: bold; padding-left: 20px; }
         
         /* Editable cells */
         .cell-edit {
@@ -308,6 +308,8 @@ const string HTML_PART2 = R"HTML(
                 const ac = currentData.find(a => a.Callsign === selectedCallsign);
                 if (ac && ac.NatRequestId) {
                     window.open('https://nattrak.vatsim.net/controllers/clx/rcl-msg/' + ac.NatRequestId, '_blank');
+                } else {
+                    window.open('https://nattrak.vatsim.net/controllers/clx', '_blank');
                 }
             }
         }
@@ -346,9 +348,7 @@ const string HTML_PART2 = R"HTML(
             }
             document.getElementById('btnTrack').disabled = false;
             document.getElementById('btnSelcal').disabled = false;
-            
-            const ac = currentData.find(a => a.Callsign === callsign);
-            document.getElementById('btnNattrak').disabled = !(ac && ac.NatRequestId);
+            document.getElementById('btnNattrak').disabled = false;
             
             sendCommand(callsign, 'SELECT');
         }
