@@ -444,8 +444,13 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 	if (!fddUrlShown) {
 		int port = CWebServer::GetRunningPort();
 		if (port != 0) {
-			string msg = "FDD Server started on http://localhost:" + to_string(port);
+			string url = "http://localhost:" + to_string(port);
+			string msg = "FDD Server started on " + url;
 			GetPlugIn()->DisplayUserMessage("vNAAATS", "FDD", msg.c_str(), true, true, true, true, true);
+			
+			// Automatically open the FDD page
+			ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+			
 			fddUrlShown = true;
 		}
 	}
