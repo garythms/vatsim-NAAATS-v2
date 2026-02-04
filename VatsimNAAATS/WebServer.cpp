@@ -145,10 +145,22 @@ const string HTML_PART1 = R"HTML(
             transition: filter 0.1s;
             align-items: center;
             min-height: 28px;
+            position: relative;
         }
         .flight-strip:last-child { border-bottom: none; }
         .flight-strip:hover { filter: brightness(1.1); }
         .flight-strip.selected { outline: 2px solid #68d391; outline-offset: -2px; }
+
+        /* Status indicator */
+        .status-indicator {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+        }
+        .status-pending { background-color: #ecc94b; }
+        .status-unknown { background-color: #f56565; }
         
         .flight-strip.westbound { background: #b4d5f5; color: #1a365d; }
         .flight-strip.westbound:nth-child(even) { background: #9ec5e8; }
@@ -235,6 +247,7 @@ const string HTML_PART1 = R"HTML(
                 <button class="btn btn-find" onclick="toggleSearch()">Find AC</button>
                 <button class="btn btn-track" id="btnTrack" onclick="doTrack()" disabled>TRACK</button>
                 <button class="btn btn-selcal" id="btnSelcal" onclick="doSelcal()" disabled>SELCAL</button>
+                <button class="btn btn-cpdlc" id="btnNattrak" onclick="doNattrak()" style="background:#1428a0;border-color:#1e3ca0;" disabled>NATTRAK</button>
                 <button class="btn btn-cpdlc" onclick="doCpdlc()">CPDLC</button>
                 <span class="status" id="status">...</span>
             </div>
@@ -290,6 +303,15 @@ const string HTML_PART2 = R"HTML(
             }
         }
 
+        function doNattrak() {
+            if (selectedCallsign) {
+                const ac = currentData.find(a => a.Callsign === selectedCallsign);
+                if (ac && ac.NatRequestId) {
+                    window.open('https://nattrak.vatsim.net/controllers/clx/rcl-msg/' + ac.NatRequestId, '_blank');
+                }
+            }
+        }
+
         function toggleSearch() {
             const container = document.getElementById('searchContainer');
             container.classList.toggle('active');
@@ -324,6 +346,10 @@ const string HTML_PART2 = R"HTML(
             }
             document.getElementById('btnTrack').disabled = false;
             document.getElementById('btnSelcal').disabled = false;
+            
+            const ac = currentData.find(a => a.Callsign === callsign);
+            document.getElementById('btnNattrak').disabled = !(ac && ac.NatRequestId);
+            
             sendCommand(callsign, 'SELECT');
         }
 
@@ -470,6 +496,16 @@ const string HTML_PART2 = R"HTML(
                     const type = ac.Type || '';
                     const dep = ac.Depart || '';
                     const dest = ac.Dest || '';
+                    const status = ac.NatStatus;
+                    const requestId = ac.NatRequestId;
+
+                    // Indicator HTML
+                    let indicatorHtml = '';
+                    if (status === 1) indicatorHtml = '<div class="status-indicator status-pending"></div>';
+                    else if (status === 0) indicatorHtml = '<div class="status-indicator status-unknown"></div>';
+
+                    // Callsign HTML (clickable if pending)
+                    let csHtml = cs;
 
                     // Route
                     let routeHtml = '';
@@ -483,7 +519,8 @@ const string HTML_PART2 = R"HTML(
                     }
 
                     html += '<div class="flight-strip ' + dirClass + sel + '" data-callsign="' + cs + '" onclick="selectAircraft(\'' + cs + '\')">';
-                    html += '<div class="cell cell-callsign">' + cs + '</div>';
+                    html += indicatorHtml;
+                    html += '<div class="cell cell-callsign">' + csHtml + '</div>';
                     html += '<div class="cell">' + type + '</div>';
                     html += '<div class="cell">' + dep + '/' + dest + '</div>';
                     html += '<div class="cell-edit" onclick="event.stopPropagation();showFLDropdown(this,\'' + cs + '\')">' + fl + '</div>';

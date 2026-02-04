@@ -233,15 +233,15 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 
 	// Parse the json
 	try {
-		// Clear current tracks (thread-safe)
+		auto jsonArray = json::parse(responseString);
+		if (!jsonArray.is_array()) return 1;
+
+		// Clear tracks map before populating
 		{
 			lock_guard<mutex> lock(CRoutesHelper::TracksMutex);
-			if (!CRoutesHelper::CurrentTracks.empty()) {
-				CRoutesHelper::CurrentTracks.clear();
-			}
+			CRoutesHelper::CurrentTracks.clear();
 		}
 
-		auto jsonArray = json::parse(responseString);
 		string currentTMI = "";
 		
 		for (size_t i = 0; i < jsonArray.size(); i++) {
@@ -255,7 +255,20 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 			if (jsonArray[i].contains("valid_from") && !jsonArray[i].at("valid_from").is_null()) {
 				string validFrom = jsonArray[i].at("valid_from").get<string>();
 				if (validFrom.length() >= 10) {
-					currentTMI = validFrom.substr(8, 2); 
+					// Parse YYYY-MM-DD
+					int year = stoi(validFrom.substr(0, 4));
+					int month = stoi(validFrom.substr(5, 2));
+					int day = stoi(validFrom.substr(8, 2));
+					
+					tm t = {0};
+					t.tm_year = year - 1900;
+					t.tm_mon = month - 1;
+					t.tm_mday = day;
+					mktime(&t);
+					
+					char buf[10];
+					sprintf_s(buf, "%03d", t.tm_yday + 1);
+					currentTMI = buf;
 				}
 			}
 			track.TMI = currentTMI;
@@ -529,10 +542,81 @@ int CDataHandler::SetRoute(string callsign, vector<CWaypoint>* route, string tra
 }
 
 // NATTrak Stubs
-void CDataHandler::FetchNatTrakClearancesAsync(void* args) {}
-int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) { return 0; }
-bool CDataHandler::GetNatTrakClearance(const string& callsign, CNatTrakClearance& outClearance) { return false; }
-CNatTrakStatus CDataHandler::GetNatTrakStatus(const string& callsign) { return CNatTrakStatus::UNKNOWN; }
+void CDataHandler::FetchNatTrakClearancesAsync(void* args) {
+	CPlugIn* plugin = (CPlugIn*)args;
+	if (natTrakFetcherRunning) return;
+	natTrakFetcherRunning = true;
+	
+	thread t([plugin]() {
+		while (natTrakFetcherRunning) {
+			FetchNatTrakClearances(plugin);
+			// Poll every 30 seconds
+			for (int i = 0; i < 30 && natTrakFetcherRunning; ++i) {
+				this_thread::sleep_for(chrono::seconds(1));
+			}
+		}
+	});
+	t.detach();
+}
+
+int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) {
+	string response = FetchUrlWithWinInet(NatTrakClearanceURL);
+	if (response.empty()) return 1;
+
+	try {
+		json jsonArray = json::parse(response);
+		if (!jsonArray.is_array()) return 1;
+
+		lock_guard<mutex> lock(natTrakMutex);
+		natTrakClearances.clear();
+
+		for (auto& item : jsonArray) {
+			CNatTrakClearance clearance;
+			clearance.Callsign = item.at("callsign").get<string>();
+			clearance.RequestId = item.at("id").get<int>();
+			
+			// NATTrack status: 0 = Pending, 1 = Processed
+			int status = item.at("status").get<int>();
+			if (status == 0) clearance.Status = CNatTrakStatus::PENDING;
+			else if (status == 1) clearance.Status = CNatTrakStatus::CLEARED;
+			else clearance.Status = CNatTrakStatus::UNKNOWN;
+
+			// Optional fields
+			if (item.contains("track") && !item.at("track").is_null()) clearance.Nat = item.at("track").get<string>();
+			if (item.contains("level") && !item.at("level").is_null()) {
+				if (item.at("level").is_number()) {
+					clearance.Level = to_string(item.at("level").get<int>());
+				} else {
+					clearance.Level = item.at("level").get<string>();
+				}
+			}
+			
+			natTrakClearances[clearance.Callsign] = clearance;
+		}
+		lastNatTrakFetch = time(0);
+		return 0;
+	}
+	catch (...) {
+		return 1;
+	}
+}
+
+bool CDataHandler::GetNatTrakClearance(const string& callsign, CNatTrakClearance& outClearance) {
+	lock_guard<mutex> lock(natTrakMutex);
+	if (natTrakClearances.find(callsign) != natTrakClearances.end()) {
+		outClearance = natTrakClearances[callsign];
+		return true;
+	}
+	return false;
+}
+
+CNatTrakStatus CDataHandler::GetNatTrakStatus(const string& callsign) {
+	lock_guard<mutex> lock(natTrakMutex);
+	if (natTrakClearances.find(callsign) != natTrakClearances.end()) {
+		return natTrakClearances[callsign].Status;
+	}
+	return CNatTrakStatus::UNKNOWN;
+}
 
 // Session Stubs
 void CDataHandler::StoreSessionState(const string& callsign) {}

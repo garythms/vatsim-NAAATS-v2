@@ -45,6 +45,7 @@ public:
 	static const int BTN_TRACK;
 	static const int BTN_SELCAL;
 	static const int BTN_WEB;
+	static const int BTN_NATTRAK;
 	
 	// Window dimensions
 	static const int WINSZ_FDD_WIDTH = 900;

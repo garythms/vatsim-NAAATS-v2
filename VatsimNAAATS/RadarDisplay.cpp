@@ -386,8 +386,14 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			f["IsCleared"] = (flight && flight->IsValid) ? flight->IsCleared : false;
 
 			// NATTrak status
-			CNatTrakStatus natStatus = CDataHandler::GetNatTrakStatus(callsign);
-			f["NatStatus"] = (int)natStatus;
+			CNatTrakClearance ntClearance;
+			if (CDataHandler::GetNatTrakClearance(callsign, ntClearance)) {
+				f["NatStatus"] = (int)ntClearance.Status;
+				f["NatRequestId"] = ntClearance.RequestId;
+			} else {
+				f["NatStatus"] = (int)CNatTrakStatus::UNKNOWN;
+				f["NatRequestId"] = 0;
+			}
 
 			root.push_back(f);
 			visibleFlights++;

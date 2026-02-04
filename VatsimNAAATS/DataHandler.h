@@ -46,6 +46,8 @@ struct CNatTrakClearance {
 
 	CNatTrakStatus Status;
 
+	int RequestId;			// Request ID for URL building
+
 	string Nat;				// Track letter (e.g., "A", "B", "RR" for random)
 
 	string Fix;				// Entry fix

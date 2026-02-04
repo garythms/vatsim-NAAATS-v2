@@ -61,6 +61,7 @@ const int CFddWindow::BTN_TMI = 101;
 const int CFddWindow::BTN_TRACK = 102;
 const int CFddWindow::BTN_SELCAL = 103;
 const int CFddWindow::BTN_WEB = 104;
+const int CFddWindow::BTN_NATTRAK = 105;
 
 CFddWindow::CFddWindow(POINT topLeft) : CBaseWindow(topLeft) {
 	MakeWindowItems();
@@ -78,19 +79,20 @@ void CFddWindow::MakeWindowItems() {
 	windowButtons[BTN_TRACK] = CWinButton(BTN_TRACK, WIN_FDD, "TRACK", CInputState::INACTIVE);
 	windowButtons[BTN_SELCAL] = CWinButton(BTN_SELCAL, WIN_FDD, "SELCAL", CInputState::INACTIVE);
 	windowButtons[BTN_WEB] = CWinButton(BTN_WEB, WIN_FDD, "BROWSER", CInputState::INACTIVE);
+	windowButtons[BTN_NATTRAK] = CWinButton(BTN_NATTRAK, WIN_FDD, "NATTRAK", CInputState::INACTIVE);
 }
 
 void CFddWindow::InitializeColumns(int windowWidth) {
-	columns.CallsignX = 5;
-	columns.TypeX = 90;
-	columns.DepDestX = 140;
-	columns.FlightLevelX = 230;
-	columns.MachX = 290;
-	columns.SelcalX = 360;
-	columns.EntryFixX = 440;
-	columns.EntryTimeX = 510;
-	columns.ExitFixX = 580;
-	columns.ExitTimeX = 650;
+	columns.CallsignX = 15;
+	columns.TypeX = 100;
+	columns.DepDestX = 150;
+	columns.FlightLevelX = 240;
+	columns.MachX = 300;
+	columns.SelcalX = 370;
+	columns.EntryFixX = 450;
+	columns.EntryTimeX = 520;
+	columns.ExitFixX = 590;
+	columns.ExitTimeX = 660;
 	columns.DiscardX = windowWidth - 25;
 }
 
@@ -414,6 +416,17 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	dc->SetTextAlign(TA_CENTER);
 	dc->TextOutA(webBtnRect.left + btnW/2, webBtnRect.top + 4, "BROWSER");
 	screen->AddScreenObject(WIN_FDD, to_string(BTN_WEB).c_str(), webBtnRect, false, "");
+	btnX += btnW + 10;
+
+	// NATTRAK Button
+	CRect natBtnRect(btnX, btnY, btnX + btnW, btnY + btnH);
+	CBrush natBtnBrush(SelectedCallsign.empty() ? RGB(80, 90, 110) : RGB(20, 40, 160)); // Darker blue
+	dc->FillRect(natBtnRect, &natBtnBrush);
+	dc->DrawEdge(natBtnRect, EDGE_RAISED, BF_RECT);
+	dc->SetTextColor(RGB(255, 255, 255));
+	dc->SetTextAlign(TA_CENTER);
+	dc->TextOutA(natBtnRect.left + btnW/2, natBtnRect.top + 4, "NATTRAK");
+	screen->AddScreenObject(WIN_FDD, to_string(BTN_NATTRAK).c_str(), natBtnRect, false, "");
 	
 	// Legend
 	btnX = windowRect.right - 220;
@@ -714,6 +727,20 @@ void CFddWindow::RenderStrip(CDC* dc, Graphics* g, CRadarScreen* screen, CAircra
 	COLORREF bgColor = GetStripBackgroundColor(isWestbound, isTracked, isSelected, row);
 	CBrush bgBrush(bgColor);
 	dc->FillRect(rect, &bgBrush);
+
+	// NATTrack status indicator on the left
+	CNatTrakStatus ntStatus = CDataHandler::GetNatTrakStatus(fp->Callsign);
+	COLORREF ntColor = 0;
+	bool drawIndicator = true;
+	if (ntStatus == CNatTrakStatus::PENDING) ntColor = RGB(255, 255, 0); // Yellow
+	else if (ntStatus == CNatTrakStatus::UNKNOWN) ntColor = RGB(255, 0, 0); // Red
+	else drawIndicator = false; // CLEARED (Processed) or other - no indicator
+
+	if (drawIndicator) {
+		CRect indicatorRect(rect.left, rect.top, rect.left + 12, rect.bottom - 1);
+		CBrush ntBrush(ntColor);
+		dc->FillRect(indicatorRect, &ntBrush);
+	}
 	
 	// Bottom border
 	CPen borderPen(PS_SOLID, 1, RGB(100, 100, 100));
@@ -849,6 +876,17 @@ void CFddWindow::ButtonUp(int id, CRadarScreen* screen) {
 		if (port != 0) {
 			string url = "http://localhost:" + to_string(port);
 			ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+		}
+	}
+	else if (id == BTN_NATTRAK) {
+		if (!SelectedCallsign.empty()) {
+			CNatTrakClearance ntClearance;
+			if (CDataHandler::GetNatTrakClearance(SelectedCallsign, ntClearance)) {
+				if (ntClearance.RequestId != 0) {
+					string url = "https://nattrak.vatsim.net/controllers/clx/rcl-msg/" + to_string(ntClearance.RequestId);
+					ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+				}
+			}
 		}
 	}
 
