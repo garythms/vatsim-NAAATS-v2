@@ -204,11 +204,14 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	// Row 1: [CZQX] [None] [ALL_TCKS]
 	offsetX = P2 + 10;
 	offsetY = top + kDropY;
-	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_AREASEL].Width, kDropH, &dropDowns[DRP_AREASEL]);
+	dropDowns[DRP_AREASEL].LastRenderPos = { offsetX, offsetY };
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_AREASEL].Width, kDropH, &dropDowns[DRP_AREASEL], false);
 	offsetX += dropDowns[DRP_AREASEL].Width + 1;
-	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_TCKCTRL].Width, kDropH, &dropDowns[DRP_TCKCTRL]);
+	dropDowns[DRP_TCKCTRL].LastRenderPos = { offsetX, offsetY };
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_TCKCTRL].Width, kDropH, &dropDowns[DRP_TCKCTRL], false);
 	offsetX += dropDowns[DRP_TCKCTRL].Width + 1;
-	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_OVERLAYS].Width, kDropH, &dropDowns[DRP_OVERLAYS]);
+	dropDowns[DRP_OVERLAYS].LastRenderPos = { offsetX, offsetY };
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_OVERLAYS].Width, kDropH, &dropDowns[DRP_OVERLAYS], false);
 
 	// Row 2: Area Sel label, Overlays button (below ALL_TCKS)
 	offsetX = P2 + 10;
@@ -223,7 +226,8 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	// Row 1: [OCA Enroute]
 	offsetX = P3 + 10;
 	offsetY = top + kDropY;
-	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_TYPESEL].Width, kDropH, &dropDowns[DRP_TYPESEL]);
+	dropDowns[DRP_TYPESEL].LastRenderPos = { offsetX, offsetY };
+	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_TYPESEL].Width, kDropH, &dropDowns[DRP_TYPESEL], false);
 	// Row 2: Pos Type label (centered)
 	dc->SetTextAlign(TA_CENTER);
 	dc->TextOutA(P3 + (RECT3_WIDTH / 2), top + kRow2Y + 7, "Pos Type");
@@ -344,6 +348,15 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 
 	// Restore
 	dc->RestoreDC(sDC);
+}
+
+void CMenuBar::RenderActiveDropDown(CDC* dc, Graphics* g, CRadarScreen* screen) {
+	if (ActiveDropDown != 0 && dropDowns.find(ActiveDropDown) != dropDowns.end()) {
+		CDropDown* obj = &dropDowns[ActiveDropDown];
+		if (obj->State == CInputState::ACTIVE) {
+			CCommonRenders::RenderDropDown(dc, g, screen, obj->LastRenderPos, obj->Width, 22, obj, true);
+		}
+	}
 }
 
 bool CMenuBar::IsButtonPressed(int id) {

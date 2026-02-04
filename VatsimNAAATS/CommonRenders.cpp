@@ -266,7 +266,7 @@ CRect CCommonRenders::RenderCheckBox(CDC* dc, Graphics* g, CRadarScreen* screen,
 
 
 
-void CCommonRenders::RenderDropDown(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft, int width, int height, CDropDown* obj) {
+void CCommonRenders::RenderDropDown(CDC* dc, Graphics* g, CRadarScreen* screen, POINT topLeft, int width, int height, CDropDown* obj, bool drawList) {
 
 	// Save context for later
 
@@ -336,8 +336,6 @@ void CCommonRenders::RenderDropDown(CDC* dc, Graphics* g, CRadarScreen* screen, 
 
 		}
 
-		
-
 	}
 
 
@@ -346,52 +344,47 @@ void CCommonRenders::RenderDropDown(CDC* dc, Graphics* g, CRadarScreen* screen, 
 
 	if (obj->State == CInputState::ACTIVE) {
 
-		// Draw text
-
+		// Button pressed fill
 		dc->FillSolidRect(button, ButtonPressed.ToCOLORREF());
 
-		CRect area(dropDown.left, dropDown.bottom, dropDown.right, dropDown.bottom + (obj->Items.size() * 20) + 2);
+		if (drawList) {
+			CRect area(dropDown.left, dropDown.bottom, dropDown.right, dropDown.bottom + (obj->Items.size() * 20) + 2);
 
-		dc->FillSolidRect(area, ScreenBlue.ToCOLORREF());
+			dc->FillSolidRect(area, ScreenBlue.ToCOLORREF());
 
-		dc->Draw3dRect(area, BevelDark.ToCOLORREF(), BevelDark.ToCOLORREF());
+			dc->Draw3dRect(area, BevelDark.ToCOLORREF(), BevelDark.ToCOLORREF());
 
 
 
-		// Draw text
+			// Draw items
 
-		int offsetY = 2;
+			int offsetY = 2;
 
-		int idx = 0;
+			for (auto kv : obj->Items) {
 
-		
+				CRect object(area.left, area.top + offsetY, area.right, area.top + offsetY + 20);
 
-		for (auto kv : obj->Items) {
+				if (kv.second.IsHovered)
 
-			CRect object(area.left, area.top + offsetY, area.right, area.top + offsetY + 20);
+					dc->FillSolidRect(object, ButtonPressed.ToCOLORREF());
 
-			if (kv.second.IsHovered)
+				if (kv.second.IsCheckItem && kv.second.State == CInputState::ACTIVE) {
 
-				dc->FillSolidRect(object, ButtonPressed.ToCOLORREF());
+					CRect rect(object.right - 20, object.top, object.right, object.bottom);
 
-			if (kv.second.IsCheckItem && kv.second.State == CInputState::ACTIVE) {
+					g->DrawLine(&white, rect.left + 4, rect.top + 4, rect.right - 4, rect.bottom - 4);
 
-				CRect rect(object.right - 20, object.top, object.right, object.bottom);
+					g->DrawLine(&white, rect.left + 4, rect.bottom - 4, rect.right - 4, rect.top + 4);
 
-				g->DrawLine(&white, rect.left + 4, rect.top + 4, rect.right - 4, rect.bottom - 4);
+				}
 
-				g->DrawLine(&white, rect.left + 4, rect.bottom - 4, rect.right - 4, rect.top + 4);
+				dc->TextOutA(area.left + 2, area.top + offsetY + 2, kv.second.Label.c_str());
+
+				screen->AddScreenObject(kv.second.Type, to_string(kv.second.Id).c_str(), object, false, "");
+
+				offsetY += 20;
 
 			}
-
-			dc->TextOutA(area.left + 2, area.top + offsetY + 2, kv.second.Label.c_str());
-
-			screen->AddScreenObject(kv.second.Type, to_string(kv.second.Id).c_str(), object, false, "");
-
-			offsetY += 20;
-
-			idx;
-
 		}
 
 	}

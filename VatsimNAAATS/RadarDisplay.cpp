@@ -941,6 +941,9 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			setupWindow->RenderWindow(&dc, &g, this);
 		}
 
+		// Draw active dropdown list last to ensure it's on top of everything
+		menuBar->RenderActiveDropDown(&dc, &g, this);
+
 		// Finally, reset the clocks if time has been exceeded
 		if (fiveSecT >= 5) {
 			fiveSecondTimer = clock();

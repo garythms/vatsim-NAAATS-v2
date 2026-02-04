@@ -15,6 +15,7 @@ class CMenuBar
 		CMenuBar();
 		~CMenuBar() {};
 		void RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel);
+		void RenderActiveDropDown(CDC* dc, Graphics* g, CRadarScreen* screen);
 		bool IsButtonPressed(int id);
 		string GetDropDownValue(int id);
 		map<int, CWinButton> GetToggleButtons();

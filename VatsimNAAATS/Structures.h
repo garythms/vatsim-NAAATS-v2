@@ -211,6 +211,7 @@ struct CDropDown {
 	map<int, CDropDownItem> Items;
 	CInputState State;
 	int Width;
+	POINT LastRenderPos;
 };
 
 struct CWinScrollBar {
