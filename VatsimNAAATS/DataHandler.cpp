@@ -1,6 +1,8 @@
 #include "pch.h"
 #include <WinInet.h>
+#include <mmsystem.h>
 #pragma comment(lib, "wininet.lib")
+#pragma comment(lib, "winmm.lib")
 #include <urlmon.h>
 #pragma comment(lib, "urlmon.lib")
 
@@ -25,6 +27,9 @@ map<string, CNatTrakClearance> CDataHandler::natTrakClearances;
 mutex CDataHandler::natTrakMutex;
 bool CDataHandler::natTrakFetcherRunning = false;
 time_t CDataHandler::lastNatTrakFetch = 0;
+vector<string> CDataHandler::natTrakNotifications;
+mutex CDataHandler::notificationMutex;
+bool CDataHandler::hasNewNotification = false;
 
 // Version check URL
 const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/garythms/vatsim-NAAATS-v2/master/pluginversion.txt";
@@ -33,7 +38,7 @@ const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/ga
 const string CDataHandler::TrackURL = "https://nattrak.vatsim.net/api/tracks";
 
 // NATTrak clearance API URL
-const string CDataHandler::NatTrakClearanceURL = "https://nattrak.vatsim.net/api/plugins";
+const string CDataHandler::NatTrakClearanceURL = "https://nattrak.vatsim.net/api/clx-messages";
 
 // DEFUNCT
 const string CDataHandler::TrackSource = "";
@@ -440,52 +445,9 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 		data.Etd = "0000";
 	}
 
-	// Flight level - only update if EuroScope has a valid value
-	int flVal = fp.GetControllerAssignedData().GetClearedAltitude();
-	if (flVal == 0) flVal = fp.GetFlightPlanData().GetFinalAltitude();
-	if (flVal == 0) {
-		CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
-		if (rt.IsValid()) {
-			flVal = rt.GetPosition().GetFlightLevel();
-		}
-	}
-	
-	if (flVal > 0) {
-		if (flVal > 1000) flVal /= 100;
-		char flBuf[10];
-		sprintf_s(flBuf, "%03d", flVal);
-		
-		// Only update if current is empty or if EuroScope value changed significantly
-		if (data.FlightLevel.empty() || data.FlightLevel == "000" || abs(stoi(data.FlightLevel) - flVal) > 5) {
-			data.FlightLevel = flBuf;
-		}
-	}
-
-	// Mach - only update if EuroScope has a valid value
-	int machVal = fp.GetControllerAssignedData().GetAssignedMach();
-	bool isMach = true;
-	if (machVal == 0) {
-		machVal = fp.GetFlightPlanData().GetTrueAirspeed();
-		isMach = false;
-	}
-	
-	if (machVal > 0) {
-		// Normalize Mach
-		if (machVal >= 1000) machVal /= 10;
-		if (machVal >= 500) machVal /= 10; 
-		
-		char machBuf[10];
-		sprintf_s(machBuf, "%03d", machVal);
-		
-		// Logic to prevent overwriting Mach with TAS
-		// If current value looks like Mach (e.g. 70-99) and new value looks like TAS (>100), don't overwrite
-		bool currentIsMach = !data.Mach.empty() && stoi(data.Mach) < 100;
-		bool newIsMach = machVal < 100;
-
-		if (data.Mach.empty() || (currentIsMach && newIsMach) || (!currentIsMach)) {
-			data.Mach = machBuf;
-		}
-	}
+	// Flight level and Mach updates COMPLETELY REMOVED for scratchpad behavior in FDD
+	data.FlightLevel = "";
+	data.Mach = "";
 	
 	// Sector
 	const char* sectorId = fp.GetTrackingControllerId();
@@ -493,8 +455,8 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 
 	// SELCAL - Update if EuroScope has it and we don't
 	string esSelcal = CUtils::GetSelcalCode(&fp);
-	if (!esSelcal.empty() && (data.SELCAL.empty() || data.SELCAL == "N/A")) {
-		data.SELCAL = esSelcal;
+	if (data.SELCAL.empty() || data.SELCAL == "N/A") {
+		data.SELCAL = esSelcal.empty() ? "N/A" : esSelcal;
 	}
 
 	// Check NAT Track
@@ -545,38 +507,20 @@ int CDataHandler::UpdateFlightData(CRadarScreen* screen, string callsign, bool u
 			if (CRoutesHelper::CurrentTracks.find(data.Track) != CRoutesHelper::CurrentTracks.end()) {
 				data.Direction = (CRoutesHelper::CurrentTracks[data.Track].Direction == CTrackDirection::WEST);
 			}
-		} else {
-			// Heuristic for direction based on Departure/Destination
-			bool determined = false;
-			string dep = data.Depart;
-			string dest = data.Dest;
-			
-			if (dep.length() >= 2 && dest.length() >= 2) {
-				// Common European/East prefixes
-				string eastPrefixes[] = {"EB", "ED", "EE", "EF", "EG", "EH", "EI", "EK", "EL", "EN", "EP", "ES", "ET", "EU", "EV", "EY", "LF", "LS", "LO", "LH", "LI"};
-				// Common North American/West prefixes
-				string westPrefixes[] = {"C", "K", "M", "P", "T", "S"};
+		} 
+		
+		// Fallback/Sanity check using ADEP/ADES
+		bool determined = false;
+		if (data.Depart.length() >= 2 && data.Dest.length() >= 2) {
+			data.Direction = CUtils::GetDirectionFromADEP(data.Depart, data.Dest);
+			determined = true;
+		}
 
-				bool depEast = false;
-				for (const string& p : eastPrefixes) if (dep.substr(0, 2) == p) { depEast = true; break; }
-				bool destEast = false;
-				for (const string& p : eastPrefixes) if (dest.substr(0, 2) == p) { destEast = true; break; }
-				
-				bool depWest = false;
-				for (const string& p : westPrefixes) if (dep.substr(0, 1) == p) { depWest = true; break; }
-				bool destWest = false;
-				for (const string& p : westPrefixes) if (dest.substr(0, 1) == p) { destWest = true; break; }
-
-				if (depEast && destWest) { data.Direction = true; determined = true; } // Westbound
-				else if (depWest && destEast) { data.Direction = false; determined = true; } // Eastbound
-			}
-
-			if (!determined) {
-				CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
-				if (rt.IsValid()) {
-					int heading = rt.GetPosition().GetReportedHeading();
-					data.Direction = (heading > 180 && heading < 360);
-				}
+		if (!determined && (data.Track == "RR" || data.Track.empty())) {
+			CRadarTarget rt = screen->GetPlugIn()->RadarTargetSelect(callsign.c_str());
+			if (rt.IsValid()) {
+				int heading = rt.GetPosition().GetReportedHeading();
+				data.Direction = CUtils::GetAircraftDirection(heading);
 			}
 		}
 	}
@@ -636,9 +580,15 @@ int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) {
 		}
 
 		lock_guard<mutex> lock(natTrakMutex);
-		// Instead of clearing, we mark all as "old" or just overwrite. 
-		// Actually, clearing is fine if the API returns the FULL list. 
-		// If it's partial, we might want to merge.
+		
+		// Map of existing pending requests to detect new ones
+		map<string, int> existingPending;
+		for (auto const& [cs, clx] : natTrakClearances) {
+			if (clx.Status == CNatTrakStatus::PENDING) {
+				existingPending[cs] = clx.RequestId;
+			}
+		}
+
 		natTrakClearances.clear();
 
 		int count = 0;
@@ -655,13 +605,21 @@ int CDataHandler::FetchNatTrakClearances(CPlugIn* plugin) {
 			if (item.at("status").is_string()) {
 				string statusStr = item.at("status").get<string>();
 				if (statusStr == "PENDING") clearance.Status = CNatTrakStatus::PENDING;
-				else if (statusStr == "CLEARED") clearance.Status = CNatTrakStatus::CLEARED;
+				else if (statusStr == "CLEARED" || statusStr == "PROCESSED" || statusStr == "APPROVED") clearance.Status = CNatTrakStatus::CLEARED;
 				else clearance.Status = CNatTrakStatus::UNKNOWN;
 			} else {
 				int status = item.at("status").get<int>();
 				if (status == 0) clearance.Status = CNatTrakStatus::PENDING;
-				else if (status == 1) clearance.Status = CNatTrakStatus::CLEARED;
+				else if (status == 1 || status == 2) clearance.Status = CNatTrakStatus::CLEARED; // 1=CLEARED, 2=PROCESSED/APPROVED often
 				else clearance.Status = CNatTrakStatus::UNKNOWN;
+			}
+
+			// Detection of new pending requests
+			if (clearance.Status == CNatTrakStatus::PENDING) {
+				if (existingPending.find(cs) == existingPending.end() || existingPending[cs] != clearance.RequestId) {
+					// New request detected
+					AddNatTrakNotification(cs);
+				}
 			}
 
 			// Optional fields
@@ -730,6 +688,33 @@ bool CDataHandler::GetNatTrakClearance(const string& callsign, CNatTrakClearance
 		return true;
 	}
 	return false;
+}
+
+void CDataHandler::AddNatTrakNotification(const string& callsign) {
+	lock_guard<mutex> lock(notificationMutex);
+	// Check if already in list
+	for (const auto& n : natTrakNotifications) {
+		if (n == callsign) return;
+	}
+	natTrakNotifications.push_back(callsign);
+	hasNewNotification = true;
+	PlayNotificationSound();
+}
+
+vector<string> CDataHandler::GetNatTrakNotifications() {
+	lock_guard<mutex> lock(notificationMutex);
+	return natTrakNotifications;
+}
+
+void CDataHandler::AcknowledgeNatTrakNotification(const string& callsign) {
+	lock_guard<mutex> lock(notificationMutex);
+	natTrakNotifications.erase(remove(natTrakNotifications.begin(), natTrakNotifications.end(), callsign), natTrakNotifications.end());
+	if (natTrakNotifications.empty()) hasNewNotification = false;
+}
+
+void CDataHandler::PlayNotificationSound() {
+	// Use the same sound logic as HoppieClient
+	PlaySoundA("SystemNotification", NULL, SND_ALIAS | SND_ASYNC | SND_NODEFAULT);
 }
 
 // Session Stubs

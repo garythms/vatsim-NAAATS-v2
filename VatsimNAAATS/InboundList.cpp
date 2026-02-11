@@ -49,27 +49,27 @@ void CInboundList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen)
 			}
 			// Draw callsign
 			string line = string(ac->Callsign);
-			dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+			dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 			offsetX += 140;
 
 			// Draw entry point
 			line = CUtils::ConvertCoordinateFormat(ac->Point, 0);
-			dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+			dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 			offsetX += 70;
 
 			// Draw estimated time
 			line = ac->Estimate;
-			dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+			dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 			offsetX += 45;
 
 			// Draw altitude
 			line = to_string(ac->FinalAltitude / 100);
-			dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+			dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 			offsetX += 50;
 
 			// Draw destination
 			line = string(ac->Destination);
-			dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+			dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 			offsetX += 45;
 
 			// Direction arrow (Gander)
@@ -101,10 +101,10 @@ void CInboundList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen)
 	dc->SetTextAlign(TA_LEFT);
 	// Draw header but don't show size if none
 	if (AircraftList.size() == 0) {
-		dc->TextOutA(rectangle.X, rectangle.Y, "Inbound");
+		dc->TextOut(rectangle.X, rectangle.Y, "Inbound");
 	}
 	else {
-		dc->TextOutA(rectangle.X, rectangle.Y, string("Inbound (" + to_string(AircraftList.size()) + ")").c_str());
+		dc->TextOut(rectangle.X, rectangle.Y, string("Inbound (" + to_string(AircraftList.size()) + ")").c_str());
 		// Make dropdown button
 		size_t textExtentY = dc->GetTextExtent("Inbound").cy;
 		if (HideShowButton) { // If show

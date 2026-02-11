@@ -24,10 +24,10 @@ void CConflictList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen) {
 
 	// Don't show size if none
 	if (CConflictDetection::CurrentSTCA.size() == 0) {
-		dc->TextOutA(rectangle.X, rectangle.Y, "Conflict");
+		dc->TextOut(rectangle.X, rectangle.Y, "Conflict");
 	}
 	else {
-		dc->TextOutA(rectangle.X, rectangle.Y, string("Conflict (" + to_string(CConflictDetection::CurrentSTCA.size()) + ")").c_str());
+		dc->TextOut(rectangle.X, rectangle.Y, string("Conflict (" + to_string(CConflictDetection::CurrentSTCA.size()) + ")").c_str());
 	}
 
 	// Text
@@ -60,12 +60,12 @@ void CConflictList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen) {
 
 		// Draw callsign A
 		string line = item->CallsignA;
-		dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+		dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 		offsetX += 80;
 
 		// Draw callsign B
 		line = item->CallsignB;
-		dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+		dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 		offsetX += 90;
 
 		// Draw status
@@ -86,7 +86,7 @@ void CConflictList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen) {
 			}
 		}
 		
-		dc->TextOutA(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
+		dc->TextOut(rectangle.X + offsetX, rectangle.Y + offsetY, line.c_str());
 
 		// Offset the y index and reset the X offset
 		offsetY += 18;

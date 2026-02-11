@@ -50,7 +50,7 @@ void CConflictDetection::RBLTool(CDC* dc, Graphics* g, CRadarScreen* screen, str
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_CENTER);
 	dc->SetTextCharacterExtra(2);
-	dc->TextOutA(midpoint.x, midpoint.y, string(to_string(status.DistanceAsNM) + "(" + to_string(status.DistanceAsTime) + ")/" + to_string(status.AltDifference)).c_str());
+	dc->TextOut(midpoint.x, midpoint.y, string(to_string(status.DistanceAsNM) + "(" + to_string(status.DistanceAsTime) + ")/" + to_string(status.AltDifference)).c_str());
 
 	// Restore context
 	dc->RestoreDC(iDC);
@@ -165,7 +165,7 @@ void CConflictDetection::SepTool(CDC* dc, Graphics* g, CRadarScreen* screen, str
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_CENTER);
 	dc->SetTextCharacterExtra(2);
-	dc->TextOutA(midpoint.x, midpoint.y, string(to_string(statuses.back().DistanceAsNM) + "(" + to_string(statuses.back().DistanceAsTime) + ")/" + to_string(statuses.back().AltDifference)).c_str());
+	dc->TextOut(midpoint.x, midpoint.y, string(to_string(statuses.back().DistanceAsNM) + "(" + to_string(statuses.back().DistanceAsTime) + ")/" + to_string(statuses.back().AltDifference)).c_str());
 
 	// Restore context
 	dc->RestoreDC(iDC);
@@ -294,17 +294,17 @@ void CConflictDetection::RenderPIV(CDC* dc, Graphics* g, CRadarScreen* screen, s
 				g->FillEllipse(&brush, pointRect);
 
 				// Print text for fix
-				dc->TextOutA(box.left, box.top, text.c_str());
+				dc->TextOut(box.left, box.top, text.c_str());
 				offsetY += 14;
 
 				// Print text for estimate
 				text = i->Estimate;
-				dc->TextOutA(box.left, box.top + offsetY, text.c_str());
+				dc->TextOut(box.left, box.top + offsetY, text.c_str());
 				offsetY += 14;
 
 				// Print text for flight level
 				text = to_string(i->FlightLevel);
-				dc->TextOutA(box.left, box.top + offsetY, text.c_str());
+				dc->TextOut(box.left, box.top + offsetY, text.c_str());
 			}
 			// Draw the line between points if there is no estimate (point is behind the aircraft)
 			if (i->Estimate == "--") {
@@ -340,17 +340,17 @@ void CConflictDetection::RenderPIV(CDC* dc, Graphics* g, CRadarScreen* screen, s
 				g->FillEllipse(&brush, pointRect);
 
 				// Print text for fix
-				dc->TextOutA(box.left, box.top, text.c_str());
+				dc->TextOut(box.left, box.top, text.c_str());
 				offsetY += 14;
 
 				// Print text for estimate
 				text = i->Estimate;
-				dc->TextOutA(box.left, box.top + offsetY, text.c_str());
+				dc->TextOut(box.left, box.top + offsetY, text.c_str());
 				offsetY += 14;
 
 				// Print text for flight level
 				text = to_string(i->FlightLevel);
-				dc->TextOutA(box.left, box.top + offsetY, text.c_str());
+				dc->TextOut(box.left, box.top + offsetY, text.c_str());
 			}
 
 			// Draw the line between points if there is no estimate (point is behind the aircraft)
@@ -408,8 +408,8 @@ void CConflictDetection::RenderPIV(CDC* dc, Graphics* g, CRadarScreen* screen, s
 			string time2 = CUtils::ParseZuluTime(false, CConflictDetection::PIVLocations2.at(i).Estimate - 1);
 
 			// Print text for both
-			dc->TextOutA(lastPoint1.x, lastPoint1.y - 20, time1.c_str());
-			dc->TextOutA(lastPoint2.x, lastPoint2.y - 20, time2.c_str());
+			dc->TextOut(lastPoint1.x, lastPoint1.y - 20, time1.c_str());
+			dc->TextOut(lastPoint2.x, lastPoint2.y - 20, time2.c_str());
 
 			// Draw crosses
 			yellowPen.SetLineCap(LineCapRound, LineCapRound, DashCapRound);
@@ -599,13 +599,13 @@ CSepStatus CConflictDetection::DetectStatus(CRadarScreen* screen, CAircraftStatu
 			// They are on same tracks so check the direction
 			CAircraftStatus acA;
 			CAircraftStatus acB;
-			bool direction = CUtils::GetAircraftDirection(hdgA);
+			bool isWestbound = CUtils::GetAircraftDirection(hdgA);
 			bool isAcAInFront = false;
-			if (direction) { // Switch the direction to get the aircraft in front
-				if (aircraftA->Position.m_Longitude > aircraftB->Position.m_Longitude) isAcAInFront = true;
-			}
-			else {
+			if (isWestbound) { // Westbound
 				if (aircraftA->Position.m_Longitude < aircraftB->Position.m_Longitude) isAcAInFront = true;
+			}
+			else { // Eastbound
+				if (aircraftA->Position.m_Longitude > aircraftB->Position.m_Longitude) isAcAInFront = true;
 			}
 
 			// Check if on a suitable line of latitude

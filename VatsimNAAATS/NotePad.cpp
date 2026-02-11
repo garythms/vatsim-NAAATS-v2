@@ -45,7 +45,7 @@ void CNotePad::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	CRect titleRect(windowRect.left, windowRect.top, windowRect.left + WINSZ_NP_WIDTH, windowRect.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_NP_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), "Note Pad");
+	dc->TextOut(titleRect.left + (WINSZ_NP_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), "Note Pad");
 
 	// Create content panel
 	CRect content(windowRect.left + 5, titleRect.bottom + 5, windowRect.right - 5, windowRect.bottom - 40);

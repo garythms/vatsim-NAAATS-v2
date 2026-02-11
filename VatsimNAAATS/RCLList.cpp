@@ -26,10 +26,10 @@ void CRCLList::RenderList(Graphics* g, CDC* dc, CRadarScreen* screen) {
 
 	// Don't show size if none
 	//if ( ) {
-	dc->TextOutA(rectangle.X, rectangle.Y, "RCLs");
+	dc->TextOut(rectangle.X, rectangle.Y, "RCLs");
 	//}
 	// {
-		//dc->TextOutA(rectangle.X, rectangle.Y, string("Others (" + to_string(AircraftList.size()) + ")").c_str());
+		//dc->TextOut(rectangle.X, rectangle.Y, string("Others (" + to_string(AircraftList.size()) + ")").c_str());
 	//}
 
 	// Get object area and add object to screen

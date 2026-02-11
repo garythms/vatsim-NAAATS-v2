@@ -90,7 +90,7 @@ CRect CCommonRenders::RenderButton(CDC* dc, CRadarScreen* screen, POINT topLeft,
 
 	dc->SetTextAlign(TA_CENTER);
 
-	dc->TextOutA(button.left + (button.Width() / 2), button.top + (vtcAlign != -1 ? vtcAlign : ((button.bottom - button.top) / 4.5)), obj->Label.c_str());
+	dc->TextOut(button.left + (button.Width() / 2), button.top + (vtcAlign != -1 ? vtcAlign : ((button.bottom - button.top) / 4.5)), obj->Label.c_str());
 
 
 
@@ -171,10 +171,10 @@ void CCommonRenders::RenderTextInput(CDC* dc, CRadarScreen* screen, POINT topLef
 	// Draw text
 	if (obj->Error) {
 		dc->SetTextColor(RGB(255, 0, 0)); // Red for error
-		dc->TextOutA(rect.left + 3, rect.top + 2, "SYNTAX");
+		dc->TextOut(rect.left + 3, rect.top + 2, "SYNTAX");
 	}
 	else {
-		dc->TextOutA(rect.left + 3, rect.top + 2, obj->Content.c_str());
+		dc->TextOut(rect.left + 3, rect.top + 2, obj->Content.c_str());
 	}
 
 
@@ -378,7 +378,7 @@ void CCommonRenders::RenderDropDown(CDC* dc, Graphics* g, CRadarScreen* screen, 
 
 				}
 
-				dc->TextOutA(area.left + 2, area.top + offsetY + 2, kv.second.Label.c_str());
+				dc->TextOut(area.left + 2, area.top + offsetY + 2, kv.second.Label.c_str());
 
 				screen->AddScreenObject(kv.second.Type, to_string(kv.second.Id).c_str(), object, false, "");
 
@@ -409,7 +409,7 @@ void CCommonRenders::RenderDropDown(CDC* dc, Graphics* g, CRadarScreen* screen, 
 
 
 
-	dc->TextOutA(dropDown.left + 2, dropDown.top + 1, obj->Value.c_str());
+	dc->TextOut(dropDown.left + 2, dropDown.top + 1, obj->Value.c_str());
 
 
 
@@ -752,10 +752,10 @@ void CCommonRenders::RenderTracks(CDC* dc, Graphics* g, CRadarScreen* screen, CO
 		POINT pointCoord = screen->ConvertCoordFromPositionToPixel(resolvedRoute[0]);
 		string id = kv.first;
 		if (kv.second.Direction == CTrackDirection::EAST) {
-			dc->TextOutA(pointCoord.x - 12, pointCoord.y - 5, id.c_str());
+			dc->TextOut(pointCoord.x - 12, pointCoord.y - 5, id.c_str());
 		}
 		else {
-			dc->TextOutA(pointCoord.x + 12, pointCoord.y - 5, id.c_str());
+			dc->TextOut(pointCoord.x + 12, pointCoord.y - 5, id.c_str());
 		}
 
 		// Draw lines
@@ -849,7 +849,7 @@ void CCommonRenders::RenderAdjacentSectors(CDC* dc, Graphics* g, CRadarScreen* s
 						FontSelector::SelectATCFont(14, dc);
 						dc->SetTextColor(RGB(255, 255, 0)); // Yellow
 						dc->SetTextAlign(TA_CENTER);
-						dc->TextOutA(labelPt.x, labelPt.y, label.c_str());
+						dc->TextOut(labelPt.x, labelPt.y, label.c_str());
 						dc->RestoreDC(sDC);
 					}
 					break; // Found it
@@ -948,7 +948,7 @@ void CCommonRenders::RenderRoutes(CDC* dc, Graphics* g, CRadarScreen* screen) {
 
 				// Print text for fix
 
-				dc->TextOutA(box.left, box.top, text.c_str());
+				dc->TextOut(box.left, box.top, text.c_str());
 
 				offsetY += 14;
 
@@ -958,7 +958,7 @@ void CCommonRenders::RenderRoutes(CDC* dc, Graphics* g, CRadarScreen* screen) {
 
 				text = route.at(j).Estimate;
 
-				dc->TextOutA(box.left, box.top + offsetY, text.c_str());
+				dc->TextOut(box.left, box.top + offsetY, text.c_str());
 
 				offsetY += 14;
 
@@ -968,7 +968,7 @@ void CCommonRenders::RenderRoutes(CDC* dc, Graphics* g, CRadarScreen* screen) {
 
 				text = to_string(route.at(j).FlightLevel);
 
-				dc->TextOutA(box.left, box.top + offsetY, text.c_str());
+				dc->TextOut(box.left, box.top + offsetY, text.c_str());
 
 			}
 
@@ -1078,9 +1078,9 @@ void CCommonRenders::RenderQDM(CDC* dc, Graphics* g, CRadarScreen* screen, CPosi
 
 			// Point 1 has text on top
 
-			dc->TextOutA(point1.X, point1.Y - 15, CUtils::GetLatLonString(position1, false, 2, false).c_str());
+			dc->TextOut(point1.X, point1.Y - 15, CUtils::GetLatLonString(position1, false, 2, false).c_str());
 
-			dc->TextOutA(point2.X, point2.Y + 10, CUtils::GetLatLonString(position2, false, 2, false).c_str());
+			dc->TextOut(point2.X, point2.Y + 10, CUtils::GetLatLonString(position2, false, 2, false).c_str());
 
 		}
 
@@ -1088,9 +1088,9 @@ void CCommonRenders::RenderQDM(CDC* dc, Graphics* g, CRadarScreen* screen, CPosi
 
 			// Point 2 has text on top
 
-			dc->TextOutA(point2.X, point2.Y - 15, CUtils::GetLatLonString(position2, false, 2, false).c_str());
+			dc->TextOut(point2.X, point2.Y - 15, CUtils::GetLatLonString(position2, false, 2, false).c_str());
 
-			dc->TextOutA(point1.X, point1.Y + 10, CUtils::GetLatLonString(position1, false, 2, false).c_str());
+			dc->TextOut(point1.X, point1.Y + 10, CUtils::GetLatLonString(position1, false, 2, false).c_str());
 
 		}
 
@@ -1100,7 +1100,7 @@ void CCommonRenders::RenderQDM(CDC* dc, Graphics* g, CRadarScreen* screen, CPosi
 
 		POINT midpoint = CUtils::GetMidPoint(rawPoint1, rawPoint2);
 
-		dc->TextOutA(midpoint.x, midpoint.y, (to_string((int)position1->DistanceTo(*position2)) + "nm").c_str());
+		dc->TextOut(midpoint.x, midpoint.y, (to_string((int)position1->DistanceTo(*position2)) + "nm").c_str());
 
 	}
 
@@ -1116,9 +1116,9 @@ void CCommonRenders::RenderQDM(CDC* dc, Graphics* g, CRadarScreen* screen, CPosi
 
 			// Point 1 has text on top
 
-			dc->TextOutA(point1.X, point1.Y - 15, CUtils::GetLatLonString(position1, false, 1, false).c_str());
+			dc->TextOut(point1.X, point1.Y - 15, CUtils::GetLatLonString(position1, false, 1, false).c_str());
 
-			dc->TextOutA(cursorPosition.x, cursorPosition.y + 10, CUtils::GetLatLonString(cursorLatLon, false, 2, false).c_str());
+			dc->TextOut(cursorPosition.x, cursorPosition.y + 10, CUtils::GetLatLonString(cursorLatLon, false, 2, false).c_str());
 
 		}
 
@@ -1126,9 +1126,9 @@ void CCommonRenders::RenderQDM(CDC* dc, Graphics* g, CRadarScreen* screen, CPosi
 
 			// Point 2 has text on top
 
-			dc->TextOutA(cursorPosition.x, cursorPosition.y - 15, CUtils::GetLatLonString(cursorLatLon, false, 2, false).c_str());
+			dc->TextOut(cursorPosition.x, cursorPosition.y - 15, CUtils::GetLatLonString(cursorLatLon, false, 2, false).c_str());
 
-			dc->TextOutA(point1.X, point1.Y + 10, CUtils::GetLatLonString(position1, false, 1, false).c_str());
+			dc->TextOut(point1.X, point1.Y + 10, CUtils::GetLatLonString(position1, false, 1, false).c_str());
 
 		}
 
@@ -1138,7 +1138,7 @@ void CCommonRenders::RenderQDM(CDC* dc, Graphics* g, CRadarScreen* screen, CPosi
 
 		POINT midpoint = CUtils::GetMidPoint(cursorPosition, rawPoint1);
 
-		dc->TextOutA(midpoint.x, midpoint.y, (to_string((int)position1->DistanceTo(*cursorLatLon)) + "nm").c_str());
+		dc->TextOut(midpoint.x, midpoint.y, (to_string((int)position1->DistanceTo(*cursorLatLon)) + "nm").c_str());
 
 	}
 

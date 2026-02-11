@@ -51,7 +51,7 @@ void CSetupWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	FontSelector::SelectNormalFont(15, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(titleRect.left + titleRect.Width() / 2, titleRect.top + 3, "Setup / Profile");
+	dc->TextOut(titleRect.left + titleRect.Width() / 2, titleRect.top + 3, "Setup / Profile");
 
 	// Allow dragging
 	screen->AddScreenObject(WINDOW, "WIN_SETUP", windowRect, true, "");
@@ -66,13 +66,13 @@ void CSetupWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	dc->SetTextAlign(TA_LEFT);
 
 	CRect r1 = CCommonRenders::RenderCheckBox(dc, g, screen, { x, y }, 22, &checkBoxes[CHK_SINGLE]);
-	dc->TextOutA(r1.right + 5, r1.top + 4, checkBoxes[CHK_SINGLE].Label.c_str());
+	dc->TextOut(r1.right + 5, r1.top + 4, checkBoxes[CHK_SINGLE].Label.c_str());
 	y += 28;
 	CRect r2 = CCommonRenders::RenderCheckBox(dc, g, screen, { x, y }, 22, &checkBoxes[CHK_SCROLL]);
-	dc->TextOutA(r2.right + 5, r2.top + 4, checkBoxes[CHK_SCROLL].Label.c_str());
+	dc->TextOut(r2.right + 5, r2.top + 4, checkBoxes[CHK_SCROLL].Label.c_str());
 
 	y += 40;
-	dc->TextOutA(x, y - 2, "Hoppie Code:");
+	dc->TextOut(x, y - 2, "Hoppie Code:");
 	CCommonRenders::RenderTextInput(dc, screen, { x + 100, y - 6 }, 150, 25, &textInputs[TXT_HOPPIE]);
 
 	// Buttons

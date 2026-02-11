@@ -78,7 +78,7 @@ void CFddWindow::MakeWindowItems() {
 	windowButtons[BTN_TMI] = CWinButton(BTN_TMI, WIN_FDD, "TMI", CInputState::INACTIVE);
 	windowButtons[BTN_TRACK] = CWinButton(BTN_TRACK, WIN_FDD, "TRACK", CInputState::INACTIVE);
 	windowButtons[BTN_SELCAL] = CWinButton(BTN_SELCAL, WIN_FDD, "SELCAL", CInputState::INACTIVE);
-	windowButtons[BTN_WEB] = CWinButton(BTN_WEB, WIN_FDD, "BROWSER", CInputState::INACTIVE);
+	// windowButtons[BTN_WEB] = CWinButton(BTN_WEB, WIN_FDD, "BROWSER", CInputState::INACTIVE);
 	windowButtons[BTN_NATTRAK] = CWinButton(BTN_NATTRAK, WIN_FDD, "NATTRAK", CInputState::INACTIVE);
 }
 
@@ -217,7 +217,7 @@ void CFddWindow::RenderFLDropdown(CDC* dc, Graphics* g, CRadarScreen* screen) {
 		CRect itemRect(dropdownRect.left, y, dropdownRect.right, y + itemHeight);
 		
 		// Highlight on hover would need mouse tracking
-		dc->TextOutA(itemRect.left + 5, itemRect.top + 2, flOptions[i].c_str());
+		dc->TextOut(itemRect.left + 5, itemRect.top + 2, flOptions[i].c_str());
 		
 		string itemId = "FLSEL:" + dropdownCallsign + ":" + flOptions[i];
 		screen->AddScreenObject(WIN_FDD, itemId.c_str(), itemRect, false, "");
@@ -272,7 +272,7 @@ void CFddWindow::RenderMachDropdown(CDC* dc, Graphics* g, CRadarScreen* screen) 
 	for (size_t i = dropdownScrollOffset; i < machOptions.size() && y < dropdownRect.bottom; i++) {
 		CRect itemRect(dropdownRect.left, y, dropdownRect.right, y + itemHeight);
 		
-		dc->TextOutA(itemRect.left + 5, itemRect.top + 2, machOptions[i].c_str());
+		dc->TextOut(itemRect.left + 5, itemRect.top + 2, machOptions[i].c_str());
 		
 		string itemId = "MACHSEL:" + dropdownCallsign + ":" + machOptions[i];
 		screen->AddScreenObject(WIN_FDD, itemId.c_str(), itemRect, false, "");
@@ -320,7 +320,7 @@ void CFddWindow::RenderTrackHeader(CDC* dc, Graphics* g, CRadarScreen* screen, c
 		headerText += " (" + to_string(trackedCount) + " tracked)";
 	}
 	
-	dc->TextOutA(rect.left + 10, rect.top + 4, headerText.c_str());
+	dc->TextOut(rect.left + 10, rect.top + 4, headerText.c_str());
 }
 
 void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
@@ -352,7 +352,7 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	dc->SetTextColor(RGB(255, 255, 255));
 	dc->SetTextAlign(TA_CENTER);
 	dc->SetBkMode(TRANSPARENT);
-	dc->TextOutA(titleRect.left + (WINSZ_FDD_WIDTH / 2), titleRect.top + 3, "Flight Data Display");
+	dc->TextOut(titleRect.left + (WINSZ_FDD_WIDTH / 2), titleRect.top + 3, "Flight Data Display");
 
 	// Close X Button
 	CRect closeRect(titleRect.right - 18, titleRect.top + 2, titleRect.right - 2, titleRect.bottom - 2);
@@ -372,12 +372,12 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	FontSelector::SelectNormalFont(14, dc);
 	dc->SetTextColor(RGB(200, 255, 200)); // Light green for TMI
 	dc->SetTextAlign(TA_LEFT);
-	dc->TextOutA(windowRect.left + 10, btnBarY + 8, tmiLabel.c_str());
+	dc->TextOut(windowRect.left + 10, btnBarY + 8, tmiLabel.c_str());
 	
 	// Current Time
 	string timeStr = CUtils::ParseZuluTime(true);
 	dc->SetTextColor(RGB(255, 255, 255));
-	dc->TextOutA(windowRect.left + 110, btnBarY + 8, timeStr.c_str());
+	dc->TextOut(windowRect.left + 110, btnBarY + 8, timeStr.c_str());
 
 	// Interactive Buttons
 	int btnX = windowRect.left + 200;
@@ -392,7 +392,7 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	dc->DrawEdge(trackBtnRect, EDGE_RAISED, BF_RECT);
 	dc->SetTextColor(RGB(255, 255, 255));
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(trackBtnRect.left + btnW/2, trackBtnRect.top + 4, "TRACK");
+	dc->TextOut(trackBtnRect.left + btnW/2, trackBtnRect.top + 4, "TRACK");
 	screen->AddScreenObject(WIN_FDD, to_string(BTN_TRACK).c_str(), trackBtnRect, false, "");
 	btnX += btnW + 10;
 	
@@ -403,20 +403,22 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	dc->DrawEdge(selcalBtnRect, EDGE_RAISED, BF_RECT);
 	dc->SetTextColor(RGB(255, 255, 255));
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(selcalBtnRect.left + btnW/2, selcalBtnRect.top + 4, "SELCAL");
+	dc->TextOut(selcalBtnRect.left + btnW/2, selcalBtnRect.top + 4, "SELCAL");
 	screen->AddScreenObject(WIN_FDD, to_string(BTN_SELCAL).c_str(), selcalBtnRect, false, "");
 	btnX += btnW + 10;
 
-	// BROWSER Button
+	// BROWSER Button (Removed)
+	/*
 	CRect webBtnRect(btnX, btnY, btnX + btnW, btnY + btnH);
 	CBrush webBtnBrush(RGB(40, 60, 100)); // Blue for browser
 	dc->FillRect(webBtnRect, &webBtnBrush);
 	dc->DrawEdge(webBtnRect, EDGE_RAISED, BF_RECT);
 	dc->SetTextColor(RGB(255, 255, 255));
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(webBtnRect.left + btnW/2, webBtnRect.top + 4, "BROWSER");
+	dc->TextOut(webBtnRect.left + btnW/2, webBtnRect.top + 4, "BROWSER");
 	screen->AddScreenObject(WIN_FDD, to_string(BTN_WEB).c_str(), webBtnRect, false, "");
 	btnX += btnW + 10;
+	*/
 
 	// NATTRAK Button
 	CRect natBtnRect(btnX, btnY, btnX + btnW, btnY + btnH);
@@ -425,16 +427,16 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	dc->DrawEdge(natBtnRect, EDGE_RAISED, BF_RECT);
 	dc->SetTextColor(RGB(255, 255, 255));
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(natBtnRect.left + btnW/2, natBtnRect.top + 4, "NATTRAK");
+	dc->TextOut(natBtnRect.left + btnW/2, natBtnRect.top + 4, "NATTRAK");
 	screen->AddScreenObject(WIN_FDD, to_string(BTN_NATTRAK).c_str(), natBtnRect, false, "");
 	
 	// Legend
 	btnX = windowRect.right - 220;
 	dc->SetTextColor(RGB(150, 180, 255));
-	dc->TextOutA(btnX, btnBarY + 8, "BLUE=West");
+	dc->TextOut(btnX, btnBarY + 8, "BLUE=West");
 	btnX += 80;
 	dc->SetTextColor(RGB(255, 230, 150));
-	dc->TextOutA(btnX, btnBarY + 8, "YELLOW=East");
+	dc->TextOut(btnX, btnBarY + 8, "YELLOW=East");
 
 	// Screen objects
 	screen->AddScreenObject(WINDOW, "WIN_FDD", windowRect, true, "");
@@ -454,16 +456,16 @@ void CFddWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	// Column headers
 	int x = windowRect.left;
 	int y = colHeaderY + 4;
-	dc->TextOutA(x + columns.CallsignX, y, "CALLSIGN");
-	dc->TextOutA(x + columns.TypeX, y, "TYPE");
-	dc->TextOutA(x + columns.DepDestX, y, "DEP/ARR");
-	dc->TextOutA(x + columns.FlightLevelX, y, "FL");
-	dc->TextOutA(x + columns.MachX, y, "MACH");
-	dc->TextOutA(x + columns.SelcalX, y, "SELCAL");
-	dc->TextOutA(x + columns.EntryFixX, y, "ENTRY");
-	dc->TextOutA(x + columns.EntryTimeX, y, "ETA");
-	dc->TextOutA(x + columns.ExitFixX, y, "EXIT");
-	dc->TextOutA(x + columns.ExitTimeX, y, "ETO");
+	dc->TextOut(x + columns.CallsignX, y, "CALLSIGN");
+	dc->TextOut(x + columns.TypeX, y, "TYPE");
+	dc->TextOut(x + columns.DepDestX, y, "DEP/ARR");
+	dc->TextOut(x + columns.FlightLevelX, y, "FL");
+	dc->TextOut(x + columns.MachX, y, "MACH");
+	dc->TextOut(x + columns.SelcalX, y, "SELCAL");
+	dc->TextOut(x + columns.EntryFixX, y, "ENTRY");
+	dc->TextOut(x + columns.EntryTimeX, y, "ETA");
+	dc->TextOut(x + columns.ExitFixX, y, "EXIT");
+	dc->TextOut(x + columns.ExitTimeX, y, "ETO");
 
 	// Content Area
 	CRect contentRect = windowRect;
@@ -733,8 +735,9 @@ void CFddWindow::RenderStrip(CDC* dc, Graphics* g, CRadarScreen* screen, CAircra
 	COLORREF ntColor = 0;
 	bool drawIndicator = true;
 	if (ntStatus == CNatTrakStatus::PENDING) ntColor = RGB(255, 255, 0); // Yellow
+	else if (ntStatus == CNatTrakStatus::CLEARED) ntColor = RGB(0, 255, 0); // Green
 	else if (ntStatus == CNatTrakStatus::UNKNOWN) ntColor = RGB(255, 0, 0); // Red
-	else drawIndicator = false; // CLEARED (Processed) or other - no indicator
+	else drawIndicator = false; // Other - no indicator
 
 	if (drawIndicator) {
 		CRect indicatorRect(rect.left, rect.top, rect.left + 15, rect.bottom - 1);
@@ -759,26 +762,26 @@ void CFddWindow::RenderStrip(CDC* dc, Graphics* g, CRadarScreen* screen, CAircra
 	// Callsign - Click to select
 	COLORREF textColor = isTracked ? RGB(0, 100, 0) : RGB(0, 0, 0);
 	dc->SetTextColor(textColor);
-	dc->TextOutA(x + columns.CallsignX, y, fp->Callsign.c_str());
+	dc->TextOut(x + columns.CallsignX, y, fp->Callsign.c_str());
 	CRect csRect(x + columns.CallsignX, rect.top, x + columns.TypeX - 5, rect.bottom);
 	screen->AddScreenObject(WIN_FDD, ("SELECT:" + fp->Callsign).c_str(), csRect, false, "");
 
 	// Type
 	dc->SetTextColor(RGB(0, 0, 0));
-	dc->TextOutA(x + columns.TypeX, y, fp->Type.c_str());
+	dc->TextOut(x + columns.TypeX, y, fp->Type.c_str());
 
 	// Departure/Destination
 	string depDest = fp->Depart + "/" + fp->Dest;
-	dc->TextOutA(x + columns.DepDestX, y, depDest.c_str());
+	dc->TextOut(x + columns.DepDestX, y, depDest.c_str());
 
 	// Flight Level - CLICKABLE for dropdown
 	dc->SetTextColor(RGB(0, 0, 180)); // Blue for clickable
-	dc->TextOutA(x + columns.FlightLevelX, y, fp->FlightLevel.c_str());
+	dc->TextOut(x + columns.FlightLevelX, y, fp->FlightLevel.c_str());
 	CRect flRect(x + columns.FlightLevelX, rect.top, x + columns.MachX - 5, rect.bottom);
 	screen->AddScreenObject(WIN_FDD, ("FL:" + fp->Callsign).c_str(), flRect, false, "");
 
 	// Mach - CLICKABLE for dropdown
-	dc->TextOutA(x + columns.MachX, y, fp->Mach.c_str());
+	dc->TextOut(x + columns.MachX, y, fp->Mach.c_str());
 	CRect machRect(x + columns.MachX, rect.top, x + columns.SelcalX - 5, rect.bottom);
 	screen->AddScreenObject(WIN_FDD, ("MACH:" + fp->Callsign).c_str(), machRect, false, "");
 
@@ -786,7 +789,7 @@ void CFddWindow::RenderStrip(CDC* dc, Graphics* g, CRadarScreen* screen, CAircra
 	string selcalText = fp->SELCAL;
 	if (!selcalText.empty() && selcalText != "N/A") {
 		dc->SetTextColor(RGB(140, 0, 140)); // Purple for SELCAL
-		dc->TextOutA(x + columns.SelcalX, y, selcalText.c_str());
+		dc->TextOut(x + columns.SelcalX, y, selcalText.c_str());
 		CRect selcalRect(x + columns.SelcalX, rect.top, x + columns.EntryFixX - 5, rect.bottom);
 		screen->AddScreenObject(WIN_FDD, ("SELCAL:" + fp->Callsign).c_str(), selcalRect, false, "");
 	}
@@ -800,13 +803,13 @@ void CFddWindow::RenderStrip(CDC* dc, Graphics* g, CRadarScreen* screen, CAircra
 	
 	if (!route.empty()) {
 		// Entry fix (first point)
-		dc->TextOutA(x + columns.EntryFixX, y, route[0].Fix.c_str());
-		dc->TextOutA(x + columns.EntryTimeX, y, route[0].Estimate.c_str());
+		dc->TextOut(x + columns.EntryFixX, y, route[0].Fix.c_str());
+		dc->TextOut(x + columns.EntryTimeX, y, route[0].Estimate.c_str());
 		
 		// Exit fix (last point)
 		if (route.size() > 1) {
-			dc->TextOutA(x + columns.ExitFixX, y, route.back().Fix.c_str());
-			dc->TextOutA(x + columns.ExitTimeX, y, route.back().Estimate.c_str());
+			dc->TextOut(x + columns.ExitFixX, y, route.back().Fix.c_str());
+			dc->TextOut(x + columns.ExitTimeX, y, route.back().Estimate.c_str());
 		}
 	}
 	
@@ -815,7 +818,7 @@ void CFddWindow::RenderStrip(CDC* dc, Graphics* g, CRadarScreen* screen, CAircra
 		char exitBuf[10];
 		sprintf_s(exitBuf, "%04d", fp->ExitTime);
 		dc->SetTextColor(RGB(100, 0, 0));
-		dc->TextOutA(x + columns.ExitTimeX, y, exitBuf);
+		dc->TextOut(x + columns.ExitTimeX, y, exitBuf);
 	}
 
 	// Discard button (X)
@@ -871,6 +874,7 @@ void CFddWindow::ButtonUp(int id, CRadarScreen* screen) {
 			}
 		}
 	}
+	/*
 	else if (id == BTN_WEB) {
 		int port = CWebServer::GetRunningPort();
 		if (port != 0) {
@@ -878,6 +882,7 @@ void CFddWindow::ButtonUp(int id, CRadarScreen* screen) {
 			ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
 		}
 	}
+	*/
 	else if (id == BTN_NATTRAK) {
 		if (!SelectedCallsign.empty()) {
 			CNatTrakClearance ntClearance;

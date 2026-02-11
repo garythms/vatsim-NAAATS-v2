@@ -217,7 +217,7 @@ void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen)
 		FontSelector::SelectNormalFont(16, dc);
 		dc->SetTextColor(TextWhite.ToCOLORREF());
 		dc->SetTextAlign(TA_CENTER);
-		dc->TextOutA(windowRect.left + (WINSZ_FLTPLN_WIDTH / 2), windowRect.top + (WINSZ_FLTPLN_HEIGHT_INIT / 2), "No Flight Plan Data");
+		dc->TextOut(windowRect.left + (WINSZ_FLTPLN_WIDTH / 2), windowRect.top + (WINSZ_FLTPLN_HEIGHT_INIT / 2), "No Flight Plan Data");
 
 		dc->RestoreDC(iDC);
 		return;
@@ -257,7 +257,7 @@ void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen)
 	CRect titleRect(windowRect.left, windowRect.top, windowRect.left + WINSZ_FLTPLN_WIDTH, windowRect.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string(string("Flight Plan") + string(" - ") + primedPlan->Callsign).c_str());
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string(string("Flight Plan") + string(" - ") + primedPlan->Callsign).c_str());
 
 	// Add screen objects
 	screen->AddScreenObject(WINDOW, "WIN_FLTPLN", windowRect, true, ""); // So that we can't click anything under the flight plan window
@@ -308,7 +308,7 @@ void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen)
 		dc->SetTextAlign(TA_LEFT);
 
 		// Draw the text
-		dc->TextOutA(infoBarRect.left + offsetX, infoBarRect.top + offsetY, kv.second.Label.c_str());
+		dc->TextOut(infoBarRect.left + offsetX, infoBarRect.top + offsetY, kv.second.Label.c_str());
 
 		// Get text height to set offset and height of input
 		int textHeight = dc->GetTextExtent(kv.second.Label.c_str()).cy;
@@ -476,7 +476,7 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 	FontSelector::SelectATCFont(18, dc);
 	dc->SetTextColor(Black.ToCOLORREF());
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(idBox.left + (idBox.Width() / 2), dataBarRect.top + (idBox.Height() / 2) - 2, primedPlan->Callsign.c_str());
+	dc->TextOut(idBox.left + (idBox.Width() / 2), dataBarRect.top + (idBox.Height() / 2) - 2, primedPlan->Callsign.c_str());
 
 	// Create the route box
 	CRect rteBox(topLeft.x + 5, idBox.bottom + 8, dataBarRect.right - 100, idBox.bottom + 84);
@@ -501,11 +501,11 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 	int offsetY = 2;
 	int contentoffsetX = 5;
 	if (route->Error || track->Error) { // If there is an error
-		dc->TextOutA(rteBox.left + 4, rteBox.top + 2, "SYNTAX OR TCK ERROR! Check format.");
+		dc->TextOut(rteBox.left + 4, rteBox.top + 2, "SYNTAX OR TCK ERROR! Check format.");
 	}
 	else if (route->Content == "") { // If the content is empty
 		// Display "Enter route here" message
-		dc->TextOutA(rteBox.left + 4, rteBox.top + 2, "Enter route here. Lat/lon format: 50/30.");
+		dc->TextOut(rteBox.left + 4, rteBox.top + 2, "Enter route here. Lat/lon format: 50/30.");
 	}
 	else {
 		// Draw the route and estimates
@@ -518,7 +518,7 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 		}
 		
 		// Reverse it if it's westbound, they do it IRL
-		if (!CUtils::GetAircraftDirection(screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str()).GetPosition().GetReportedHeadingTrueNorth()))
+		if (CUtils::GetAircraftDirection(screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str()).GetPosition().GetReportedHeadingTrueNorth()))
 		{
 			std::reverse(rte.begin(), rte.end());
 		}
@@ -531,9 +531,9 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 				{
 					if (CUtils::IsAllAlpha(rte[i].Fix)) {
 						// Write fix down
-						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Fix.c_str());
+						dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Fix.c_str());
 						offsetY += 54;
-						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
+						dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
 						offsetY = 2;
 						offsetX += dc->GetTextExtent(rte[i].Fix.c_str()).cx + 15;
 					}
@@ -593,11 +593,11 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 							}
 						}
 
-						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLat.c_str());
+						dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, displayLat.c_str());
 						offsetY += 27;
-						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLon.c_str());
+						dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, displayLon.c_str());
 						offsetY += 27;						
-						dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
+						dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
 						offsetY = 2;
 						offsetX += dc->GetTextExtent("2323").cx + 15;
 					}
@@ -660,7 +660,7 @@ CRect CFlightPlanWindow::RenderDataPanel(CDC* dc, Graphics* g, CRadarScreen* scr
 			offsetY += textHeight;
 		}
 		// Draw the text
-		dc->TextOutA(dataBarRect.left + offsetX, dataBarRect.top + offsetY + 2, idx.Label.c_str());
+		dc->TextOut(dataBarRect.left + offsetX, dataBarRect.top + offsetY + 2, idx.Label.c_str());
 
 		// So that track and state get shoved down a row
 		if ((counter < TXT_TCK && !isCopy) || (counter < TXT_TCK_CPY && isCopy)) {
@@ -729,7 +729,7 @@ void CFlightPlanWindow::RenderConflictWindow(CDC* dc, Graphics* g, CRadarScreen*
 	CRect titleRect(conflictPanel.left, conflictPanel.top, conflictPanel.left + WINSZ_FLTPLN_WIDTH, conflictPanel.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("Conflict Window - " + primedPlan->Callsign).c_str()); // TODO: show callsign properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("Conflict Window - " + primedPlan->Callsign).c_str()); // TODO: show callsign properly
 
 	// Create content panel
 	CRect content(conflictPanel.left + 2, titleRect.bottom + 2, conflictPanel.left + ((WINSZ_FLTPLN_WIDTH / 3) * 2.4), titleRect.bottom + WINSZ_FLTPLN_HEIGHT_XTRA - 43);
@@ -752,21 +752,21 @@ void CFlightPlanWindow::RenderConflictWindow(CDC* dc, Graphics* g, CRadarScreen*
 
 	// Iterate through conflicts (NEED BOTH VERTICAL AND HORIZONTAL SCROLL)
 	if (currentProbeStatuses.empty()) {
-		dc->TextOutA(content.left + 5, content.top + 5, "No predicted conflicts.");
+		dc->TextOut(content.left + 5, content.top + 5, "No predicted conflicts.");
 	}
 	else {
 		int offsetX = content.left + 5;
 		int offsetY = content.top + 5;
 		// Draw main aircraft data
-		dc->TextOutA(offsetX, offsetY, primedPlan->Callsign.c_str());
+		dc->TextOut(offsetX, offsetY, primedPlan->Callsign.c_str());
 		offsetX += 65;
-		dc->TextOutA(offsetX, offsetY, primedPlan->FlightLevel.c_str());
+		dc->TextOut(offsetX, offsetY, primedPlan->FlightLevel.c_str());
 		offsetX += 30;
-		dc->TextOutA(offsetX, offsetY, ("M" + CUtils::PadWithZeros(3, stoi(primedPlan->Mach))).c_str());
+		dc->TextOut(offsetX, offsetY, ("M" + CUtils::PadWithZeros(3, stoi(primedPlan->Mach))).c_str());
 		offsetX += 45;
 		// Draw main route
 		for (int i = 0; i < primedPlan->RouteRaw.size(); i++) {			
-			dc->TextOutA(offsetX, offsetY, primedPlan->RouteRaw[i].c_str());
+			dc->TextOut(offsetX, offsetY, primedPlan->RouteRaw[i].c_str());
 			offsetX += 45;
 		}
 		
@@ -779,16 +779,16 @@ void CFlightPlanWindow::RenderConflictWindow(CDC* dc, Graphics* g, CRadarScreen*
 			CRadarTarget target = screen->GetPlugIn()->RadarTargetSelect(kv.first.c_str());
 			int mach = target.GetCorrelatedFlightPlan().GetFlightPlanData().PerformanceGetMach(target.GetPosition().GetPressureAltitude(), target.GetVerticalSpeed());
 			// Draw aircraft data
-			dc->TextOutA(offsetX, offsetY, kv.first.c_str());
+			dc->TextOut(offsetX, offsetY, kv.first.c_str());
 			offsetX += 65;
-			dc->TextOutA(offsetX, offsetY, to_string((int)(round(target.GetPosition().GetFlightLevel()) / 100.0)).c_str());
+			dc->TextOut(offsetX, offsetY, to_string((int)(round(target.GetPosition().GetFlightLevel()) / 100.0)).c_str());
 			offsetX += 30;
-			dc->TextOutA(offsetX, offsetY, ("M" + CUtils::PadWithZeros(3, mach)).c_str());
+			dc->TextOut(offsetX, offsetY, ("M" + CUtils::PadWithZeros(3, mach)).c_str());
 			offsetX += 45;
 			// Draw statuses
 			for (int i = 0; i < kv.second.size(); i++) {
 				char conflict = kv.second[i].ConflictStatus == CConflictStatus::CRITICAL ? 'C' : 'W';
-				dc->TextOutA(offsetX, offsetY, (conflict + to_string(kv.second[i].DistanceAsTime)).c_str());
+				dc->TextOut(offsetX, offsetY, (conflict + to_string(kv.second[i].DistanceAsTime)).c_str());
 				offsetX += 45;
 			}
 		}
@@ -833,7 +833,7 @@ void CFlightPlanWindow::RenderMessageWindow(CDC* dc, Graphics* g, CRadarScreen* 
 	CRect titleRect(messagePanel.left, messagePanel.top, messagePanel.left + WINSZ_FLTPLN_WIDTH, messagePanel.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("FROM: " + (primedPlan->CurrentMessage != nullptr ? primedPlan->CurrentMessage->From : "")).c_str()); // TODO: show who from properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("FROM: " + (primedPlan->CurrentMessage != nullptr ? primedPlan->CurrentMessage->From : "")).c_str()); // TODO: show who from properly
 
 	// Create button bar
 	CRect buttonBarRect(messagePanel.left - 1, messagePanel.bottom - 40, messagePanel.left + WINSZ_FLTPLN_WIDTH, messagePanel.bottom);
@@ -876,7 +876,7 @@ void CFlightPlanWindow::RenderMessageWindow(CDC* dc, Graphics* g, CRadarScreen* 
 				{
 					if (!(contentoffsetY > scrollBars[SCRL_MSG].WindowPos + scrollBars[SCRL_MSG].FrameSize-25))
 					{
-						dc->TextOutA(content.left + 5, content.top + offsetY, wrappedText[i].c_str());
+						dc->TextOut(content.left + 5, content.top + offsetY, wrappedText[i].c_str());
 						offsetY += dc->GetTextExtent("ABCD").cy + 2;
 					}
 				}
@@ -885,7 +885,7 @@ void CFlightPlanWindow::RenderMessageWindow(CDC* dc, Graphics* g, CRadarScreen* 
 		}
 		else {
 			// Just display
-			dc->TextOutA(content.left + 5, content.top + 5, message.c_str());
+			dc->TextOut(content.left + 5, content.top + 5, message.c_str());
 			contentoffsetY = content.Height()+2;
 		}
 	}
@@ -943,7 +943,7 @@ void CFlightPlanWindow::RenderClearanceWindow(CDC* dc, Graphics* g, CRadarScreen
 	CRect titleRect(clearancePanel.left, clearancePanel.top, clearancePanel.left + WINSZ_FLTPLN_WIDTH, clearancePanel.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string(string("Clearance") + string(" - ") + primedPlan->Callsign).c_str())); // TODO: show callsign properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string(string("Clearance") + string(" - ") + primedPlan->Callsign).c_str())); // TODO: show callsign properly
 
 	// Create content panel 1
 	CRect contentA(clearancePanel.left + 5, titleRect.bottom + 5, clearancePanel.left + ((WINSZ_FLTPLN_WIDTH / 3) * 2) - 10, titleRect.bottom + WINSZ_FLTPLN_HEIGHT_XTRA - 90);
@@ -981,7 +981,7 @@ void CFlightPlanWindow::RenderClearanceWindow(CDC* dc, Graphics* g, CRadarScreen
 				if (!(contentoffsetY > scrollBars[SCRL_CLRC].WindowPos + scrollBars[SCRL_CLRC].FrameSize - 10))
 				{
 					// Write the message
-					dc->TextOutA(contentA.left + 5, contentA.top + wrapOffsetY, wrappedText[i].c_str());
+					dc->TextOut(contentA.left + 5, contentA.top + wrapOffsetY, wrappedText[i].c_str());
 					wrapOffsetY += dc->GetTextExtent("ABCD").cy + 5;
 				}
 			}
@@ -991,7 +991,7 @@ void CFlightPlanWindow::RenderClearanceWindow(CDC* dc, Graphics* g, CRadarScreen
 	else {
 		wrapOffsetY = contentoffsetY = 0;
 		// Write without iterating
-		dc->TextOutA(contentA.left + 5, contentA.top + 5, currentClearanceText.c_str());
+		dc->TextOut(contentA.left + 5, contentA.top + 5, currentClearanceText.c_str());
 	}
 
 	if (contentoffsetY < contentA.Height())
@@ -1022,7 +1022,7 @@ void CFlightPlanWindow::RenderClearanceWindow(CDC* dc, Graphics* g, CRadarScreen
 	for (int idx = CHK_CLRC_ORCA; idx <= CHK_CLRC_TXT; idx++)
 	{
 		CRect box = CCommonRenders::RenderCheckBox(dc, g, screen, { contentA.right + offsetX, titleRect.bottom + offsetY }, 15, &checkBoxes.at(idx));
-		dc->TextOutA(box.right + 5, box.top - 1, checkBoxes.at(idx).Label.c_str());
+		dc->TextOut(box.right + 5, box.top - 1, checkBoxes.at(idx).Label.c_str());
 
 		if (idx == CHK_CLRC_ORCA || idx == CHK_CLRC_CPDLC) {
 			offsetY += 31;
@@ -1078,7 +1078,7 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 	CRect titleRect(manEntryPanel.left, manEntryPanel.top, manEntryPanel.left + WINSZ_FLTPLN_WIDTH, manEntryPanel.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string(string("Manual Entry") + string(" - ") + primedPlan->Callsign).c_str())); // TODO: show callsign properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string(string("Manual Entry") + string(" - ") + primedPlan->Callsign).c_str())); // TODO: show callsign properly
 
 	// Show callsign in coloured box
 	CRect idBox(topLeft.x + 6, titleRect.bottom + 8, topLeft.x + 150, titleRect.bottom + 36);
@@ -1086,7 +1086,7 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 	FontSelector::SelectATCFont(18, dc);
 	dc->SetTextColor(Black.ToCOLORREF());
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(idBox.left + (idBox.Width() / 2), idBox.top + (idBox.Height() / 2) - 10, primedPlan->Callsign.c_str());
+	dc->TextOut(idBox.left + (idBox.Width() / 2), idBox.top + (idBox.Height() / 2) - 10, primedPlan->Callsign.c_str());
 
 	// Create the route box
 	CRect rteBox(topLeft.x + 5, idBox.bottom + 8, manEntryPanel.right - 150, idBox.bottom + 94);
@@ -1117,11 +1117,11 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 	int offsetX = 5;
 	int offsetY = 2;
 	if (route->Error || track->Error) { // If there is an error
-		dc->TextOutA(rteBox.left + 4, rteBox.top + 2, "SYNTAX OR TCK ERROR! Check format.");
+		dc->TextOut(rteBox.left + 4, rteBox.top + 2, "SYNTAX OR TCK ERROR! Check format.");
 	}
 	else if (route->Content == "") { // If the content is empty
 		// Display "Enter route here" message
-		dc->TextOutA(rteBox.left + 4, rteBox.top + 2, "Enter route here. Lat/lon format: 50/30.");
+		dc->TextOut(rteBox.left + 4, rteBox.top + 2, "Enter route here. Lat/lon format: 50/30.");
 	}
 	else {
 		// Draw the route and estimates
@@ -1129,7 +1129,7 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 		CRoutesHelper::GetRoute(screen, &rte, primedPlan->Callsign);
 
 		// Reverse it if it's westbound, they do it IRL
-		if (CUtils::GetAircraftDirection(!screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str()).GetPosition().GetReportedHeadingTrueNorth()))
+		if (CUtils::GetAircraftDirection(screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str()).GetPosition().GetReportedHeadingTrueNorth()))
 		{
 			std::reverse(rte.begin(), rte.end());
 		}
@@ -1138,9 +1138,9 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 			// If a waypoint
 			if (CUtils::IsAllAlpha(rte[i].Fix)) {
 				// Write fix down
-				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Fix.c_str());
+				dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Fix.c_str());
 				offsetY += 56;
-				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
+				dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
 				offsetY = 2;
 				offsetX += dc->GetTextExtent(rte[i].Fix.c_str()).cx + 15;
 			}
@@ -1209,11 +1209,11 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 					}
 				}
 
-				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLat.c_str());
+				dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, displayLat.c_str());
 				offsetY += 28;
-				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, displayLon.c_str());
+				dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, displayLon.c_str());
 				offsetY += 28;
-				dc->TextOutA(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
+				dc->TextOut(rteBox.left + offsetX, rteBox.top + offsetY, rte[i].Estimate == "--" ? "\xa0\xa0" : rte[i].Estimate.c_str());
 				offsetY += 2;
 				offsetX += dc->GetTextExtent(rte[i].Fix.c_str()).cx + 15;
 			}
@@ -1246,7 +1246,7 @@ void CFlightPlanWindow::RenderManEntryWindow(CDC* dc, Graphics* g, CRadarScreen*
 		// Get text height to set offset and height of input
 		int textHeight = dc->GetTextExtent(textInputs.at(idx).Label.c_str()).cy;
 		int textWidth = dc->GetTextExtent(textInputs.at(idx).Label.c_str()).cx;
-		dc->TextOutA(idBox.right + offsetX, titleRect.bottom + offsetY + 2, textInputs.at(idx).Label.c_str());
+		dc->TextOut(idBox.right + offsetX, titleRect.bottom + offsetY + 2, textInputs.at(idx).Label.c_str());
 		CCommonRenders::RenderTextInput(dc, screen, { idBox.right + offsetX + textWidth + 5, titleRect.bottom + offsetY }, textInputs.at(idx).Width, textHeight + 5, &textInputs.at(idx));
 
 		if (idx < TXT_MAN_DEST) {
@@ -1311,7 +1311,7 @@ void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* scr
 	CRect titleRect(coordWindow.left, coordWindow.top, coordWindow.left + WINSZ_FLTPLN_WIDTH_COORD, coordWindow.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH_COORD / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("Co-ordination Window - " + primedPlan->Callsign).c_str())); // TODO: show callsign properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH_COORD / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("Co-ordination Window - " + primedPlan->Callsign).c_str())); // TODO: show callsign properly
 	screen->AddScreenObject(WIN_FLTPLN, to_string(SUBWIN_COORD).c_str(), titleRect, true, "");
 
 	// Create the stations panel
@@ -1332,9 +1332,9 @@ void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* scr
 	dc->SetTextAlign(TA_LEFT);
 
 	// Draw headers
-	dc->TextOutA(stations.left + 3, stations.top - dc->GetTextExtent("Voice").cy - 2, "VOICE");
-	dc->TextOutA(stations.right - dc->GetTextExtent("Manual").cx - 10, stations.top - dc->GetTextExtent("MANUAL").cy - 2, "MANUAL");
-	dc->TextOutA(history.left + 3, history.top - dc->GetTextExtent("History").cy - 2, "History");
+	dc->TextOut(stations.left + 3, stations.top - dc->GetTextExtent("Voice").cy - 2, "VOICE");
+	dc->TextOut(stations.right - dc->GetTextExtent("Manual").cx - 10, stations.top - dc->GetTextExtent("MANUAL").cy - 2, "MANUAL");
+	dc->TextOut(history.left + 3, history.top - dc->GetTextExtent("History").cy - 2, "History");
 
 	// Draw button bar
 	CRect buttonBarRect(coordWindow.left, coordWindow.bottom - 50, coordWindow.left + WINSZ_FLTPLN_WIDTH_COORD, coordWindow.bottom);
@@ -1378,7 +1378,7 @@ void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* scr
 				else if (i == CHK_COORD_EISNV) headerText = "Domestic";
 				else if (i == CHK_COORD_PLANV) headerText = "Misc";
 
-				dc->TextOutA(stations.left + 35, stations.top + offsetY, headerText.c_str());
+				dc->TextOut(stations.left + 35, stations.top + offsetY, headerText.c_str());
 				offsetY += 20;
 			}
 			contentOffsetY += 20;
@@ -1394,7 +1394,7 @@ void CFlightPlanWindow::RenderCoordModal(CDC* dc, Graphics* g, CRadarScreen* scr
 			CCommonRenders::RenderCheckBox(dc, g, screen, { stations.right - 40, stations.top + offsetY }, 15, &checkBoxes.at(i + 56)); // The manual one
 			
 			// Text
-			dc->TextOutA(box.right + 15, box.top - 1, checkBoxes.at(i).Label.c_str());
+			dc->TextOut(box.right + 15, box.top - 1, checkBoxes.at(i).Label.c_str());
 			offsetY += 20;
 		}
 		contentOffsetY += 20;
@@ -1450,7 +1450,7 @@ void CFlightPlanWindow::RenderHistoryModal(CDC* dc, Graphics* g, CRadarScreen* s
 	CRect titleRect(histWindow.left, histWindow.top, histWindow.left + WINSZ_FLTPLN_WIDTH_HIST, histWindow.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH_HIST / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("Flight History - " + primedPlan->Callsign).c_str())); // TODO: show callsign properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH_HIST / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("Flight History - " + primedPlan->Callsign).c_str())); // TODO: show callsign properly
 	screen->AddScreenObject(WIN_FLTPLN, to_string(SUBWIN_HIST).c_str(), titleRect, true, "");
 
 	// Create content panel
@@ -1473,11 +1473,11 @@ void CFlightPlanWindow::RenderHistoryModal(CDC* dc, Graphics* g, CRadarScreen* s
 
 	// Create headers
 	int offsetX = content.left + 3;
-	dc->TextOutA(offsetX, content.top - dc->GetTextExtent("'SPACER").cy - 2, "Time");
+	dc->TextOut(offsetX, content.top - dc->GetTextExtent("'SPACER").cy - 2, "Time");
 	offsetX += dc->GetTextExtent("Time").cx + 7;
-	dc->TextOutA(offsetX, content.top - dc->GetTextExtent("SPACER").cy - 2, "From");
+	dc->TextOut(offsetX, content.top - dc->GetTextExtent("SPACER").cy - 2, "From");
 	offsetX += dc->GetTextExtent("Time").cx + 25;
-	dc->TextOutA(offsetX, content.top - dc->GetTextExtent("SPACER").cy - 2, "Message");
+	dc->TextOut(offsetX, content.top - dc->GetTextExtent("SPACER").cy - 2, "Message");
 
 	// Render close button
 	CCommonRenders::RenderButton(dc, screen, { content.left, content.bottom + 5 }, 65, 30, &windowButtons.at(BTN_HIST_CLOSE));
@@ -1522,7 +1522,7 @@ void CFlightPlanWindow::RenderATCRestrictModal(CDC* dc, Graphics* g, CRadarScree
 	CRect titleRect(atcrWindow.left, atcrWindow.top, atcrWindow.left + WINSZ_FLTPLN_WIDTH_MDL, atcrWindow.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH_MDL / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("ATC Restrictions Editor - " + primedPlan->Callsign).c_str())); // TODO: show callsign properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH_MDL / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("ATC Restrictions Editor - " + primedPlan->Callsign).c_str())); // TODO: show callsign properly
 	screen->AddScreenObject(WIN_FLTPLN, "RESTRICTIONS", atcrWindow, false, ""); // So it can't be moved
 	screen->AddScreenObject(WIN_FLTPLN, to_string(SUBWIN_ATCR).c_str(), titleRect, true, "");
 
@@ -1561,7 +1561,7 @@ void CFlightPlanWindow::RenderATCRestrictModal(CDC* dc, Graphics* g, CRadarScree
 		}
 
 		// Text out
-		dc->TextOutA(restrictions.left + 2, offsetY, restrictionSelections[i].c_str());
+		dc->TextOut(restrictions.left + 2, offsetY, restrictionSelections[i].c_str());
 
 		// Offset
 		offsetY += dc->GetTextExtent(restrictionSelections[i].c_str()).cy + 2;
@@ -1590,7 +1590,7 @@ void CFlightPlanWindow::RenderATCRestrictModal(CDC* dc, Graphics* g, CRadarScree
 				dc->FillSolidRect(textObj, ButtonPressed.ToCOLORREF());
 
 			// Text out
-			dc->TextOutA(content.left + 2, offsetY, plan->Restrictions[i - 600].Human.c_str());
+			dc->TextOut(content.left + 2, offsetY, plan->Restrictions[i - 600].Human.c_str());
 
 			screen->AddScreenObject(WIN_FLTPLN, to_string(i).c_str(), textObj, false, "");
 
@@ -1600,8 +1600,8 @@ void CFlightPlanWindow::RenderATCRestrictModal(CDC* dc, Graphics* g, CRadarScree
 	}
 
 	// Draw headers
-	dc->TextOutA(restrictions.left + 3, restrictions.top - dc->GetTextExtent("Restrictions").cy - 2, "Restrictions");
-	dc->TextOutA(content.left + 3, content.top - dc->GetTextExtent("ATC/").cy - 2, "ATC/");
+	dc->TextOut(restrictions.left + 3, restrictions.top - dc->GetTextExtent("Restrictions").cy - 2, "Restrictions");
+	dc->TextOut(content.left + 3, content.top - dc->GetTextExtent("ATC/").cy - 2, "ATC/");
 
 	// Draw buttons (3 buttons)
 	int offsetX = restrictions.left;
@@ -1662,7 +1662,7 @@ void CFlightPlanWindow::RenderExchangeModal(CDC* dc, Graphics* g, CRadarScreen* 
 	CRect titleRect(coordWindow.left, coordWindow.top, coordWindow.left + WINSZ_FLTPLN_WIDTH_MDL, coordWindow.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH_MDL / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("Active Co-ordination - " + primedPlan->Callsign).c_str()); // TODO: show callsign properly
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH_MDL / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("Active Co-ordination - " + primedPlan->Callsign).c_str()); // TODO: show callsign properly
 	screen->AddScreenObject(WIN_FLTPLN, to_string(SUBWIN_XCHANGE).c_str(), titleRect, true, "");
 
 	// Select font
@@ -1675,7 +1675,7 @@ void CFlightPlanWindow::RenderExchangeModal(CDC* dc, Graphics* g, CRadarScreen* 
 	dc->Draw3dRect(content, BevelDark.ToCOLORREF(), BevelLight.ToCOLORREF());
 	InflateRect(content, -1, -1);
 	dc->Draw3dRect(content, BevelDark.ToCOLORREF(), BevelLight.ToCOLORREF());
-	dc->TextOutA(content.left + 3, content.top - dc->GetTextExtent("Active Authorities").cy - 2, "Active Authorities");
+	dc->TextOut(content.left + 3, content.top - dc->GetTextExtent("Active Authorities").cy - 2, "Active Authorities");
 
 	// Select font
 	FontSelector::SelectNormalFont(15, dc);
@@ -1692,9 +1692,9 @@ void CFlightPlanWindow::RenderExchangeModal(CDC* dc, Graphics* g, CRadarScreen* 
 			{
 				if (kv.first == selectedAuthority)
 					dc->FillSolidRect(rect, ButtonPressed.ToCOLORREF());
-				dc->TextOutA(content.left + offsetX, content.top + offsetY, kv.second.GetPositionId());
+				dc->TextOut(content.left + offsetX, content.top + offsetY, kv.second.GetPositionId());
 				offsetX += 45;
-				dc->TextOutA(content.left + offsetX, content.top + offsetY, kv.second.GetCallsign());
+				dc->TextOut(content.left + offsetX, content.top + offsetY, kv.second.GetCallsign());
 				offsetX = 0;
 				offsetY += dc->GetTextExtent("ABCD").cy;
 				screen->AddScreenObject(WIN_FLTPLN_TSFR, kv.second.GetCallsign(), rect, true, "");
@@ -1790,7 +1790,7 @@ void CFlightPlanWindow::RenderExchangeModal(CDC* dc, Graphics* g, CRadarScreen* 
 
 		// Get text height to set offset and height of input
 		int textHeight = dc->GetTextExtent(textInputs.at(idx).Label.c_str()).cy;
-		dc->TextOutA(offsetX, offsetY, textInputs.at(idx).Label.c_str());
+		dc->TextOut(offsetX, offsetY, textInputs.at(idx).Label.c_str());
 		CCommonRenders::RenderTextInput(dc, screen, { offsetX, offsetY + textHeight + 5 }, textInputs.at(idx).Width, textHeight + 5, &textInputs.at(idx));
 		offsetY += textHeight * 2 + 20;
 	}
@@ -1827,7 +1827,7 @@ void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarSc
 	CRect titleRect(atcrWindow.left, atcrWindow.top, atcrWindow.left + WINSZ_FLTPLN_WIDTH_MDL, atcrWindow.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_FLTPLN_WIDTH_MDL / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("ATC/ " + restrictionSelections[RestrictionSubModalType] + " - " + primedPlan->Callsign).c_str()));
+	dc->TextOut(titleRect.left + (WINSZ_FLTPLN_WIDTH_MDL / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), (string("ATC/ " + restrictionSelections[RestrictionSubModalType] + " - " + primedPlan->Callsign).c_str()));
 	screen->AddScreenObject(WIN_FLTPLN, to_string(SUBWIN_ATCR).c_str(), titleRect, true, "");
 
 	// Select font
@@ -1839,7 +1839,7 @@ void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarSc
 	int offsetYTopRow = titleRect.bottom + 5;
 	int offsetYBottomRow = offsetYTopRow + 20;
 
-	dc->TextOutA(offsetX, offsetYBottomRow + 2, restrictionSelections[RestrictionSubModalType].c_str());
+	dc->TextOut(offsetX, offsetYBottomRow + 2, restrictionSelections[RestrictionSubModalType].c_str());
 
 	offsetX += dc->GetTextExtent(restrictionSelections[RestrictionSubModalType].c_str()).cx + 5;
 
@@ -1857,14 +1857,14 @@ void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarSc
 				int InputWidth = k == 0 ? 70 : 40;
 				CCommonRenders::RenderTextInput(dc, screen, { offsetX, offsetYBottomRow }, InputWidth, 20, &textInputs[elements[k]]);
 
-				dc->TextOutA(offsetX, offsetYTopRow, textInputs[elements[k]].Label.c_str());
+				dc->TextOut(offsetX, offsetYTopRow, textInputs[elements[k]].Label.c_str());
 				offsetX += InputWidth + 5 + 20;
 			}
 
 			if (k == 1) {
 				CRect r = CCommonRenders::RenderCheckBox(dc, g, screen, { offsetX + 10, offsetYBottomRow }, 20, &checkBoxes[elements[k]]);
 
-				dc->TextOutA(offsetX, offsetYTopRow, checkBoxes[elements[k]].Label.c_str());
+				dc->TextOut(offsetX, offsetYTopRow, checkBoxes[elements[k]].Label.c_str());
 				offsetX += r.Width() + 10 + 20;
 			}
 
@@ -1874,7 +1874,7 @@ void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarSc
 		for (int k = CHK_RESTRI_UNABLE_SPD; k <= CHK_RESTRI_UNABLE_RTE; k++) {
 			CRect r = CCommonRenders::RenderCheckBox(dc, g, screen, { offsetX + 10, offsetYBottomRow }, 20, &checkBoxes[k]);
 
-			dc->TextOutA(offsetX, offsetYTopRow, checkBoxes[k].Label.c_str());
+			dc->TextOut(offsetX, offsetYTopRow, checkBoxes[k].Label.c_str());
 			offsetX += r.Width() + 10 + 20;
 		}
 	}
@@ -1882,17 +1882,17 @@ void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarSc
 		int InputWidth = 70;
 		CCommonRenders::RenderTextInput(dc, screen, { offsetX, offsetYBottomRow }, InputWidth, 20, &textInputs[TXT_RESTRI_INT_CALLSIGN]);
 
-		dc->TextOutA(offsetX, offsetYTopRow, textInputs[TXT_RESTRI_INT_CALLSIGN].Label.c_str());
+		dc->TextOut(offsetX, offsetYTopRow, textInputs[TXT_RESTRI_INT_CALLSIGN].Label.c_str());
 		offsetX += InputWidth + 10;
 
-		dc->TextOutA(offsetX, offsetYBottomRow+3, "+");
+		dc->TextOut(offsetX, offsetYBottomRow+3, "+");
 
 		offsetX += 15;
 
 		InputWidth = 40;
 		CCommonRenders::RenderTextInput(dc, screen, { offsetX, offsetYBottomRow }, InputWidth, 20, &textInputs[TXT_RESTRI_INT_INTERVAL]);
 
-		dc->TextOutA(offsetX, offsetYTopRow, textInputs[TXT_RESTRI_INT_INTERVAL].Label.c_str());
+		dc->TextOut(offsetX, offsetYTopRow, textInputs[TXT_RESTRI_INT_INTERVAL].Label.c_str());
 	}
 	if (RestrictionSubModalType == SEL_ATCR_ATA || RestrictionSubModalType == SEL_ATCR_ATB || RestrictionSubModalType == SEL_ATCR_XAT) {
 		int firstElement = TXT_RESTRI_ATA_LATLON;
@@ -1912,7 +1912,7 @@ void CFlightPlanWindow::RenderATCRestrictSubModal(CDC* dc, Graphics* g, CRadarSc
 			int InputWidth = k == firstElement ? 70 : 40;
 			CCommonRenders::RenderTextInput(dc, screen, {offsetX, offsetYBottomRow }, InputWidth, 20, &textInputs[k]);
 
-			dc->TextOutA(offsetX, offsetYTopRow, textInputs[k].Label.c_str());
+			dc->TextOut(offsetX, offsetYTopRow, textInputs[k].Label.c_str());
 			offsetX += InputWidth + 5 + 20;
 		}
 	}

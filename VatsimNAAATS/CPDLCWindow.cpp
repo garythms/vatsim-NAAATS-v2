@@ -163,7 +163,7 @@ void CCPDLCWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	else {
 		title += " - Not Connected";
 	}
-	dc->TextOutA(titleRect.left + titleRect.Width() / 2, titleRect.top + 3, title.c_str());
+	dc->TextOut(titleRect.left + titleRect.Width() / 2, titleRect.top + 3, title.c_str());
 	
 	// Close button
 	CCommonRenders::RenderButton(dc, screen, { windowRect.right - 65, windowRect.top + 25 }, 60, 25, &windowButtons[BTN_CLOSE]);
@@ -203,15 +203,15 @@ void CCPDLCWindow::RenderLoginPanel(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	FontSelector::SelectNormalFont(16, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_LEFT);
-	dc->TextOutA(area.left + 10, area.top + 10, "CPDLC Login");
+	dc->TextOut(area.left + 10, area.top + 10, "CPDLC Login");
 	
 	// Station input (text input instead of dropdown)
 	FontSelector::SelectNormalFont(14, dc);
-	dc->TextOutA(area.left + 10, area.top + 45, "Station:");
+	dc->TextOut(area.left + 10, area.top + 45, "Station:");
 	CCommonRenders::RenderTextInput(dc, screen, { area.left + 80, area.top + 40 }, 100, 25, &textInputs[TXT_STATION]);
 	
 	// Logon code input
-	dc->TextOutA(area.left + 10, area.top + 85, "Hoppie Code:");
+	dc->TextOut(area.left + 10, area.top + 85, "Hoppie Code:");
 	CCommonRenders::RenderTextInput(dc, screen, { area.left + 100, area.top + 80 }, 150, 25, &textInputs[TXT_LOGON_CODE]);
 	
 	// Connect button
@@ -220,10 +220,10 @@ void CCPDLCWindow::RenderLoginPanel(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	// Instructions
 	FontSelector::SelectNormalFont(12, dc);
 	dc->SetTextColor(Disabled.ToCOLORREF());
-	dc->TextOutA(area.left + 10, area.top + 180, "1. Enter your station callsign (e.g. NATX, EGGX, CZQX)");
-	dc->TextOutA(area.left + 10, area.top + 200, "2. Enter your Hoppie ACARS logon code");
-	dc->TextOutA(area.left + 10, area.top + 220, "3. Click Connect to go online");
-	dc->TextOutA(area.left + 10, area.top + 260, "Get a logon code at: www.hoppie.nl/acars/");
+	dc->TextOut(area.left + 10, area.top + 180, "1. Enter your station callsign (e.g. NATX, EGGX, CZQX)");
+	dc->TextOut(area.left + 10, area.top + 200, "2. Enter your Hoppie ACARS logon code");
+	dc->TextOut(area.left + 10, area.top + 220, "3. Click Connect to go online");
+	dc->TextOut(area.left + 10, area.top + 260, "Get a logon code at: www.hoppie.nl/acars/");
 }
 
 void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* screen, CRect area) {
@@ -236,7 +236,7 @@ void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 	FontSelector::SelectNormalFont(14, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_LEFT);
-	dc->TextOutA(area.left + 5, area.top + 5, "Messages");
+	dc->TextOut(area.left + 5, area.top + 5, "Messages");
 	
 	// Poll button (enabled when connected)
 	windowButtons[BTN_POLL].State = (hoppieClient != nullptr && hoppieClient->IsConnected()) ? CInputState::INACTIVE : CInputState::DISABLED;
@@ -306,7 +306,7 @@ void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 			string header = msg.Timestamp + " ";
 			header += (msg.Direction == CpdlcDirection::UPLINK) ? "FROM " : "TO ";
 			header += (msg.Direction == CpdlcDirection::UPLINK) ? msg.From : msg.To;
-			dc->TextOutA(msgRect.left + 5, msgRect.top + 3, header.c_str());
+			dc->TextOut(msgRect.left + 5, msgRect.top + 3, header.c_str());
 			
 			// Message content - truncate to fit within box
 			string content = msg.Content;
@@ -316,7 +316,7 @@ void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 				content = content.substr(0, maxChars - 3) + "...";
 			}
 			dc->SetTextColor(Disabled.ToCOLORREF());
-			dc->TextOutA(msgRect.left + 5, msgRect.top + 18, content.c_str());
+			dc->TextOut(msgRect.left + 5, msgRect.top + 18, content.c_str());
 			
 			// Status
 			string status;
@@ -325,7 +325,7 @@ void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 				case CpdlcMessageStatus::ACKNOWLEDGED: status = "[ACK]"; break;
 				case CpdlcMessageStatus::CLOSED: status = "[CLOSED]"; break;
 			}
-			dc->TextOutA(msgRect.left + 5, msgRect.top + 33, status.c_str());
+			dc->TextOut(msgRect.left + 5, msgRect.top + 33, status.c_str());
 			
 			yPos += itemHeight;
 			displayCount++;
@@ -341,7 +341,7 @@ void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 	
 	FontSelector::SelectNormalFont(11, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
-	dc->TextOutA(btnX, btnY - 15, "Quick Response:");
+	dc->TextOut(btnX, btnY - 15, "Quick Response:");
 	
 	// Enable response buttons only if a pending uplink message is selected
 	bool canRespond = false;
@@ -370,7 +370,7 @@ void CCPDLCWindow::RenderMessagesPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 	
 	// Accept/Reject logon buttons
 	btnY += 30;
-	dc->TextOutA(btnX, btnY - 3, "Logon:");
+	dc->TextOut(btnX, btnY - 3, "Logon:");
 	windowButtons[BTN_ACCEPT_LOGON].State = canRespond ? CInputState::INACTIVE : CInputState::DISABLED;
 	windowButtons[BTN_REJECT_LOGON].State = canRespond ? CInputState::INACTIVE : CInputState::DISABLED;
 	CCommonRenders::RenderButton(dc, screen, { btnX + 50, btnY - 5 }, 60, btnH, &windowButtons[BTN_ACCEPT_LOGON]);
@@ -387,7 +387,7 @@ void CCPDLCWindow::RenderAircraftPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 	FontSelector::SelectNormalFont(14, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_LEFT);
-	dc->TextOutA(area.left + 5, area.top + 5, "Connected Aircraft");
+	dc->TextOut(area.left + 5, area.top + 5, "Connected Aircraft");
 	
 	// Disconnect aircraft button (enabled when aircraft is selected)
 	windowButtons[BTN_DISCONNECT_AC].State = (!selectedAircraft.empty()) ? CInputState::INACTIVE : CInputState::DISABLED;
@@ -447,7 +447,7 @@ void CCPDLCWindow::RenderAircraftPanel(CDC* dc, Graphics* g, CRadarScreen* scree
 			else if (!ac.LogonTime.empty()) {
 				text += " (" + ac.LogonTime + ")";
 			}
-			dc->TextOutA(acRect.left + 5, acRect.top + 3, text.c_str());
+			dc->TextOut(acRect.left + 5, acRect.top + 3, text.c_str());
 			
 			yPos += itemHeight;
 			idx++;
@@ -470,7 +470,7 @@ void CCPDLCWindow::RenderComposePanel(CDC* dc, Graphics* g, CRadarScreen* screen
 	if (!selectedAircraft.empty()) {
 		title += " to " + selectedAircraft;
 	}
-	dc->TextOutA(area.left + 5, area.top + 5, title.c_str());
+	dc->TextOut(area.left + 5, area.top + 5, title.c_str());
 	
 	// Enable compose controls if aircraft is selected and logged on
 	bool canCompose = false;

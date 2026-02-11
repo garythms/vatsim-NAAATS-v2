@@ -35,6 +35,7 @@ CRadarDisplay::CRadarDisplay()
 	cpdlcWindow = new CCPDLCWindow({ 600, 200 }); // TODO: save settings
 	fddWindow = new CFddWindow({ 200, 200 }); // Initial position
 	setupWindow = new CSetupWindow({ 400, 250 }); // Setup/profile
+	natTrakNotifWindow = new CNatTrakNotificationWindow({ 50, 500 }); // NATTrak notification
 	menuBar = new CMenuBar();
 
 	// Load settings
@@ -61,6 +62,7 @@ CRadarDisplay::~CRadarDisplay()
 	delete cpdlcWindow;
 	delete fddWindow;
 	delete setupWindow;
+	delete natTrakNotifWindow;
 	delete inboundList;
 	delete otherList;
 	delete conflictList;
@@ -134,6 +136,11 @@ void CRadarDisplay::OpenFlightPlanWindow(string callsign) {
 // On radar screen refresh (modified to occur 4 times a second)
 void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 {
+	// Capture HWND if not already done
+	if (m_hWnd == NULL) {
+		m_hWnd = WindowFromDC(hDC);
+	}
+
 	// Create device context
 	CDC dc;
 	dc.Attach(hDC);
@@ -176,7 +183,9 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 		// 1. Push data to WebServer - only aircraft visible on scope
 		// 1. Pull updates from WebServer first
+	bool hasUpdates = false;
 	while (CWebServer::HasPendingUpdates()) {
+		hasUpdates = true;
 		string updateStr = CWebServer::GetPendingUpdates();
 		try {
 			auto update = json::parse(updateStr);
@@ -255,10 +264,80 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 				}
 			}
 
+			// Handle aircraft updates
+			if (field == "SELCAL") {
+				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(csTrimmed);
+				if (fp) {
+					fp->SELCAL = value;
+					CLogger::Log(CLogType::NORM, "FDD: Updated SELCAL for " + csTrimmed + " to " + value, "CRadarDisplay::OnRefresh");
+				}
+			}
+
 			// Handle aircraft commands
 			if (field == "COMMAND") {
+				string extra = update.contains("extra_value") ? update["extra_value"] : "";
+
 				if (value == "SELECT") {
 					// Select aircraft in EuroScope
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
+					if (esFp.IsValid()) {
+						GetPlugIn()->SetASELAircraft(esFp);
+					}
+				}
+				else if (value == "DISCARD") {
+					// Mark as discarded in local state
+					CAircraftFlightPlan* fp = CDataHandler::GetFlightData(csTrimmed);
+					if (fp) fp->IsDiscarded = true;
+					CLogger::Log(CLogType::NORM, "FDD: Discarded strip for " + csTrimmed, "CRadarDisplay::OnRefresh");
+				}
+				else if (value == "SET_TEMP_FL") {
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
+					string flVal = extra.empty() ? update["value"] : extra;
+					
+					// Update local cache immediately
+					CAircraftFlightPlan* localFp = CDataHandler::GetFlightData(csTrimmed);
+					if (localFp) {
+						char buf[10];
+						sprintf_s(buf, "%03d", stoi(flVal));
+						localFp->FlightLevel = buf;
+					}
+
+					if (esFp.IsValid()) {
+						try {
+							esFp.GetControllerAssignedData().SetClearedAltitude(stoi(flVal) * 100);
+							CLogger::Log(CLogType::NORM, "FDD: Set Temporary FL for " + csTrimmed + " to " + flVal, "CRadarDisplay::OnRefresh");
+						} catch (...) {}
+					}
+				}
+				else if (value == "SET_TEMP_MACH") {
+					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
+					string machVal = extra.empty() ? update["value"] : extra;
+					
+					// Update local cache immediately
+					CAircraftFlightPlan* localFp = CDataHandler::GetFlightData(csTrimmed);
+					if (localFp) {
+						string cleanMach = "";
+						for (char c : machVal) if (isdigit(c)) cleanMach += c;
+						int m = stoi(cleanMach);
+						char buf[10];
+						sprintf_s(buf, "%03d", m);
+						localFp->Mach = buf;
+					}
+
+					if (esFp.IsValid()) {
+						try {
+							string cleanMach = "";
+							for (char c : machVal) if (isdigit(c)) cleanMach += c;
+							int m = stoi(cleanMach);
+							if (m < 100) m *= 10; // Handle .82 as 820
+							esFp.GetControllerAssignedData().SetAssignedMach(m);
+							CLogger::Log(CLogType::NORM, "FDD: Set Temporary Mach for " + csTrimmed + " to " + machVal, "CRadarDisplay::OnRefresh");
+						} catch (...) {}
+					}
+				}
+				else if (value == "EDIT_FL" || value == "EDIT_MACH" || value == "EDIT_SELCAL") {
+					// For standalone app, selecting the aircraft in EuroScope is usually enough 
+					// for the controller to then interact with the EuroScope tag or sidebar.
 					CFlightPlan esFp = GetPlugIn()->FlightPlanSelect(csTrimmed.c_str());
 					if (esFp.IsValid()) {
 						GetPlugIn()->SetASELAircraft(esFp);
@@ -309,28 +388,55 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			CFlightPlan fp = rt.GetCorrelatedFlightPlan();
 			if (!fp.IsValid()) continue;
 			
-			// Relevance filter: Only show if tracked by me, or within the oceanic region + buffer
-			// Oceanic region roughly between 5W and 65W.
-			double lon = rt.GetPosition().GetPosition().m_Longitude;
-			bool isRelevantRegion = (lon < 5.0 && lon > -70.0);
-			if (!fp.GetTrackingControllerIsMe() && !isRelevantRegion) continue;
+			// Get position and movement data
+			CPosition pos = rt.GetPosition().GetPosition();
+			double lon = pos.m_Longitude;
+			double lat = pos.m_Latitude;
+			int heading = rt.GetPosition().GetReportedHeadingTrueNorth();
+			int gs = rt.GetPosition().GetReportedGS();
 
-			// Altitude filter - use configured filters from CUtils
+			// 1. Altitude filter (Minimum FL200 as per user requirements)
 			int flVal = rt.GetPosition().GetFlightLevel();
 			if (flVal == 0) flVal = fp.GetFlightPlanData().GetFinalAltitude();
 			
-			// Default to FL200 if filters are not set (0)
 			int lowFilter = CUtils::AltFiltLow > 0 ? CUtils::AltFiltLow * 100 : 20000;
 			int highFilter = CUtils::AltFiltHigh > 0 ? CUtils::AltFiltHigh * 100 : 60000;
 
 			if (flVal < lowFilter || flVal > highFilter) {
-				if (flVal != 0) continue; // Allow 0 if it's unknown/ground
+				// Also check undeparted state (low speed and low altitude)
+				if (flVal < 5000 && gs < 100) continue; 
+				if (flVal != 0) continue; 
 			}
+
+			// 2. Directional boundaries (Oceanic Entry Points)
+			bool isWestbound = CUtils::GetAircraftDirection(heading);
+			
+			// Westbound: Nothing before 005W
+			if (isWestbound && lon > -5.0) continue;
+			// Eastbound: Nothing before 058W
+			if (!isWestbound && lon < -58.0) continue;
+			
+			// Southbound: Nothing North of 62N
+			if (heading > 90 && heading < 270) {
+				if (lat > 62.0) continue;
+			}
+			// Northbound: Nothing South of 42N
+			if (heading < 90 || heading > 270) {
+				if (lat < 42.0) continue;
+			}
+
+			// 3. Relevance filter: Must be within oceanic longitude bounds
+			if (lon < -75.0 || lon > 10.0) continue;
+
+			// 4. Check if flight is actually oceanic (has NAT entry/exit or coordinates)
+			if (!CRoutesHelper::IsOceanicRoute(this, fp)) continue;
 
 			string callsign = fp.GetCallsign();
 			
 			// Get our stored flight data (if any)
 			CAircraftFlightPlan* flight = CDataHandler::GetFlightData(callsign);
+			
+			if (flight && flight->IsDiscarded) continue; // Skip discarded strips
 			
 			// If data is missing or invalid, trigger an update
 			if (!flight || !flight->IsValid || flight->Type.empty() || flight->Depart.empty()) {
@@ -347,8 +453,6 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 				f["Depart"] = flight->Depart;
 				f["Dest"] = flight->Dest;
 				f["Track"] = flight->Track;
-				f["Mach"] = flight->Mach;
-				f["SELCAL"] = flight->SELCAL;
 				f["Direction"] = flight->Direction;
 				f["IsEquipped"] = flight->IsEquipped;
 				f["TMI"] = CRoutesHelper::CurrentTMI;
@@ -375,30 +479,23 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 				f["Depart"] = fp.GetFlightPlanData().GetOrigin();
 				f["Dest"] = fp.GetFlightPlanData().GetDestination();
 				f["Track"] = "";
-				f["Mach"] = "";
-				f["SELCAL"] = "";
 				f["Direction"] = false;
 				f["IsEquipped"] = false;
 				f["TMI"] = CRoutesHelper::CurrentTMI;
 				f["RouteDetails"] = json::array();
 			}
 
-			// Flight level from radar target or flight plan
-			// Use flight plan value if available, otherwise radar
-			string flStr = (flight && flight->IsValid) ? flight->FlightLevel : "";
-			if (flStr == "000" || flStr.empty()) {
-				int flV = rt.GetPosition().GetFlightLevel();
-				if (flV > 1000) flV /= 100;
-				char flBuf[10];
-				sprintf_s(flBuf, "%03d", flV);
-				flStr = flBuf;
-			}
-			f["FlightLevel"] = flStr;
+			// Flight level, Mach, and SELCAL (Strict Scratchpad behavior)
+			// These values ONLY come from our manual storage in CAircraftFlightPlan
+			f["FlightLevel"] = (flight && flight->IsValid) ? flight->FlightLevel : "";
+			f["Mach"] = (flight && flight->IsValid) ? flight->Mach : "";
+			f["SELCAL"] = (flight && flight->IsValid) ? flight->SELCAL : "";
 
 			// Tracking info
 			f["TrackedBy"] = fp.GetTrackingControllerCallsign();
 			f["TrackedById"] = fp.GetTrackingControllerId();
 			f["IsTrackedByMe"] = fp.GetTrackingControllerIsMe();
+			f["IsASEL"] = (GetPlugIn()->FlightPlanSelectASEL().IsValid() && string(GetPlugIn()->FlightPlanSelectASEL().GetCallsign()) == callsign);
 			f["IsCleared"] = (flight && flight->IsValid) ? flight->IsCleared : false;
 
 			// NATTrak status
@@ -465,7 +562,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			GetPlugIn()->DisplayUserMessage("vNAAATS", "FDD", msg.c_str(), true, true, true, true, true);
 			
 			// Automatically open the FDD page
-			ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+			// ShellExecuteA(NULL, "open", url.c_str(), NULL, NULL, SW_SHOWNORMAL);
 			
 			fddUrlShown = true;
 		}
@@ -640,9 +737,9 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 			// Time and direction
 			entryMinutes = fp.GetSectorEntryMinutes();
-			direction = CUtils::GetAircraftDirection(ac.GetPosition().GetReportedHeading());
+			bool isWestbound = CUtils::GetAircraftDirection(ac.GetPosition().GetReportedHeading());
 			
-			//string debug = string(ac.GetCallsign()) + ":" + to_string(entryMinutes) + ":" + to_string(direction) + ":" + to_string(aircraftFlightPlan.ExitTime) + ":" + to_string(CUtils::GetTargetModeInt(ac.GetPosition().GetRadarFlags())) + "\n";
+			//string debug = string(ac.GetCallsign()) + ":" + to_string(entryMinutes) + ":" + to_string(isWestbound) + ":" + to_string(aircraftFlightPlan.ExitTime) + ":" + to_string(CUtils::GetTargetModeInt(ac.GetPosition().GetRadarFlags())) + "\n";
 
 			//CLogger::LogAircraftDebugInfo(debug);
 
@@ -728,7 +825,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 
 				if (fiveSecT >= 5) {
 					// If going westbound
-					if (!direction && entryMinutes > 0) {
+					if (isWestbound && entryMinutes > 0) {
 						if (menuBar->GetDropDownValue(CMenuBar::DRP_AREASEL) == "CZQX") {
 							int i;
 							for (i = 0; i < rte.GetPointsNumber(); i++) {
@@ -738,7 +835,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 									if (rte.GetPointDistanceInMinutes(i) > 0 && rte.GetPointDistanceInMinutes(i) < 60) {
 										// Add if within
 										inboundList->AircraftList.push_back(CInboundAircraft(ac.GetCallsign(), fp.GetFinalAltitude(), fp.GetClearedAltitude(),
-												rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), false));
+												rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), true));
 										break;
 									}
 								}
@@ -752,10 +849,10 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 							int i;
 							for (i = 0; i < rte.GetPointsNumber(); i++) {
 								// They are coming from land so check entry points
-								if (CUtils::IsEntryPoint(rte.GetPointName(i), direction) || CUtils::IsExitPoint(rte.GetPointName(i), direction)) {
+								if (CUtils::IsEntryPoint(rte.GetPointName(i), isWestbound) || CUtils::IsExitPoint(rte.GetPointName(i), isWestbound)) {
 									// Add if within
 									inboundList->AircraftList.push_back(CInboundAircraft(ac.GetCallsign(), fp.GetFinalAltitude(), fp.GetClearedAltitude(),
-										rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), false));
+										rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), true));
 									break;
 								}
 							}
@@ -765,7 +862,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 							}
 						}
 					}
-					else if (direction && entryMinutes > 0) {
+					else if (!isWestbound && entryMinutes > 0) {
 						if (menuBar->GetDropDownValue(CMenuBar::DRP_AREASEL) == "EGGX") {
 							int i;
 							for (i = 0; i < rte.GetPointsNumber(); i++) {
@@ -775,7 +872,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 									if (rte.GetPointDistanceInMinutes(i) > 0 && rte.GetPointDistanceInMinutes(i) < 60) {
 										// Add if within
 										inboundList->AircraftList.push_back(CInboundAircraft(ac.GetCallsign(), fp.GetFinalAltitude(), fp.GetClearedAltitude(),
-											rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), true));
+											rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), false));
 										break;
 									}
 								}
@@ -789,10 +886,10 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 							// They are coming from land so check entry points
 							int i;
 							for (i = 0; i < rte.GetPointsNumber(); i++) {
-								if (CUtils::IsEntryPoint(rte.GetPointName(i), direction) || CUtils::IsExitPoint(rte.GetPointName(i), direction)) {
+								if (CUtils::IsEntryPoint(rte.GetPointName(i), isWestbound) || CUtils::IsExitPoint(rte.GetPointName(i), isWestbound)) {
 									// Add if within
 									inboundList->AircraftList.push_back(CInboundAircraft(ac.GetCallsign(), fp.GetFinalAltitude(), fp.GetClearedAltitude(),
-										rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), true));
+										rte.GetPointName(i), CUtils::ParseZuluTime(false, -1, &fp, i), fp.GetFlightPlanData().GetDestination(), false));
 									break;
 								}
 							}
@@ -855,7 +952,7 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 					auto kv = tagStatuses.find(fp.GetCallsign());
 					kv->second.first = detailedEnabled; // Set detailed on
 					CAcTargets::RenderTarget(&g, &dc, this, &ac, true, &menuBar->GetToggleButtons(), halo, ptl, &stcaStatus);
-					POINT tagPosition = CAcTargets::RenderTag(&g, &dc, this, &ac, &kv->second, direction, &stcaStatus, asel);
+					POINT tagPosition = CAcTargets::RenderTag(&g, &dc, this, &ac, &kv->second, isWestbound, &stcaStatus, asel);
 
 					// If tracking dialog open
 					if (CAcTargets::OpenTrackingDialog != "" && CAcTargets::OpenTrackingDialog == ac.GetCallsign()) {
@@ -968,6 +1065,11 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			setupWindow->RenderWindow(&dc, &g, this);
 		}
 
+		// NATTrak Notifications
+		if (natTrakNotifWindow != nullptr) {
+			natTrakNotifWindow->RenderWindow(&dc, &g, this);
+		}
+
 		// Draw active dropdown list last to ensure it's on top of everything
 		menuBar->RenderActiveDropDown(&dc, &g, this);
 
@@ -1044,27 +1146,16 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 			try {
 				if (fp->IsCleared && !fp->Mach.empty() && !fp->FlightLevel.empty() && isdigit(fp->Mach[0])) { // Basic validation
 					if (fpData.GetTrackingControllerIsMe()) {
-						if (stoi(fp->Mach) > 0 && fpData.GetControllerAssignedData().GetAssignedMach() / 10 != stoi(fp->Mach)) {
+						if (!fp->Mach.empty() && stoi(fp->Mach) > 0 && fpData.GetControllerAssignedData().GetAssignedMach() / 10 != stoi(fp->Mach)) {
 							// Assign
 							fpData.GetControllerAssignedData().SetAssignedMach(stoi(fp->Mach) * 10);
 						}
-						if (stoi(fp->FlightLevel) > 0 && fpData.GetControllerAssignedData().GetFinalAltitude() / 100 != stoi(fp->FlightLevel)) {
+						if (!fp->FlightLevel.empty() && stoi(fp->FlightLevel) > 0 && fpData.GetControllerAssignedData().GetFinalAltitude() / 100 != stoi(fp->FlightLevel)) {
 							// Assign
 							fpData.GetControllerAssignedData().SetFinalAltitude(stoi(fp->FlightLevel) * 100);
 						}
 					}
-					else { // Back the other way, FSD to vNAAATS (only if not editing)
-						if (asel != fp->Callsign || fltPlnWindow->IsClosed) {
-							if (fpData.GetControllerAssignedData().GetAssignedMach() / 10 != stoi(fp->Mach)) {
-								// Assign
-								fp->Mach = to_string(fpData.GetControllerAssignedData().GetAssignedMach() / 10);
-							}
-							if (fpData.GetControllerAssignedData().GetFinalAltitude() / 100 != stoi(fp->FlightLevel)) {
-								// Assign
-								fp->FlightLevel = to_string(fpData.GetControllerAssignedData().GetFinalAltitude() / 100);
-							}
-						}
-					}
+					// Inbound synchronization (FSD -> vNAAATS) removed for FDD scratchpad behavior
 				}				
 			}
 			catch (exception & ex) {
@@ -1280,6 +1371,9 @@ void CRadarDisplay::OnMoveScreenObject(int ObjectType, const char* sObjectId, PO
 
 		if (string(sObjectId) == "WIN_SETUP")
 			setupWindow->MoveWindow(Area);
+
+		if (string(sObjectId) == "NATTRAK_NOTIF")
+			natTrakNotifWindow->MoveWindow(Area);
 
 		CUtils::TrackWindowX = Area.left;
 		CUtils::TrackWindowY = Area.top;
@@ -1791,6 +1885,11 @@ void CRadarDisplay::OnButtonUpScreenObject(int ObjectType, const char* sObjectId
 		setupWindow->ButtonUp(atoi(sObjectId), this);
 	}
 
+	// NATTrak notification window
+	if (ObjectType == WIN_NATTRAK_NOTIF) {
+		natTrakNotifWindow->ButtonUp(atoi(sObjectId), this);
+	}
+
 	// Menu bar
 	if (ObjectType == MENBAR) {
 		// Clear active routes
@@ -1950,9 +2049,12 @@ void CRadarDisplay::CursorStateUpdater(void* args)
 				// Get the position and monitor in which the point lies
 				GetCursorPos(&cursor->position);
 
-				// Get the monitor
+				// Get the monitor (requires screen coordinates)
 				HMONITOR monitor = MonitorFromPoint(cursor->position, MONITOR_DEFAULTTONEAREST);
 				GetMonitorInfo(monitor, &monitorInfo);
+				
+				// Convert to client coordinates for EuroScope
+				::ScreenToClient(cursor->screen->GetHWND(), &cursor->position);
 
 				// Get the monitor resolution
 				int monResX = abs(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left);

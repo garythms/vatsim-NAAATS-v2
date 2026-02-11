@@ -152,7 +152,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	FontSelector::SelectNormalFont(30, dc);
 	dc->SetTextColor(TextWhite.ToCOLORREF());
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(radarArea.left + (screenWidth / 2), top + MENBAR_HEIGHT + 5, CUtils::ParseZuluTime(true).c_str());
+	dc->TextOut(radarArea.left + (screenWidth / 2), top + MENBAR_HEIGHT + 5, CUtils::ParseZuluTime(true).c_str());
 
 	// Font selection
 	FontSelector::SelectNormalFont(MEN_FONT_SIZE, dc);
@@ -168,7 +168,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	strDate += to_string(date->tm_mday);
 	strDate += "-";
 	strDate += to_string(1900 + date->tm_year);
-	dc->TextOutA(P1 + 60, top + kRow1Y + 7, strDate.c_str());
+	dc->TextOut(P1 + 60, top + kRow1Y + 7, strDate.c_str());
 
 	// ===== PANEL 1: Buttons =====
 	// Row 1: Setup, NotePad, Flight Data, Track Info
@@ -198,7 +198,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_DETAILED].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_DETAILED]);
 	offsetX += buttons[BTN_DETAILED].Width + 4;
 	string selText = "Selected: " + (asel == "" ? "None" : asel);
-	dc->TextOutA(offsetX, offsetY + 7, selText.c_str());
+	dc->TextOut(offsetX, offsetY + 7, selText.c_str());
 
 	// ===== PANEL 2: Dropdowns and labels =====
 	// Row 1: [CZQX] [None] [ALL_TCKS]
@@ -217,7 +217,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	offsetX = P2 + 10;
 	offsetY = top + kRow2Y;
 	dc->SetTextAlign(TA_LEFT);
-	dc->TextOutA(offsetX, offsetY + 7, "Area Sel");
+	dc->TextOut(offsetX, offsetY + 7, "Area Sel");
 	// Overlays button below ALL_TCKS dropdown
 	offsetX = P2 + 10 + dropDowns[DRP_AREASEL].Width + 1 + dropDowns[DRP_TCKCTRL].Width + 1;
 	CCommonRenders::RenderButton(dc, screen, { offsetX, offsetY }, buttons[BTN_OVERLAYS].Width, MENBAR_BTN_HEIGHT, &buttons[BTN_OVERLAYS]);
@@ -230,7 +230,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	CCommonRenders::RenderDropDown(dc, g, screen, { offsetX, offsetY }, dropDowns[DRP_TYPESEL].Width, kDropH, &dropDowns[DRP_TYPESEL], false);
 	// Row 2: Pos Type label (centered)
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(P3 + (RECT3_WIDTH / 2), top + kRow2Y + 7, "Pos Type");
+	dc->TextOut(P3 + (RECT3_WIDTH / 2), top + kRow2Y + 7, "Pos Type");
 
 	// ===== PANEL 4: Alt Filter =====
 	// Row 1: 200-700 box (centered)
@@ -245,7 +245,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	string lowAlt = CUtils::PadWithZeros(3, CUtils::AltFiltLow);
 	string highAlt = CUtils::PadWithZeros(3, CUtils::AltFiltHigh);
 	dc->SetTextAlign(TA_CENTER);
-	dc->TextOutA(altFiltLeft + (altFiltWidth / 2), top + kRow1Y + 7, (lowAlt + "-" + highAlt).c_str());
+	dc->TextOut(altFiltLeft + (altFiltWidth / 2), top + kRow1Y + 7, (lowAlt + "-" + highAlt).c_str());
 	// Screen objects for clicking
 	CSize rectSize = dc->GetTextExtent("000");
 	CRect lowRect(altFilt.left + 14, altFilt.top + 6, altFilt.left + 16 + rectSize.cx, altFilt.top + 6 + rectSize.cy);
@@ -281,7 +281,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 	offsetX = P6 + 10;
 	offsetY = top + kRow1Y;
 	dc->SetTextAlign(TA_LEFT);
-	dc->TextOutA(offsetX, offsetY + 7, textInputs[TXT_SEARCH].Label.c_str());
+	dc->TextOut(offsetX, offsetY + 7, textInputs[TXT_SEARCH].Label.c_str());
 	offsetX += dc->GetTextExtent(textInputs[TXT_SEARCH].Label.c_str()).cx + 2;
 	CCommonRenders::RenderTextInput(dc, screen, { offsetX, offsetY }, textInputs[TXT_SEARCH].Width, MENBAR_BTN_HEIGHT, &textInputs[TXT_SEARCH]);
 	offsetX += textInputs[TXT_SEARCH].Width + 5;
@@ -314,7 +314,7 @@ void CMenuBar::RenderBar(CDC* dc, Graphics* g, CRadarScreen* screen, string asel
 			FontSelector::SelectNormalFont(MEN_FONT_SIZE, dc);
 			dc->SetTextColor(RGB(0, 0, 0));
 			dc->SetTextAlign(TA_CENTER);
-			dc->TextOutA(offsetX + buttons[BTN_CPDLC].Width / 2, top + kRow1Y + tallBtnHeight / 2 - 6, buttons[BTN_CPDLC].Label.c_str());
+			dc->TextOut(offsetX + buttons[BTN_CPDLC].Width / 2, top + kRow1Y + tallBtnHeight / 2 - 6, buttons[BTN_CPDLC].Label.c_str());
 			screen->AddScreenObject(buttons[BTN_CPDLC].Type, to_string(buttons[BTN_CPDLC].Id).c_str(), btnRect, false, "");
 		} else {
 			CCommonRenders::RenderButton(dc, screen, { offsetX, top + kRow1Y }, buttons[BTN_CPDLC].Width, tallBtnHeight, &buttons[BTN_CPDLC]);

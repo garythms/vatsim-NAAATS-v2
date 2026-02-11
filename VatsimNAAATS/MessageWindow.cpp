@@ -70,7 +70,7 @@ void CMessageWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 	CRect titleRect(windowRect.left, windowRect.top, windowRect.left + WINSZ_MSG_WIDTH, windowRect.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_MSG_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), ("Messages (" + to_string(MessageCount) + ")").c_str());
+	dc->TextOut(titleRect.left + (WINSZ_MSG_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), ("Messages (" + to_string(MessageCount) + ")").c_str());
 
 	// Create button bar
 	CRect buttonBarRect(windowRect.left, windowRect.bottom - 50, windowRect.left + WINSZ_MSG_WIDTH, windowRect.bottom);
@@ -165,7 +165,7 @@ void CMessageWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 				}
 
 				// Text 'from'
-				dc->TextOutA(message.left + offsetX, message.top + 5, ActiveMessages[i].From.c_str());
+				dc->TextOut(message.left + offsetX, message.top + 5, ActiveMessages[i].From.c_str());
 				offsetX += 70;
 
 				// If the text is wrapped
@@ -175,13 +175,13 @@ void CMessageWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen) {
 					wrapOffsetY = 5;
 					for (int i = 0; i < wrappedText.size(); i++) {
 						// Write the message
-						dc->TextOutA(message.left + offsetX, message.top + wrapOffsetY, wrappedText[i].c_str());
+						dc->TextOut(message.left + offsetX, message.top + wrapOffsetY, wrappedText[i].c_str());
 						wrapOffsetY += dc->GetTextExtent("ABCD").cy + 5;
 					}
 				}
 				else {
 					// Write without iterating
-					dc->TextOutA(message.left + offsetX, message.top + 5, parsed.c_str());
+					dc->TextOut(message.left + offsetX, message.top + 5, parsed.c_str());
 				}
 
 				// Add screen object for message

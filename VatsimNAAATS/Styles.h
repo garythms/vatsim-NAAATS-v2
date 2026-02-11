@@ -47,7 +47,7 @@ public:
 
 		// Get face for normal font
 		memset(&lFont, 0, sizeof(LOGFONT));
-		strcpy_s(lFont.lfFaceName, _T("Arial"));
+		strcpy_s(lFont.lfFaceName, LF_FACESIZE, _T("Arial"));
 		// Normal weight
 		lFont.lfWeight = FW_SEMIBOLD;
 		// Size 14
@@ -65,7 +65,7 @@ public:
 
 		// Get face for bold font
 		memset(&lFont, 0, sizeof(LOGFONT));
-		strcpy_s(lFont.lfFaceName, _T("Arial"));
+		strcpy_s(lFont.lfFaceName, LF_FACESIZE, _T("Arial"));
 		// Bold weight
 		lFont.lfWeight = FW_BOLD;
 		// Size 14
@@ -73,7 +73,7 @@ public:
 		boldFont14.CreateFontIndirect(&lFont);
 
 		// Get the face
-		strcpy_s(lFont.lfFaceName, _T("Lucida Console"));
+		strcpy_s(lFont.lfFaceName, LF_FACESIZE, _T("Lucida Console"));
 		// Normal weight
 		lFont.lfWeight = FW_SEMIBOLD;
 		// Size 12
@@ -88,7 +88,7 @@ public:
 
 		// Get for ATC font
 		AddFontResource((LPCSTR)(CUtils::DllPath + "\\vNAAATS.ttf").c_str());
-		strcpy_s(lFont.lfFaceName, _T("vNAAATS"));
+		strcpy_s(lFont.lfFaceName, LF_FACESIZE, _T("vNAAATS"));
 		// Normal weight
 		lFont.lfWeight = FW_REGULAR;
 		// Size 14

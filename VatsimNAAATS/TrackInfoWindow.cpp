@@ -44,7 +44,7 @@ void CTrackInfoWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	CRect titleRect(windowRect.left, windowRect.top, windowRect.left + WINSZ_TCKINFO_WIDTH, windowRect.top + WINSZ_TITLEBAR_HEIGHT);
 	dc->FillRect(titleRect, &lighterBrush);
 	dc->DrawEdge(titleRect, EDGE_RAISED, BF_BOTTOM);
-	dc->TextOutA(titleRect.left + (WINSZ_TCKINFO_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("Track Info - TMI: " + CRoutesHelper::CurrentTMI).c_str());
+	dc->TextOut(titleRect.left + (WINSZ_TCKINFO_WIDTH / 2), titleRect.top + (WINSZ_TITLEBAR_HEIGHT / 7), string("Track Info - TMI: " + CRoutesHelper::CurrentTMI).c_str());
 
 	// Create button bar
 	CRect buttonBarRect(windowRect.left, windowRect.bottom - 50, windowRect.left + WINSZ_TCKINFO_WIDTH, windowRect.bottom);
@@ -84,7 +84,7 @@ void CTrackInfoWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	}
 
 	// Show refresh message 
-	dc->TextOutA(((windowRect.right + windowRect.left) / 2) + 10, buttonBarRect.top + 16, MsgDataRefresh.c_str());
+	dc->TextOut(((windowRect.right + windowRect.left) / 2) + 10, buttonBarRect.top + 16, MsgDataRefresh.c_str());
 	
 	// Get a rectangle for the content
 	map<string, CTrack> tracksToRender;
@@ -139,11 +139,11 @@ void CTrackInfoWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen, 
 	for (auto const& kv : tracksToRender) {
 		int content = (int)scrollContent.top + contentOffsetY;
 		if (windowRect.top + contentOffsetY >= clipContent.top && windowRect.top + contentOffsetY <= clipContent.bottom) {
-			dc->TextOutA(windowRect.left + offsetX, windowRect.top + offsetY, "TCK");
+			dc->TextOut(windowRect.left + offsetX, windowRect.top + offsetY, "TCK");
 			offsetX += dc->GetTextExtent("TCK").cx + 37;
 			// Output route
 			for (int i = 0; i < kv.second.Route.size(); i++) {
-				dc->TextOutA(windowRect.left + offsetX, windowRect.top + offsetY, kv.second.Route[i].c_str());
+				dc->TextOut(windowRect.left + offsetX, windowRect.top + offsetY, kv.second.Route[i].c_str());
 				offsetX += (int)dc->GetTextExtent(spacer.c_str()).cx;
 			}
 			// Reset offsets
@@ -153,11 +153,11 @@ void CTrackInfoWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen, 
 		contentOffsetY += 20;
 		if (windowRect.top + contentOffsetY >= clipContent.top && windowRect.top + contentOffsetY <= clipContent.bottom) {
 			// Output track ID
-			dc->TextOutA(windowRect.left + offsetX, windowRect.top + offsetY, kv.first.c_str());
+			dc->TextOut(windowRect.left + offsetX, windowRect.top + offsetY, kv.first.c_str());
 			offsetX += dc->GetTextExtent(kv.first.c_str()).cx + 43;
 			// Output flight levels
 			for (int i = 0; i < kv.second.FlightLevels.size(); i++) {
-				dc->TextOutA(windowRect.left + offsetX, windowRect.top + offsetY, to_string(kv.second.FlightLevels[i] / 100).c_str());
+				dc->TextOut(windowRect.left + offsetX, windowRect.top + offsetY, to_string(kv.second.FlightLevels[i] / 100).c_str());
 				offsetX += dc->GetTextExtent(to_string(kv.second.FlightLevels[i] / 100).c_str()).cx + 5;
 			}
 			// Reset x offset and increment y offset

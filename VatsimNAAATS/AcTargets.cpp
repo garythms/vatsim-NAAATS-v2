@@ -88,17 +88,26 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 
 
-	// Radar flags	
-
-	acFP->TargetMode = CUtils::GetTargetMode(target->GetPosition().GetRadarFlags());
-
-	CRadarTargetMode targetMode = acFP->TargetMode;
-
-
-
-	// Check if there is an active handoff to client 
+	// Determine symbol to display based on NATTrak status and aircraft state
+	CNatTrakStatus natTrakStatus = CDataHandler::GetNatTrakStatus(cs);
 
 	bool isHandoffToMe = string(fp.GetHandoffTargetControllerCallsign()) == string(screen->GetPlugIn()->ControllerMyself().GetCallsign());
+
+	// Priority: 1) Tracked by controller or handed off = Airplane
+	//           2) NATTrak CLEARED = Airplane
+	//           3) NATTrak PENDING = Diamond with line
+	//           4) Default = Asterisk
+	if (fp.GetTrackingControllerIsMe() || isHandoffToMe || natTrakStatus == CNatTrakStatus::CLEARED) {
+		acFP->TargetMode = CRadarTargetMode::ADS_B;
+	}
+	else if (natTrakStatus == CNatTrakStatus::PENDING) {
+		acFP->TargetMode = CRadarTargetMode::SECONDARY_S;
+	}
+	else {
+		acFP->TargetMode = CRadarTargetMode::SECONDARY_C; // Default to Asterisk
+	}
+
+	CRadarTargetMode targetMode = acFP->TargetMode;
 
 
 
@@ -228,7 +237,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 	if (tagsOn) {
 		line = string(fp.GetTrackingControllerId()) != "" ? string(fp.GetTrackingControllerId()) : "";
-		dc->TextOutA(acPoint.x, acPoint.y - 20, line.c_str());
+		dc->TextOut(acPoint.x, acPoint.y - 20, line.c_str());
 	}
 
 
@@ -239,25 +248,10 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 
 
-	// Get NATTrak clearance status for this aircraft
+	// Determine symbol to display based on target mode
+	bool showAirplane = (targetMode == CRadarTargetMode::ADS_B);
 
-	CNatTrakStatus natTrakStatus = CDataHandler::GetNatTrakStatus(cs);
-
-	
-
-	// Determine symbol to display based on NATTrak status and tracking
-
-	// Priority: 1) Tracked by controller = Airplane
-
-	//           2) NATTrak CLEARED = Airplane
-
-	//           3) NATTrak PENDING = Diamond with line
-
-	//           4) NATTrak UNKNOWN = Asterisk
-
-	bool showAirplane = fp.GetTrackingControllerIsMe() || (natTrakStatus == CNatTrakStatus::CLEARED);
-
-	bool showDiamond = (natTrakStatus == CNatTrakStatus::PENDING) && !fp.GetTrackingControllerIsMe();
+	bool showDiamond = (targetMode == CRadarTargetMode::SECONDARY_S);
 
 	// Otherwise show asterisk (UNKNOWN status and not tracked)
 
@@ -809,7 +803,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 
 
-POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTarget* target, pair<bool, POINT>* tagPosition, bool direction, CSTCAStatus* status, string asel) {	
+POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTarget* target, pair<bool, POINT>* tagPosition, bool isWestbound, CSTCAStatus* status, string asel) {
 
 	// 2 second timer
 
@@ -864,43 +858,23 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		int tagOffsetY = tagPosition->second.y;
 
 		if (tagOffsetX == 0 && tagOffsetY == 0) { // default point, we need to set it
-
 			if (tagPosition->first == true) {
-
 				// Detailed
-
-
-
-				if (direction) {
-
+				if (!isWestbound) { // Eastbound
 					tagRect = CRect(acPoint.x - 112, acPoint.y + 10, acPoint.x - 25, acPoint.y + 42);
-
 				}
-
-				else {
-
+				else { // Westbound
 					tagRect = CRect(acPoint.x + 40, acPoint.y - 25, acPoint.x + 127, acPoint.y + 8);
-
 				}
-
 			}
-
 			else {
-
 				// Not detailed
-
-				if (direction) {
-
+				if (!isWestbound) { // Eastbound
 					tagRect = CRect(acPoint.x - 112, acPoint.y + 10, acPoint.x - 25, acPoint.y + 42);
-
 				}
-
-				else {
-
+				else { // Westbound
 					tagRect = CRect(acPoint.x + 40, acPoint.y - 25, acPoint.x + 127, acPoint.y + 8);
-
 				}
-
 			}
 
 		}
@@ -1152,7 +1126,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 		
 
-		dc->TextOutA(tagRect.left + 1, tagRect.top, text.c_str());
+		dc->TextOut(tagRect.left + 1, tagRect.top, text.c_str());
 
 		offsetY += 15;
 
@@ -1224,7 +1198,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 		
 
-		dc->TextOutA(tagRect.left, tagRect.top + offsetY, text.c_str());
+		dc->TextOut(tagRect.left, tagRect.top + offsetY, text.c_str());
 
 		offsetX += 50;
 
@@ -1238,7 +1212,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 
 
-		dc->TextOutA(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
+		dc->TextOut(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
 
 		offsetX = 2;
 
@@ -1252,7 +1226,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 			text = "H/O";
 
-			dc->TextOutA(tagRect.right - dc->GetTextExtent("H/O").cx - 12, tagRect.top + offsetY, text.c_str());
+			dc->TextOut(tagRect.right - dc->GetTextExtent("H/O").cx - 12, tagRect.top + offsetY, text.c_str());
 
 			offsetY += 15;
 
@@ -1276,7 +1250,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 			text = "*";
 
-			dc->TextOutA(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
+			dc->TextOut(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
 
 			offsetY += 13;
 
@@ -1290,7 +1264,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 			text = acFP.GetFlightPlanData().GetAircraftFPType();
 
-			dc->TextOutA(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
+			dc->TextOut(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
 
 			offsetX += 50;
 
@@ -1300,7 +1274,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 
 			text = acFP.GetFlightPlanData().GetDestination();
 
-			dc->TextOutA(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
+			dc->TextOut(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
 
 
 
@@ -1607,7 +1581,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 5, "Track");
+			dc->TextOut(coordBox.left + 4, coordBox.top + 5, "Track");
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Track", textRect, true, "");
 
@@ -1621,7 +1595,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 23, "Co-ord");
+			dc->TextOut(coordBox.left + 4, coordBox.top + 23, "Co-ord");
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Co-ord", textRect, true, "");
 
@@ -1637,7 +1611,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 5, "Release");
+			dc->TextOut(coordBox.left + 4, coordBox.top + 5, "Release");
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Release", textRect, true, "");			
 
@@ -1651,7 +1625,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 23, "Co-ord");
+			dc->TextOut(coordBox.left + 4, coordBox.top + 23, "Co-ord");
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Co-ord", textRect, true, "");
 
@@ -1667,7 +1641,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 5, "Co-ord");			
+			dc->TextOut(coordBox.left + 4, coordBox.top + 5, "Co-ord");			
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Co-ord", textRect, true, "");
 
@@ -1683,7 +1657,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 5, "Accept");
+			dc->TextOut(coordBox.left + 4, coordBox.top + 5, "Accept");
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Accept", textRect, true, "");
 
@@ -1697,7 +1671,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 23, "Refuse");
+			dc->TextOut(coordBox.left + 4, coordBox.top + 23, "Refuse");
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Refuse", textRect, true, "");
 
@@ -1711,7 +1685,7 @@ void CAcTargets::RenderCoordTagItem(CDC* dc, CRadarScreen* screen, string callsi
 
 			}
 
-			dc->TextOutA(coordBox.left + 4, coordBox.top + 41, "Co-ord");			
+			dc->TextOut(coordBox.left + 4, coordBox.top + 41, "Co-ord");			
 
 			screen->AddScreenObject(SCREEN_TAG_CS_BTN, "Co-ord", textRect, true, "");
 

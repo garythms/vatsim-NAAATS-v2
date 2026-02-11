@@ -373,6 +373,7 @@ struct CAircraftFlightPlan {
 	bool IsFirstUpdate = false; // So that we can disable flight plan window until the plan has been fetched from server at least once
 	CRadarTargetMode TargetMode = CRadarTargetMode::ADS_B;
 	bool IsCleared = false;
+	bool IsDiscarded = false;
 	
 	// Transfer tracking - for yellow tag timeout (5 min or 50nm)
 	bool IsTransferred = false;				// True when transferred to next controller
