@@ -2374,6 +2374,47 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		primedPlan->SelcalManual = true;
 		textInputs.find(id)->second.Error = false;
 		content = code;
+
+		// Already cleared (so already on the server)? Save the new SELCAL straight away so everybody sees it
+		if (primedPlan->IsCleared) {
+			CNetworkFlightPlan* netFP = new CNetworkFlightPlan();
+			try {
+				netFP->Callsign = primedPlan->Callsign;
+				netFP->Type = primedPlan->Type;
+				netFP->AssignedLevel = stoi(primedPlan->FlightLevel);
+				netFP->AssignedMach = stoi(primedPlan->Mach);
+				netFP->Track = primedPlan->Track;
+				netFP->Departure = primedPlan->Depart;
+				netFP->Arrival = primedPlan->Dest;
+				netFP->Direction = CUtils::GetAircraftDirection(screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str()).GetPosition().GetReportedHeadingTrueNorth());
+				netFP->Selcal = primedPlan->SELCAL;
+				netFP->DatalinkConnected = primedPlan->DLStatus == "true";
+				netFP->IsEquipped = primedPlan->IsEquipped;
+				netFP->State = primedPlan->State;
+				netFP->Etd = primedPlan->Etd;
+				netFP->Relevant = true;
+				netFP->TargetMode = CUtils::GetTargetMode(screen->GetPlugIn()->RadarTargetSelect(primedPlan->Callsign.c_str()).GetPosition().GetRadarFlags());
+				netFP->TrackedBy = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).GetTrackingControllerCallsign();
+				netFP->TrackedById = screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).GetTrackingControllerId();
+				netFP->Route = "";
+				netFP->RouteEtas = "";
+				vector<CRoutePosition> rte;
+				CRoutesHelper::GetRoute(screen, &rte, primedPlan->Callsign);
+				for (size_t i = 0; i < rte.size(); i++) {
+					netFP->Route += rte[i].Fix + (i + 1 < rte.size() ? " " : "");
+					netFP->RouteEtas += rte[i].Estimate + (i + 1 < rte.size() ? " " : "");
+				}
+				CUtils::CNetworkAsyncData* data = new CUtils::CNetworkAsyncData();
+				data->Screen = screen;
+				data->Callsign = primedPlan->Callsign;
+				data->plugin = screen->GetPlugIn();
+				data->FP = netFP;
+				_beginthread(CDataHandler::UpdateNetworkAircraft, 0, (void*)data); // Async
+			}
+			catch (std::exception&) {
+				delete netFP;
+			}
+		}
 	}
 
 	// Set the text
