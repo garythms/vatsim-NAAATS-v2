@@ -5,3 +5,12 @@ Tests: `python3 -m unittest discover -s tests -v`
 Install on Ubuntu: `bash deploy/setup.sh [domain]` (put the built `web` folder next to `deploy/` to serve the display).
 Missing fix coordinates: see `/unresolved`, add them on the admin page `/admin/addfix` (uses the API key) or in `extra_fixes.json`.
 The API key is generated on the server (`/etc/vnaaats.env`) and is never stored in this repository.
+
+
+## Network traffic (other controllers' / all oceanic aircraft)
+
+The server also reads the public VATSIM data feed (every `VNAAATS_FEED_SECONDS`, default 60) and keeps every pilot whose
+filed route has North Atlantic coordinate waypoints (e.g. `52/50`, `5730/30`, `52N050W`). They are served at
+`/GetNetworkTraffic` and the flight data display merges them in (flights posted through the plugin win over the same callsign).
+This is filed flight plan data only - it contains no controller clearances, levels assigned, or estimates (those only exist when a
+controller posts through the plugin). Set `VNAAATS_VATSIM_FEED=off` to turn it off.

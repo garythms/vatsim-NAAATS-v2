@@ -32,9 +32,25 @@
   // Level/track filter for the strip list (HL / LL / ALL TK / RR)
   const HL_MIN_LEVEL: number = 350; // flight levels >= this count as 'high level'
   let filter: string = "ALL";
+  // Flight-type checkboxes. None ticked = show everything; otherwise show flights matching ANY ticked box.
+  // (These are my interpretation of the original GAATS PST / FaD / WST / TERM boxes - see the tooltips.)
+  let showPst: boolean = false;
+  let showFad: boolean = false;
+  let showWst: boolean = false;
+  let showTerm: boolean = false;
+  function typeMatch(ac: any, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
+    if (!pst && !fad && !wst && !term) return true;
+    if (pst && ac.Source != "vatsim") return true;
+    if (fad && ac.Source == "vatsim") return true;
+    if (wst && !ac.Direction) return true;
+    if (term && Date.now() - ac.LastUpdated >= 30 * 60 * 1000) return true;
+    return false;
+  }
   function setFilter(f: string): void { filter = f; }
-  function matches(ac: any, track: string, f: string): boolean {
+  function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; }
+  function matches(ac: any, track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
+    if (!typeMatch(ac, pst, fad, wst, term)) return false;
     switch (f) {
       case "HL": return ac.AssignedLevel >= HL_MIN_LEVEL;
       case "LL": return ac.AssignedLevel < HL_MIN_LEVEL;
@@ -42,10 +58,10 @@
       default: return true;
     }
   }
-  function groupHasMatch(track: string, f: string): boolean {
+  function groupHasMatch(track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
     const m = dataHandler.networkAircraft.get(track);
     if (!m) return false;
-    for (const ac of m.values()) if (matches(ac, track, f)) return true;
+    for (const ac of m.values()) if (matches(ac, track, f, pst, fad, wst, term)) return true;
     return false;
   }
 
@@ -88,10 +104,10 @@
       </div>
       <div class="px-0.5 hover:cursor-default">
         <div class="flex items-center justify-between min-w-5 2xl:h-9 xl:h-8 px-1 border-2 ml-3 border-r-blue-8 border-b-blue-8 border-l-blue-0 border-t-blue-0">
-          <Checkbox identifier={"1"} label={"PST"} isDisabled={true} />
-          <Checkbox identifier={"1"} label={"FaD"} isDisabled={true} />
-          <Checkbox identifier={"1"} label={"WST"} isDisabled={true} />
-          <Checkbox identifier={"1"} label={"TERM"} isDisabled={true} />
+          <Checkbox identifier={"pst"} label={"PST"} title={"Posted: flights a controller has cleared/posted through the plugin"} bind:checked={showPst} />
+          <Checkbox identifier={"fad"} label={"FaD"} title={"Filed data: flights known only from their filed flight plan (VATSIM data feed)"} bind:checked={showFad} />
+          <Checkbox identifier={"wst"} label={"WST"} title={"Westbound flights only"} bind:checked={showWst} />
+          <Checkbox identifier={"term"} label={"TERM"} title={"Terminated: flights with no update for 30 minutes or more"} bind:checked={showTerm} />
         </div>
       </div>
     </div>
@@ -108,7 +124,7 @@
       </div>
     </div>
     <div class="flex flex-row-reverse items-center 2xl:scale-100 xl:scale-85">
-      <div class="px-3" on:click={() => setFilter("ALL")}>
+      <div class="px-3" on:click={resetFilters}>
         <Button label="Default" />
       </div>
       <div class="flex flex-row pr-1.5 font-bitmap font-thin 2xl:text-xl xl:text-base">
@@ -139,7 +155,7 @@
       </div>
     {:else}
       {#each acListKeys as acTrack}
-        {#if groupHasMatch(acTrack, filter)}
+        {#if groupHasMatch(acTrack, filter, showPst, showFad, showWst, showTerm)}
           <div class="flex flex-row justify-start w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
             <div class="w-1/2 px-3">
               {acTrack != "RR" ? acTrack : "RANDOM"}
@@ -159,7 +175,7 @@
           </div>
         {/if}
         {#each Array.from(dataHandler.networkAircraft.get(acTrack).values()) as ac}
-        {#if matches(ac, acTrack, filter)}
+        {#if matches(ac, acTrack, filter, showPst, showFad, showWst, showTerm)}
           <FlightStrip 
             callsign={ac.Callsign}
             type={ac.Type}

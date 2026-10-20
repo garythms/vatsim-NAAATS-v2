@@ -7,12 +7,13 @@
   export let textColour: string = "white";
   export let margin: string = "1";
   export let isDisabled: boolean = false;
+  export let title: string = "";
+  export let checked: boolean = startChecked === "true";
 
   let isBold: boolean = bold === "true" ? true : false;
-  let checked: boolean = startChecked === "true" ? true : false;
 </script>
 
-<div class="flex flex-row items-center px-{parseInt(margin)}">
+<div class="flex flex-row items-center px-{parseInt(margin)}" {title}>
   <input
     type="checkbox"
     bind:checked

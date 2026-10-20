@@ -23,6 +23,7 @@ export type Aircraft = {
   Relevant: boolean;
   TargetMode: number;
   LastUpdated: number;
+  Source?: string; // 'plugin' = posted by a controller, 'vatsim' = filed flight plan from the VATSIM data feed
 };
 
 export type NatTrakData = {

@@ -81,7 +81,7 @@
         {assignedLevel}
       </div>
       <div class="w-1/12 mr-2">
-        M0{assignedMach}
+        {assignedMach > 0 ? "M0" + assignedMach : ""}
       </div>
       {#each routeEtas as eta}
         <div class="w-1/11">

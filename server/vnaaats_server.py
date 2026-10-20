@@ -10,13 +10,15 @@ Endpoints used by the plugin (same names as the old backend):
   GET /UpdateFlightData?code=KEY&callsign=..-> update a flight         (needs the API key)
 Extra:
   GET /GetAllFlightData[?sort=0|1]         -> every stored flight (flight data display)
+  GET /GetNetworkTraffic                   -> oceanic-bound flights found in the public VATSIM data feed (not from the plugin)
   GET /GetNatTrakData                      -> [] for now (natTrak clearance data not connected yet)
   GET /PostNamedFix?code=KEY&name=..&lat=..&lon=..  -> add a fix coordinates are missing for (admin page)
   If a "web" folder exists next to this file, the built flight data display is served from it.
   GET /health      GET /unresolved (fixes we could not find coordinates for)   GET /  (simple info page)
 
 Settings (environment variables): VNAAATS_API_KEY (required), VNAAATS_PORT (8080), VNAAATS_DB, VNAAATS_NATTRAK_URL,
-VNAAATS_REFRESH_SECONDS (600), VNAAATS_BIND (127.0.0.1).
+VNAAATS_REFRESH_SECONDS (600), VNAAATS_BIND (127.0.0.1), VNAAATS_VATSIM_FEED (feed url; set to 'off' to disable),
+VNAAATS_FEED_SECONDS (60).
 """
 import hmac
 import json
@@ -37,6 +39,8 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
+VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
+FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 
 
 # ----------------------------------------------------------------------------- fixes
@@ -227,13 +231,118 @@ class FlightStore:
             self.db.commit()
 
 
+# ----------------------------------------------------------------------------- network traffic
+_SPEEDLEVEL = re.compile(r"/[NMK]\d{3,4}[FASM]\d{3,4}$")
+
+
+def oceanic_point(token):
+    """Coordinate waypoints as used on the North Atlantic: '52/50', '5730/30', '52N050W', '5230N05000W'.
+    Returns (name, lat, lon) or None."""
+    t = _SPEEDLEVEL.sub("", token.upper())
+    m = re.fullmatch(r"(\d{2})(\d{2})?/(\d{2,3})", t)
+    if m:
+        lat = int(m.group(1)) + (int(m.group(2)) / 60.0 if m.group(2) else 0.0)
+        return t, lat, -float(m.group(3))
+    m = re.fullmatch(r"(\d{2})(\d{2})?([NS])(\d{3})(\d{2})?([EW])", t)
+    if m:
+        lat = int(m.group(1)) + (int(m.group(2)) / 60.0 if m.group(2) else 0.0)
+        lon = int(m.group(4)) + (int(m.group(5)) / 60.0 if m.group(5) else 0.0)
+        if m.group(3) == "S":
+            lat = -lat
+        if m.group(6) == "W":
+            lon = -lon
+        return t, lat, lon
+    return None
+
+
+def parse_level(alt):
+    """Flight plan altitude ('39000', 'FL390', 'F390', '390', 'A050') -> flight level (390)."""
+    digits = re.sub(r"\D", "", alt or "")
+    if not digits:
+        return 0
+    n = int(digits)
+    if alt.upper().startswith("A"):
+        return n
+    return n // 100 if n >= 1000 else n
+
+
+def convert_network_pilot(pilot, tracks):
+    """One pilot from the VATSIM data feed -> a flight record, or None if the route does not cross the ocean."""
+    fp = pilot.get("flight_plan") or {}
+    route_str = fp.get("route") or ""
+    pts = [oceanic_point(tok) for tok in route_str.split()]
+    pts = [p for p in pts if p and 40 <= p[1] <= 72 and -70 <= p[2] <= -4]
+    if len(pts) < 2:
+        return None
+    names = [p[0] for p in pts]
+    direction = pts[-1][2] > pts[0][2]                        # moving towards Europe = eastbound
+    track = "RR"
+    flown = set(names)
+    for t in tracks:                                          # on a track if it passes the whole track's coordinate fixes
+        tnames = [r["name"].upper() for r in t.get("route", []) if oceanic_point(r["name"])]
+        if len(tnames) >= 3 and all(n in flown for n in tnames):
+            track = t["id"]
+            break
+    return {
+        "callsign": pilot.get("callsign", "").upper(), "type": fp.get("aircraft_short") or "",
+        "assignedLevel": parse_level(fp.get("altitude")), "assignedMach": 0,
+        "track": track, "route": " ".join(names), "routeEtas": " ".join(["--"] * len(names)),
+        "departure": fp.get("departure") or "", "arrival": fp.get("arrival") or "",
+        "direction": direction, "etd": fp.get("deptime") or "", "selcal": "",
+        "datalinkConnected": False, "isEquipped": True, "state": "", "relevant": True,
+        "trackedBy": "", "trackedById": "", "targetMode": 3,
+        "lastUpdated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "source": "vatsim",
+    }
+
+
+class NetworkTraffic:
+    """Keeps the oceanic-bound flights from the public VATSIM data feed (flight plan data only)."""
+    def __init__(self, cache, url=VATSIM_FEED):
+        self.cache, self.url = cache, url
+        self.lock = threading.Lock()
+        self.flights, self.updated, self.error = [], None, None
+
+    def refresh(self, fetch=None):
+        try:
+            if fetch:
+                data = fetch()
+            else:
+                req = urllib.request.Request(self.url, headers={"User-Agent": "vnaaats-server"})
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    data = json.loads(r.read().decode("utf-8"))
+            with self.cache.lock:
+                tracks = list(self.cache.tracks)
+            out = []
+            for pilot in data.get("pilots", []):
+                rec = convert_network_pilot(pilot, tracks)
+                if rec and rec["callsign"]:
+                    out.append(rec)
+            with self.lock:
+                self.flights, self.updated, self.error = out, time.time(), None
+            log.info("Network traffic refreshed: %d oceanic flights", len(out))
+        except Exception as e:
+            with self.lock:
+                self.error = str(e)
+            log.error("Network traffic refresh failed: %s", e)
+
+    def loop(self):
+        while True:
+            self.refresh()
+            time.sleep(FEED_SECONDS)
+
+    def all(self):
+        with self.lock:
+            return list(self.flights)
+
+
 # ----------------------------------------------------------------------------- http
 MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".json": "application/json",
         ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon",
         ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
 
 
-def make_handler(cache, store, api_key, web_dir=None):
+def make_handler(cache, store, api_key, web_dir=None, network=None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "vnaaats-server"
 
@@ -299,6 +408,8 @@ def make_handler(cache, store, api_key, web_dir=None):
                     return self._send(200, rec) if rec else self._send(400, {"error": "callsign required"})
                 if p == "/GetAllFlightData":
                     return self._send(200, store.all_flights(newest_first=q.get("sort", "1") != "0"))
+                if p == "/GetNetworkTraffic":
+                    return self._send(200, network.all() if network else [])
                 if p == "/GetNatTrakData":
                     return self._send(200, [])          # TODO: natTrak clearance data (source not connected yet)
                 if p == "/PostNamedFix":
@@ -343,10 +454,14 @@ def main():
     cache = TrackCache(fixes)
     web_dir = os.environ.get("VNAAATS_WEB_DIR", os.path.join(HERE, "web"))
     threading.Thread(target=cache.loop, daemon=True).start()
+    network = None
+    if VATSIM_FEED.lower() != "off":
+        network = NetworkTraffic(cache)
+        threading.Thread(target=network.loop, daemon=True).start()
     threading.Thread(target=lambda: [store.purge() or time.sleep(3600) for _ in iter(int, 1)], daemon=True).start()
     host, port = os.environ.get("VNAAATS_BIND", "127.0.0.1"), int(os.environ.get("VNAAATS_PORT", "8080"))
     log.info("Listening on %s:%d", host, port)
-    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None)).serve_forever()
+    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network)).serve_forever()
 
 
 if __name__ == "__main__":

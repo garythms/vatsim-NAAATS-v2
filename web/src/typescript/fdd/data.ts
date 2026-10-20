@@ -34,6 +34,7 @@ interface JsonAcObj {
   trackedBy: string;
   trackedById: string;
   lastUpdated: string;
+  source?: string;
 }
 
 /*
@@ -45,6 +46,7 @@ const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
 const natTracksApi: string = apiBase + "/GetAllNatTracks";
 const allAircraftGet: string = apiBase + "/GetAllFlightData";
 const allNatTrakGet: string = apiBase + "/GetNatTrakData";
+const networkTrafficGet: string = apiBase + "/GetNetworkTraffic";
 const vatsimStatusData: string = "https://data.vatsim.net/v3/vatsim-data.json";
 
 // Data lists
@@ -177,12 +179,25 @@ export async function populateAllAircraft() : Promise<void> {
   // Dynamic data variable
   let res: string = "";
 
+  // Oceanic-bound traffic from the public VATSIM feed (filed flight plans). Failure here must never block the rest.
+  let networkTraffic: JsonAcObj[] = [];
+  try {
+    networkTraffic = await (await fetch(networkTrafficGet)).json();
+  } catch (e) {
+    networkTraffic = [];
+  }
+
   await fetch(allAircraftGet + (sortDescending ? "?sort=1" : "?sort=0")).then(
     function (response: Response) {
       response.text().then(function (text: string) {
         // Parse json
         res = text;
-        const objArr: JsonAcObj[] = JSON.parse(res);
+        const posted: JsonAcObj[] = JSON.parse(res);
+        // Flights posted by controllers win over the same callsign from the VATSIM feed
+        const postedCallsigns = new Set(posted.map((p) => p.callsign));
+        const objArr: JsonAcObj[] = posted.concat(
+          networkTraffic.filter((n) => !postedCallsigns.has(n.callsign))
+        );
 
         // Purge map if new tracks found
         if (networkAircraft.size != currentNatTracks.size - 1) {
@@ -241,6 +256,7 @@ export async function populateAllAircraft() : Promise<void> {
             TargetMode: objArr[i]?.targetMode,
             Direction: objArr[i]?.direction,
             LastUpdated: Date.parse(objArr[i]?.lastUpdated),
+            Source: objArr[i]?.source ?? "plugin",
           };
           // Check the track
           if (ac.Track != "RR" && currentNatTracks.has(ac.Track)) {

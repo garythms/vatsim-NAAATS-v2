@@ -124,5 +124,55 @@ class T(unittest.TestCase):
         self.assertEqual(json.loads(self.get("/health")[1])["trackError"], "down")
 
 
+class NetworkTests(unittest.TestCase):
+    TRACKS = [{"id": "A", "route": [{"name": "ETARI"}, {"name": "56/20"}, {"name": "56/30"}, {"name": "56/40"}, {"name": "NEEKO"}]}]
+
+    def pilot(self, cs, route, alt="39000", dep="EGLL", arr="KJFK"):
+        return {"callsign": cs, "flight_plan": {"aircraft_short": "A333", "departure": dep, "arrival": arr,
+                                                 "altitude": alt, "deptime": "1200", "route": route}}
+
+    def test_oceanic_point(self):
+        self.assertEqual(s.oceanic_point("52/50")[1:], (52.0, -50.0))
+        self.assertEqual(s.oceanic_point("5730/30")[1:], (57.5, -30.0))
+        self.assertEqual(s.oceanic_point("52N050W")[1:], (52.0, -50.0))
+        self.assertEqual(s.oceanic_point("5230N05000W")[1:], (52.5, -50.0))
+        self.assertEqual(s.oceanic_point("52/50/M082F390")[1:], (52.0, -50.0))
+        self.assertIsNone(s.oceanic_point("ALLRY"))
+
+    def test_levels(self):
+        self.assertEqual(s.parse_level("39000"), 390)
+        self.assertEqual(s.parse_level("FL390"), 390)
+        self.assertEqual(s.parse_level("F390"), 390)
+        self.assertEqual(s.parse_level(""), 0)
+
+    def test_random_route(self):
+        r = s.convert_network_pilot(self.pilot("BAW1", "DCT 52/50 52/40 52/30 DCT"), self.TRACKS)
+        self.assertEqual(r["track"], "RR")
+        self.assertTrue(r["direction"])                     # 50W -> 30W is heading east
+        self.assertEqual(r["route"], "52/50 52/40 52/30")
+        self.assertEqual(r["assignedLevel"], 390)
+
+    def test_track_match_and_direction(self):
+        r = s.convert_network_pilot(self.pilot("DLH1", "ETARI 56/20 56/30 56/40 NEEKO", dep="EDDF", arr="KJFK"), self.TRACKS)
+        self.assertEqual(r["track"], "A")
+        r2 = s.convert_network_pilot(self.pilot("DLH2", "56/40 56/30 56/20", dep="KJFK", arr="EDDF"), self.TRACKS)
+        self.assertTrue(r2["direction"])
+
+    def test_non_oceanic_ignored(self):
+        self.assertIsNone(s.convert_network_pilot(self.pilot("X1", "DCT LAM DCT"), self.TRACKS))
+        self.assertIsNone(s.convert_network_pilot({"callsign": "X2"}, self.TRACKS))
+        self.assertIsNone(s.convert_network_pilot(self.pilot("X3", "26/138 27/139"), self.TRACKS))
+
+    def test_endpoint_and_failure(self):
+        cache = s.TrackCache(s.load_fixes())
+        net = s.NetworkTraffic(cache)
+        net.refresh(fetch=lambda: {"pilots": [self.pilot("BAW1", "52/50 52/40"), self.pilot("X1", "DCT")]})
+        self.assertEqual([f["callsign"] for f in net.all()], ["BAW1"])
+        def boom(): raise RuntimeError("feed down")
+        net.refresh(fetch=boom)
+        self.assertEqual(len(net.all()), 1)                  # keeps last good copy
+        self.assertEqual(net.error, "feed down")
+
+
 if __name__ == "__main__":
     unittest.main()
