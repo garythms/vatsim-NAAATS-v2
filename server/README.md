@@ -39,7 +39,7 @@ Reading (viewing the FDD) stays open. The plugin keeps using the API key for its
 The server acts as a CPDLC ground station through Hoppie's ACARS. Nothing to set on the server: each controller types **their own Hoppie logon code** in the FDD's CPDLC drawer after choosing their position.
 The code is held in server memory only while that controller is signed in (sign out, change position, session expiry or a server restart forgets it). It is never written to disk or logged.
 
-Stations (position -> station callsign pilots log on to): `CZQO_*` -> **CZQX**, `EGGX_*` -> **EGGX**, `NAT_*` (NAT_FSS) -> **NATX**. Override with `VNAAATS_CPDLC_STATIONS=CZQO_CTR=CZQX,EGGX_CTR=EGGX,NAT_FSS=NATX` (then only those positions have a station).
+Stations (position -> station callsign pilots log on to): `CZQO_*` -> **CZQX**, `EGGX_*` -> **EGGX**, `NAT_*` (NAT_FSS) -> **NATX**. `*_DEL` (delivery) positions and OBSERVER do not use CPDLC. Override with `VNAAATS_CPDLC_STATIONS=CZQO_CTR=CZQX,EGGX_CTR=EGGX,NAT_FSS=NATX` (then only those positions have a station).
 Other settings: `VNAAATS_CPDLC=off` (disable), `VNAAATS_CPDLC_AUTOACCEPT` (default 1: logon requests accepted automatically), `VNAAATS_HOPPIE_URL`.
 
 How it works: while a controller is signed in, the server polls Hoppie for that station (about every minute, faster after traffic), accepts `REQUEST LOGON`, stores messages, and pings connected aircraft every 5 minutes (dropping them after two misses). Connected aircraft get `"cpdlc": true` in the flight data, so the plugin shows `[BAW123]` and the FDD shows brackets plus the drawer. Only one controller can hold a station at a time (Hoppie allows one logon per callsign). Pilots connected to a station must log on again after it has been stopped.

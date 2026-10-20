@@ -363,7 +363,7 @@ class CpdlcHub:
 
     def station_for(self, position):
         pos = (position or "").upper()
-        if not pos or pos == "OBSERVER":
+        if not pos or pos == "OBSERVER" or pos.endswith("_DEL"):      # observers and delivery positions do not use CPDLC
             return None
         if pos in self.stations_map:
             return self.stations_map[pos]

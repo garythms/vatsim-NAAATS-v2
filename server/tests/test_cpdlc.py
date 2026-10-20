@@ -151,7 +151,7 @@ class HubTests(unittest.TestCase):
     def test_station_for_position(self):
         _, hub = self.make_hub()
         self.assertEqual([hub.station_for(p) for p in ("CZQO_CTR", "CZQO_DEL", "EGGX_CTR", "NAT_FSS", "OBSERVER", "FOO_CTR", "")],
-                         ["CZQX", "CZQX", "EGGX", "NATX", None, None, None])
+                         ["CZQX", None, "EGGX", "NATX", None, None, None])
         self.assertEqual(c.parse_stations("czqo_ctr=czqx, x=")["CZQO_CTR"], "CZQX")
 
     def test_start_validates_and_blocks_second_controller(self):
@@ -160,13 +160,13 @@ class HubTests(unittest.TestCase):
         self.assertIn("logon code", hub.start("t1", "CZQO_CTR", "x")[1])
         self.assertEqual(hub.start("t1", "CZQO_CTR", "abcdef12"), ("CZQX", None))
         self.assertEqual(hop.sent[-1]["logon"], "abcdef12")
-        self.assertIn("already in use", hub.start("t2", "CZQO_DEL", "zzzzzz99")[1])
+        self.assertIn("already in use", hub.start("t2", "CZQO_CTR", "zzzzzz99")[1])
         self.assertEqual(hub.start("t1", "CZQO_CTR", "newcode99"), ("CZQX", None))      # same controller may re-enter the code
         self.assertEqual(hub.get("t1").client.logon, "newcode99")
         self.assertEqual(hub.start("t3", "EGGX_CTR", "otherone1")[0], "EGGX")
         hub.stop("t1")
         self.assertIsNone(hub.get("t1"))
-        self.assertEqual(hub.start("t2", "CZQO_DEL", "zzzzzz99")[0], "CZQX")
+        self.assertEqual(hub.start("t2", "CZQO_CTR", "zzzzzz99")[0], "CZQX")
 
     def test_bad_code_rejected(self):
         hop, hub = self.make_hub()
@@ -249,7 +249,7 @@ class HttpTests(unittest.TestCase):
         ck = self.login("EGGX_DEL")
         self.assertEqual(self.call("/cpdlc/send", {"callsign": "BAW123", "text": "HELLO"}, ck)[0], 409)
         self.assertEqual(self.call("/cpdlc/messages?callsign=BAW123", None, ck)[1], [])
-        busy = self.login("CZQO_DEL")                                   # CZQX is held by cls.ck
+        busy = self.login("CZQO_CTR")                                   # CZQX is held by cls.ck
         code, body, _ = self.call("/cpdlc/logon", {"code": "zzzzzz99"}, busy)
         self.assertEqual(code, 400)
         self.assertIn("already in use", body["error"])
