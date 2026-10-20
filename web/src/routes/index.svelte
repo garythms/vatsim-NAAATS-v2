@@ -32,14 +32,13 @@ onMount(async () => {
             <div class="text-white font-bitmap text-3xl pt-4 select-none" id="logo-text">
                 The Virtual North Atlantic Advanced Air Traffic System
             </div>
-            <div class="flex flex-row justify-between mt-10">
-                <a href="/fdd" class="border-2 rounded mr-20 px-4 py-2 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
+            <div class="text-white font-bitmap text-2xl pt-2 select-none opacity-90" id="version-credit">
+                Version 2 &ndash; Modernised by Gary Thomas
+            </div>
+            <div class="flex flex-row justify-center mt-10">
+                <a href="/fdd" class="border-2 rounded px-4 py-2 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
                 hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
                     Access FDD
-                </a>
-                <a href="https://discord.gg/7bHtYNuxdx" target="_blank" class="border-2 rounded ml-20 px-4 py-2 hover:cursor-pointer scale-100 bg-discord_purple bg-opacity-0 transition duration-500 
-                hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
-                    Join the Discord!
                 </a>
             </div>
         </div>
@@ -92,13 +91,13 @@ onMount(async () => {
             </div>
         </div>
         <div class="flex flex-row justify-evenly w-full py-4 font-web font-bold">
-            <a href="https://github.com/vNAAATS/vatsim-NAAATS" class="flex flex-row items-center justify-center w-1/3 select-none">
-                <div class="flex flex-col scale-100 justify-center w-5/7 items-center 2xl:text-3xl xl:text-2xl shadow-5xl p-6 bg-blue-1 border-2 border-blue-1 rounded select-none
+            <a href="https://github.com/garythms/vatsim-NAAATS-v2" class="flex flex-row items-center justify-center w-1/4 select-none">
+                <div class="flex flex-col scale-100 justify-center w-11/12 items-center 2xl:text-3xl xl:text-2xl shadow-5xl p-6 h-72 bg-blue-1 border-2 border-blue-1 rounded select-none
                 transition duration-500 hover:scale-105">
                     Oceanic Euroscope Plugin
                     <!-- MD Radar icon -->
                     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" 
-                    width="175" height="175" viewBox="0 0 24 24" class="py-8 fill-current text-white">
+                    width="130" height="130" viewBox="0 0 24 24" class="py-8 fill-current text-white">
                         <path d="M19.07,4.93L17.66,6.34C19.1,7.79 20,9.79 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12C4,7.92 7.05,
                         4.56 11,4.07V6.09C8.16,6.57 6,9.03 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12C18,10.34 17.33,8.84 16.24,
                         7.76L14.83,9.17C15.55,9.9 16,10.9 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12C8,10.14 9.28,8.59 11,8.14V10.28C10.4,
@@ -107,11 +106,11 @@ onMount(async () => {
                     </svg>
                 </div> 
             </a>
-            <a href="/fdd" class="flex flex-row justify-center items-center w-1/3 scale-100 transition duration-500 hover:scale-110">
-                <div class="flex flex-col justify-center items-center w-5/7 p-6 2xl:text-3xl xl:text-2xl  shadow-5xl bg-blue-1 border-2 border-blue-1 rounded">
+            <a href="/fdd" class="flex flex-row justify-center items-center w-1/4 scale-100 transition duration-500 hover:scale-110">
+                <div class="flex flex-col justify-center items-center w-11/12 p-6 h-72 2xl:text-3xl xl:text-2xl  shadow-5xl bg-blue-1 border-2 border-blue-1 rounded">
                     Flight Data Display
                     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
-                    width="175" height="175" viewBox="0 0 24 24" class="py-8 fill-current text-white">
+                    width="130" height="130" viewBox="0 0 24 24" class="py-8 fill-current text-white">
                         <path d="M19 12V13.5C21.21 13.5 23 15.29 23 17.5C23 18.32 22.76 19.08 22.33 19.71L21.24 18.62C21.41
                         18.28 21.5 17.9 21.5 17.5C21.5 16.12 20.38 15 19 15V16.5L16.75 14.25L19 12M19 23V21.5C16.79 21.5 15 
                         19.71 15 17.5C15 16.68 15.25 15.92 15.67 15.29L16.76 16.38C16.59 16.72 16.5 17.1 16.5 17.5C16.5 
@@ -121,12 +120,12 @@ onMount(async () => {
                     </svg>
                 </div>
             </a>
-            <a href="/" class="flex flex-row justify-center items-center w-1/3">
-                <div class="flex flex-col justify-center w-5/7 items-center 2xl:text-3xl xl:text-2xl shadow-5xl p-6 bg-blue-1 border-2 border-blue-1 rounded select-none">
+            <a href="/" class="flex flex-row justify-center items-center w-1/4">
+                <div class="flex flex-col justify-center w-11/12 items-center 2xl:text-3xl xl:text-2xl shadow-5xl p-6 h-72 bg-blue-1 border-2 border-blue-1 rounded select-none">
                     Dedicated Network & API
                     <!-- MD Nework icon -->
                     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" 
-                    width="175" height="175" viewBox="0 0 24 24" class="py-8 fill-current text-white">
+                    width="130" height="130" viewBox="0 0 24 24" class="py-8 fill-current text-white">
                         <path d="M10,2C8.89,2 8,2.89 8,4V7C8,8.11 8.89,9 10,9H11V11H2V13H6V15H5C3.89,15 3,15.89 3,17V20C3,
                         21.11 3.89,22 5,22H9C10.11,22 11,21.11 11,20V17C11,15.89 10.11,15 9,15H8V13H16V15H15C13.89,15 13,15.89 13,
                         17V20C13,21.11 13.89,22 15,22H19C20.11,22 21,21.11 21,20V17C21,15.89 20.11,15 19,15H18V13H22V11H13V9H14C15.11,
@@ -134,11 +133,22 @@ onMount(async () => {
                     </svg>
                 </div>
             </a>
+            <a href="/" class="flex flex-row justify-center items-center w-1/4">
+                <div class="flex flex-col justify-center w-11/12 items-center 2xl:text-3xl xl:text-2xl shadow-5xl p-6 h-72 bg-blue-1 border-2 border-blue-1 rounded select-none">
+                    Dedicated CPDLC Interaction
+                    <!-- MD message-text icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"
+                    width="130" height="130" viewBox="0 0 24 24" class="py-8 fill-current text-white">
+                        <path d="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M6,9H18V11H6M14,14H6V12H14M18,8H6V6H18" />
+                    </svg>
+                    <span class="text-base font-normal opacity-80">Coming soon</span>
+                </div>
+            </a>
         </div>
     </div>
     <div class="flex flex-row h-1/14 justify-evenly items-center font-web font-semibold overflow-hidden bg-blue-0" >
         <div class="tracking-wide text-center">
-            Copyright © Andrew Ogden 2020-2021. FOR FLIGHT SIMULATION ONLY. NOT TO BE USED FOR REAL WORLD NAVIGATION.
+            Copyright © Andrew Ogden 2020-2021 (original vNAAATS). Version 2 © Gary Thomas 2026. FOR FLIGHT SIMULATION ONLY. NOT TO BE USED FOR REAL WORLD NAVIGATION.
             <br />Learn more about the VATSIM network <a href="https://vatsim.net" class="underline">here</a>.
         </div>
     </div>
