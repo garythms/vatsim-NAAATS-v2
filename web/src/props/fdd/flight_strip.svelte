@@ -44,7 +44,7 @@
     dataHandler.setAsel(callsign);
   }}>
   {#if track === "RR"}
-    <div class="flex flex-col items-center justify-end py-0.5 w-full h-16 {darkerColour} {isActive ? 'bg-opacity-75' : ''} text-black hover:cursor-default"
+    <div class="flex flex-col items-center justify-end w-full h-8 {darkerColour} {isActive ? 'bg-opacity-75' : ''} text-black hover:cursor-default"
       on:mousedown={stripMouseDown}
       on:mouseup={stripMouseUp}
       on:mouseleave={stripMouseUp}>
@@ -52,18 +52,8 @@
         <div class="flex flex-row w-0.32" />
         <div class="flex flex-row w-0.68">
           {#each route as rte}
-            <div class="w-1/11 select-none hover:cursor-default">
-              {utils.coordToArray(rte).length != 0 ? utils.coordToArray(rte)[0]: rte}
-            </div>
-          {/each}
-        </div>
-      </div>
-      <div class="flex flex-row justify-start items-center w-full select-none hover:cursor-default">
-        <div class="flex flex-row w-0.32" />
-        <div class="flex flex-row w-0.68">
-          {#each route as rte}
-            <div class="w-1/11 select-none hover:cursor-default">
-              {utils.coordToArray(rte).length != 0 ? utils.coordToArray(rte)[1] : ""}
+            <div class="w-1/11 select-none hover:cursor-default whitespace-nowrap">
+              {rte}
             </div>
           {/each}
         </div>
@@ -79,7 +69,7 @@
     </div>
     <div class="flex flex-row w-5/7 hover:cursor-default select-none">
       <!-- TODO fix this alignment -->
-      <div class="w-1/7">
+      <div class="w-1/7 whitespace-nowrap pr-1" style="font-size: 0.88em;">
         {departure}/{arrival}
       </div>
       <div class="w-1/20">

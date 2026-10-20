@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.2.2 - 2026-10-20
+- Every route waypoint is shown as four digits, 52/50, whatever format the flight plan used (52N050W, 5230N05000W, 4545N ...); minutes are dropped (4730N05000W shows as 47/50). Random-route strips are now a single line.
+
 ## 0.2.1 - 2026-10-20
 - natTrak alerts can be switched on/off separately: Visual (flashing, tab title) and Audio.
 - Choice of alert sound: Ping, Chime or Beep (click Tone to cycle; plays a preview).

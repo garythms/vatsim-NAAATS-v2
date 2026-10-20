@@ -1,5 +1,6 @@
 <script lang="ts">
   import * as dataHandler from "../../typescript/fdd/data";
+  import * as utils from "../../typescript/fdd/utils";
   import Titlebar from "../../props/fdd/titlebar.svelte";
   import TextInput from "../../props/fdd/text_input.svelte";
   import type { Aircraft, NatTrakData } from "../../typescript/fdd/objects";
@@ -35,7 +36,7 @@
     
     <TextInput identifier="level" label="Level" isDisabled={true} value={natTrakData.callsign != "" ? natTrakData.level.toString() : "--"} width="w-6/7" widthWhole="w-1/4"></TextInput>
     <TextInput identifier="mach" label="Mach" isDisabled={true} value={natTrakData.callsign != "" ? "M0" + natTrakData.mach.toString() : "--"} width="w-5/7" widthWhole="w-1/4"></TextInput>
-    <TextInput identifier="fix" label="Fix" isDisabled={true} value="{natTrakData.callsign != "" ? natTrakData.fix : "--"}" width="w-5/7" widthWhole="w-1/4"></TextInput>
+    <TextInput identifier="fix" label="Fix" isDisabled={true} value="{natTrakData.callsign != "" ? utils.formatWaypoint(natTrakData.fix) : "--"}" width="w-5/7" widthWhole="w-1/4"></TextInput>
     <TextInput identifier="est" label="Estimation"isDisabled={true} value="{natTrakData.callsign != "" ? natTrakData.estimating_time : "--"}" width="w-6/7" widthWhole="w-1/4"></TextInput>
   </div>
   <div class="justify-start pt-4 pr-6">

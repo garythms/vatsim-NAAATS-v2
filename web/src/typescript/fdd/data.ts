@@ -8,6 +8,7 @@
  */
 import { CronJob } from "cron";
 import type { Aircraft, NatTrack, NatTrakData } from "./objects";
+import { formatWaypoint } from "./waypoint";
 
 /*
  *  Definitions
@@ -227,7 +228,7 @@ export async function populateAllAircraft() : Promise<void> {
 
         for (let i: number = 0; i < aircraftCount; i++) {
           // Parse route
-          const routePoints: string[] = objArr[i].route.split(" ");
+          const routePoints: string[] = objArr[i].route.split(" ").filter((p: string) => p != "").map(formatWaypoint);
           const routeEtas: string[] = objArr[i].routeEtas.split(" ");
           
           // Handle for when tracks become outdated

@@ -199,7 +199,7 @@
             on:click={() => pickRequest(p.callsign, true)}>
             <div class="w-1/5 font-bold">{p.callsign}</div>
             <div class="w-1/12">{p.nat}</div>
-            <div class="w-1/6">{p.fix}</div>
+            <div class="w-1/6">{utils.formatWaypoint(p.fix)}</div>
             <div class="w-1/6">FL{p.level}</div>
             <div class="w-1/6">M{p.mach > 0 ? "0" + p.mach : "--"}</div>
             <div class="w-1/6">{p.estimating_time}z</div>
@@ -221,7 +221,7 @@
           <div class="flex flex-row px-2 py-0.5 border-b border-blue-4 hover:cursor-pointer" on:click={() => pickRequest(c.callsign)}>
             <div class="w-1/5 font-bold">{c.callsign}</div>
             <div class="w-1/12">{c.nat}</div>
-            <div class="w-1/6">{c.fix}</div>
+            <div class="w-1/6">{utils.formatWaypoint(c.fix)}</div>
             <div class="w-1/6">FL{c.level}</div>
             <div class="w-1/6">M{c.mach > 0 ? "0" + c.mach : "--"}</div>
             <div class="w-1/6">{c.clearance_issued ?? ""}</div>

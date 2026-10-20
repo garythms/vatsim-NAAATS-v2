@@ -69,3 +69,5 @@ export function isRecent(lastUpdated: number) : boolean {
   if (isNaN(lastUpdated)) return true;
   return Date.now() - lastUpdated < 3 * 60 * 60 * 1000;
 }
+
+export { formatWaypoint } from "./waypoint";
