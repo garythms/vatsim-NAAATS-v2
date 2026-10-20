@@ -14,3 +14,11 @@ filed route has North Atlantic coordinate waypoints (e.g. `52/50`, `5730/30`, `5
 `/GetNetworkTraffic` and the flight data display merges them in (flights posted through the plugin win over the same callsign).
 This is filed flight plan data only - it contains no controller clearances, levels assigned, or estimates (those only exist when a
 controller posts through the plugin). Set `VNAAATS_VATSIM_FEED=off` to turn it off.
+
+## natTrak clearance data
+
+`/GetNatTrakData` serves the public natTrak API (`https://nattrak.vatsim.net/api/plugins`, refreshed every `VNAAATS_FEED_SECONDS`):
+for each callsign the status (CLEARED / PENDING), track, entry fix, level, Mach, estimate, clearance time and extra info.
+The flight data display shows it in the "natTrak Information" panel. For flights found in the VATSIM feed, a CLEARED natTrak
+clearance also fills in the level, Mach and track on the strip. Set `VNAAATS_NATTRAK_PLUGIN_URL=off` to disable.
+(The natTrak controller pages `/controllers/clx/...` need a VATSIM login and are not used.)

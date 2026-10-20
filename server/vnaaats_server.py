@@ -11,14 +11,14 @@ Endpoints used by the plugin (same names as the old backend):
 Extra:
   GET /GetAllFlightData[?sort=0|1]         -> every stored flight (flight data display)
   GET /GetNetworkTraffic                   -> oceanic-bound flights found in the public VATSIM data feed (not from the plugin)
-  GET /GetNatTrakData                      -> [] for now (natTrak clearance data not connected yet)
+  GET /GetNatTrakData                      -> natTrak clearances/requests (from https://nattrak.vatsim.net/api/plugins)
   GET /PostNamedFix?code=KEY&name=..&lat=..&lon=..  -> add a fix coordinates are missing for (admin page)
   If a "web" folder exists next to this file, the built flight data display is served from it.
   GET /health      GET /unresolved (fixes we could not find coordinates for)   GET /  (simple info page)
 
 Settings (environment variables): VNAAATS_API_KEY (required), VNAAATS_PORT (8080), VNAAATS_DB, VNAAATS_NATTRAK_URL,
 VNAAATS_REFRESH_SECONDS (600), VNAAATS_BIND (127.0.0.1), VNAAATS_VATSIM_FEED (feed url; set to 'off' to disable),
-VNAAATS_FEED_SECONDS (60).
+VNAAATS_FEED_SECONDS (60), VNAAATS_NATTRAK_PLUGIN_URL (natTrak clearance API; 'off' to disable).
 """
 import hmac
 import json
@@ -41,6 +41,7 @@ REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
+NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
 
 
 # ----------------------------------------------------------------------------- fixes
@@ -296,10 +297,53 @@ def convert_network_pilot(pilot, tracks):
     }
 
 
+
+class NatTrakFeed:
+    """natTrak clearances and pending requests (public endpoint, no login). Keeps the last good copy."""
+    def __init__(self, url=NATTRAK_PLUGIN_URL):
+        self.url = url
+        self.lock = threading.Lock()
+        self.items, self.updated, self.error = [], None, None
+
+    def refresh(self, fetch=None):
+        try:
+            if fetch:
+                data = fetch()
+            else:
+                req = urllib.request.Request(self.url, headers={"User-Agent": "vnaaats-server"})
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    data = json.loads(r.read().decode("utf-8"))
+            if not isinstance(data, list):
+                raise ValueError("unexpected natTrak response")
+            with self.lock:
+                self.items, self.updated, self.error = data, time.time(), None
+            log.info("natTrak refreshed: %d messages", len(data))
+        except Exception as e:
+            with self.lock:
+                self.error = str(e)
+            log.error("natTrak refresh failed: %s", e)
+
+    def loop(self):
+        while True:
+            self.refresh()
+            time.sleep(FEED_SECONDS)
+
+    def all(self):
+        with self.lock:
+            return list(self.items)
+
+    def by_callsign(self):
+        out = {}
+        for it in self.all():                              # later entries (newest) win
+            if it.get("callsign"):
+                out[it["callsign"].upper()] = it
+        return out
+
+
 class NetworkTraffic:
     """Keeps the oceanic-bound flights from the public VATSIM data feed (flight plan data only)."""
-    def __init__(self, cache, url=VATSIM_FEED):
-        self.cache, self.url = cache, url
+    def __init__(self, cache, url=VATSIM_FEED, natrak=None):
+        self.cache, self.url, self.natrak = cache, url, natrak
         self.lock = threading.Lock()
         self.flights, self.updated, self.error = [], None, None
 
@@ -333,7 +377,26 @@ class NetworkTraffic:
 
     def all(self):
         with self.lock:
-            return list(self.flights)
+            flights = [dict(f) for f in self.flights]
+        if not self.natrak:
+            return flights
+        clearances = self.natrak.by_callsign()
+        with self.cache.lock:
+            track_ids = {t["id"] for t in self.cache.tracks}
+        for f in flights:                                  # fill in what the controller cleared on natTrak
+            c = clearances.get(f["callsign"])
+            if not c or c.get("status") != "CLEARED":
+                continue
+            if str(c.get("level", "")).isdigit():
+                f["assignedLevel"] = int(c["level"])
+            try:
+                f["assignedMach"] = int(round(float(c["mach"]) * 100))
+            except (TypeError, ValueError):
+                pass
+            if c.get("nat") in track_ids:
+                f["track"] = c["nat"]
+            f["trackedBy"] = "NATTRAK"
+        return flights
 
 
 # ----------------------------------------------------------------------------- http
@@ -342,7 +405,7 @@ MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css
         ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
 
 
-def make_handler(cache, store, api_key, web_dir=None, network=None):
+def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "vnaaats-server"
 
@@ -411,7 +474,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None):
                 if p == "/GetNetworkTraffic":
                     return self._send(200, network.all() if network else [])
                 if p == "/GetNatTrakData":
-                    return self._send(200, [])          # TODO: natTrak clearance data (source not connected yet)
+                    return self._send(200, natrak.all() if natrak else [])
                 if p == "/PostNamedFix":
                     if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
                         return self._send(401, {"error": "bad key"})
@@ -454,14 +517,18 @@ def main():
     cache = TrackCache(fixes)
     web_dir = os.environ.get("VNAAATS_WEB_DIR", os.path.join(HERE, "web"))
     threading.Thread(target=cache.loop, daemon=True).start()
+    natrak = None
+    if NATTRAK_PLUGIN_URL.lower() != "off":
+        natrak = NatTrakFeed()
+        threading.Thread(target=natrak.loop, daemon=True).start()
     network = None
     if VATSIM_FEED.lower() != "off":
-        network = NetworkTraffic(cache)
+        network = NetworkTraffic(cache, natrak=natrak)
         threading.Thread(target=network.loop, daemon=True).start()
     threading.Thread(target=lambda: [store.purge() or time.sleep(3600) for _ in iter(int, 1)], daemon=True).start()
     host, port = os.environ.get("VNAAATS_BIND", "127.0.0.1"), int(os.environ.get("VNAAATS_PORT", "8080"))
     log.info("Listening on %s:%d", host, port)
-    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network)).serve_forever()
+    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak)).serve_forever()
 
 
 if __name__ == "__main__":

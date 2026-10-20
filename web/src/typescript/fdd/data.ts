@@ -281,24 +281,43 @@ export async function populateAllAircraft() : Promise<void> {
 }
 
 export async function natTrakFetch() : Promise<void> {
-  let res: string = "";
+  try {
+    const response: Response = await fetch(allNatTrakGet);
+    const objArr: any[] = await response.json();
+    if (!Array.isArray(objArr)) return;
 
-  // Get the data
-  await fetch(allNatTrakGet).then(function (response: Response) {
-    response.text().then(function (text: string) {
-        // Parse json
-        res = text;
-        const objArr: NatTrakData[] = JSON.parse(res);
-
-        // Reset the list
-        natTrakData = new Map();
-        // Loop and assign
-        for(let i: number = 0; i < objArr.length; i++) {
-          objArr[i].mach = objArr[i].mach * 100;
-          natTrakData.set(objArr[i].callsign, objArr[i]);
-        }
-    })
-  });
+    // Reset the list
+    const fresh: Map<string, NatTrakData> = new Map();
+    // Loop and assign
+    for (let i: number = 0; i < objArr.length; i++) {
+      const o = objArr[i];
+      if (!o?.callsign) continue;
+      // Mach arrives as "0.82"; the panel prints "M0" + 82
+      const mach: number = Math.round(parseFloat(o.mach) * 100);
+      // Clearance time arrives as an ISO timestamp; show it as 0811z
+      let issued: string = o.clearance_issued ?? null;
+      if (issued) {
+        const d = new Date(issued);
+        issued = isNaN(d.getTime())
+          ? issued
+          : String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "z";
+      }
+      fresh.set(String(o.callsign).toUpperCase(), {
+        callsign: o.callsign,
+        status: o.status,
+        nat: o.nat,
+        fix: o.fix,
+        level: o.level,
+        mach: isNaN(mach) ? 0 : mach,
+        estimating_time: o.estimating_time,
+        clearance_issued: issued,
+        extra_info: o.extra_info,
+      });
+    }
+    natTrakData = fresh;
+  } catch (e) {
+    // keep showing the last good data
+  }
 }
 
 export async function parseOnlineControllers() : Promise<void> {

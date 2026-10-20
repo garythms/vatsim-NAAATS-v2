@@ -174,5 +174,35 @@ class NetworkTests(unittest.TestCase):
         self.assertEqual(net.error, "feed down")
 
 
+class NatTrakTests(unittest.TestCase):
+    ITEMS = [{"callsign": "BAW1", "status": "CLEARED", "nat": "A", "fix": "ETARI", "level": "370", "mach": "0.82",
+              "estimating_time": "09:05", "clearance_issued": "2026-10-20T08:18:59.000000Z", "extra_info": None},
+             {"callsign": "BAW2", "status": "PENDING", "nat": "RR", "fix": "ALLRY", "level": "350", "mach": "0.80",
+              "estimating_time": "09:10", "clearance_issued": None, "extra_info": None}]
+
+    def test_feed_keeps_last_good(self):
+        f = s.NatTrakFeed()
+        f.refresh(fetch=lambda: self.ITEMS)
+        self.assertEqual(len(f.all()), 2)
+        def boom(): raise RuntimeError("down")
+        f.refresh(fetch=boom)
+        self.assertEqual(len(f.all()), 2)
+        f.refresh(fetch=lambda: {"not": "a list"})
+        self.assertEqual(len(f.all()), 2)
+
+    def test_overlay_on_network_flights(self):
+        cache = s.TrackCache(s.load_fixes())
+        cache.refresh(fetch=lambda: SAMPLE)                # has track A
+        nt = s.NatTrakFeed()
+        nt.refresh(fetch=lambda: self.ITEMS)
+        net = s.NetworkTraffic(cache, natrak=nt)
+        pil = lambda cs: {"callsign": cs, "flight_plan": {"aircraft_short": "A333", "departure": "EGLL", "arrival": "KJFK",
+                          "altitude": "30000", "deptime": "1200", "route": "52/20 52/30 52/40"}}
+        net.refresh(fetch=lambda: {"pilots": [pil("BAW1"), pil("BAW2")]})
+        got = {f["callsign"]: f for f in net.all()}
+        self.assertEqual((got["BAW1"]["assignedLevel"], got["BAW1"]["assignedMach"], got["BAW1"]["track"]), (370, 82, "A"))
+        self.assertEqual(got["BAW2"]["assignedLevel"], 300)    # pending is not a clearance: unchanged
+
+
 if __name__ == "__main__":
     unittest.main()
