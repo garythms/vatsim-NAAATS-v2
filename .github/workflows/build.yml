@@ -16,7 +16,15 @@ jobs:
           if (-not (Test-Path lib/EuroScopePlugInDll.lib)) { Write-Error "lib/EuroScopePlugInDll.lib is missing (see comment in build.yml)"; exit 1 }
       - uses: microsoft/setup-msbuild@v2
       - name: Build (Release, 32-bit)
-        run: msbuild VatsimNAAATS/VatsimNAAATS.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /m
+        shell: pwsh
+        run: |
+          msbuild VatsimNAAATS/VatsimNAAATS.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /m /nologo /v:m | Tee-Object -FilePath build.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            $errs = Select-String -Path build.log -Pattern ' error ' | ForEach-Object { $_.Line.Trim() } | Select-Object -Unique -First 25
+            foreach ($e in $errs) { Write-Host "::error::$($e -replace '%','%25')" }
+            exit $code
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: VatsimNAAATS-plugin
