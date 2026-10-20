@@ -173,6 +173,17 @@ class NetworkTests(unittest.TestCase):
         r = s.convert_network_pilot(self.pilot("DLH1", "DCT ETARI 56/20 56/30 56/40 NEEKO DCT"), self.TRACKS)
         self.assertEqual((r["track"], r["route"]), ("A", "ETARI 56/20 56/30 56/40 NEEKO"))
 
+
+    def test_track_matches_whatever_the_spelling(self):
+        tracks = [{"id": "A", "route": [{"name": "SAURY"}, {"name": "61/50"}, {"name": "62/40"}, {"name": "62/30"}, {"name": "61/20"}, {"name": "BALIX"}]}]
+        for route in ("SAURY DCT 61N050W 62N040W 62N030W 61N020W DCT BALIX",
+                      "SAURY 6100N05000W 6200N04000W 6200N03000W 6100N02000W BALIX",
+                      "SAURY 61/50 62/40 62/30 61/20 BALIX"):
+            r = s.convert_network_pilot(self.pilot("DLH3V", route, dep="EDDF", arr="KDTW"), tracks)
+            self.assertEqual(r["track"], "A", route)
+        r = s.convert_network_pilot(self.pilot("X1", "61N050W 62N040W 62N030W 60N020W"), tracks)   # one point differs
+        self.assertEqual(r["track"], "RR")
+
     def test_non_oceanic_ignored(self):
         self.assertIsNone(s.convert_network_pilot(self.pilot("X1", "DCT LAM DCT"), self.TRACKS))
         self.assertIsNone(s.convert_network_pilot({"callsign": "X2"}, self.TRACKS))

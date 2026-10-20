@@ -302,10 +302,11 @@ def convert_network_pilot(pilot, tracks):
     coord_names = [p[0] for p in pts]
     direction = pts[-1][2] > pts[0][2]                        # moving towards Europe = eastbound
     track = "RR"
-    flown = set(coord_names)
+    flown = {(round(p[1], 2), round(p[2], 2)) for p in pts}   # compare positions, not spelling (61/50 == 61N050W)
     for t in tracks:                                          # on a track if it passes the whole track's coordinate fixes
-        tnames = [r["name"].upper() for r in t.get("route", []) if oceanic_point(r["name"])]
-        if len(tnames) >= 3 and all(n in flown for n in tnames):
+        tpts = [oceanic_point(r["name"]) for r in t.get("route", [])]
+        tpos = [(round(q[1], 2), round(q[2], 2)) for q in tpts if q]
+        if len(tpos) >= 3 and all(pos in flown for pos in tpos):
             track = t["id"]
             break
     return {
