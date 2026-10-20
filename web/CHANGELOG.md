@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.4.0 - 2026-10-21
+- CPDLC: aircraft connected to CPDLC show their callsign in brackets, e.g. [BAW123], on the strip and in the flight plan panel.
+- New CPDLC drawer (button in the info bar, with unread count): connected aircraft, message thread, quick replies (UNABLE / STANDBY / ROGER), templates, send. Sound alert on new messages. Needs a controller position to send.
+
 ## 0.3.1 - 2026-10-21
 - Homepage: "Version 2 - Modernised by Gary Thomas" credit, copyright line updated (original (c) Andrew Ogden 2020-2021 kept, Version 2 (c) Gary Thomas 2026), Discord button removed, plugin box links to the Version 2 project, new "Dedicated CPDLC Interaction - coming soon" box.
 

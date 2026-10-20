@@ -294,6 +294,7 @@ struct CNetworkFlightPlan {
 	string TrackedBy;
 	string TrackedById;
 	string LastUpdated;
+	bool Cpdlc = false; // connected to the CPDLC station on the server
 };
 
 struct CAircraftFlightPlan {
@@ -368,6 +369,7 @@ struct CAircraftFlightPlan {
 	bool IsEquipped;
 	bool IsValid = false;
 	bool IsRelevant = true;
+	bool CpdlcConnected = false; // show [CALLSIGN] on the radar tag
 	bool WindowRefresh = false; // server changed level/speed/track/SELCAL: refresh the open flight plan window
 	bool SelcalManual = false; // SELCAL typed in by the controller: do not overwrite from remarks
 	bool IsFirstUpdate = false; // So that we can disable flight plan window until the plan has been fetched from server at least once

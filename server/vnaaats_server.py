@@ -16,6 +16,8 @@ Extra:
   If a "web" folder exists next to this file, the built flight data display is served from it.
   Controller login for the flight data display (editing): POST /auth/password, GET /auth/login + /auth/callback (VATSIM Connect),
   GET /auth/status, POST /auth/position, POST /auth/logout, POST /EditFlight (needs a login with a position).
+  CPDLC (Hoppie ACARS ground station, see cpdlc.py): GET /cpdlc/status, GET /cpdlc/messages?callsign=XXX&after=N,
+  POST /cpdlc/send {callsign,text,ra,mrn}, POST /cpdlc/seen {callsign}. Flight records carry "cpdlc": true when connected.
   GET /health      GET /unresolved (fixes we could not find coordinates for)   GET /  (simple info page)
 
 Settings (environment variables): VNAAATS_API_KEY (required), VNAAATS_PORT (8080), VNAAATS_DB, VNAAATS_NATTRAK_URL,
@@ -23,6 +25,8 @@ VNAAATS_REFRESH_SECONDS (600), VNAAATS_BIND (127.0.0.1), VNAAATS_VATSIM_FEED (fe
 VNAAATS_FEED_SECONDS (60), VNAAATS_NATTRAK_PLUGIN_URL (natTrak clearance API; 'off' to disable).
 Login (editing from the web): VNAAATS_FDD_PASSWORD (shared password), VNAAATS_POSITIONS (comma list shown on the position screen),
 VNAAATS_CONNECT_CLIENT_ID / VNAAATS_CONNECT_CLIENT_SECRET / VNAAATS_PUBLIC_URL (e.g. https://fdd.example.com) for VATSIM Connect,
+VNAAATS_HOPPIE_CODE + VNAAATS_HOPPIE_STATION (your Hoppie logon code and the station callsign to log on as; CPDLC is off until both are set),
+VNAAATS_HOPPIE_URL, VNAAATS_CPDLC_AUTOACCEPT (1 = accept pilots' logon requests automatically, 0 = off).
 VNAAATS_CONNECT_BASE (https://auth.vatsim.net, sandbox: https://auth-dev.vatsim.net), VNAAATS_ALLOWED_CIDS (comma list; if empty
 any VATSIM member rated VNAAATS_MIN_RATING or higher, default 2 = S1, may log in).
 """
@@ -34,6 +38,7 @@ import os
 import re
 import secrets
 import sqlite3
+import sys
 import threading
 import time
 import urllib.parse
@@ -43,12 +48,14 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import cpdlc as cpdlc_mod
 log = logging.getLogger("vnaaats")
 
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.4.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.5.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -658,8 +665,14 @@ MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css
         ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
 
 
-def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None):
+def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None):
     auth = auth or Auth({})
+
+    def with_cpdlc(rec):
+        """Add "cpdlc": true/false (connected to our CPDLC station) to a flight record."""
+        rec = dict(rec)
+        rec["cpdlc"] = bool(cpdlc and cpdlc.is_connected(rec.get("callsign", "")))
+        return rec
     secure_cookie = auth.public_url.startswith("https://")
 
     class Handler(BaseHTTPRequestHandler):
@@ -757,6 +770,26 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if not self._session() or not auth.set_position(self._token(), str(body.get("position", ""))):
                         return self._send(400, {"error": "log in first and give a position like CZQO_CTR"})
                     return self._send(200, self._status(self._session()))
+                if p in ("/cpdlc/send", "/cpdlc/seen"):
+                    if not cpdlc:
+                        return self._send(404, {"error": "CPDLC is not switched on"})
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if not sess["position"] or sess["position"] == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position to use CPDLC"})
+                    if p == "/cpdlc/seen":
+                        cpdlc.mark_seen(str(body.get("callsign", "")))
+                        return self._send(200, {"ok": True})
+                    try:
+                        mrn = body.get("mrn")
+                        msg = cpdlc.send(str(body.get("callsign", "")), str(body.get("text", "")), str(body.get("ra", "WU")),
+                                         int(mrn) if mrn not in (None, "") else None, by="%s (%s)" % (sess["position"], sess["name"]))
+                    except ValueError as e:
+                        return self._send(400, {"error": str(e)})
+                    except RuntimeError as e:
+                        return self._send(502, {"error": str(e)})
+                    return self._send(200, msg)
                 if p == "/EditFlight":
                     sess = self._session()
                     if not sess:
@@ -810,6 +843,14 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 if p == "/GetAllNatTracks":
                     with cache.lock:
                         return self._send(200, cache.tracks)
+                if p == "/cpdlc/status":
+                    return self._send(200, cpdlc.status() if cpdlc else {"enabled": False, "connected": [], "unread": {}})
+                if p == "/cpdlc/messages":
+                    if not cpdlc:
+                        return self._send(404, {"error": "CPDLC is not switched on"})
+                    if not self._session():
+                        return self._send(401, {"error": "log in first"})
+                    return self._send(200, cpdlc.messages(q.get("callsign") or None, to_int(q.get("after"), 0)))
                 if p == "/auth/status":
                     return self._send(200, self._status(self._session()))
                 if p == "/auth/login":
@@ -829,16 +870,16 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     rec = store.get(q.get("callsign", ""))
                     if rec:
                         store.ack_web_edit(q.get("callsign", ""))        # the plugin has now seen any web edit
-                    return self._send(200, [rec]) if rec else self._send(404, {"error": "not found"})
+                    return self._send(200, [with_cpdlc(rec)]) if rec else self._send(404, {"error": "not found"})
                 if p in ("/PostFlightData", "/UpdateFlightData"):
                     if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
                         return self._send(401, {"error": "bad key"})
                     rec = store.upsert(q)
                     return self._send(200, rec) if rec else self._send(400, {"error": "callsign required"})
                 if p == "/GetAllFlightData":
-                    return self._send(200, store.all_flights(newest_first=q.get("sort", "1") != "0"))
+                    return self._send(200, [with_cpdlc(f) for f in store.all_flights(newest_first=q.get("sort", "1") != "0")])
                 if p == "/GetNetworkTraffic":
-                    return self._send(200, network.all() if network else [])
+                    return self._send(200, [with_cpdlc(f) for f in network.all()] if network else [])
                 if p == "/GetNatTrakData":
                     return self._send(200, natrak.all() if natrak else [])
                 if p == "/PostNamedFix":
@@ -894,9 +935,19 @@ def main():
     threading.Thread(target=lambda: [store.purge() or time.sleep(3600) for _ in iter(int, 1)], daemon=True).start()
     host, port = os.environ.get("VNAAATS_BIND", "127.0.0.1"), int(os.environ.get("VNAAATS_PORT", "8080"))
     log.info("Listening on %s:%d", host, port)
+    cpdlc = None
+    code, station = os.environ.get("VNAAATS_HOPPIE_CODE", ""), os.environ.get("VNAAATS_HOPPIE_STATION", "").strip().upper()
+    if code and station:
+        client = cpdlc_mod.HoppieClient(os.environ.get("VNAAATS_HOPPIE_URL", cpdlc_mod.DEFAULT_URL), code, station)
+        cpdlc = cpdlc_mod.CpdlcStation(os.environ.get("VNAAATS_DB", os.path.join(HERE, "vnaaats.db")), client,
+                                       auto_accept=os.environ.get("VNAAATS_CPDLC_AUTOACCEPT", "1") != "0")
+        threading.Thread(target=cpdlc.loop, daemon=True).start()
+        log.info("CPDLC station %s is ON (auto-accept logons: %s)", station, cpdlc.auto_accept)
+    else:
+        log.info("CPDLC is OFF (set VNAAATS_HOPPIE_CODE and VNAAATS_HOPPIE_STATION to switch it on)")
     auth = Auth()
     log.info("Web editing: %s", "VATSIM Connect + password" if auth.connect_enabled and auth.password else "VATSIM Connect" if auth.connect_enabled else "password" if auth.password else "OFF (set VNAAATS_FDD_PASSWORD)")
-    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth)).serve_forever()
+    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc)).serve_forever()
 
 
 if __name__ == "__main__":

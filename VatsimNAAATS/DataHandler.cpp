@@ -518,6 +518,7 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 			netFP.TrackedById = jsonArray[i].at("trackedById");
 			netFP.TargetMode = jsonArray[i].at("targetMode");
 			netFP.LastUpdated = jsonArray[i].at("lastUpdated");
+			netFP.Cpdlc = jsonArray[i].value("cpdlc", false); // older servers do not send it
 
 			// Get flight plan
 			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
@@ -534,6 +535,7 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 					valuesChanged = true;
 				}
 				if (valuesChanged) fp->WindowRefresh = true;
+				fp->CpdlcConnected = netFP.Cpdlc;
 				// Simply update all the values
 				fp->FlightLevel = to_string(netFP.AssignedLevel);
 				fp->Mach = to_string(netFP.AssignedMach);

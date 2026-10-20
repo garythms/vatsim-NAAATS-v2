@@ -4,6 +4,7 @@
   import Tracks from "./tracks.svelte";
   import NatTrakData from "./nattrak_data.svelte";
   import LoginModal from "./login_modal.svelte";
+  import CpdlcPanel from "./cpdlc_panel.svelte";
   import { onMount } from "svelte";
   import * as site from "../../typescript/site"
 
@@ -21,6 +22,7 @@
 </script>
 
 <LoginModal />
+<CpdlcPanel />
 <div class="flex h-screen overflow-hidden">
   <div class="flex flex-row w-3/5 bg-blue-2 border-l-blue-10 border-t-blue-10 border-r-blue-3 border-b-blue-3 border-2">
     <FDD />

@@ -1,4 +1,4 @@
-vNAAATS V2 plugin - BETA 1.3b5 (testers)
+vNAAATS V2 plugin - BETA 1.4b1 (testers)
 =========================================
 
 INSTALL
@@ -13,7 +13,8 @@ INSTALL
 5. Start EuroScope > Other SET > Plug-ins > Load, pick VatsimNAAATS.dll.
 6. If it will not load, install the Microsoft Visual C++ 2015-2022 Redistributable (x86).
 
-NEW IN 1.3b5
+NEW IN 1.4b1
+- CPDLC: an aircraft connected to CPDLC shows its callsign in brackets on the radar tag, e.g. [BAW123].
 - The server is now https://vnaaats.com (secure). The FDD is at https://vnaaats.com/fdd. If you used the old IP address in vnaaats.cfg, change it.
 - SELCAL box in the flight plan window is editable (4 letters, A-H J-M P-S, e.g. ASCM or AS-CM).
   Clear the box to go back to the SEL/ code in the remarks.

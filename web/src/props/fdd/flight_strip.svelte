@@ -20,6 +20,8 @@
   //export let state: string;
   //export let relevant: boolean;
   export let trackedBy: string;
+  export let cpdlc: boolean = false;      // connected to CPDLC: callsign shown as [BAW123]
+  export let cpdlcAlert: boolean = false; // unread CPDLC message: flash
   export let warning: string = "";   // conflict / sanity warning text ("" = none)
   export let updatedBy: string = "";
   export let updatedAt: number = 0;
@@ -67,12 +69,12 @@
       </div>
     </div>
   {/if}
-  <div class="flex flex-row items-center w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert ? 'nt-flash' : ''} text-black hover:cursor-default"
+  <div class="flex flex-row items-center w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert || cpdlcAlert ? 'nt-flash' : ''} text-black hover:cursor-default"
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
     <div class="flex flex-row w-1/7 px-2 hover:cursor-default select-none">
-      {callsign + (!isEquipped ? "*" : "")}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
+      {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="flex flex-row w-5/7 hover:cursor-default select-none">
       <!-- TODO fix this alignment -->

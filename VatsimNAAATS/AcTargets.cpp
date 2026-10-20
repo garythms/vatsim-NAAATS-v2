@@ -432,6 +432,10 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 	CAircraftFlightPlan fp;
 	CDataHandler::GetFlightData(acFP.GetCallsign(), fp);
 
+	// Callsign as shown on the tag: [BAW123] when the aircraft is connected to CPDLC
+	string csText = string(acFP.GetCallsign());
+	if (fp.CpdlcConnected) csText = "[" + csText + "]";
+
 	// Check if there is an active handoff to client controller
 	bool isHandoffToMe = string(acFP.GetHandoffTargetControllerCallsign()) == string(screen->GetPlugIn()->ControllerMyself().GetCallsign());
 
@@ -537,7 +541,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		}
 
 		// Callsign
-		text = acFP.GetCallsign();
+		text = csText;
 		dc->TextOutA(tagRect.left + 1, tagRect.top, text.c_str());
 		offsetY += 15;
 
@@ -617,7 +621,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		}
 				
 		/// Tag line
-		CSize txtExtent = dc->GetTextExtent(acFP.GetCallsign()); // Get callsign length
+		CSize txtExtent = dc->GetTextExtent(csText.c_str()); // Get callsign length
 
 		// Pen
 		CPen pen(PS_SOLID, 1, textColour);
@@ -677,7 +681,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		screen->AddScreenObject(SCREEN_TAG, acFP.GetCallsign(), tagRect, true, (string(acFP.GetPilotName()) + " - " + string(acFP.GetFlightPlanData().GetRoute())).c_str());
 
 		// Now create screen object for callsign
-		CRect callsignRect(tagRect.left, tagRect.top, tagRect.left + dc->GetTextExtent(acFP.GetCallsign()).cx, tagRect.top + dc->GetTextExtent(acFP.GetCallsign()).cy);
+		CRect callsignRect(tagRect.left, tagRect.top, tagRect.left + dc->GetTextExtent(csText.c_str()).cx, tagRect.top + dc->GetTextExtent(csText.c_str()).cy);
 		screen->AddScreenObject(SCREEN_TAG_CS, acFP.GetCallsign(), callsignRect, true, (string(acFP.GetPilotName()) + " - " + string(acFP.GetFlightPlanData().GetRoute())).c_str());
 
 		// Restore context

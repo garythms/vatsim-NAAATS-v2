@@ -36,6 +36,7 @@ interface JsonAcObj {
   trackedById: string;
   lastUpdated: string;
   source?: string;
+  cpdlc?: boolean;
   updatedBy?: string;
   updatedAt?: string;
   history?: { at: string; by: string; changes: Record<string, [any, any]> }[];
@@ -306,6 +307,7 @@ export async function populateAllAircraft() : Promise<void> {
             Direction: objArr[i]?.direction,
             LastUpdated: Date.parse(objArr[i]?.lastUpdated),
             Source: objArr[i]?.source ?? "plugin",
+            Cpdlc: objArr[i]?.cpdlc ?? false,
             Entry: routePoints[0] ?? "",
             Exit: routePoints[routePoints.length - 1] ?? "",
             EntryEta: etaMinutes(routeEtas),

@@ -23,6 +23,7 @@ export type Aircraft = {
   Relevant: boolean;
   TargetMode: number;
   LastUpdated: number;
+  Cpdlc: boolean; // connected to the CPDLC station
   Entry: string; // first and last named/lat-lon point of the route in flight order (before any display reversal)
   Exit: string;
   EntryEta: number; // minutes since midnight at the first route point, -1 if unknown

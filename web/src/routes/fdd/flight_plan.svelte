@@ -52,7 +52,7 @@
 <div
   class="flex flex-col w-full h-1/3 overflow-hidden border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10">
   <Titlebar
-    label="Flight Plan - {asel == null ? 'No selection' : asel.Callsign}"/>
+    label="Flight Plan - {asel == null ? 'No selection' : asel.Cpdlc ? '[' + asel.Callsign + ']' : asel.Callsign}"/>
   {#if asel != null}
     <div
       class="flex flex-row items-center justify-start px-3 py-2 border-b-2 w-full border-b-blue-0">
@@ -115,7 +115,7 @@
       <div class="flex flex-row justify-start w-1/4">
         <div
           class="flex flex-row items-center justify-center m-1.5 ml-2 w-48 h-8 bg-blue-9 text-black font-bitmap text-xl font-thin">
-          {asel.Callsign}
+          {asel.Cpdlc ? "[" + asel.Callsign + "]" : asel.Callsign}
         </div>
       </div>
       <div class="flex flex-row items-start py-1.5 justify-start w-3/4">

@@ -7,8 +7,11 @@
   import * as dataHandler from "../../typescript/fdd/data";
   import * as site from "../../typescript/site";
   import * as sess from "../../typescript/fdd/session";
+  import * as cp from "../../typescript/fdd/cpdlc";
 
   const { session } = sess;
+  const { cpdlcStatus, cpdlcOpen } = cp;
+  $: cpdlcUnread = cp.unreadTotal($cpdlcStatus);
 
   // Initialisation of data
   let isLoading: boolean = true;
@@ -19,6 +22,7 @@
 
     // Start the fetcher
     dataHandler.runDataFetcher();
+    cp.startCpdlcPolling();
 
     // Title
     site.setTitle("Flight Data Display");
@@ -30,6 +34,7 @@
     site.setSiteSection(0);
     clearInterval(dataHandler.acUpdateJob);
     clearInterval(dataHandler.tkUpdateJob);
+    cp.stopCpdlcPolling();
   });
 
   // Level/track filter for the strip list (HL / LL / ALL TK / RR)
@@ -262,6 +267,12 @@
         <option value="UPDATED">last changed</option>
       </select>
     </label>
+    {#if $cpdlcStatus.enabled}
+      <button class="px-2 py-0.5 font-bold border border-blue-6 {cpdlcUnread > 0 && visualOn && tickN >= 0 ? 'nt-flash text-black' : 'bg-blue-3'}"
+        title="Open the CPDLC panel" on:click={() => cpdlcOpen.set(!$cpdlcOpen)}>
+        CPDLC{$cpdlcStatus.connected.length > 0 ? " [" + $cpdlcStatus.connected.length + "]" : ""}{cpdlcUnread > 0 ? " \u2709 " + cpdlcUnread : ""}
+      </button>
+    {/if}
     <span class="opacity-70">{shownCount} shown</span>
     {#if conflictCount > 0}
       <span class="text-yellow-300 font-bold" title="Flights with a warning are marked on their strip">&#9888; {conflictCount}</span>
@@ -360,6 +371,8 @@
             trackedBy={ac.TrackedBy}
             isEquipped={ac.IsEquipped}
             alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
+            cpdlc={ac.Cpdlc}
+            cpdlcAlert={visualOn && ($cpdlcStatus.unread?.[ac.Callsign] ?? 0) > 0 && tickN >= 0}
             warning={(dataHandler.conflicts.get(ac.Callsign) ?? []).join("; ")}
             updatedBy={ac.UpdatedBy}
             updatedAt={ac.UpdatedAt}

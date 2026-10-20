@@ -33,3 +33,17 @@ Reading (viewing the FDD) stays open. The plugin keeps using the API key for its
 - **VATSIM login** (needs HTTPS and a VATSIM Connect client; see below): `VNAAATS_CONNECT_CLIENT_ID`, `VNAAATS_CONNECT_CLIENT_SECRET`, `VNAAATS_PUBLIC_URL=https://your.domain`. Optional `VNAAATS_ALLOWED_CIDS=1234567,7654321` (only these CIDs) or `VNAAATS_MIN_RATING` (default 2 = S1 and above). For the VATSIM sandbox set `VNAAATS_CONNECT_BASE=https://auth-dev.vatsim.net`.
   Register the app at https://auth.vatsim.net (production needs an approved organisation); the redirect URL to register is `https://your.domain/auth/callback`.
 - Each flight remembers `updatedBy` / `updatedAt` / the last 10 changes (`history`). A web edit is held until the plugin has fetched it, so a plugin that has not yet polled cannot overwrite it with an old value.
+
+## CPDLC (server 0.5.0)
+
+The server can act as the CPDLC ground station through Hoppie's ACARS. It is off until you set both of these in `/etc/vnaaats.env` and restart:
+
+- `VNAAATS_HOPPIE_CODE` - your Hoppie logon code (private; type it on the server yourself).
+- `VNAAATS_HOPPIE_STATION` - the station callsign pilots log on to (e.g. `CZQO`).
+- Optional: `VNAAATS_HOPPIE_URL` (default `https://www.hoppie.nl/acars/system/connect.html`), `VNAAATS_CPDLC_AUTOACCEPT` (default 1: logon requests are accepted automatically).
+
+How it works: the server polls Hoppie (about every minute, faster after traffic), accepts `REQUEST LOGON`, stores the messages and pings connected aircraft every 5 minutes (dropping them after two misses). Connected aircraft get `"cpdlc": true` in the flight data, so the plugin shows `[BAW123]` and the FDD shows brackets plus the CPDLC drawer (send/reply, quick templates, unread alerts). Only signed-in controllers with a real position can send.
+
+Cautions:
+- Only one program may poll a given station callsign at a time (polling removes the messages). Do not use a callsign that TopSky or another client is logged on with - use a test callsign first.
+- LOGOFF handling and exact reply behaviour have not yet been checked against the live Hoppie system.
