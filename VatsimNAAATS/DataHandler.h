@@ -51,6 +51,7 @@ class CDataHandler
 	// Read vnaaats.cfg (server address, API key, squawk option) from the DLL folder
 	static void LoadSettings();
 	static bool SquawkOnClearance; // assign 2000 when a clearance is sent
+	static string FddUrl; // flight data display address (server + /fdd)
 	static string UrlEncode(const string& value); // percent-encode a query value
 	
 	private:
@@ -62,7 +63,6 @@ class CDataHandler
 
 		// NAT Track URL
 		static string TrackURL;
-		static string FddUrl;
 		static map<string, CAircraftFlightPlan> flights;
 
 		// vNAAATS API Links
