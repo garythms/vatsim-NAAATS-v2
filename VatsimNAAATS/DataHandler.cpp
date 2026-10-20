@@ -11,7 +11,7 @@
 using json = nlohmann::json;
 
 // Server settings. Defaults are replaced by vnaaats.cfg (next to the DLL) in LoadSettings().
-static const string DEFAULT_SERVER = "http://49.12.254.143";
+static const string DEFAULT_SERVER = "https://vnaaats.com";
 string CDataHandler::ControllerCallsign = "";
 string CDataHandler::FddUrl = DEFAULT_SERVER + "/fdd";
 string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";

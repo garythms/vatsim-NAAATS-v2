@@ -1,4 +1,4 @@
-vNAAATS V2 plugin - BETA 1.3b4 (testers)
+vNAAATS V2 plugin - BETA 1.3b5 (testers)
 =========================================
 
 INSTALL
@@ -6,14 +6,15 @@ INSTALL
 2. Put VatsimNAAATS.dll in your EuroScope Plugins folder (any folder is fine).
 3. Copy vnaaats.example.cfg to the SAME folder as the DLL and rename it vnaaats.cfg.
 4. Open vnaaats.cfg in Notepad and fill in:
-      server=http://49.12.254.143
+      server=https://vnaaats.com
       key=<the key you were sent - keep it private>
       squawk=1
    (squawk=0 turns off automatic squawk 2000 on oceanic clearance)
 5. Start EuroScope > Other SET > Plug-ins > Load, pick VatsimNAAATS.dll.
 6. If it will not load, install the Microsoft Visual C++ 2015-2022 Redistributable (x86).
 
-NEW IN 1.3b4
+NEW IN 1.3b5
+- The server is now https://vnaaats.com (secure). The FDD is at https://vnaaats.com/fdd. If you used the old IP address in vnaaats.cfg, change it.
 - SELCAL box in the flight plan window is editable (4 letters, A-H J-M P-S, e.g. ASCM or AS-CM).
   Clear the box to go back to the SEL/ code in the remarks.
 - FDD button opens your own server's flight data display (<server>/fdd).
