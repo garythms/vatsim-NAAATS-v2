@@ -71,21 +71,34 @@
   let clearedList: any[] = [];
   let alertCount: number = 0;
   let soundOn: boolean = dataHandler.soundOn;
+  let visualOn: boolean = dataHandler.visualOn;
+  let tone: string = dataHandler.tone;
   function refreshNatTrak(): void {
     const all: any[] = [...dataHandler.natTrakData.values()];
     pendingList = all.filter((d) => d.status === "PENDING");
     clearedList = all.filter((d) => d.status !== "PENDING").sort((a, b) => String(b.clearance_issued).localeCompare(String(a.clearance_issued)));
     alertCount = pendingList.filter((d) => dataHandler.isNatTrakAlert(d.callsign)).length;
     soundOn = dataHandler.soundOn;
-    document.title = (alertCount > 0 ? "(" + alertCount + ") " : "") + "Flight Data Display - vNAAATS";
+    visualOn = dataHandler.visualOn;
+    tone = dataHandler.tone;
+    document.title = (visualOn && alertCount > 0 ? "(" + alertCount + ") " : "") + "Flight Data Display - vNAAATS";
   }
-  function pickRequest(callsign: string): void {
+  function pickRequest(callsign: string, openWindow: boolean = false): void {
+    if (openWindow) dataHandler.openNatTrakFor(callsign);
     dataHandler.ackNatTrak(callsign);
     dataHandler.setAsel(callsign);
     refreshNatTrak();
   }
   function toggleSound(): void {
     dataHandler.setSound(!dataHandler.soundOn);
+    refreshNatTrak();
+  }
+  function toggleVisual(): void {
+    dataHandler.setVisual(!dataHandler.visualOn);
+    refreshNatTrak();
+  }
+  function changeTone(): void {
+    dataHandler.cycleTone();
     refreshNatTrak();
   }
 
@@ -174,15 +187,16 @@
     <div class="flex flex-col w-1/2 border-r-2 border-blue-10">
       <div class="flex flex-row justify-between px-2 py-0.5 bg-blue-3 font-bold select-none">
         <span>natTrak PENDING ({pendingList.length}) - needs action</span>
-        <a href="https://nattrak.vatsim.net/controllers/clx/pending" target="_blank" rel="noopener" class="underline text-yellow-300">Open natTrak</a>
+        <span class="underline text-yellow-300 hover:cursor-pointer" on:click={() => dataHandler.openNatTrak()}>Open natTrak</span>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto">
         {#if pendingList.length == 0}
           <div class="px-2 py-1 opacity-70 select-none">No pending requests</div>
         {/if}
         {#each pendingList as p}
-          <div class="flex flex-row px-2 py-0.5 border-b border-blue-4 hover:cursor-pointer {dataHandler.isNatTrakAlert(p.callsign) && tickN >= 0 ? 'nt-flash text-black' : ''}"
-            on:click={() => pickRequest(p.callsign)}>
+          <div class="flex flex-row px-2 py-0.5 border-b border-blue-4 hover:cursor-pointer {visualOn && dataHandler.isNatTrakAlert(p.callsign) && tickN >= 0 ? 'nt-flash text-black' : ''}"
+            title="Click to open natTrak and select the aircraft"
+            on:click={() => pickRequest(p.callsign, true)}>
             <div class="w-1/5 font-bold">{p.callsign}</div>
             <div class="w-1/12">{p.nat}</div>
             <div class="w-1/6">{p.fix}</div>
@@ -196,7 +210,11 @@
     <div class="flex flex-col w-1/2">
       <div class="flex flex-row justify-between px-2 py-0.5 bg-blue-3 font-bold select-none">
         <span>natTrak CLEARED ({clearedList.length})</span>
-        <span class="underline hover:cursor-pointer" on:click={toggleSound}>Sound: {soundOn ? "ON" : "OFF"}</span>
+        <span class="flex flex-row gap-x-3">
+          <span class="underline hover:cursor-pointer" title="Flashing strips and tab title" on:click={toggleVisual}>Visual: {visualOn ? "ON" : "OFF"}</span>
+          <span class="underline hover:cursor-pointer" title="Sound when a new request arrives" on:click={toggleSound}>Audio: {soundOn ? "ON" : "OFF"}</span>
+          <span class="underline hover:cursor-pointer" title="Change the alert sound (plays a preview)" on:click={changeTone}>Tone: {tone}</span>
+        </span>
       </div>
       <div class="flex-1 min-h-0 overflow-y-auto">
         {#each clearedList as c}
@@ -259,7 +277,7 @@
             arrival={ac.Arrival}
             trackedBy={ac.TrackedBy}
             isEquipped={ac.IsEquipped}
-            alert={dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
+            alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
             direction={ac.Direction ?? false}
           />
           {/if}

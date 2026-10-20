@@ -38,7 +38,11 @@
 </script>
 
 <div class="hover:border-green-500 hover:border-2"
-  on:click={() => { dataHandler.ackNatTrak(callsign); dataHandler.setAsel(callsign); }}>
+  on:click={() => {
+    if (dataHandler.isNatTrakAlert(callsign)) dataHandler.openNatTrakFor(callsign); // flashing request: open natTrak
+    dataHandler.ackNatTrak(callsign);
+    dataHandler.setAsel(callsign);
+  }}>
   {#if track === "RR"}
     <div class="flex flex-col items-center justify-end py-0.5 w-full h-16 {darkerColour} {isActive ? 'bg-opacity-75' : ''} text-black hover:cursor-default"
       on:mousedown={stripMouseDown}

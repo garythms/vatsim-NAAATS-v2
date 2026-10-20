@@ -286,11 +286,24 @@ export async function populateAllAircraft() : Promise<void> {
 export let natTrakAcked: Set<string> = new Set();
 let prevPending: Set<string> | null = null; // null until the first successful fetch (no ping for what is already there)
 
-function readSound(): boolean {
-  try { return localStorage.getItem("vnaaats.sound") !== "off"; } catch (e) { return true; }
+function readSetting(key: string, def: string): string {
+  try { return localStorage.getItem(key) ?? def; } catch (e) { return def; }
 }
-export let soundOn: boolean = readSound();
+function writeSetting(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch (e) {}
+}
+export let soundOn: boolean = readSetting("vnaaats.sound", "on") !== "off";   // audio alerts
+export let visualOn: boolean = readSetting("vnaaats.visual", "on") !== "off"; // flashing / highlighting / tab title
+export const tones: string[] = ["Ping", "Chime", "Beep"];
+export let tone: string = tones.includes(readSetting("vnaaats.tone", "Ping")) ? readSetting("vnaaats.tone", "Ping") : "Ping";
 let audioCtx: any = null;
+
+// [frequency Hz, start offset s, length s, wave type]
+const toneNotes: { [key: string]: [number, number, number, string][] } = {
+  Ping: [[880, 0, 0.35, "sine"], [1320, 0.2, 0.35, "sine"]],
+  Chime: [[660, 0, 0.3, "sine"], [880, 0.14, 0.3, "sine"], [1100, 0.28, 0.45, "sine"]],
+  Beep: [[1000, 0, 0.18, "triangle"]],
+};
 
 export function playPing(): void {
   try {
@@ -299,18 +312,18 @@ export function playPing(): void {
     audioCtx = audioCtx ?? new AC();
     if (audioCtx.state === "suspended") audioCtx.resume();
     const t0: number = audioCtx.currentTime;
-    [[880, 0], [1320, 0.2]].forEach(([freq, delay]) => {
+    (toneNotes[tone] ?? toneNotes["Ping"]).forEach(([freq, delay, len, wave]) => {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      osc.type = "sine";
+      osc.type = wave;
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, t0 + delay);
       gain.gain.exponentialRampToValueAtTime(0.3, t0 + delay + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + len);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start(t0 + delay);
-      osc.stop(t0 + delay + 0.4);
+      osc.stop(t0 + delay + len + 0.05);
     });
   } catch (e) {
     // audio blocked or unsupported - the flashing still works
@@ -319,8 +332,32 @@ export function playPing(): void {
 
 export function setSound(on: boolean): void {
   soundOn = on;
-  try { localStorage.setItem("vnaaats.sound", on ? "on" : "off"); } catch (e) {}
+  writeSetting("vnaaats.sound", on ? "on" : "off");
   if (on) playPing(); // also unlocks audio in the browser
+}
+
+export function setVisual(on: boolean): void {
+  visualOn = on;
+  writeSetting("vnaaats.visual", on ? "on" : "off");
+}
+
+export function cycleTone(): void {
+  tone = tones[(tones.indexOf(tone) + 1) % tones.length];
+  writeSetting("vnaaats.tone", tone);
+  playPing(); // preview the new tone (also unlocks audio)
+}
+
+// Opens natTrak in a small reusable pop-up window (must be called from a click). natTrak does not publish the
+// request numbers, so this opens the pending list filtered to the request's track.
+export function openNatTrak(track?: string): void {
+  let url: string = "https://nattrak.vatsim.net/controllers/clx/pending";
+  if (track) url += "?display[]=" + encodeURIComponent(track);
+  window.open(url, "natTrakWindow", "popup=yes,width=1000,height=900");
+}
+
+export function openNatTrakFor(callsign: string): void {
+  const d = natTrakData.get(callsign.toUpperCase());
+  openNatTrak(d?.nat);
 }
 
 export function ackNatTrak(callsign: string): void {
