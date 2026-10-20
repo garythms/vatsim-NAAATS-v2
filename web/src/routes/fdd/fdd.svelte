@@ -65,6 +65,30 @@
     return false;
   }
 
+  // natTrak requests box + alerts
+  let tickN: number = 0;
+  let pendingList: any[] = [];
+  let clearedList: any[] = [];
+  let alertCount: number = 0;
+  let soundOn: boolean = dataHandler.soundOn;
+  function refreshNatTrak(): void {
+    const all: any[] = [...dataHandler.natTrakData.values()];
+    pendingList = all.filter((d) => d.status === "PENDING");
+    clearedList = all.filter((d) => d.status !== "PENDING").sort((a, b) => String(b.clearance_issued).localeCompare(String(a.clearance_issued)));
+    alertCount = pendingList.filter((d) => dataHandler.isNatTrakAlert(d.callsign)).length;
+    soundOn = dataHandler.soundOn;
+    document.title = (alertCount > 0 ? "(" + alertCount + ") " : "") + "Flight Data Display - vNAAATS";
+  }
+  function pickRequest(callsign: string): void {
+    dataHandler.ackNatTrak(callsign);
+    dataHandler.setAsel(callsign);
+    refreshNatTrak();
+  }
+  function toggleSound(): void {
+    dataHandler.setSound(!dataHandler.soundOn);
+    refreshNatTrak();
+  }
+
   // Externals
   $: acListKeys = [...dataHandler.networkAircraft.keys()];
   $: tmi = dataHandler.currentTMI;
@@ -77,6 +101,10 @@
     // Reset externals
     acListKeys = [...dataHandler.networkAircraft.keys()];
     tmi = dataHandler.currentTMI;
+
+    // natTrak requests / flashing
+    tickN++;
+    refreshNatTrak();
 
     // Update time
     timeString = utils.parseTime(new Date());
@@ -141,8 +169,51 @@
       </div>
     </div>
   </div>
+  <!-- natTrak requests: PENDING (needs action) and CLEARED -->
+  <div class="flex flex-row w-full border-b-2 border-blue-10 text-white font-regular" style="height: 9.5rem; font-size: 0.8rem;">
+    <div class="flex flex-col w-1/2 border-r-2 border-blue-10">
+      <div class="flex flex-row justify-between px-2 py-0.5 bg-blue-3 font-bold select-none">
+        <span>natTrak PENDING ({pendingList.length}) - needs action</span>
+        <a href="https://nattrak.vatsim.net/controllers/clx/pending" target="_blank" rel="noopener" class="underline text-yellow-300">Open natTrak</a>
+      </div>
+      <div class="flex-1 min-h-0 overflow-y-auto">
+        {#if pendingList.length == 0}
+          <div class="px-2 py-1 opacity-70 select-none">No pending requests</div>
+        {/if}
+        {#each pendingList as p}
+          <div class="flex flex-row px-2 py-0.5 border-b border-blue-4 hover:cursor-pointer {dataHandler.isNatTrakAlert(p.callsign) && tickN >= 0 ? 'nt-flash text-black' : ''}"
+            on:click={() => pickRequest(p.callsign)}>
+            <div class="w-1/5 font-bold">{p.callsign}</div>
+            <div class="w-1/12">{p.nat}</div>
+            <div class="w-1/6">{p.fix}</div>
+            <div class="w-1/6">FL{p.level}</div>
+            <div class="w-1/6">M{p.mach > 0 ? "0" + p.mach : "--"}</div>
+            <div class="w-1/6">{p.estimating_time}z</div>
+          </div>
+        {/each}
+      </div>
+    </div>
+    <div class="flex flex-col w-1/2">
+      <div class="flex flex-row justify-between px-2 py-0.5 bg-blue-3 font-bold select-none">
+        <span>natTrak CLEARED ({clearedList.length})</span>
+        <span class="underline hover:cursor-pointer" on:click={toggleSound}>Sound: {soundOn ? "ON" : "OFF"}</span>
+      </div>
+      <div class="flex-1 min-h-0 overflow-y-auto">
+        {#each clearedList as c}
+          <div class="flex flex-row px-2 py-0.5 border-b border-blue-4 hover:cursor-pointer" on:click={() => pickRequest(c.callsign)}>
+            <div class="w-1/5 font-bold">{c.callsign}</div>
+            <div class="w-1/12">{c.nat}</div>
+            <div class="w-1/6">{c.fix}</div>
+            <div class="w-1/6">FL{c.level}</div>
+            <div class="w-1/6">M{c.mach > 0 ? "0" + c.mach : "--"}</div>
+            <div class="w-1/6">{c.clearance_issued ?? ""}</div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  </div>
   <div
-    class="flex flex-col h-full font-bitmap font-light text-lg overflow-y-scroll overflow-x-hidden"
+    class="flex flex-col flex-1 min-h-0 font-bitmap font-light text-lg overflow-y-scroll overflow-x-hidden"
     style="font-size: clamp(0.65rem, 1.2vw, 1.125rem);">
     <!-- Aircraft component cards -->
     {#if isLoading}
@@ -188,6 +259,7 @@
             arrival={ac.Arrival}
             trackedBy={ac.TrackedBy}
             isEquipped={ac.IsEquipped}
+            alert={dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
             direction={ac.Direction ?? false}
           />
           {/if}
@@ -196,3 +268,13 @@
     {/if}
   </div>
 </div>
+
+<style>
+  :global(.nt-flash) {
+    animation: ntflash 1s steps(1, end) infinite;
+  }
+  @keyframes -global-ntflash {
+    0% { background-color: #ef4444; }
+    50% { background-color: #fde047; }
+  }
+</style>

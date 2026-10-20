@@ -2,7 +2,9 @@
   "name": "vNAAATS-Web",
   "version": "0.0.1",
   "scripts": {
+    "predev": "node scripts/stamp.cjs",
     "dev": "svelte-kit dev",
+    "prebuild": "node scripts/stamp.cjs",
     "build": "svelte-kit build",
     "preview": "svelte-kit preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",

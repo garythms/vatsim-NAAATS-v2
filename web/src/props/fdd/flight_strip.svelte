@@ -16,6 +16,7 @@
   //export let datalink: boolean;
   export let direction: boolean;
   export let isEquipped: boolean;
+  export let alert: boolean = false; // natTrak request waiting for action: flash
   //export let state: string;
   //export let relevant: boolean;
   export let trackedBy: string;
@@ -37,7 +38,7 @@
 </script>
 
 <div class="hover:border-green-500 hover:border-2"
-  on:click={() => dataHandler.setAsel(callsign)}>
+  on:click={() => { dataHandler.ackNatTrak(callsign); dataHandler.setAsel(callsign); }}>
   {#if track === "RR"}
     <div class="flex flex-col items-center justify-end py-0.5 w-full h-16 {darkerColour} {isActive ? 'bg-opacity-75' : ''} text-black hover:cursor-default"
       on:mousedown={stripMouseDown}
@@ -65,7 +66,7 @@
       </div>
     </div>
   {/if}
-  <div class="flex flex-row items-center w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} text-black hover:cursor-default"
+  <div class="flex flex-row items-center w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert ? 'nt-flash' : ''} text-black hover:cursor-default"
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>

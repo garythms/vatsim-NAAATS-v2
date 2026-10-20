@@ -280,6 +280,60 @@ export async function populateAllAircraft() : Promise<void> {
   return;
 }
 
+// ---- natTrak request alerts -------------------------------------------------------------------------
+// A request is "pending" until a controller clears it on natTrak. New pending requests ping and flash
+// until they are clicked (acknowledged) or cleared.
+export let natTrakAcked: Set<string> = new Set();
+let prevPending: Set<string> | null = null; // null until the first successful fetch (no ping for what is already there)
+
+function readSound(): boolean {
+  try { return localStorage.getItem("vnaaats.sound") !== "off"; } catch (e) { return true; }
+}
+export let soundOn: boolean = readSound();
+let audioCtx: any = null;
+
+export function playPing(): void {
+  try {
+    const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AC) return;
+    audioCtx = audioCtx ?? new AC();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const t0: number = audioCtx.currentTime;
+    [[880, 0], [1320, 0.2]].forEach(([freq, delay]) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + delay);
+      gain.gain.exponentialRampToValueAtTime(0.3, t0 + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.35);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(t0 + delay);
+      osc.stop(t0 + delay + 0.4);
+    });
+  } catch (e) {
+    // audio blocked or unsupported - the flashing still works
+  }
+}
+
+export function setSound(on: boolean): void {
+  soundOn = on;
+  try { localStorage.setItem("vnaaats.sound", on ? "on" : "off"); } catch (e) {}
+  if (on) playPing(); // also unlocks audio in the browser
+}
+
+export function ackNatTrak(callsign: string): void {
+  natTrakAcked.add(callsign.toUpperCase());
+  natTrakAcked = natTrakAcked;
+}
+
+export function isNatTrakAlert(callsign: string): boolean {
+  const cs: string = callsign.toUpperCase();
+  const d = natTrakData.get(cs);
+  return !!d && d.status === "PENDING" && !natTrakAcked.has(cs);
+}
+
 export async function natTrakFetch() : Promise<void> {
   try {
     const response: Response = await fetch(allNatTrakGet);
@@ -315,6 +369,22 @@ export async function natTrakFetch() : Promise<void> {
       });
     }
     natTrakData = fresh;
+
+    // Work out which requests are new since the last fetch
+    const nowPending: Set<string> = new Set();
+    fresh.forEach((v, k) => { if (v.status === "PENDING") nowPending.add(k); });
+    let isNew: boolean = false;
+    if (prevPending !== null) {
+      nowPending.forEach((k) => {
+        if (!prevPending!.has(k)) {
+          natTrakAcked.delete(k);
+          isNew = true;
+        }
+      });
+    }
+    prevPending = nowPending;
+    natTrakAcked.forEach((k) => { if (!nowPending.has(k)) natTrakAcked.delete(k); });
+    if (isNew && soundOn) playPing();
   } catch (e) {
     // keep showing the last good data
   }

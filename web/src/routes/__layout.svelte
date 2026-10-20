@@ -2,6 +2,7 @@
   import "../styles/globals.postcss";
   import * as dataHandler from "../typescript/fdd/data";
   import config from "../config.json";
+  import buildInfo from "../build-info.json";
   import * as site from "../typescript/site";
   import { onMount } from "svelte";
 
@@ -23,7 +24,7 @@
   {:else}
     <div class="flex justify-between items-center w-screen h-1/25 bg-blue-0 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-10 border-b-blue-0">
       <div class="flex w-2/5">
-        <button class="px-3 font-black hover:text-grey-300 select-none hover:cursor-default">
+        <button class="px-3 font-black hover:text-grey-300 select-none hover:cursor-default" title="Built {buildInfo.built}">
           {config.isBeta ? "Beta" : "Version"}
           {config.version}
         </button>
