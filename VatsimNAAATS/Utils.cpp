@@ -4,6 +4,7 @@
 #include "Utils.h"
 #include "Constants.h"
 #include "RadarDisplay.h"
+#include "Logger.h"
 
 // Default values
 int CUtils::InboundX = 1400;
@@ -1256,4 +1257,21 @@ string CUtils::GetLatLonString(CPosition* pos, bool space, int precision, bool s
 
 	// Return result
 	return res;
+}
+
+bool CUtils::AssignOceanicSquawk(CPlugIn* plugin, const string& callsign) {
+	try {
+		CFlightPlan fp = plugin->FlightPlanSelect(callsign.c_str());
+		if (!fp.IsValid()) return false;
+		// Already on 2000 (assigned or squawking)? Nothing to do.
+		if (string(fp.GetControllerAssignedData().GetSquawk()) == "2000") return true;
+		bool ok = fp.GetControllerAssignedData().SetSquawk("2000");
+		CLogger::Log(ok ? CLogType::NORM : CLogType::WARN,
+			string(ok ? "Assigned squawk 2000 to " : "Could not assign squawk 2000 to ") + callsign + ".", "CUtils::AssignOceanicSquawk");
+		return ok;
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Squawk assignment failed for " + callsign + ": " + string(e.what()), "CUtils::AssignOceanicSquawk");
+		return false;
+	}
 }

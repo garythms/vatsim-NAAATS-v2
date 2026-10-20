@@ -47,6 +47,11 @@ class CDataHandler
 
 	// Update aircraft data
 	static void UpdateNetworkAircraft(void* args);
+
+	// Read vnaaats.cfg (server address, API key, squawk option) from the DLL folder
+	static void LoadSettings();
+	static bool SquawkOnClearance; // assign 2000 when a clearance is sent
+	static string UrlEncode(const string& value); // percent-encode a query value
 	
 	private:
 		// Methods
@@ -56,12 +61,12 @@ class CDataHandler
 		static const string PluginVersion;
 
 		// NAT Track URL
-		static const string TrackURL;
+		static string TrackURL;
 		static map<string, CAircraftFlightPlan> flights;
 
 		// vNAAATS API Links
-		static const string TrackSource;
-		static const string GetSingleAircraft;
-		static const string FlightDataUpdate;
-		static const string PostSingleAircraft;
+		static string TrackSource;
+		static string GetSingleAircraft;
+		static string FlightDataUpdate;
+		static string PostSingleAircraft;
 };

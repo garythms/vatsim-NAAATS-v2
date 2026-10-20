@@ -91,6 +91,9 @@ void CRadarDisplay::PopulateProgramData() {
 		COverlays::CurrentType = COverlayType::TCKS_SEL;
 	}
 
+	// Load server address / key from vnaaats.cfg
+	CDataHandler::LoadSettings();
+
 	// Download the tracks
 	CDataHandler::PopulateLatestTrackData(GetPlugIn());
 

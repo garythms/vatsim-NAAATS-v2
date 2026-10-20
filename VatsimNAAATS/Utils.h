@@ -92,6 +92,9 @@ class CUtils { // TODO: refactor into namespace
 		// Find selcal code from remarks
 		static string GetSelcalCode(CFlightPlan* fpData);
 
+		// Assign transponder code 2000 (oceanic) to the aircraft. Returns true if the code is now 2000.
+		static bool AssignOceanicSquawk(CPlugIn* plugin, const string& callsign);
+
 		// Parse zulu time
 		static string ParseZuluTime(bool delimit, int deltaTime = -1, CFlightPlan* fp = nullptr, int ep = -1);
 

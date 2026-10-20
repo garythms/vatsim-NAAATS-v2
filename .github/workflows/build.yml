@@ -1,0 +1,25 @@
+name: Build plugin
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      # The EuroScope SDK import library is not in the repo (it is distributed with the EuroScope plugin SDK).
+      # Put EuroScopePlugInDll.lib in the repo's lib folder (git add -f lib/EuroScopePlugInDll.lib) to enable the build.
+      - name: Check SDK library
+        shell: pwsh
+        run: |
+          if (-not (Test-Path lib/EuroScopePlugInDll.lib)) { Write-Error "lib/EuroScopePlugInDll.lib is missing (see comment in build.yml)"; exit 1 }
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build (Release, 32-bit)
+        run: msbuild VatsimNAAATS/VatsimNAAATS.vcxproj /p:Configuration=Release /p:Platform=Win32 /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0 /m
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VatsimNAAATS-plugin
+          path: |
+            **/Release/VatsimNAAATS.dll
+            VatsimNAAATS/vnaaats.example.cfg

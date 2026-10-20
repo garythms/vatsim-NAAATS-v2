@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "DataHandler.h"
 #include "RoutesHelper.h"
-#include "Keys.h"
 #include <iostream>
 #include <fstream>
 #include <json.hpp>
@@ -10,16 +9,56 @@
 
 // Include dependency
 using json = nlohmann::json;
-using namespace ApiKeys;
 
-const string CDataHandler::TrackURL = "https://api.vnaaats.net/GetAllNatTracks";
+// Server settings. Defaults are replaced by vnaaats.cfg (next to the DLL) in LoadSettings().
+static const string DEFAULT_SERVER = "http://49.12.254.143";
+string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";
 map<string, CAircraftFlightPlan> CDataHandler::flights;
 
-const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/vNAAATS/vatsim-NAAATS/master/pluginversion.txt";
-const string CDataHandler::TrackSource = "https://api.vnaaats.net/GetTrackSource";
-const string CDataHandler::GetSingleAircraft = "https://api.vnaaats.net/GetSingleFlightData?callsign=";
-const string CDataHandler::PostSingleAircraft = "https://api.vnaaats.net/PostFlightData?code=" + ApiKeys::FUNC_KEY;
-const string CDataHandler::FlightDataUpdate = "https://api.vnaaats.net/UpdateFlightData?code=" + ApiKeys::FUNC_KEY;
+const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/garythms/vatsim-NAAATS-v2/master/pluginversion.txt";
+string CDataHandler::TrackSource = DEFAULT_SERVER + "/GetTrackSource";
+string CDataHandler::GetSingleAircraft = DEFAULT_SERVER + "/GetSingleFlightData?callsign=";
+string CDataHandler::PostSingleAircraft = DEFAULT_SERVER + "/PostFlightData?code=";
+string CDataHandler::FlightDataUpdate = DEFAULT_SERVER + "/UpdateFlightData?code=";
+bool CDataHandler::SquawkOnClearance = true;
+
+string CDataHandler::UrlEncode(const string& value) {
+	static const char* hex = "0123456789ABCDEF";
+	string out;
+	for (unsigned char ch : value) {
+		if (isalnum(ch) || ch == '-' || ch == '_' || ch == '.' || ch == '~' || ch == '/' || ch == ',') {
+			out += (char)ch;
+		}
+		else {
+			out += '%'; out += hex[ch >> 4]; out += hex[ch & 15];
+		}
+	}
+	return out;
+}
+
+// vnaaats.cfg lines:  server=http://host   key=SECRET   squawk=1
+void CDataHandler::LoadSettings() {
+	string server = DEFAULT_SERVER, key;
+	ifstream in(CUtils::DllPath + "\\vnaaats.cfg");
+	string line;
+	while (getline(in, line)) {
+		size_t eq = line.find('=');
+		if (eq == string::npos || line.empty() || line[0] == '#') continue;
+		string k = line.substr(0, eq), v = line.substr(eq + 1);
+		while (!v.empty() && (v.back() == '\r' || v.back() == ' ')) v.pop_back();
+		while (!v.empty() && v.front() == ' ') v.erase(v.begin());
+		if (k == "server") server = v;
+		else if (k == "key") key = v;
+		else if (k == "squawk") SquawkOnClearance = (v != "0");
+	}
+	while (!server.empty() && server.back() == '/') server.pop_back();
+	TrackURL = server + "/GetAllNatTracks";
+	TrackSource = server + "/GetTrackSource";
+	GetSingleAircraft = server + "/GetSingleFlightData?callsign=";
+	PostSingleAircraft = server + "/PostFlightData?code=" + UrlEncode(key);
+	FlightDataUpdate = server + "/UpdateFlightData?code=" + UrlEncode(key);
+	if (key.empty()) CLogger::Log(CLogType::WARN, "No API key in vnaaats.cfg - flight data cannot be saved to the server.", "CDataHandler::LoadSettings");
+}
 
 int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
 {
@@ -156,19 +195,6 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 				// Get lat and lon vars
 				double lat = jsonArray[i].at("route")[j].at("latitude");
 				double lon = jsonArray[i].at("route")[j].at("longitude");
-
-				// Split the name string to determine whether half waypoints (i.e. xxxx/xx not xx/xx)
-				vector<string> splitString;
-				int successCode = CUtils::StringSplit(jsonArray[i].at("route")[j].at("name"), '/', &splitString);
-				
-				// If they are weird half waypoints then divide by 100 to get the decimal
-				if (successCode == 0 && splitString.size() == 2) {
-					if (splitString[0].size() > 2)
-						lat /= 100.0;
-					
-					if (splitString[1].size() > 2)
-						lon /= 100.0;
-				}
 
 				// Finally, append
 				track.RouteRaw.push_back(CUtils::PositionFromLatLon(lat, lon));				
@@ -583,25 +609,25 @@ void CDataHandler::PostNetworkAircraft(void* args) {
 		}
 
 		// Construct URL
-		reqUrl += "&callsign=" + data->FP->Callsign;
-		reqUrl += "&type=" + data->FP->Type;
+		reqUrl += "&callsign=" + UrlEncode(data->FP->Callsign);
+		reqUrl += "&type=" + UrlEncode(data->FP->Type);
 		reqUrl += "&level=" + to_string(data->FP->AssignedLevel);
 		reqUrl += "&mach=" + to_string(data->FP->AssignedMach);
-		reqUrl += "&track=" + data->FP->Track;
-		reqUrl += "&route=" + data->FP->Route;
-		reqUrl += "&routeEtas=" + data->FP->RouteEtas;
-		reqUrl += "&departure=" + data->FP->Departure;
-		reqUrl += "&arrival=" + data->FP->Arrival;
+		reqUrl += "&track=" + UrlEncode(data->FP->Track);
+		reqUrl += "&route=" + UrlEncode(data->FP->Route);
+		reqUrl += "&routeEtas=" + UrlEncode(data->FP->RouteEtas);
+		reqUrl += "&departure=" + UrlEncode(data->FP->Departure);
+		reqUrl += "&arrival=" + UrlEncode(data->FP->Arrival);
 		reqUrl += "&direction=" + to_string(data->FP->Direction);
-		reqUrl += "&etd=" + data->FP->Etd;
-		reqUrl += "&selcal=" + data->FP->Selcal;
-		reqUrl += "&datalinkConnected=" + data->FP->DatalinkConnected;
+		reqUrl += "&etd=" + UrlEncode(data->FP->Etd);
+		reqUrl += "&selcal=" + UrlEncode(data->FP->Selcal);
+		reqUrl += "&datalinkConnected=" + UrlEncode(data->FP->DatalinkConnected);
 		reqUrl += "&isEquipped=" + to_string(data->FP->IsEquipped);
-		reqUrl += "&state=" + data->FP->State;
+		reqUrl += "&state=" + UrlEncode(data->FP->State);
 		reqUrl += "&relevant=" + to_string(data->FP->Relevant);
 		reqUrl += "&targetMode=" + to_string(mode);
-		reqUrl += "&trackedBy=" + data->FP->TrackedBy;
-		reqUrl += "&trackedById=" + data->FP->TrackedById;
+		reqUrl += "&trackedBy=" + UrlEncode(data->FP->TrackedBy);
+		reqUrl += "&trackedById=" + UrlEncode(data->FP->TrackedById);
 	
 		// Convert URL to LPCSTR type
 		LPCSTR lpcURL = reqUrl.c_str();
@@ -669,25 +695,25 @@ void CDataHandler::UpdateNetworkAircraft(void* args) {
 		}
 
 		// Construct URL		
-		reqUrl += "&callsign=" + data->FP->Callsign;
-		reqUrl += "&type=" + data->FP->Type;
+		reqUrl += "&callsign=" + UrlEncode(data->FP->Callsign);
+		reqUrl += "&type=" + UrlEncode(data->FP->Type);
 		reqUrl += "&level=" + to_string(data->FP->AssignedLevel);
 		reqUrl += "&mach=" + to_string(data->FP->AssignedMach);
-		reqUrl += "&track=" + data->FP->Track;
-		reqUrl += "&route=" + data->FP->Route;
-		reqUrl += "&routeEtas=" + data->FP->RouteEtas;
-		reqUrl += "&departure=" + data->FP->Departure;
-		reqUrl += "&arrival=" + data->FP->Arrival;
+		reqUrl += "&track=" + UrlEncode(data->FP->Track);
+		reqUrl += "&route=" + UrlEncode(data->FP->Route);
+		reqUrl += "&routeEtas=" + UrlEncode(data->FP->RouteEtas);
+		reqUrl += "&departure=" + UrlEncode(data->FP->Departure);
+		reqUrl += "&arrival=" + UrlEncode(data->FP->Arrival);
 		reqUrl += "&direction=" + to_string(data->FP->Direction);
-		reqUrl += "&etd=" + data->FP->Etd;
-		reqUrl += "&selcal=" + data->FP->Selcal;
-		reqUrl += "&datalinkConnected=" + data->FP->DatalinkConnected;
+		reqUrl += "&etd=" + UrlEncode(data->FP->Etd);
+		reqUrl += "&selcal=" + UrlEncode(data->FP->Selcal);
+		reqUrl += "&datalinkConnected=" + UrlEncode(data->FP->DatalinkConnected);
 		reqUrl += "&isEquipped=" + to_string(data->FP->IsEquipped);
-		reqUrl += "&state=" + data->FP->State;
+		reqUrl += "&state=" + UrlEncode(data->FP->State);
 		reqUrl += "&relevant=" + to_string(data->FP->Relevant);
 		reqUrl += "&targetMode=" + to_string(mode);
-		reqUrl += "&trackedBy=" + data->FP->TrackedBy;
-		reqUrl += "&trackedById=" + data->FP->TrackedById;
+		reqUrl += "&trackedBy=" + UrlEncode(data->FP->TrackedBy);
+		reqUrl += "&trackedById=" + UrlEncode(data->FP->TrackedById);
 	
 		// Convert URL to LPCSTR type
 		LPCSTR lpcURL = reqUrl.c_str();
