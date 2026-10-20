@@ -39,6 +39,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
+SERVER_VERSION = "0.3.3"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -515,7 +516,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None)
                     return self._send(200, {"name": name, "lat": lat, "lon": lon})
                 if p == "/health":
                     with cache.lock:
-                        return self._send(200, {"ok": True, "tracks": len(cache.tracks), "tracksUpdated": cache.updated, "trackError": cache.error})
+                        return self._send(200, {"ok": True, "version": SERVER_VERSION, "tracks": len(cache.tracks), "tracksUpdated": cache.updated, "trackError": cache.error})
                 if p == "/unresolved":
                     with cache.lock:
                         return self._send(200, cache.unresolved)
