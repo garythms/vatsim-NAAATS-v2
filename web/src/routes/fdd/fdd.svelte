@@ -46,14 +46,15 @@
     timeString = utils.parseTime(new Date());
 
     // Handle 'loading' and 'no content'
-    if (dataHandler.networkAircraft.size > 1 && isLoading) {
-      // we can assume if the tracks are downloaded that the data is done loading
+    if (dataHandler.networkAircraft.size > 1 || dataHandler.aircraftCount > 0) {
+      // tracks are downloaded so we are no longer 'loading'
       isLoading = false;
-
-      // Check however that we have planes so that we may be able to display "no content" message.
+      // Re-check every tick whether any aircraft exist
+      let any: boolean = false;
       dataHandler.networkAircraft.forEach(function (value, key) {
-        if (Array.from(value.keys()).length > 0) noData = false;
+        if (value.size > 0) any = true;
       });
+      noData = !any;
     }
   }, 1000);
 </script>
@@ -133,7 +134,7 @@
           </div>
         {/if}
         {#each Array.from(dataHandler.networkAircraft.get(acTrack).values()) as ac}
-        {#if ac.Relevant && new Date().getUTCMinutes() - new Date(ac.LastUpdated).getUTCMinutes() < 30}
+        {#if ac.Relevant && utils.isRecent(ac.LastUpdated)}
           <FlightStrip 
             callsign={ac.Callsign}
             type={ac.Type}

@@ -54,7 +54,7 @@ export function determineTrackRelevance(arg: string) : boolean {
   else {
     let tk: Map<string, Aircraft> = dataHandler.networkAircraft.get(arg)!;
     tk.forEach((value, key) => {
-      if(value.Relevant && new Date().getUTCMinutes() - new Date(value.LastUpdated).getUTCMinutes() < 30) {
+      if(value.Relevant && isRecent(value.LastUpdated)) {
         isRelevant = true;
         return;
       }
@@ -62,4 +62,10 @@ export function determineTrackRelevance(arg: string) : boolean {
   }
   
   return isRelevant;
+}
+
+// True if the aircraft was updated within the last 3 hours (plugin only posts on changes)
+export function isRecent(lastUpdated: number) : boolean {
+  if (isNaN(lastUpdated)) return true;
+  return Date.now() - lastUpdated < 3 * 60 * 60 * 1000;
 }
