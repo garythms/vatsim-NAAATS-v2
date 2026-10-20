@@ -6,6 +6,8 @@ on:
 jobs:
   build:
     runs-on: windows-2022
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       # The EuroScope SDK import library is not in the repo (it is distributed with the EuroScope plugin SDK).
@@ -31,3 +33,19 @@ jobs:
           path: |
             **/Release/VatsimNAAATS.dll
             VatsimNAAATS/vnaaats.example.cfg
+      - name: Package
+        if: github.event_name == 'push' && github.ref_name == 'server-and-squawk'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force pkg | Out-Null
+          Copy-Item (Get-ChildItem -Recurse -Filter VatsimNAAATS.dll | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1).FullName pkg/
+          Copy-Item VatsimNAAATS/vnaaats.example.cfg pkg/
+          Compress-Archive -Path pkg/* -DestinationPath VatsimNAAATS-plugin.zip -Force
+      - name: Publish release
+        if: github.event_name == 'push' && github.ref_name == 'server-and-squawk'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-build --yes --cleanup-tag 2>$null
+          gh release create latest-build VatsimNAAATS-plugin.zip --prerelease --target ${{ github.sha }} --title "Latest plugin build" --notes "Automatic build of the server-and-squawk branch (${{ github.sha }})."
