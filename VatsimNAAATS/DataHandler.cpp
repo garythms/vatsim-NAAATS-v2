@@ -621,7 +621,7 @@ void CDataHandler::PostNetworkAircraft(void* args) {
 		reqUrl += "&direction=" + to_string(data->FP->Direction);
 		reqUrl += "&etd=" + UrlEncode(data->FP->Etd);
 		reqUrl += "&selcal=" + UrlEncode(data->FP->Selcal);
-		reqUrl += "&datalinkConnected=" + UrlEncode(data->FP->DatalinkConnected);
+		reqUrl += "&datalinkConnected=" + to_string(data->FP->DatalinkConnected);
 		reqUrl += "&isEquipped=" + to_string(data->FP->IsEquipped);
 		reqUrl += "&state=" + UrlEncode(data->FP->State);
 		reqUrl += "&relevant=" + to_string(data->FP->Relevant);
@@ -707,7 +707,7 @@ void CDataHandler::UpdateNetworkAircraft(void* args) {
 		reqUrl += "&direction=" + to_string(data->FP->Direction);
 		reqUrl += "&etd=" + UrlEncode(data->FP->Etd);
 		reqUrl += "&selcal=" + UrlEncode(data->FP->Selcal);
-		reqUrl += "&datalinkConnected=" + UrlEncode(data->FP->DatalinkConnected);
+		reqUrl += "&datalinkConnected=" + to_string(data->FP->DatalinkConnected);
 		reqUrl += "&isEquipped=" + to_string(data->FP->IsEquipped);
 		reqUrl += "&state=" + UrlEncode(data->FP->State);
 		reqUrl += "&relevant=" + to_string(data->FP->Relevant);
