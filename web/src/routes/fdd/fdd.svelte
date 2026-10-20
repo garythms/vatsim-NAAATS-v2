@@ -102,7 +102,8 @@
     </div>
   </div>
   <div
-    class="flex flex-col h-full font-bitmap font-light text-lg overflow-y-scroll overflow-x-hidden">
+    class="flex flex-col h-full font-bitmap font-light text-lg overflow-y-scroll overflow-x-hidden"
+    style="font-size: clamp(0.65rem, 1.2vw, 1.125rem);">
     <!-- Aircraft component cards -->
     {#if isLoading}
       <div class="select-none flex flex-row w-full h-full justify-items-center justify-center text-2xl my-10 hover:cursor-default">
