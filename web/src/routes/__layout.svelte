@@ -6,6 +6,15 @@
   import * as site from "../typescript/site";
   import { onMount } from "svelte";
 
+  // Server version (from /health) so bug reports can quote both numbers
+  let serverVersion: string = "";
+  onMount(async () => {
+    try {
+      const r = await fetch(((import.meta as any).env?.VITE_API_BASE ?? "") + "/health");
+      serverVersion = (await r.json()).version ?? "";
+    } catch (e) { /* ignore */ }
+  });
+
   // Externals
   let count: number = 0;
   $: siteSection = site.siteSection;
@@ -26,7 +35,7 @@
       <div class="flex w-2/5">
         <button class="px-3 font-black hover:text-grey-300 select-none hover:cursor-default" title="Built {buildInfo.built}">
           {config.isBeta ? "Beta" : "Version"}
-          {config.version}
+          {config.version}{serverVersion ? " \u00b7 server " + serverVersion : ""}
         </button>
         <div class="px-1/2 select-none hover:cursor-default">|</div>
         <div class="px-5 select-none hover:cursor-default">

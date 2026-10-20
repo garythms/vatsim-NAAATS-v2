@@ -664,6 +664,9 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 			// Flight plan object
 			CFlightPlan fpData = GetPlugIn()->FlightPlanSelect(RadarTarget.GetCallsign());
 
+			// Remember who I am so changes sent to the server carry my callsign
+			CDataHandler::ControllerCallsign = GetPlugIn()->ControllerMyself().IsValid() ? GetPlugIn()->ControllerMyself().GetCallsign() : "";
+
 			// Update exit time
 			int exitMinutes = fpData.GetSectorExitMinutes();
 			if (exitMinutes != -1) {

@@ -194,6 +194,16 @@ void CFlightPlanWindow::RenderWindow(CDC* dc, Graphics* g, CRadarScreen* screen)
 	// Save device context
 	int iDC = dc->SaveDC();
 
+	// Values changed on the server (e.g. from the web FDD): show them in the boxes (done here, on the drawing thread)
+	if (primedPlan != nullptr && primedPlan->WindowRefresh) {
+		primedPlan->WindowRefresh = false;
+		if (!primedPlan->Mach.empty() && isdigit((unsigned char)primedPlan->Mach[0]))
+			textInputs[TXT_SPD].Content = string("M") + CUtils::PadWithZeros(3, atoi(primedPlan->Mach.c_str()));
+		textInputs[TXT_LEVEL].Content = primedPlan->FlightLevel;
+		textInputs[TXT_TCK].Content = primedPlan->Track;
+		textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
+	}
+
 	// Create brushes
 	CBrush darkerBrush(ScreenBlue.ToCOLORREF());
 	CBrush lighterBrush(WindowBorder.ToCOLORREF());

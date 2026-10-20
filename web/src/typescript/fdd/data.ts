@@ -36,6 +36,9 @@ interface JsonAcObj {
   trackedById: string;
   lastUpdated: string;
   source?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+  history?: { at: string; by: string; changes: Record<string, [any, any]> }[];
 }
 
 /*
@@ -93,6 +96,12 @@ export function findAircraftLocal(callsign: string): Aircraft {
   // Return it
   // we didn't find it :(
   return found ? ac : null!;
+}
+
+// Re-point the selected aircraft at the freshly downloaded copy (after data was refreshed)
+export function reselect(callsign: string): void {
+  const found: Aircraft = findAircraftLocal(callsign);
+  if (found != null) asel = found;
 }
 
 export function setAsel(callsign: string): void {
@@ -174,6 +183,45 @@ export async function parseNatTracks(): Promise<void> {
     });
   });
   return;
+}
+
+// ---- conflict / sanity warnings ---------------------------------------------------------------------
+export const CONFLICT_MINUTES: number = 10; // same track + same level + entering within this many minutes
+export let conflicts: Map<string, string[]> = new Map();
+
+function etaMinutes(etas: string[]): number {
+  const first = etas.find((e) => /^\d{4}$/.test(e));
+  return first ? parseInt(first.slice(0, 2)) * 60 + parseInt(first.slice(2)) : -1;
+}
+
+function computeConflicts(): void {
+  const next: Map<string, string[]> = new Map();
+  const add = (cs: string, msg: string) => next.set(cs, [...(next.get(cs) ?? []), msg]);
+  networkAircraft.forEach((group: Map<string, Aircraft>, track: string) => {
+    if (track === "RR") return;
+    const list = [...group.values()].filter((a) => a.Relevant && Date.now() - a.LastUpdated < 30 * 60 * 1000);
+    const offered = currentNatTracks.get(track)?.FlightLevels ?? [];
+    for (const a of list) {
+      const lv = a.AssignedLevel;
+      if (offered.length > 0 && lv > 0 && !offered.some((x) => (x >= 1000 ? x / 100 : x) === lv)) {
+        add(a.Callsign, "FL" + lv + " is not one of the levels for track " + track);
+      }
+    }
+    for (let i = 0; i < list.length; i++) {
+      for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        if (a.AssignedLevel <= 0 || a.AssignedLevel !== b.AssignedLevel || a.EntryEta < 0 || b.EntryEta < 0) continue;
+        let d = Math.abs(a.EntryEta - b.EntryEta);
+        d = Math.min(d, 1440 - d);
+        if (d < CONFLICT_MINUTES) {
+          const m = "Track " + track + " FL" + a.AssignedLevel + ": ";
+          add(a.Callsign, m + d + " min from " + b.Callsign);
+          add(b.Callsign, m + d + " min from " + a.Callsign);
+        }
+      }
+    }
+  });
+  conflicts = next;
 }
 
 export async function populateAllAircraft() : Promise<void> {
@@ -258,6 +306,12 @@ export async function populateAllAircraft() : Promise<void> {
             Direction: objArr[i]?.direction,
             LastUpdated: Date.parse(objArr[i]?.lastUpdated),
             Source: objArr[i]?.source ?? "plugin",
+            Entry: routePoints[0] ?? "",
+            Exit: routePoints[routePoints.length - 1] ?? "",
+            EntryEta: etaMinutes(routeEtas),
+            UpdatedBy: objArr[i]?.updatedBy ?? "",
+            UpdatedAt: objArr[i]?.updatedAt ? Date.parse(objArr[i].updatedAt!) : 0,
+            History: objArr[i]?.history ?? [],
           };
           // Check the track
           if (ac.Track != "RR" && currentNatTracks.has(ac.Track)) {
@@ -275,6 +329,8 @@ export async function populateAllAircraft() : Promise<void> {
             ac.RouteEtas = ac.RouteEtas.reverse();
           }
         }
+        computeConflicts();
+        if (asel != null) reselect(asel.Callsign); // keep the selected flight plan current (edits by others)
       });
     }
   );

@@ -20,6 +20,13 @@
   //export let state: string;
   //export let relevant: boolean;
   export let trackedBy: string;
+  export let warning: string = "";   // conflict / sanity warning text ("" = none)
+  export let updatedBy: string = "";
+  export let updatedAt: number = 0;
+
+  // A pencil shows for 10 minutes after someone changed level / Mach / track / SELCAL
+  $: recentlyChanged = updatedBy !== "" && updatedAt > 0 && Date.now() - updatedAt < 10 * 60 * 1000;
+  $: tip = [warning ? "\u26A0 " + warning : "", updatedBy ? "Last change by " + updatedBy + " at " + new Date(updatedAt).toISOString().slice(11, 16) + "z" : ""].filter((x) => x).join("\n");
   //export let targetMode: number;
   //export let sectorId: string;
 
@@ -37,7 +44,7 @@
   }
 </script>
 
-<div class="hover:border-green-500 hover:border-2"
+<div class="hover:border-green-500 hover:border-2" title={tip}
   on:click={() => {
     if (dataHandler.isNatTrakAlert(callsign)) dataHandler.openNatTrakFor(callsign); // flashing request: open natTrak
     dataHandler.ackNatTrak(callsign);
@@ -65,7 +72,7 @@
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
     <div class="flex flex-row w-1/7 px-2 hover:cursor-default select-none">
-      {callsign + (!isEquipped ? "*" : "")}
+      {callsign + (!isEquipped ? "*" : "")}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="flex flex-row w-5/7 hover:cursor-default select-none">
       <!-- TODO fix this alignment -->

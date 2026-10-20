@@ -1,0 +1,72 @@
+<script lang="ts">
+  import { onMount } from "svelte";
+  import * as sess from "../../typescript/fdd/session";
+
+  const { session } = sess;
+  let name: string = "";
+  let password: string = "";
+  let custom: string = "";
+  let error: string = "";
+  let busy: boolean = false;
+  let viewOnly: boolean = false;
+
+  onMount(async () => {
+    try { viewOnly = sessionStorage.getItem("vnaaats.viewonly") === "1"; } catch (e) { /* ignore */ }
+    await sess.refreshSession();
+    sess.session.subscribe(() => {});
+  });
+
+  $: show = $session.editing && !viewOnly && (!$session.loggedIn || $session.position === "");
+
+  async function doPassword(): Promise<void> {
+    busy = true; error = "";
+    error = await sess.loginPassword(name, password);
+    password = "";
+    busy = false;
+  }
+  async function pick(p: string): Promise<void> {
+    error = await sess.choosePosition(p);
+  }
+  function skip(): void {
+    viewOnly = true;
+    try { sessionStorage.setItem("vnaaats.viewonly", "1"); } catch (e) { /* ignore */ }
+  }
+</script>
+
+{#if show}
+  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.65);">
+    <div class="w-96 max-w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular p-4">
+      <div class="text-xl font-bold mb-1">vNAAATS Flight Data Display</div>
+      {#if !$session.loggedIn}
+        <div class="mb-3 text-sm opacity-80">Sign in to change flights. You can also just watch.</div>
+        {#if $session.vatsim}
+          <button class="w-full mb-3 py-2 font-bold bg-blue-10 text-black border-2 border-l-blue-0 border-t-blue-0 border-r-blue-8 border-b-blue-8" on:click={sess.vatsimLogin}>
+            Sign in with VATSIM
+          </button>
+        {/if}
+        {#if $session.password}
+          <form on:submit|preventDefault={doPassword}>
+            <div class="text-sm mb-1">{$session.vatsim ? "or use the controller password" : "Your name or CID, and the controller password"}</div>
+            <input class="w-full mb-2 px-2 py-1 text-black" placeholder="Name or CID" bind:value={name} maxlength="40" autocomplete="name" />
+            <input class="w-full mb-2 px-2 py-1 text-black" type="password" placeholder="Controller password" bind:value={password} autocomplete="current-password" />
+            <button class="w-full py-2 font-bold bg-blue-10 text-black" disabled={busy || !name || !password}>Sign in</button>
+          </form>
+        {/if}
+      {:else}
+        <div class="mb-3 text-sm opacity-80">Hello {$session.name}. Which position are you working?</div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          {#each $session.positions as p}
+            <button class="py-2 font-bold bg-blue-10 text-black" on:click={() => pick(p)}>{p === "OBSERVER" ? "Observer (view only)" : p}</button>
+          {/each}
+        </div>
+        <form class="flex gap-2" on:submit|preventDefault={() => custom && pick(custom)}>
+          <input class="flex-1 px-2 py-1 text-black uppercase" placeholder="Other position e.g. CZQO_E_CTR" bind:value={custom} maxlength="16" />
+          <button class="px-3 font-bold bg-blue-10 text-black" disabled={!custom}>Use</button>
+        </form>
+        <button class="mt-3 text-sm underline opacity-80" on:click={sess.logout}>Sign out</button>
+      {/if}
+      {#if error}<div class="mt-2 text-sm text-yellow-300">{error}</div>{/if}
+      <button class="mt-4 text-sm underline opacity-80" on:click={skip}>Just watch (no sign in)</button>
+    </div>
+  </div>
+{/if}

@@ -230,5 +230,127 @@ class NatTrakTests(unittest.TestCase):
         self.assertEqual(got["BAW2"]["assignedLevel"], 300)    # pending is not a clearance: unchanged
 
 
+class EditTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp()
+        cache = s.TrackCache(s.load_fixes())
+        cache.refresh(fetch=lambda: SAMPLE)
+        cls.store = s.FlightStore(os.path.join(cls.tmp, "e.db"))
+        nt = s.NatTrakFeed("x")
+        net = s.NetworkTraffic(cache, natrak=nt)
+        net.refresh(fetch=lambda: {"pilots": [{"callsign": "FEED1", "flight_plan": {"aircraft_short": "A333", "departure": "EGLL",
+                  "arrival": "KJFK", "altitude": "30000", "deptime": "1200", "route": "52/20 52/30 52/40"}}]})
+        cls.auth = s.Auth({"VNAAATS_FDD_PASSWORD": "secret-pass", "VNAAATS_POSITIONS": "CZQO_CTR,OBSERVER"})
+        cls.srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, cls.store, KEY, None, net, None, cls.auth))
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.base = "http://127.0.0.1:%d" % cls.srv.server_port
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def call(self, path, body=None, cookie=""):
+        req = urllib.request.Request(self.base + path, data=json.dumps(body).encode() if body is not None else None,
+                                     headers={"Content-Type": "application/json", "Cookie": cookie})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.loads(r.read().decode()), r.headers.get("Set-Cookie", "")
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode()), ""
+
+    def login(self, position="CZQO_CTR"):
+        code, body, ck = self.call("/auth/password", {"name": "Gary Thomas", "password": "secret-pass"})
+        self.assertEqual(code, 200)
+        cookie = ck.split(";")[0]
+        if position:
+            self.assertEqual(self.call("/auth/position", {"position": position}, cookie)[0], 200)
+        return cookie
+
+    def post_plugin(self, cs, level, by="CZQO_CTR", mach="84", track="A"):
+        q = "/PostFlightData?code=%s&callsign=%s&level=%s&mach=%s&track=%s&by=%s" % (KEY, cs, level, mach, track, by)
+        with urllib.request.urlopen(self.base + q) as r:
+            return json.loads(r.read().decode())
+
+    def test_edit_needs_login_and_position(self):
+        self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350})[0], 401)
+        self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350}, self.login(None))[0], 403)
+        self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350}, self.login("OBSERVER"))[0], 403)
+
+    def test_wrong_password_and_throttle(self):
+        self.assertEqual(self.call("/auth/password", {"name": "x", "password": "no"})[0], 401)
+        codes = [self.call("/auth/password", {"name": "x", "password": "no"})[0] for _ in range(6)]
+        self.assertEqual(codes[-1], 429)
+        self.auth.failures.clear()
+
+    def test_edit_validates(self):
+        ck = self.login()
+        self.post_plugin("VAL1", 350)
+        for bad in ({"level": 5000}, {"mach": 0}, {"track": "A1"}, {"selcal": "AINO"}, {}):
+            self.assertEqual(self.call("/EditFlight", dict(bad, callsign="VAL1"), ck)[0], 400, bad)
+        self.assertEqual(self.call("/EditFlight", {"callsign": "NOPE9", "level": 350}, ck)[0], 404)
+
+    def test_edit_and_history_and_plugin_merge(self):
+        ck = self.login()
+        self.post_plugin("MRG1", 350)
+        code, rec, _ = self.call("/EditFlight", {"callsign": "MRG1", "level": 370, "selcal": "as-cm"}, ck)
+        self.assertEqual((code, rec["assignedLevel"], rec["selcal"]), (200, 370, "ASCM"))
+        self.assertIn("CZQO_CTR (Gary Thomas)", rec["updatedBy"])
+        self.assertEqual(rec["history"][-1]["changes"]["assignedLevel"], [350, 370])
+        # the plugin posts its stale level before it has fetched the edit: the web value must survive
+        self.assertEqual(self.post_plugin("MRG1", 350)["assignedLevel"], 370)
+        # the plugin fetches (acknowledges) the edit, then its own changes win again
+        with urllib.request.urlopen(self.base + "/GetSingleFlightData?callsign=MRG1") as r:
+            self.assertEqual(json.loads(r.read().decode())[0]["assignedLevel"], 370)
+        self.assertEqual(self.post_plugin("MRG1", 380, by="EGGX_CTR")["assignedLevel"], 380)
+        self.assertEqual(self.post_plugin("MRG1", 380, by="Somebody")["updatedBy"], "EGGX_CTR")   # no change, so no new author
+
+    def test_edit_feed_only_flight(self):
+        ck = self.login()
+        code, rec, _ = self.call("/EditFlight", {"callsign": "FEED1", "level": 360}, ck)
+        self.assertEqual((code, rec["assignedLevel"], rec["departure"]), (200, 360, "EGLL"))
+
+    def test_session_status_and_logout(self):
+        ck = self.login()
+        with urllib.request.urlopen(urllib.request.Request(self.base + "/auth/status", headers={"Cookie": ck})) as r:
+            st = json.loads(r.read().decode())
+        self.assertEqual((st["loggedIn"], st["position"], st["password"], st["vatsim"]), (True, "CZQO_CTR", True, False))
+        self.call("/auth/logout", {}, ck)
+        self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350}, ck)[0], 401)
+
+
+class ConnectTests(unittest.TestCase):
+    ENV = {"VNAAATS_CONNECT_CLIENT_ID": "id", "VNAAATS_CONNECT_CLIENT_SECRET": "sec", "VNAAATS_PUBLIC_URL": "https://fdd.example.com/"}
+
+    def fake(self, cid, rating):
+        def http(url, form=None, bearer=None):
+            if url.endswith("/oauth/token"):
+                return {"access_token": "tok"}
+            return {"data": {"cid": cid, "personal": {"name_full": "Test User"}, "vatsim": {"rating": {"id": rating}}}}
+        return http
+
+    def test_authorize_url(self):
+        a = s.Auth(self.ENV)
+        self.assertTrue(a.connect_enabled)
+        u = a.authorize_url()
+        self.assertIn("redirect_uri=https%3A%2F%2Ffdd.example.com%2Fauth%2Fcallback", u)
+        self.assertTrue(a.use_state(u.split("state=")[1]))
+
+    def test_rating_gate_and_allowlist(self):
+        a = s.Auth(self.ENV)
+        self.assertEqual(a.exchange_code("c", self.fake("1234567", 5)), ("1234567", "Test User"))
+        for rating in (1, 0, -1):                                     # observer, suspended, inactive
+            with self.assertRaises(ValueError):
+                a.exchange_code("c", self.fake("1234567", rating))
+        b = s.Auth(dict(self.ENV, VNAAATS_ALLOWED_CIDS="1111111"))    # with an allow-list only those CIDs
+        self.assertEqual(b.exchange_code("c", self.fake("1111111", 1))[0], "1111111")
+        with self.assertRaises(ValueError):
+            b.exchange_code("c", self.fake("1234567", 12))
+
+    def test_disabled_without_settings(self):
+        self.assertFalse(s.Auth({}).connect_enabled)
+        self.assertFalse(s.Auth({}).enabled)
+
+
 if __name__ == "__main__":
     unittest.main()

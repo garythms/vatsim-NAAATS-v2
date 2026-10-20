@@ -35,6 +35,14 @@ else
   NEWKEY=""
 fi
 
+# Web editing password (the FDD login) - created once, change it in /etc/vnaaats.env any time
+if ! grep -q '^VNAAATS_FDD_PASSWORD=' /etc/vnaaats.env; then
+  NEWPASS="$(openssl rand -hex 5)"
+  echo "VNAAATS_FDD_PASSWORD=$NEWPASS" >> /etc/vnaaats.env
+else
+  NEWPASS=""
+fi
+
 echo "== Service"
 cp "$SRC/deploy/vnaaats.service" /etc/systemd/system/vnaaats.service
 systemctl daemon-reload
@@ -68,4 +76,13 @@ if [ -n "$NEWKEY" ]; then
   echo "=============================================================="
 else
   echo "API key unchanged (see /etc/vnaaats.env)."
+fi
+if [ -n "$NEWPASS" ]; then
+  echo "=============================================================="
+  echo " FDD CONTROLLER PASSWORD (for editing on the web page):"
+  echo " $NEWPASS"
+  echo " Change it any time: nano /etc/vnaaats.env  then  systemctl restart vnaaats"
+  echo "=============================================================="
+else
+  echo "FDD password unchanged (VNAAATS_FDD_PASSWORD in /etc/vnaaats.env)."
 fi

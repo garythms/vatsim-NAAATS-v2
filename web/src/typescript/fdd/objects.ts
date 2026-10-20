@@ -23,6 +23,12 @@ export type Aircraft = {
   Relevant: boolean;
   TargetMode: number;
   LastUpdated: number;
+  Entry: string; // first and last named/lat-lon point of the route in flight order (before any display reversal)
+  Exit: string;
+  EntryEta: number; // minutes since midnight at the first route point, -1 if unknown
+  UpdatedBy: string; // who last changed level / Mach / track / SELCAL / route (position + name, or plugin callsign)
+  UpdatedAt: number; // epoch ms, 0 if unknown
+  History: { at: string; by: string; changes: Record<string, [any, any]> }[];
   Source?: string; // 'plugin' = posted by a controller, 'vatsim' = filed flight plan from the VATSIM data feed
 };
 

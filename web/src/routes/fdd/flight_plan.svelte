@@ -3,7 +3,41 @@
   import * as utils from "../../typescript/fdd/utils";
   import Titlebar from "../../props/fdd/titlebar.svelte";
   import TextInput from "../../props/fdd/text_input.svelte";
+  import EditInput from "../../props/fdd/edit_input.svelte";
+  import * as sess from "../../typescript/fdd/session";
   import type { Aircraft } from "../../typescript/fdd/objects";
+
+  const { session } = sess;
+  $: editable = sess.canEdit($session);
+  let message: string = "";
+  let messageOk: boolean = true;
+  let messageTimer: any;
+
+  async function save(field: string, text: string): Promise<void> {
+    if (!asel) return;
+    const digits = text.replace(/\D/g, "").replace(/^0+/, "");
+    const changes: Record<string, string | number> = {};
+    if (field === "mach") changes.mach = digits;
+    else if (field === "level") changes.level = digits;
+    else changes[field] = text;
+    const err = await sess.editFlight(asel.Callsign, changes);
+    messageOk = err === "";
+    message = err === "" ? "Saved - the plugin picks it up within a few seconds" : err;
+    clearTimeout(messageTimer);
+    messageTimer = setTimeout(() => (message = ""), 6000);
+  }
+
+  function hhmm(ms: number): string {
+    if (!ms) return "";
+    const d = new Date(ms);
+    return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "z";
+  }
+  const names: Record<string, string> = { assignedLevel: "FL", assignedMach: "Mach", track: "Track", selcal: "SELCAL", route: "Route", state: "State" };
+  function lastChange(ac: Aircraft): string {
+    const h = ac.History?.length ? ac.History[ac.History.length - 1] : null;
+    if (!h) return "";
+    return Object.entries(h.changes).filter(([k]) => k !== "route").map(([k, v]) => (names[k] ?? k) + " " + (v[0] === "" || v[0] == null ? "-" : v[0]) + "\u2192" + (v[1] === "" ? "-" : v[1])).join(", ");
+  }
 
   // Externals
   let asel: Aircraft;
@@ -16,12 +50,12 @@
 </script>
 
 <div
-  class="flex flex-col w-full h-1/3 border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10">
+  class="flex flex-col w-full h-1/3 overflow-hidden border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10">
   <Titlebar
     label="Flight Plan - {asel == null ? 'No selection' : asel.Callsign}"/>
   {#if asel != null}
     <div
-      class="flex flex-row items-center justify-start px-3 py-3 border-b-2 w-full border-b-blue-0">
+      class="flex flex-row items-center justify-start px-3 py-2 border-b-2 w-full border-b-blue-0">
       <TextInput
         label={"ACID"}
         identifier={"acid"}
@@ -51,12 +85,13 @@
         value={asel.Etd.toString() + "z"}
         isDisabled={true}
       />
-      <TextInput
+      <EditInput
         label={"SELCAL"}
-        identifier={"selcal"}
         width={"w-16"}
-        value={asel.Selcal == "" ? "----" : asel.Selcal}
-        isDisabled={true}
+        value={asel.Selcal ?? ""}
+        maxlength={5}
+        {editable}
+        onCommit={(t) => save("selcal", t)}
       />
       <TextInput
         label={"Datalink"}
@@ -84,21 +119,20 @@
         </div>
       </div>
       <div class="flex flex-row items-start py-1.5 justify-start w-3/4">
-        <TextInput
+        <EditInput
           label={"Spd"}
-          identifier={"speed"}
           width={"w-28"}
           value={"M0" + asel.AssignedMach}
-          isDisabled={true}
-          labelOnTop={false}
+          {editable}
+          onCommit={(t) => save("mach", t)}
         />
-        <TextInput
+        <EditInput
           label={"FL"}
-          identifier={"level"}
           width={"w-28"}
           value={asel.AssignedLevel.toString()}
-          isDisabled={true}
-          labelOnTop={false}
+          maxlength={5}
+          {editable}
+          onCommit={(t) => save("level", t)}
         />
         <TextInput
           label={"Dest"}
@@ -111,7 +145,7 @@
       </div>
     </div>
     <div class="flex flex-row items-top pt-1 px-1 ml-1 justify-start">
-      <div class="flex flex-row items-start overflow-x-scroll mt-2.5  px-1.5 py-0.5 justify-start w-5/6 h-28 bg-blue-9 
+      <div class="flex flex-row items-start overflow-x-scroll mt-2.5  px-1.5 py-0.5 justify-start w-5/6 h-16 bg-blue-9 
       border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6 text-black font-bitmap text-xl font-thin select-none cursor-default">
         <div class="flex flex-row">
           {#each asel.Route as point, i}
@@ -126,12 +160,13 @@
           {/each}
         </div>
       </div>
-      <TextInput
+      <EditInput
         label={"Tck"}
-        identifier={"track"}
-        width={"w-8"}
+        width={"w-10"}
         value={asel.Track}
-        isDisabled={true}
+        maxlength={3}
+        {editable}
+        onCommit={(t) => save("track", t)}
       />
       <TextInput
         label={"State"}
@@ -148,6 +183,22 @@
         isDisabled={true}
         widthWhole={"w-full"}
       />
+    </div>
+    <div class="px-3 pt-0.5 text-xs font-regular text-white leading-tight">
+      {#if message}
+        <div class={messageOk ? "text-green-300" : "text-yellow-300"}>{message}</div>
+      {/if}
+      {#if asel.UpdatedBy}
+        <div class="opacity-80" title="Who last changed level, Mach, track, SELCAL or route">
+          Last change {hhmm(asel.UpdatedAt)} by {asel.UpdatedBy}{lastChange(asel) ? " - " + lastChange(asel) : ""}
+        </div>
+      {/if}
+      {#if dataHandler.conflicts.get(asel.Callsign)}
+        <div class="text-yellow-300">&#9888; {dataHandler.conflicts.get(asel.Callsign).join("; ")}</div>
+      {/if}
+      {#if !editable && $session.editing}
+        <div class="opacity-60">View only - sign in and pick a position to edit</div>
+      {/if}
     </div>
   {/if}
 </div>

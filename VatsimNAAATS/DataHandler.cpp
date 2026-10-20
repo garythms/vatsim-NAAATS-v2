@@ -12,6 +12,7 @@ using json = nlohmann::json;
 
 // Server settings. Defaults are replaced by vnaaats.cfg (next to the DLL) in LoadSettings().
 static const string DEFAULT_SERVER = "http://49.12.254.143";
+string CDataHandler::ControllerCallsign = "";
 string CDataHandler::FddUrl = DEFAULT_SERVER + "/fdd";
 string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";
 map<string, CAircraftFlightPlan> CDataHandler::flights;
@@ -525,6 +526,14 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 			if (fp->IsValid) {
 				// Check if it is cleared
 				if (!fp->IsCleared) fp->IsCleared = true;
+				// Did level, speed, track or SELCAL change (e.g. edited on the web FDD)? Then the open flight plan window must refresh
+				bool valuesChanged = fp->FlightLevel != to_string(netFP.AssignedLevel) || fp->Mach != to_string(netFP.AssignedMach) || fp->Track != netFP.Track;
+				if (netFP.Selcal != "" && netFP.Selcal != "N/A" && netFP.Selcal != fp->SELCAL) {
+					fp->SELCAL = netFP.Selcal;
+					fp->SelcalManual = true; // keep it, do not overwrite from the remarks
+					valuesChanged = true;
+				}
+				if (valuesChanged) fp->WindowRefresh = true;
 				// Simply update all the values
 				fp->FlightLevel = to_string(netFP.AssignedLevel);
 				fp->Mach = to_string(netFP.AssignedMach);
@@ -630,6 +639,7 @@ void CDataHandler::PostNetworkAircraft(void* args) {
 		reqUrl += "&targetMode=" + to_string(mode);
 		reqUrl += "&trackedBy=" + UrlEncode(data->FP->TrackedBy);
 		reqUrl += "&trackedById=" + UrlEncode(data->FP->TrackedById);
+		reqUrl += "&by=" + UrlEncode(ControllerCallsign); // who made the change (shown on the FDD)
 	
 		// Convert URL to LPCSTR type
 		LPCSTR lpcURL = reqUrl.c_str();
@@ -716,6 +726,7 @@ void CDataHandler::UpdateNetworkAircraft(void* args) {
 		reqUrl += "&targetMode=" + to_string(mode);
 		reqUrl += "&trackedBy=" + UrlEncode(data->FP->TrackedBy);
 		reqUrl += "&trackedById=" + UrlEncode(data->FP->TrackedById);
+		reqUrl += "&by=" + UrlEncode(ControllerCallsign); // who made the change (shown on the FDD)
 	
 		// Convert URL to LPCSTR type
 		LPCSTR lpcURL = reqUrl.c_str();

@@ -6,6 +6,9 @@
   import FlightStrip from "../../props/fdd/flight_strip.svelte";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as site from "../../typescript/site";
+  import * as sess from "../../typescript/fdd/session";
+
+  const { session } = sess;
 
   // Initialisation of data
   let isLoading: boolean = true;
@@ -46,8 +49,55 @@
     if (term && Date.now() - ac.LastUpdated >= 30 * 60 * 1000) return true;
     return false;
   }
+  // Search, grouping and sorting
+  let search: string = "";
+  let groupBy: string = "TRACK";   // TRACK | ENTRY
+  let sortBy: string = "DEFAULT";  // DEFAULT | ETA | CALLSIGN | LEVEL | UPDATED
+  function searchMatch(ac: any, s: string): boolean {
+    const q = s.trim().toUpperCase();
+    if (q === "") return true;
+    return [ac.Callsign, ac.Departure, ac.Arrival, ac.Track, ac.Entry, ac.Exit, ac.Type].some((v: string) => (v ?? "").toUpperCase().includes(q));
+  }
+  function sorter(by: string): (a: any, b: any) => number {
+    switch (by) {
+      case "ETA": return (a, b) => (a.EntryEta < 0 ? 9999 : a.EntryEta) - (b.EntryEta < 0 ? 9999 : b.EntryEta);
+      case "CALLSIGN": return (a, b) => a.Callsign.localeCompare(b.Callsign);
+      case "LEVEL": return (a, b) => b.AssignedLevel - a.AssignedLevel;
+      case "UPDATED": return (a, b) => b.UpdatedAt - a.UpdatedAt;
+      default: return () => 0;
+    }
+  }
+  type Group = { key: string; label: string; track: string; rows: any[] };
+  function buildGroups(_tick: number, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string): Group[] {
+    const out: Group[] = [];
+    const cmp = sorter(by);
+    if (g === "ENTRY") {
+      const byEntry = new Map<string, any[]>();
+      dataHandler.networkAircraft.forEach((m, track) => {
+        for (const ac of m.values()) {
+          if (!matches(ac, track, f, pst, fad, wst, term) || !searchMatch(ac, s)) continue;
+          const k = ac.Entry || "?";
+          byEntry.set(k, [...(byEntry.get(k) ?? []), ac]);
+        }
+      });
+      [...byEntry.keys()].sort().forEach((k) => out.push({ key: k, label: k, track: "", rows: byEntry.get(k)!.sort(cmp) }));
+      return out;
+    }
+    dataHandler.networkAircraft.forEach((m, track) => {
+      const rows = [...m.values()].filter((ac) => matches(ac, track, f, pst, fad, wst, term) && searchMatch(ac, s)).sort(cmp);
+      if (rows.length > 0) out.push({ key: track, label: track != "RR" ? track : "RANDOM", track, rows });
+    });
+    return out;
+  }
+  $: groups = buildGroups(tickN, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy);
+  $: shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
+  $: conflictCount = [...dataHandler.conflicts.keys()].length + 0 * tickN;
+  function searchKey(e: KeyboardEvent): void {
+    if (e.key === "Enter" && groups.length > 0) dataHandler.setAsel(groups[0].rows[0].Callsign);
+    if (e.key === "Escape") search = "";
+  }
   function setFilter(f: string): void { filter = f; }
-  function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; }
+  function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; search = ""; groupBy = "TRACK"; sortBy = "DEFAULT"; }
   function matches(ac: any, track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
     if (!typeMatch(ac, pst, fad, wst, term)) return false;
@@ -182,6 +232,41 @@
       </div>
     </div>
   </div>
+  <!-- who am I, search, grouping and sorting -->
+  <div class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1 w-full border-b-2 border-blue-10 text-white font-regular text-sm select-none">
+    <div>
+      {#if $session.loggedIn && $session.position}
+        <span class="font-bold text-green-300">{$session.position}</span> {$session.name}
+        <span class="underline hover:cursor-pointer ml-1" on:click={() => sess.choosePosition("")} title="Choose another position">change</span>
+        <span class="underline hover:cursor-pointer ml-1" on:click={sess.logout}>sign out</span>
+      {:else if $session.editing}
+        <span class="opacity-70">View only</span>
+        <span class="underline hover:cursor-pointer ml-1" on:click={() => { try { sessionStorage.removeItem("vnaaats.viewonly"); } catch (e) {} location.reload(); }}>sign in to edit</span>
+      {:else}
+        <span class="opacity-70">View only (editing is not switched on)</span>
+      {/if}
+    </div>
+    <input class="px-2 py-0.5 w-48 text-black uppercase" placeholder="Search callsign / fix" bind:value={search} on:keydown={searchKey} />
+    <label>Group
+      <select class="text-black" bind:value={groupBy}>
+        <option value="TRACK">by track</option>
+        <option value="ENTRY">by entry fix</option>
+      </select>
+    </label>
+    <label>Sort
+      <select class="text-black" bind:value={sortBy}>
+        <option value="DEFAULT">newest first</option>
+        <option value="ETA">entry ETA</option>
+        <option value="CALLSIGN">callsign</option>
+        <option value="LEVEL">level</option>
+        <option value="UPDATED">last changed</option>
+      </select>
+    </label>
+    <span class="opacity-70">{shownCount} shown</span>
+    {#if conflictCount > 0}
+      <span class="text-yellow-300 font-bold" title="Flights with a warning are marked on their strip">&#9888; {conflictCount}</span>
+    {/if}
+  </div>
   <!-- natTrak requests: PENDING (needs action) and CLEARED -->
   <div class="flex flex-row w-full border-b-2 border-blue-10 text-white font-regular" style="height: 9.5rem; font-size: 0.8rem;">
     <div class="flex flex-col w-1/2 border-r-2 border-blue-10">
@@ -243,28 +328,25 @@
         No data on remote.
       </div>
     {:else}
-      {#each acListKeys as acTrack}
-        {#if groupHasMatch(acTrack, filter, showPst, showFad, showWst, showTerm)}
-          <div class="flex flex-row justify-start w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
-            <div class="w-1/2 px-3">
-              {acTrack != "RR" ? acTrack : "RANDOM"}
-            </div>
-            <div class="flex flex-row w-full justify-start">
-              {#if acTrack == "RR"}
-                RANDOM ROUTINGS
-              {:else}
-                {#each dataHandler.currentNatTracks.get(acTrack).Route as waypoint}
-                  <div class="w-1/10">
-                    {waypoint.name}
-                  </div>
-                {/each}
-              {/if}
-            </div>
-            <div class="1/7 px-3" />
+      {#each groups as g (g.key)}
+        <div class="flex flex-row justify-start w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
+          <div class="w-1/2 px-3">
+            {g.label}
           </div>
-        {/if}
-        {#each Array.from(dataHandler.networkAircraft.get(acTrack).values()) as ac}
-        {#if matches(ac, acTrack, filter, showPst, showFad, showWst, showTerm)}
+          <div class="flex flex-row w-full justify-start">
+            {#if g.track == "RR" || g.track == ""}
+              {g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}
+            {:else}
+              {#each dataHandler.currentNatTracks.get(g.track).Route as waypoint}
+                <div class="w-1/10">
+                  {waypoint.name}
+                </div>
+              {/each}
+            {/if}
+          </div>
+          <div class="1/7 px-3" />
+        </div>
+        {#each g.rows as ac (ac.Callsign)}
           <FlightStrip 
             callsign={ac.Callsign}
             type={ac.Type}
@@ -278,9 +360,11 @@
             trackedBy={ac.TrackedBy}
             isEquipped={ac.IsEquipped}
             alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
+            warning={(dataHandler.conflicts.get(ac.Callsign) ?? []).join("; ")}
+            updatedBy={ac.UpdatedBy}
+            updatedAt={ac.UpdatedAt}
             direction={ac.Direction ?? false}
           />
-          {/if}
         {/each}
       {/each}
     {/if}
