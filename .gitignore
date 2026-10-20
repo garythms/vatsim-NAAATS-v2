@@ -61,3 +61,7 @@ vNAAATS/Debug/vNAAATS.exp
 
 # Local settings (contains the API key)
 vnaaats.cfg
+
+# Python
+__pycache__/
+*.pyc
