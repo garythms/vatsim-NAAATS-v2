@@ -267,18 +267,42 @@ def parse_level(alt):
     return n // 100 if n >= 1000 else n
 
 
+def _plain_fix(token):
+    """A named 5-letter fix (ALLRY, MALOT) - not DCT, an airway, a procedure or a coordinate."""
+    t = _SPEEDLEVEL.sub("", token.upper())
+    return t if re.fullmatch(r"[A-Z]{5}", t) and t != "DCT" else None
+
+
 def convert_network_pilot(pilot, tracks):
-    """One pilot from the VATSIM data feed -> a flight record, or None if the route does not cross the ocean."""
+    """One pilot from the VATSIM data feed -> a flight record, or None if the route does not cross the ocean.
+    The route is the oceanic coordinates plus the named entry fix before them and the exit fix after them."""
     fp = pilot.get("flight_plan") or {}
     route_str = fp.get("route") or ""
-    pts = [oceanic_point(tok) for tok in route_str.split()]
-    pts = [p for p in pts if p and 40 <= p[1] <= 72 and -70 <= p[2] <= -4]
-    if len(pts) < 2:
+    tokens = route_str.split()
+    idx = []                                                  # (index in route, (name, lat, lon)) of oceanic coordinates
+    for i, tok in enumerate(tokens):
+        p = oceanic_point(tok)
+        if p and 40 <= p[1] <= 72 and -70 <= p[2] <= -4:
+            idx.append((i, p))
+    if len(idx) < 2:
         return None
-    names = [p[0] for p in pts]
+    pts = [p for _, p in idx]
+    entry = exit_ = None
+    j = idx[0][0] - 1                                         # entry fix: the token before the first coordinate (skipping DCT)
+    while j >= 0 and tokens[j].upper() == "DCT":
+        j -= 1
+    if j >= 0:
+        entry = _plain_fix(tokens[j])
+    j = idx[-1][0] + 1                                        # exit fix: the token after the last coordinate (skipping DCT)
+    while j < len(tokens) and tokens[j].upper() == "DCT":
+        j += 1
+    if j < len(tokens):
+        exit_ = _plain_fix(tokens[j])
+    names = ([entry] if entry else []) + [p[0] for p in pts] + ([exit_] if exit_ else [])
+    coord_names = [p[0] for p in pts]
     direction = pts[-1][2] > pts[0][2]                        # moving towards Europe = eastbound
     track = "RR"
-    flown = set(names)
+    flown = set(coord_names)
     for t in tracks:                                          # on a track if it passes the whole track's coordinate fixes
         tnames = [r["name"].upper() for r in t.get("route", []) if oceanic_point(r["name"])]
         if len(tnames) >= 3 and all(n in flown for n in tnames):

@@ -158,6 +158,21 @@ class NetworkTests(unittest.TestCase):
         r2 = s.convert_network_pilot(self.pilot("DLH2", "56/40 56/30 56/20", dep="KJFK", arr="EDDF"), self.TRACKS)
         self.assertTrue(r2["direction"])
 
+
+    def test_entry_and_exit_fixes_kept(self):
+        r = s.convert_network_pilot(self.pilot("DLH401", "EDDF DCT ALLRY DCT 51N050W 52N040W 53N030W 53N020W DCT MALOT GISTI"), self.TRACKS)
+        self.assertEqual(r["route"], "ALLRY 51N050W 52N040W 53N030W 53N020W MALOT")
+        self.assertEqual(r["routeEtas"].split(), ["--"] * 6)
+        self.assertEqual(r["track"], "RR")
+
+    def test_entry_exit_ignores_airways_and_procedures(self):
+        r = s.convert_network_pilot(self.pilot("X9", "SID1A N349B 52/50 52/40 52/30 L9 STAR2B"), self.TRACKS)
+        self.assertEqual(r["route"], "52/50 52/40 52/30")
+
+    def test_track_still_matches_with_fixes(self):
+        r = s.convert_network_pilot(self.pilot("DLH1", "DCT ETARI 56/20 56/30 56/40 NEEKO DCT"), self.TRACKS)
+        self.assertEqual((r["track"], r["route"]), ("A", "ETARI 56/20 56/30 56/40 NEEKO"))
+
     def test_non_oceanic_ignored(self):
         self.assertIsNone(s.convert_network_pilot(self.pilot("X1", "DCT LAM DCT"), self.TRACKS))
         self.assertIsNone(s.convert_network_pilot({"callsign": "X2"}, self.TRACKS))
