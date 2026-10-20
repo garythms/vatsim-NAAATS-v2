@@ -547,7 +547,7 @@ void CUtils::LoadPluginData(CRadarScreen* screen) {
 	screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("version " + PLUGIN_VERSION + " initialised.").c_str(), false, false, false, false, false);
 
 	if (IS_ALPHA)
-		screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("This is a BETA version. Please report any issues to a.ogden@vatcan.ca or submit them here: https://ganderoceanic.com/vnaaats-feedback.").c_str(), false, false, false, false, false);
+		screen->GetPlugIn()->DisplayUserMessage("Message", "vNAAATS Plugin", string("This is a BETA version. Please report any issues at https://github.com/garythms/vatsim-naaats-v2/issues (include your callsign, what you clicked and the vnaaats log).").c_str(), false, false, false, false, false);
 }
 
 // Returns the requested format, or returns the same string if the format was unchanged

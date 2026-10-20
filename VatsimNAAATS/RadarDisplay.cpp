@@ -671,8 +671,10 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 			}
 
 			// Update selcal code (maybe move into an Update method in DataHandler if I find there is more to update than just the selcal code)
-			string selcal = CUtils::GetSelcalCode(&fpData);
-			fp->SELCAL = selcal != "" ? selcal : "N/A";
+			if (!fp->SelcalManual) {
+				string selcal = CUtils::GetSelcalCode(&fpData);
+				fp->SELCAL = selcal != "" ? selcal : "N/A";
+			}
 
 			// Download the vNAAATS network data on the plane
 			try {

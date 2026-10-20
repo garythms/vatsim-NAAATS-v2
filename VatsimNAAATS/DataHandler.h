@@ -62,6 +62,7 @@ class CDataHandler
 
 		// NAT Track URL
 		static string TrackURL;
+		static string FddUrl;
 		static map<string, CAircraftFlightPlan> flights;
 
 		// vNAAATS API Links

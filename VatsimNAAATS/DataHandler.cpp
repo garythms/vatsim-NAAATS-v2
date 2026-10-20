@@ -12,10 +12,11 @@ using json = nlohmann::json;
 
 // Server settings. Defaults are replaced by vnaaats.cfg (next to the DLL) in LoadSettings().
 static const string DEFAULT_SERVER = "http://49.12.254.143";
+string CDataHandler::FddUrl = DEFAULT_SERVER + "/fdd";
 string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";
 map<string, CAircraftFlightPlan> CDataHandler::flights;
 
-const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/garythms/vatsim-NAAATS-v2/master/pluginversion.txt";
+const string CDataHandler::PluginVersion = "https://raw.githubusercontent.com/garythms/vatsim-naaats-v2/server-and-squawk/pluginversion.txt";
 string CDataHandler::TrackSource = DEFAULT_SERVER + "/GetTrackSource";
 string CDataHandler::GetSingleAircraft = DEFAULT_SERVER + "/GetSingleFlightData?callsign=";
 string CDataHandler::PostSingleAircraft = DEFAULT_SERVER + "/PostFlightData?code=";
@@ -52,6 +53,7 @@ void CDataHandler::LoadSettings() {
 		else if (k == "squawk") SquawkOnClearance = (v != "0");
 	}
 	while (!server.empty() && server.back() == '/') server.pop_back();
+	FddUrl = server + "/fdd";
 	TrackURL = server + "/GetAllNatTracks";
 	TrackSource = server + "/GetTrackSource";
 	GetSingleAircraft = server + "/GetSingleFlightData?callsign=";
@@ -104,12 +106,12 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
 	if (responseString != PLUGIN_VERSION) {
 		// Display dialog if update available
 		int msgBox = MessageBox(NULL, (LPCSTR)("A new version of vNAAATS (" + responseString + ") is now available. Your version: " + PLUGIN_VERSION +
-			"\nPlease update as soon as possible to avoid possible compatibility issues.\nFind the new version at vNAAATS.net.").c_str(),
+			"\nPlease update as soon as possible to avoid possible compatibility issues.\nFind the new version on the GitHub releases page.").c_str(),
 			(LPCSTR)"vNAAATS Version Notification", MB_ICONWARNING | MB_OK);
 
 		if (msgBox == IDOK) {
 			// Open the website
-			ShellExecute(NULL, "open", "https://vnaaats.net/", NULL, NULL, SW_SHOWNORMAL);
+			ShellExecute(NULL, "open", "https://github.com/garythms/vatsim-naaats-v2/releases/tag/latest-build", NULL, NULL, SW_SHOWNORMAL);
 		}
 		return msgBox;
 	}

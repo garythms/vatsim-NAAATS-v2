@@ -6,6 +6,7 @@
 #include "Utils.h"
 #include "CommonRenders.h"
 #include "Overlays.h"
+#include "DataHandler.h"
 
 using namespace Colours;
 
@@ -581,7 +582,7 @@ void CMenuBar::ButtonUnpress(int id, int button, CRadarScreen* screen) {
 	// Flight data display
 	if (id == BTN_ADSC) {
 		// Open the FDD
-		ShellExecute(NULL, "open", "https://vnaaats.net/fdd/", NULL, NULL, SW_SHOWNORMAL);
+		ShellExecute(NULL, "open", (CDataHandler::FddUrl).c_str(), NULL, NULL, SW_SHOWNORMAL);
 	}
 }
 

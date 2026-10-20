@@ -368,6 +368,7 @@ struct CAircraftFlightPlan {
 	bool IsEquipped;
 	bool IsValid = false;
 	bool IsRelevant = true;
+	bool SelcalManual = false; // SELCAL typed in by the controller: do not overwrite from remarks
 	bool IsFirstUpdate = false; // So that we can disable flight plan window until the plan has been fetched from server at least once
 	CRadarTargetMode TargetMode = CRadarTargetMode::ADS_B;
 	bool IsCleared = false;

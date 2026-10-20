@@ -88,7 +88,7 @@ void CFlightPlanWindow::MakeWindowItems() {
 	textInputs[TXT_TYPE] = CTextInput(TXT_TYPE, WIN_FLTPLN, "Type", "", 55, CInputState::INACTIVE);
 	textInputs[TXT_DEPART] = CTextInput(TXT_DEPART, WIN_FLTPLN, "Depart", "", 50, CInputState::INACTIVE);
 	textInputs[TXT_ETD] = CTextInput(TXT_ETD, WIN_FLTPLN, "Etd", "", 50, CInputState::INACTIVE);
-	textInputs[TXT_SELCAL] = CTextInput(TXT_SELCAL, WIN_FLTPLN, "SELCAL", "", 55, CInputState::INACTIVE);
+	textInputs[TXT_SELCAL] = CTextInput(TXT_SELCAL, WIN_FLTPLN, "SELCAL", "", 55, CInputState::ACTIVE);
 	textInputs[TXT_DATALINK] = CTextInput(TXT_DATALINK, WIN_FLTPLN, "Datalink", "", 60, CInputState::INACTIVE);
 	textInputs[TXT_COMMS] = CTextInput(TXT_COMMS, WIN_FLTPLN, "Com", "", 35, CInputState::INACTIVE);
 	textInputs[TXT_OWNERSHIP] = CTextInput(TXT_OWNERSHIP, WIN_FLTPLN, "Sector", "", 30, CInputState::INACTIVE);
@@ -2336,6 +2336,34 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 				}
 			}
 		}
+	}
+
+	// SELCAL: four letters from the SELCAL alphabet (A-H, J-M, P-S), dashes/spaces ignored
+	if (id == TXT_SELCAL) {
+		string code;
+		for (size_t i = 0; i < content.size(); i++) {
+			char c = (char)toupper((unsigned char)content[i]);
+			if (c == '-' || c == ' ') continue;
+			code += c;
+		}
+		bool valid = code.size() == 4;
+		for (size_t i = 0; valid && i < code.size(); i++) {
+			char c = code[i];
+			if (!((c >= 'A' && c <= 'H') || (c >= 'J' && c <= 'M') || (c >= 'P' && c <= 'S'))) valid = false;
+		}
+		if (code.empty()) { // Cleared: go back to whatever the remarks say
+			primedPlan->SelcalManual = false;
+			textInputs.find(id)->second.Error = false;
+			return;
+		}
+		if (!valid) {
+			textInputs.find(id)->second.Error = true;
+			return;
+		}
+		primedPlan->SELCAL = code;
+		primedPlan->SelcalManual = true;
+		textInputs.find(id)->second.Error = false;
+		content = code;
 	}
 
 	// Set the text
