@@ -18,6 +18,17 @@
   let timer: any;
   let thread: HTMLElement;
   let lastSeenFor: string = "";
+  let hoppieCode: string = "";
+  let logonErr: string = "";
+  let logonBusy: boolean = false;
+
+  async function signIn(): Promise<void> {
+    logonBusy = true;
+    logonErr = await cp.logonCpdlc(hoppieCode.trim());
+    logonBusy = false;
+    if (logonErr === "") hoppieCode = "";          // do not keep the code in the page
+  }
+  function signOut(): void { messages = []; cp.logoffCpdlc(); }
 
   $: connected = $cpdlcStatus.connected;
   $: canUse = sess.canEdit($session);
@@ -27,7 +38,7 @@
     : (dataHandler.asel && connected.some((c) => c.callsign === dataHandler.asel.Callsign) ? dataHandler.asel.Callsign : connected[0]?.callsign ?? "");
 
   async function refresh(): Promise<void> {
-    if (!$cpdlcOpen || !shown || !canUse) { return; }
+    if (!$cpdlcOpen || !shown || !canUse || !$cpdlcStatus.active) { return; }
     const r = await cp.loadMessages(shown);
     if (typeof r === "string") { loadError = r; return; }
     loadError = "";
@@ -71,12 +82,32 @@
 <div class="fixed z-40 top-0 bottom-0 right-0 flex flex-row font-regular text-white" style="transform: translateX({$cpdlcOpen ? '0' : '100%'}); transition: transform 0.25s ease;">
   <div class="w-96 max-w-screen h-full flex flex-col bg-blue-2 border-l-2 border-blue-10 shadow-5xl">
     <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-3 font-bold select-none">
-      <span>CPDLC {$cpdlcStatus.station ? "- station " + $cpdlcStatus.station : ""}</span>
-      <span class="underline hover:cursor-pointer text-sm" on:click={() => cpdlcOpen.set(false)}>close</span>
+      <span>CPDLC {$cpdlcStatus.active && $cpdlcStatus.station ? "- station " + $cpdlcStatus.station : ""}</span>
+      <span class="text-sm">
+        {#if $cpdlcStatus.active}<span class="underline hover:cursor-pointer mr-3" on:click={signOut}>sign out of CPDLC</span>{/if}
+        <span class="underline hover:cursor-pointer" on:click={() => cpdlcOpen.set(false)}>close</span>
+      </span>
     </div>
     {#if !$cpdlcStatus.enabled}
-      <div class="p-3 text-sm opacity-80">CPDLC is not switched on for this server yet. It needs the Hoppie logon code and a station callsign in the server settings.</div>
+      <div class="p-3 text-sm opacity-80">CPDLC is switched off on this server.</div>
     {:else}
+      {#if canUse && !$cpdlcStatus.active}
+        <div class="p-3 border-b border-blue-4 text-sm">
+          {#if !$cpdlcStatus.stationForPosition}
+            <div>Your position has no CPDLC station, so you cannot use CPDLC from it.</div>
+          {:else if $cpdlcStatus.inUse}
+            <div class="text-yellow-300">{$cpdlcStatus.stationForPosition} is already being used by another controller.</div>
+          {:else}
+            <div class="font-bold mb-1">Sign in to CPDLC as {$cpdlcStatus.stationForPosition}</div>
+            <div class="opacity-80 mb-2">Type your own Hoppie logon code. It is kept in server memory only while you are signed in, and is never saved.</div>
+            <form on:submit|preventDefault={signIn}>
+              <input type="password" autocomplete="off" class="w-full px-2 py-1 text-black" placeholder="Your Hoppie code" bind:value={hoppieCode} />
+              <button class="mt-2 px-4 py-1 font-bold bg-blue-10 text-black" disabled={logonBusy || !hoppieCode.trim()}>{logonBusy ? "Checking..." : "Sign in"}</button>
+            </form>
+            {#if logonErr}<div class="mt-1 text-yellow-300">{logonErr}</div>{/if}
+          {/if}
+        </div>
+      {/if}
       {#if $cpdlcStatus.error}
         <div class="px-3 py-1 text-xs text-yellow-300">Hoppie: {$cpdlcStatus.error}</div>
       {/if}
@@ -87,11 +118,13 @@
             on:click={() => pick(c.callsign)}>[{c.callsign}]{c.unread > 0 ? " (" + c.unread + ")" : ""}</button>
         {/each}
         {#if connected.length === 0}
-          <span class="text-sm opacity-70 px-1">Nobody is connected. Pilots send a logon request to {$cpdlcStatus.station}.</span>
+          <span class="text-sm opacity-70 px-1">Nobody is connected.{$cpdlcStatus.station ? " Pilots send a logon request to " + $cpdlcStatus.station + "." : ""}</span>
         {/if}
       </div>
       {#if !canUse}
         <div class="p-3 text-sm opacity-80">Sign in and choose a position (not Observer) to read and send CPDLC messages.</div>
+      {:else if !$cpdlcStatus.active}
+        <!-- sign-in form is shown above -->
       {:else if shown}
         <div class="px-3 py-1 font-bold border-b border-blue-4 select-none">[{shown}]</div>
         <div class="flex-1 min-h-0 overflow-y-auto px-2 py-1 text-sm" bind:this={thread}>

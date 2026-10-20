@@ -34,16 +34,16 @@ Reading (viewing the FDD) stays open. The plugin keeps using the API key for its
   Register the app at https://auth.vatsim.net (production needs an approved organisation); the redirect URL to register is `https://your.domain/auth/callback`.
 - Each flight remembers `updatedBy` / `updatedAt` / the last 10 changes (`history`). A web edit is held until the plugin has fetched it, so a plugin that has not yet polled cannot overwrite it with an old value.
 
-## CPDLC (server 0.5.0)
+## CPDLC (server 0.6.0)
 
-The server can act as the CPDLC ground station through Hoppie's ACARS. It is off until you set both of these in `/etc/vnaaats.env` and restart:
+The server acts as a CPDLC ground station through Hoppie's ACARS. Nothing to set on the server: each controller types **their own Hoppie logon code** in the FDD's CPDLC drawer after choosing their position.
+The code is held in server memory only while that controller is signed in (sign out, change position, session expiry or a server restart forgets it). It is never written to disk or logged.
 
-- `VNAAATS_HOPPIE_CODE` - your Hoppie logon code (private; type it on the server yourself).
-- `VNAAATS_HOPPIE_STATION` - the station callsign pilots log on to (e.g. `CZQO`).
-- Optional: `VNAAATS_HOPPIE_URL` (default `https://www.hoppie.nl/acars/system/connect.html`), `VNAAATS_CPDLC_AUTOACCEPT` (default 1: logon requests are accepted automatically).
+Stations (position -> station callsign pilots log on to): `CZQO_*` -> **CZQX**, `EGGX_*` -> **EGGX**, `NAT_*` (NAT_FSS) -> **NATX**. Override with `VNAAATS_CPDLC_STATIONS=CZQO_CTR=CZQX,EGGX_CTR=EGGX,NAT_FSS=NATX` (then only those positions have a station).
+Other settings: `VNAAATS_CPDLC=off` (disable), `VNAAATS_CPDLC_AUTOACCEPT` (default 1: logon requests accepted automatically), `VNAAATS_HOPPIE_URL`.
 
-How it works: the server polls Hoppie (about every minute, faster after traffic), accepts `REQUEST LOGON`, stores the messages and pings connected aircraft every 5 minutes (dropping them after two misses). Connected aircraft get `"cpdlc": true` in the flight data, so the plugin shows `[BAW123]` and the FDD shows brackets plus the CPDLC drawer (send/reply, quick templates, unread alerts). Only signed-in controllers with a real position can send.
+How it works: while a controller is signed in, the server polls Hoppie for that station (about every minute, faster after traffic), accepts `REQUEST LOGON`, stores messages, and pings connected aircraft every 5 minutes (dropping them after two misses). Connected aircraft get `"cpdlc": true` in the flight data, so the plugin shows `[BAW123]` and the FDD shows brackets plus the drawer. Only one controller can hold a station at a time (Hoppie allows one logon per callsign). Pilots connected to a station must log on again after it has been stopped.
 
 Cautions:
-- Only one program may poll a given station callsign at a time (polling removes the messages). Do not use a callsign that TopSky or another client is logged on with - use a test callsign first.
+- Polling removes messages from Hoppie's queue, so nothing else (TopSky, another client) may be logged on as the same station callsign.
 - LOGOFF handling and exact reply behaviour have not yet been checked against the live Hoppie system.

@@ -10,6 +10,9 @@ const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
 export type CpdlcStatus = {
   enabled: boolean;
   station?: string;
+  active?: boolean;               // this browser's controller is signed in to a CPDLC station
+  stationForPosition?: string;    // the station that belongs to the chosen position
+  inUse?: boolean;                // that station is being used by someone else
   autoAccept?: boolean;
   connected: { callsign: string; since: number; unread: number }[];
   unread: Record<string, number>;
@@ -98,6 +101,18 @@ export async function sendUplink(callsign: string, text: string, ra: string, mrn
   const r = await post("/cpdlc/send", { callsign, text, ra, mrn: mrn ?? "" });
   if (r.ok) { refreshCpdlc(); return ""; }
   return r.data.error ?? "send failed";
+}
+
+// Sign in to the station for your position with your own Hoppie code. Returns an error message, or "" on success.
+export async function logonCpdlc(code: string): Promise<string> {
+  const r = await post("/cpdlc/logon", { code });
+  if (r.ok) { prevUnread = -1; refreshCpdlc(); return ""; }
+  return r.data.error ?? "could not sign in to CPDLC";
+}
+
+export async function logoffCpdlc(): Promise<void> {
+  await post("/cpdlc/logoff", {});
+  refreshCpdlc();
 }
 
 export async function markSeen(callsign: string): Promise<void> {

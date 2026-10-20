@@ -1,8 +1,8 @@
 """
 CPDLC ground station for the vNAAATS server, talking to the Hoppie ACARS network (https://www.hoppie.nl/acars).
 
-The server logs on to Hoppie as ONE station callsign (VNAAATS_HOPPIE_STATION). Pilots send "REQUEST LOGON" to that
-callsign; we accept it (automatically unless VNAAATS_CPDLC_AUTOACCEPT=0), remember which aircraft are connected, keep
+Each controller signs in to their own station callsign (CZQX, EGGX, NATX ...) with THEIR OWN Hoppie logon code, typed on the
+FDD. The code is kept in memory only while that controller is signed in (never written to disk). Pilots send "REQUEST LOGON" to the station callsign; we accept it (automatically unless VNAAATS_CPDLC_AUTOACCEPT=0), remember which aircraft are connected, keep
 a message log, and let signed-in controllers send uplinks from the flight data display.
 
 Hoppie rules this follows (https://www.hoppie.nl/acars/system/tech.html):
@@ -10,7 +10,7 @@ Hoppie rules this follows (https://www.hoppie.nl/acars/system/tech.html):
   * 15 s connection timeout, never retry straight away
   * one logon per station callsign at a time (a second client using the same callsign gets "callsign already in use")
   * polling takes messages OUT of Hoppie's queue, so this only works if nobody else polls the same station callsign
-The feature stays completely off until VNAAATS_HOPPIE_CODE and VNAAATS_HOPPIE_STATION are both set.
+The CpdlcHub at the bottom of this file manages the stations: one running CpdlcStation per station callsign.
 
 CPDLC packet:  /data2/<MIN>/<MRN>/<RA>/<message>      (MIN = sender's message number, MRN = number being replied to,
 RA = reply wanted: WU wilco/unable, AN affirm/negative, R roger, NE none, Y/N for pilot downlinks)
@@ -108,9 +108,17 @@ class CpdlcStation:
         self.db.execute("""CREATE TABLE IF NOT EXISTS cpdlc_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL,
             dir TEXT NOT NULL, callsign TEXT NOT NULL, min INTEGER, mrn INTEGER, ra TEXT, text TEXT NOT NULL,
             state TEXT NOT NULL DEFAULT '', seen INTEGER NOT NULL DEFAULT 1, by TEXT NOT NULL DEFAULT '')""")
-        self.db.execute("CREATE TABLE IF NOT EXISTS cpdlc_connections (callsign TEXT PRIMARY KEY, since REAL NOT NULL)")
+        try:
+            self.db.execute("ALTER TABLE cpdlc_messages ADD COLUMN station TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass                                              # column already there
+        self.db.execute("CREATE TABLE IF NOT EXISTS cpdlc_conn2 (station TEXT NOT NULL, callsign TEXT NOT NULL, since REAL NOT NULL, PRIMARY KEY (station, callsign))")
         self.db.commit()
-        self.connected = {r[0]: {"since": r[1], "misses": 0} for r in self.db.execute("SELECT callsign, since FROM cpdlc_connections")}
+        self.stop_flag = False
+        # Connections are NOT restored: a station only polls while a controller is signed in to it, so after a stop pilots must log on again.
+        self.db.execute("DELETE FROM cpdlc_conn2 WHERE station=?", (client.station,))
+        self.db.commit()
+        self.connected = {}
         self.next_min = 1
         self.fast_until = 0.0
         self.last_poll = None
@@ -120,8 +128,8 @@ class CpdlcStation:
     # --- storage
     def _store(self, direction, callsign, mn, mrn, ra, text, state="", seen=1, by=""):
         with self.lock:
-            cur = self.db.execute("INSERT INTO cpdlc_messages (ts, dir, callsign, min, mrn, ra, text, state, seen, by) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                                  (self.now(), direction, callsign, mn, mrn, ra, text, state, seen, by))
+            cur = self.db.execute("INSERT INTO cpdlc_messages (ts, dir, callsign, min, mrn, ra, text, state, seen, by, station) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                                  (self.now(), direction, callsign, mn, mrn, ra, text, state, seen, by, self.client.station))
             self.db.commit()
             return cur.lastrowid
 
@@ -134,31 +142,31 @@ class CpdlcStation:
     def messages(self, callsign=None, after=0, limit=200):
         with self.lock:
             if callsign:
-                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE callsign=? AND id>? ORDER BY id DESC LIMIT ?" % self.COLS,
-                                       (callsign.upper(), after, limit)).fetchall()
+                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE station=? AND callsign=? AND id>? ORDER BY id DESC LIMIT ?" % self.COLS,
+                                       (self.client.station, callsign.upper(), after, limit)).fetchall()
             else:
-                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE id>? ORDER BY id DESC LIMIT ?" % self.COLS, (after, limit)).fetchall()
+                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE station=? AND id>? ORDER BY id DESC LIMIT ?" % self.COLS, (self.client.station, after, limit)).fetchall()
         return [self._row(r) for r in reversed(rows)]
 
     def mark_seen(self, callsign):
         with self.lock:
-            self.db.execute("UPDATE cpdlc_messages SET seen=1 WHERE callsign=? AND seen=0", (callsign.upper(),))
+            self.db.execute("UPDATE cpdlc_messages SET seen=1 WHERE station=? AND callsign=? AND seen=0", (self.client.station, callsign.upper()))
             self.db.commit()
 
     def unread(self):
         with self.lock:
-            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages WHERE seen=0 GROUP BY callsign")}
+            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages WHERE station=? AND seen=0 GROUP BY callsign", (self.client.station,))}
 
     def _set_connected(self, callsign, yes):
         with self.lock:
             if yes and callsign not in self.connected:
                 self.connected[callsign] = {"since": self.now(), "misses": 0}
-                self.db.execute("INSERT OR REPLACE INTO cpdlc_connections VALUES (?,?)", (callsign, self.connected[callsign]["since"]))
+                self.db.execute("INSERT OR REPLACE INTO cpdlc_conn2 VALUES (?,?,?)", (self.client.station, callsign, self.connected[callsign]["since"]))
             elif yes:
                 self.connected[callsign]["misses"] = 0
             elif callsign in self.connected:
                 del self.connected[callsign]
-                self.db.execute("DELETE FROM cpdlc_connections WHERE callsign=?", (callsign,))
+                self.db.execute("DELETE FROM cpdlc_conn2 WHERE station=? AND callsign=?", (self.client.station, callsign))
             self.db.commit()
 
     def is_connected(self, callsign):
@@ -300,13 +308,139 @@ class CpdlcStation:
                         log.info("%s is no longer online on Hoppie - connection dropped", c)
                         self._set_connected(c, False)
 
+    def stop(self):
+        """Stop polling and forget the logon code. Messages stay in the log."""
+        self.stop_flag = True
+        self.client.logon = ""
+        with self.lock:
+            self.connected.clear()
+            self.db.execute("DELETE FROM cpdlc_conn2 WHERE station=?", (self.client.station,))
+            self.db.commit()
+
     def loop(self):
-        while True:
+        while not self.stop_flag:
             try:
                 self.poll_once()
+                if self.stop_flag:
+                    break
                 if self.now() - self.last_ping > PING_SECONDS:
                     self.last_ping = self.now()
                     self.ping_connected()
             except Exception:
                 log.exception("CPDLC loop error")
-            time.sleep(random.uniform(18, 22) if self.now() < self.fast_until else random.uniform(45, 75))
+            wait = random.uniform(18, 22) if self.now() < self.fast_until else random.uniform(45, 75)
+            while wait > 0 and not self.stop_flag:
+                time.sleep(min(1.0, wait))
+                wait -= 1.0
+
+
+# ----------------------------------------------------------------------------- the hub: one station per signed-in controller
+DEFAULT_STATIONS = {"CZQO": "CZQX", "EGGX": "EGGX", "NAT": "NATX"}       # position prefix -> CPDLC station callsign
+
+
+def parse_stations(text):
+    """'CZQO_CTR=CZQX,EGGX_CTR=EGGX' -> {'CZQO_CTR': 'CZQX', ...}. Empty/None -> {}."""
+    out = {}
+    for part in (text or "").split(","):
+        if "=" in part:
+            k, v = part.split("=", 1)
+            k, v = k.strip().upper(), v.strip().upper()
+            if k and re.fullmatch(r"[A-Z0-9]{2,8}", v):
+                out[k] = v
+    return out
+
+
+class CpdlcHub:
+    def __init__(self, db_path, url=DEFAULT_URL, auto_accept=True, stations=None, make_client=None, is_session_alive=None, now=time.time, start_threads=True):
+        self.db_path, self.url, self.auto_accept, self.now = db_path, url, auto_accept, now
+        self.stations_map = stations or {}
+        self.make_client = make_client or (lambda code, station: HoppieClient(self.url, code, station))
+        self.is_session_alive = is_session_alive or (lambda token: True)
+        self.start_threads = start_threads
+        self.lock = threading.RLock()
+        self.running = {}        # station callsign -> {"token", "obj"}
+        self.enabled = True
+
+    def station_for(self, position):
+        pos = (position or "").upper()
+        if not pos or pos == "OBSERVER":
+            return None
+        if pos in self.stations_map:
+            return self.stations_map[pos]
+        if self.stations_map:                      # an explicit list means only those positions
+            return None
+        return DEFAULT_STATIONS.get(pos.split("_")[0])
+
+    def reap(self):
+        """Stop stations whose controller's web session has ended."""
+        with self.lock:
+            for st, v in list(self.running.items()):
+                if not self.is_session_alive(v["token"]):
+                    log.info("CPDLC station %s stopped (controller signed out)", st)
+                    v["obj"].stop()
+                    del self.running[st]
+
+    def start(self, token, position, code):
+        """Returns (station, None) or (None, error text)."""
+        station = self.station_for(position)
+        if not station:
+            return None, "your position (%s) has no CPDLC station" % (position or "none")
+        code = (code or "").strip()
+        if not re.fullmatch(r"[A-Za-z0-9]{6,40}", code):
+            return None, "that does not look like a Hoppie logon code"
+        self.reap()
+        with self.lock:
+            cur = self.running.get(station)
+            if cur and cur["token"] != token:
+                return None, "%s is already in use by another controller" % station
+        client = self.make_client(code, station)
+        try:                                       # check the code with a harmless ping before going live
+            answer = client.request("SERVER", "ping", station)
+        except Exception as e:
+            return None, "could not reach Hoppie: %s" % e
+        if answer.strip().split(" ", 1)[0].lower() != "ok":
+            return None, "Hoppie said: " + answer.strip()[:120]
+        with self.lock:
+            cur = self.running.get(station)
+            if cur:                                # same controller re-entering a code
+                cur["obj"].client.logon = code
+                return station, None
+            obj = CpdlcStation(self.db_path, client, auto_accept=self.auto_accept, now=self.now)
+            self.running[station] = {"token": token, "obj": obj}
+        if self.start_threads:
+            threading.Thread(target=obj.loop, daemon=True).start()
+        log.info("CPDLC station %s started", station)
+        return station, None
+
+    def stop(self, token):
+        with self.lock:
+            for st, v in list(self.running.items()):
+                if v["token"] == token:
+                    v["obj"].stop()
+                    del self.running[st]
+                    log.info("CPDLC station %s stopped", st)
+
+    def get(self, token):
+        """The running station owned by this web session, or None."""
+        with self.lock:
+            for v in self.running.values():
+                if v["token"] == token:
+                    return v["obj"]
+        return None
+
+    def is_connected(self, callsign):
+        with self.lock:
+            return any(v["obj"].is_connected(callsign) for v in self.running.values())
+
+    def status(self, token=None, position=""):
+        mine = self.get(token) if token else None
+        station = self.station_for(position)
+        with self.lock:
+            others = sorted({c for v in self.running.values() if v["obj"] is not mine for c in v["obj"].connected_callsigns()})
+            taken = bool(station and station in self.running and not mine)
+        if mine:
+            st = mine.status()
+            st.update({"active": True, "position": position, "stationForPosition": station, "inUse": False})
+            return st
+        return {"enabled": True, "active": False, "station": station or "", "stationForPosition": station or "", "inUse": taken,
+                "connected": [{"callsign": c, "since": 0, "unread": 0} for c in others], "unread": {}, "lastPoll": None, "error": ""}

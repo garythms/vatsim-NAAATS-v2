@@ -25,8 +25,8 @@ VNAAATS_REFRESH_SECONDS (600), VNAAATS_BIND (127.0.0.1), VNAAATS_VATSIM_FEED (fe
 VNAAATS_FEED_SECONDS (60), VNAAATS_NATTRAK_PLUGIN_URL (natTrak clearance API; 'off' to disable).
 Login (editing from the web): VNAAATS_FDD_PASSWORD (shared password), VNAAATS_POSITIONS (comma list shown on the position screen),
 VNAAATS_CONNECT_CLIENT_ID / VNAAATS_CONNECT_CLIENT_SECRET / VNAAATS_PUBLIC_URL (e.g. https://fdd.example.com) for VATSIM Connect,
-VNAAATS_HOPPIE_CODE + VNAAATS_HOPPIE_STATION (your Hoppie logon code and the station callsign to log on as; CPDLC is off until both are set),
-VNAAATS_HOPPIE_URL, VNAAATS_CPDLC_AUTOACCEPT (1 = accept pilots' logon requests automatically, 0 = off).
+VNAAATS_CPDLC=off (CPDLC is on by default; each controller types their own Hoppie code on the FDD), VNAAATS_CPDLC_STATIONS (position=station list,
+default CZQO_*=CZQX, EGGX_*=EGGX, NAT_*=NATX), VNAAATS_HOPPIE_URL, VNAAATS_CPDLC_AUTOACCEPT (1 = accept pilots' logon requests automatically, 0 = off).
 VNAAATS_CONNECT_BASE (https://auth.vatsim.net, sandbox: https://auth-dev.vatsim.net), VNAAATS_ALLOWED_CIDS (comma list; if empty
 any VATSIM member rated VNAAATS_MIN_RATING or higher, default 2 = S1, may log in).
 """
@@ -55,7 +55,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.5.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.6.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -764,13 +764,17 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     token = auth.create_session(re.sub(r"\D", "", name)[:8], name, "password")
                     return self._send_cookie(200, self._status(auth.get(token)), token)
                 if p == "/auth/logout":
+                    if cpdlc:
+                        cpdlc.stop(self._token())
                     auth.logout(self._token())
                     return self._send_cookie(200, self._status(None), "", 0)
                 if p == "/auth/position":
                     if not self._session() or not auth.set_position(self._token(), str(body.get("position", ""))):
                         return self._send(400, {"error": "log in first and give a position like CZQO_CTR"})
+                    if cpdlc:
+                        cpdlc.stop(self._token())                  # a new position means a different CPDLC station
                     return self._send(200, self._status(self._session()))
-                if p in ("/cpdlc/send", "/cpdlc/seen"):
+                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff"):
                     if not cpdlc:
                         return self._send(404, {"error": "CPDLC is not switched on"})
                     sess = self._session()
@@ -778,13 +782,25 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(401, {"error": "log in first"})
                     if not sess["position"] or sess["position"] == "OBSERVER":
                         return self._send(403, {"error": "choose a controlling position to use CPDLC"})
+                    token = self._token()
+                    if p == "/cpdlc/logoff":
+                        cpdlc.stop(token)
+                        return self._send(200, {"ok": True})
+                    if p == "/cpdlc/logon":
+                        station, err = cpdlc.start(token, sess["position"], str(body.get("code", "")))
+                        if err:
+                            return self._send(400, {"error": err})
+                        return self._send(200, {"ok": True, "station": station})
+                    st = cpdlc.get(token)
+                    if not st:
+                        return self._send(409, {"error": "enter your Hoppie code first to sign in to CPDLC"})
                     if p == "/cpdlc/seen":
-                        cpdlc.mark_seen(str(body.get("callsign", "")))
+                        st.mark_seen(str(body.get("callsign", "")))
                         return self._send(200, {"ok": True})
                     try:
                         mrn = body.get("mrn")
-                        msg = cpdlc.send(str(body.get("callsign", "")), str(body.get("text", "")), str(body.get("ra", "WU")),
-                                         int(mrn) if mrn not in (None, "") else None, by="%s (%s)" % (sess["position"], sess["name"]))
+                        msg = st.send(str(body.get("callsign", "")), str(body.get("text", "")), str(body.get("ra", "WU")),
+                                      int(mrn) if mrn not in (None, "") else None, by="%s (%s)" % (sess["position"], sess["name"]))
                     except ValueError as e:
                         return self._send(400, {"error": str(e)})
                     except RuntimeError as e:
@@ -844,13 +860,19 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     with cache.lock:
                         return self._send(200, cache.tracks)
                 if p == "/cpdlc/status":
-                    return self._send(200, cpdlc.status() if cpdlc else {"enabled": False, "connected": [], "unread": {}})
+                    if not cpdlc:
+                        return self._send(200, {"enabled": False, "connected": [], "unread": {}})
+                    sess = self._session()
+                    return self._send(200, cpdlc.status(self._token() if sess else None, sess["position"] if sess else ""))
                 if p == "/cpdlc/messages":
                     if not cpdlc:
                         return self._send(404, {"error": "CPDLC is not switched on"})
                     if not self._session():
                         return self._send(401, {"error": "log in first"})
-                    return self._send(200, cpdlc.messages(q.get("callsign") or None, to_int(q.get("after"), 0)))
+                    st = cpdlc.get(self._token())
+                    if not st:
+                        return self._send(200, [])
+                    return self._send(200, st.messages(q.get("callsign") or None, to_int(q.get("after"), 0)))
                 if p == "/auth/status":
                     return self._send(200, self._status(self._session()))
                 if p == "/auth/login":
@@ -936,16 +958,17 @@ def main():
     host, port = os.environ.get("VNAAATS_BIND", "127.0.0.1"), int(os.environ.get("VNAAATS_PORT", "8080"))
     log.info("Listening on %s:%d", host, port)
     cpdlc = None
-    code, station = os.environ.get("VNAAATS_HOPPIE_CODE", ""), os.environ.get("VNAAATS_HOPPIE_STATION", "").strip().upper()
-    if code and station:
-        client = cpdlc_mod.HoppieClient(os.environ.get("VNAAATS_HOPPIE_URL", cpdlc_mod.DEFAULT_URL), code, station)
-        cpdlc = cpdlc_mod.CpdlcStation(os.environ.get("VNAAATS_DB", os.path.join(HERE, "vnaaats.db")), client,
-                                       auto_accept=os.environ.get("VNAAATS_CPDLC_AUTOACCEPT", "1") != "0")
-        threading.Thread(target=cpdlc.loop, daemon=True).start()
-        log.info("CPDLC station %s is ON (auto-accept logons: %s)", station, cpdlc.auto_accept)
-    else:
-        log.info("CPDLC is OFF (set VNAAATS_HOPPIE_CODE and VNAAATS_HOPPIE_STATION to switch it on)")
     auth = Auth()
+    if os.environ.get("VNAAATS_CPDLC", "on").lower() != "off":
+        cpdlc = cpdlc_mod.CpdlcHub(os.environ.get("VNAAATS_DB", os.path.join(HERE, "vnaaats.db")),
+                                   url=os.environ.get("VNAAATS_HOPPIE_URL", cpdlc_mod.DEFAULT_URL),
+                                   auto_accept=os.environ.get("VNAAATS_CPDLC_AUTOACCEPT", "1") != "0",
+                                   stations=cpdlc_mod.parse_stations(os.environ.get("VNAAATS_CPDLC_STATIONS", "")),
+                                   is_session_alive=lambda t: auth.get(t) is not None)
+        threading.Thread(target=lambda: [cpdlc.reap() or time.sleep(30) for _ in iter(int, 1)], daemon=True).start()
+        log.info("CPDLC is available: each controller signs in with their own Hoppie code")
+    else:
+        log.info("CPDLC is OFF (VNAAATS_CPDLC=off)")
     log.info("Web editing: %s", "VATSIM Connect + password" if auth.connect_enabled and auth.password else "VATSIM Connect" if auth.connect_enabled else "password" if auth.password else "OFF (set VNAAATS_FDD_PASSWORD)")
     ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc)).serve_forever()
 
