@@ -29,6 +29,26 @@
     clearInterval(dataHandler.tkUpdateJob);
   });
 
+  // Level/track filter for the strip list (HL / LL / ALL TK / RR)
+  const HL_MIN_LEVEL: number = 350; // flight levels >= this count as 'high level'
+  let filter: string = "ALL";
+  function setFilter(f: string): void { filter = f; }
+  function matches(ac: any, track: string, f: string): boolean {
+    if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
+    switch (f) {
+      case "HL": return ac.AssignedLevel >= HL_MIN_LEVEL;
+      case "LL": return ac.AssignedLevel < HL_MIN_LEVEL;
+      case "RR": return track == "RR";
+      default: return true;
+    }
+  }
+  function groupHasMatch(track: string, f: string): boolean {
+    const m = dataHandler.networkAircraft.get(track);
+    if (!m) return false;
+    for (const ac of m.values()) if (matches(ac, track, f)) return true;
+    return false;
+  }
+
   // Externals
   $: acListKeys = [...dataHandler.networkAircraft.keys()];
   $: tmi = dataHandler.currentTMI;
@@ -88,16 +108,20 @@
       </div>
     </div>
     <div class="flex flex-row-reverse items-center 2xl:scale-100 xl:scale-85">
-      <div class="px-3 hover:cursor-default">
+      <div class="px-3" on:click={() => setFilter("ALL")}>
         <Button label="Default" />
       </div>
-      <div class="pr-1.5 font-bitmap font-thin 2xl:text-xl xl:text-base hover:cursor-default">
-        <Button
-          label={"HL • LL • ALL TK • RR"}
-          font={"bitmap"}
-          bold={"false"}
-          textColour={"text-yellow-300"}
-        />
+      <div class="flex flex-row pr-1.5 font-bitmap font-thin 2xl:text-xl xl:text-base">
+        {#each ["HL", "LL", "ALL", "RR"] as f}
+          <div class="px-0.5" on:click={() => setFilter(f)}>
+            <Button
+              label={f == "ALL" ? "ALL TK" : f}
+              font={"bitmap"}
+              bold={"false"}
+              textColour={filter == f ? "text-yellow-300" : "text-white"}
+            />
+          </div>
+        {/each}
       </div>
     </div>
   </div>
@@ -115,7 +139,7 @@
       </div>
     {:else}
       {#each acListKeys as acTrack}
-        {#if dataHandler.networkAircraft.get(acTrack)?.size != 0 && utils.determineTrackRelevance(acTrack)}
+        {#if groupHasMatch(acTrack, filter)}
           <div class="flex flex-row justify-start w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
             <div class="w-1/2 px-3">
               {acTrack != "RR" ? acTrack : "RANDOM"}
@@ -135,7 +159,7 @@
           </div>
         {/if}
         {#each Array.from(dataHandler.networkAircraft.get(acTrack).values()) as ac}
-        {#if ac.Relevant && utils.isRecent(ac.LastUpdated)}
+        {#if matches(ac, acTrack, filter)}
           <FlightStrip 
             callsign={ac.Callsign}
             type={ac.Type}
