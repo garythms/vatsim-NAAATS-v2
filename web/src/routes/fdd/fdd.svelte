@@ -78,10 +78,22 @@
       default: return () => 0;
     }
   }
-  type Group = { key: string; label: string; track: string; rows: any[] };
+  type Group = { key: string; label: string; track: string; rows: any[]; kind?: string };
   function buildGroups(_tick: number, _win: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string): Group[] {
     const out: Group[] = [];
     const cmp = sorter(by);
+    if (g === "LEVEL") {
+      const byLevel = new Map<number, any[]>();
+      dataHandler.networkAircraft.forEach((m, track) => {
+        for (const ac of m.values()) {
+          if (!matches(ac, track, f, pst, fad, wst, term) || !searchMatch(ac, s)) continue;
+          const k = ac.AssignedLevel > 0 ? ac.AssignedLevel : 0;
+          byLevel.set(k, [...(byLevel.get(k) ?? []), ac]);
+        }
+      });
+      [...byLevel.keys()].sort((a, b) => b - a).forEach((k) => out.push({ key: "FL" + k, label: k > 0 ? "FL" + k : "No level", track: "", kind: "LEVEL", rows: byLevel.get(k)!.sort(cmp) }));
+      return out;
+    }
     if (g === "ENTRY") {
       const byEntry = new Map<string, any[]>();
       dataHandler.networkAircraft.forEach((m, track) => {
@@ -274,6 +286,7 @@
       <select class="text-black" bind:value={groupBy}>
         <option value="TRACK">by track</option>
         <option value="ENTRY">by entry fix</option>
+        <option value="LEVEL">by flight level</option>
       </select>
     </label>
     <label>Sort
@@ -363,7 +376,9 @@
       {#each groups as g (g.key)}
         <div class="strip-grid w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default" style="--cols: {cols};">
           <div class="px-3 whitespace-nowrap">{g.label}</div>
-          {#if g.track == "RR" || g.track == ""}
+          {#if g.kind === "LEVEL"}
+            <div class="whitespace-nowrap" style="grid-column: 2 / span 4;">{g.rows.length} aircraft</div>
+          {:else if g.track == "RR" || g.track == ""}
             <div class="whitespace-nowrap" style="grid-column: 4 / span 4;">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
           {:else}
             <div style="grid-column: 2 / span 3;" />

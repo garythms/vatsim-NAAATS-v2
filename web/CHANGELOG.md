@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.9.6 - 2026-10-21
+- "Group" now also has "by flight level": flights are grouped under FL400, FL380, ... highest first, each heading showing how many aircraft.
+
 ## 0.9.5 - 2026-10-21
 - Tracks panel: the validity time is shown once on the heading ("Westbound 1130-1900z") instead of on every track. Each track is two lines: its name and fixes, then its flight levels. (Also fixed minutes 09 being shown as "9".)
 
