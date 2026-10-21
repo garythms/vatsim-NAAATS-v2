@@ -84,7 +84,7 @@
 
   $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
-  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["contact", "Contact me"], ["cpdlc", "CPDLC"]];
+  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"]];
   const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
@@ -103,7 +103,9 @@
           {#if isConc}
             <span class="px-2 py-0.5 mr-1 mb-1 {BTN}" on:click={openPos}>Position reports</span>
           {/if}
-          <span class="ml-auto px-2 py-0.5 mb-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer {tab === 'sup' ? 'bg-red-900' : ''}" on:click={() => pickTab("sup")}>Supervisor</span>
+          <span class="ml-auto" />
+          <span class="px-2 py-0.5 mr-1 mb-1 {BTN} {tab === 'contact' ? 'bg-blue-1 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6' : ''}" on:click={() => pickTab("contact")}>Contact</span>
+          <span class="px-2 py-0.5 mb-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer {tab === 'sup' ? 'bg-red-900' : ''}" on:click={() => pickTab("sup")}>Supervisor</span>
         </div>
 
         {#if tab === "track"}
