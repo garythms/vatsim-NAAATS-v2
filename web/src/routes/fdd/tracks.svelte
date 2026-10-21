@@ -12,6 +12,18 @@
   $: eastbound = [];
   $: westbound = [];
 
+  // Validity as one short text, e.g. 1130-1900z (several, separated by "/", if the tracks differ)
+  const hhmm = (sec: number): string => { const d = new Date(sec * 1000); return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0"); };
+  function validity(tracks: NatTrack[]): string {
+    const set: string[] = [];
+    for (const t of tracks) {
+      if (isNaN(t.ValidFrom) || isNaN(t.ValidTo)) continue;
+      const v: string = hhmm(t.ValidFrom) + "-" + hhmm(t.ValidTo) + "z";
+      if (!set.includes(v)) set.push(v);
+    }
+    return set.join(" / ");
+  }
+
   // DOM elements to update
   $: tmi = dataHandler.currentTMI;
 
@@ -47,7 +59,7 @@
     <div class="flex" />
     {#if westbound.length > 0}
     <div class="flex flex-row justify-center w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
-      Westbound
+      Westbound {validity(westbound)}
     </div>
     {/if}
     {#each westbound as track}
@@ -56,13 +68,11 @@
         route={track?.Route}
         flightLevels={track.FlightLevels}
         direction={track.Direction}
-        validFrom={track.ValidFrom}
-        validTo={track.ValidTo}
       />
     {/each}
     {#if eastbound.length > 0}
     <div class="flex flex-row justify-center w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
-      Eastbound
+      Eastbound {validity(eastbound)}
     </div>
     {/if}
     {#each eastbound as track}
@@ -71,8 +81,6 @@
         route={track.Route}
         flightLevels={track.FlightLevels}
         direction={track.Direction}
-        validFrom={track.ValidFrom}
-        validTo={track.ValidTo}
       />
     {/each}
   </div>

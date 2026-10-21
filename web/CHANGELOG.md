@@ -3,7 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 0.9.5 - 2026-10-21
-- Track validity times are shown on one line (1130-1900z) instead of wrapping onto two. Also fixed minutes 09 being shown as "9".
+- Tracks panel: the validity time is shown once on the heading ("Westbound 1130-1900z") instead of on every track. Each track is two lines: its name and fixes, then its flight levels. (Also fixed minutes 09 being shown as "9".)
 
 ## 0.9.4 - 2026-10-21
 - Strip list rebuilt on one grid shared by every strip and header row: all fix times (including the exit fix) always show and line up under their fix names, at any window width. The columns scale with the list text, and the dead space between callsign / route / level is gone.
