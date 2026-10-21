@@ -605,9 +605,22 @@ export const NO_TIME_RANGE_NM: number = 200;
 
 // Strip is wanted on the display: within `ahead` minutes of the oceanic entry, or less than `behind` minutes past the exit.
 // Flights with no times, the selected flight, CPDLC-connected flights and pending natTrak requests always show.
+// Flights an oceanic controller (CZQO, EGGX, NAT_FSS ...) is tracking stay on the display until untracked, then for OCEANIC_GRACE_MIN more minutes.
+const OCEANIC_PREFIX = /^(CZQO|CZQX|EGGX|NAT|BIRD|KZWY|LPPO|ENOB)/i;
+const OCEANIC_GRACE_MIN = 5;
+const oceanicSeen = new Map<string, number>();   // callsign -> last time (ms) an oceanic controller was tracking it
+function oceanicHold(ac: Aircraft): boolean {
+  const cs = ac.Callsign.toUpperCase();
+  const tracked = (!!ac.TrackedBy && ac.TrackedBy !== "NATTRAK" && OCEANIC_PREFIX.test(ac.TrackedBy)) || (ac.Comm?.kind === "oceanic");
+  if (tracked) { oceanicSeen.set(cs, Date.now()); return true; }
+  const last = oceanicSeen.get(cs);
+  return last !== undefined && Date.now() - last < OCEANIC_GRACE_MIN * 60000;
+}
+
 export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): boolean {
   if (asel != null && asel.Callsign === ac.Callsign) return true;
   if (ac.Cpdlc) return true;
+  if (oceanicHold(ac)) return true;
   if (natTrakData.get(ac.Callsign.toUpperCase())?.status === "PENDING") return true;
   if (ac.Offline === true) return false;     // not on the VATSIM network any more
   const sp = etaSpan(ac);

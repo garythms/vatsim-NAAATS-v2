@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.9.9 - 2026-10-21
+- A flight tracked by an oceanic controller (CZQO, EGGX, NAT_FSS ...) is never hidden by the traffic window: its strip stays until it is untracked and for 5 minutes afterwards. (The 5 minutes is counted by the open browser page, so a page refresh restarts the count.)
+
 ## 0.9.8 - 2026-10-21
 - Headset icon: aircraft that are online but not on any controller or UNICOM now show a red crossed-out headset ("Not tracked by any controller").
 - Transfer list only offers the stations in the TopSky list (topsky_cpdlc.txt), not every controller online. Needs server 0.11.1. With none online the Transfer tab says "No adjacent ATC - Send to UNICOM".
