@@ -49,6 +49,7 @@ export type NatTrakData = {
   mach: number;
   estimating_time: string;
   clearance_issued: string;
+  cleared_by?: string; // only if natTrak says who processed it
   extra_info: string;
 }
 

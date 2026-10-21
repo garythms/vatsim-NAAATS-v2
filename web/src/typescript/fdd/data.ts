@@ -512,6 +512,7 @@ export async function natTrakFetch() : Promise<void> {
         mach: isNaN(mach) ? 0 : mach,
         estimating_time: o.estimating_time,
         clearance_issued: issued,
+        cleared_by: o.cleared_by ?? o.controller ?? o.issued_by ?? "",
         extra_info: o.extra_info,
       });
     }

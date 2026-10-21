@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.9.3 - 2026-10-21
+- The tracking controller is now a headset icon (hover: "Tracked by NAT_FSS"). Flights cleared on natTrak show a clipboard-tick icon instead of the word NATTRAK (hover: "RCL processed at 1613z (natTrak)"; natTrak does not currently say which controller processed it, so the name only shows if natTrak starts sending it).
+- Aircraft type and the tracking icon have their own space, so they no longer overlap; long rows are clipped instead of running into the right-hand column.
+
 ## 0.9.2 - 2026-10-21
 - SELCAL is checked against the 16 SELCAL letters (A-H, J-M, P-S). A red warning in the menu says which letters are not allowed, e.g. "SELCAL cannot use W".
 

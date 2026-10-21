@@ -360,10 +360,10 @@
     {:else}
       {#each groups as g (g.key)}
         <div class="flex flex-row justify-start w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
-          <div class="w-1/7 px-3">
+          <div class="w-1/7 flex-shrink-0 px-3">
             {g.label}
           </div>
-          <div class="flex flex-row w-5/7 justify-start">
+          <div class="flex flex-row flex-1 min-w-0 overflow-hidden justify-start">
             <div style="width: 14.8rem; flex-shrink: 0;" />
             {#if g.track == "RR" || g.track == ""}
               <div class="whitespace-nowrap">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
@@ -375,7 +375,7 @@
               {/each}
             {/if}
           </div>
-          <div class="w-1/5" />
+          <div class="flex-shrink-0" style="width: 6.5rem;" />
         </div>
         {#each g.rows as ac (ac.Callsign)}
           <FlightStrip 
