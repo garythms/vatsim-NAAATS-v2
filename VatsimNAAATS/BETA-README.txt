@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 1.5b8: conflict alerts no longer flash for aircraft one flight level apart (a 200 ft allowance is applied to the vertical separation, because real altitudes are never exactly on the level).
+
 NEW IN 1.5b7 (and 1.5b6): fixed a crash on opening when the plugin could not reach the server (it now shows an error message instead, with a code).
 
 NEW IN 1.5b5: start-up logging and protection (vNAAATS.log shows each start-up step). If EuroScope still crashes on opening, send vNAAATS.log.
