@@ -90,7 +90,7 @@
 
 {#if $menuCallsign}
   <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
-    <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 40rem;">
+    <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 46rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
         <span>Aircraft menu - {$menuCallsign}</span>
         <span class="underline hover:cursor-pointer text-sm" on:click={close}>close</span>
