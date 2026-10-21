@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.7.2 - 2026-10-21
+- Route can be amended in the flight plan panel ("Route (edit)"). Latitude/longitude fixes must be two numbers / two numbers (51/20); 51N20W and similar are refused with a red warning as you type. Fixes you keep keep their times; new fixes have none. The change is on the display and server only - EuroScope's own flight plan is not changed.
+
 ## 0.7.1 - 2026-10-21
 - Traffic window: by default the strip list only shows flights within 60 minutes of their oceanic entry estimate, until 5 minutes after their exit estimate. A "Show" box in the top bar switches to all flights (remembered in your browser) and a count shows how many are hidden. Flights with no times, the selected flight, CPDLC-connected flights and pending natTrak requests always show.
 

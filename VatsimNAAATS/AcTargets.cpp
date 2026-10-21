@@ -127,7 +127,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 	// Set middle
 	g->TranslateTransform(acPoint.x, acPoint.y, MatrixOrderAppend);
 	// Every target is drawn as a jet aircraft icon pointing along its heading, like the real system.
-	// Filled = cleared, outline only = not cleared yet. Colour: critical (flashing) / warning / handoff to me / mine / not mine.
+	// Filled = cleared or tracked by a controller, outline only = neither. Colour: critical (flashing) / warning / handoff to me / mine / not mine.
 	{
 		g->RotateTransform(target->GetPosition().GetReportedHeadingTrueNorth());
 
@@ -176,7 +176,9 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 			iconPen = &orangePen;
 		}
 
-		if (acFP->IsCleared) {
+		// Solid when cleared, or whenever any controller is tracking the aircraft (clearance or not)
+		bool isTracked = fp.GetTrackingControllerIsMe() || string(fp.GetTrackingControllerCallsign()) != "";
+		if (acFP->IsCleared || isTracked) {
 			g->FillPolygon(iconBrush, points, 19);
 		}
 		else {

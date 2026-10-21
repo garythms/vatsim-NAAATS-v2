@@ -14,6 +14,33 @@
   let messageOk: boolean = true;
   let messageTimer: any;
 
+  // Route amendment. Lat/long fixes must be two numbers / two numbers (51/20), never 51N20W.
+  let routeDraft: string = "";
+  let routeFor: string = "";
+  let routeFocus: boolean = false;
+  $: if (asel && !routeFocus && (asel.Callsign !== routeFor || true)) { routeFor = asel.Callsign; routeDraft = asel.Route.join(" "); }
+  function routeProblem(text: string): string {
+    const fixes = text.trim().toUpperCase().split(/\s+/).filter((f) => f !== "");
+    if (fixes.length === 0) return "Type the route fixes separated by spaces, e.g. 52/50 52/40";
+    for (const f of fixes) {
+      if (/^\d{2}\/\d{2}$/.test(f) || /^[A-Z]{3,5}$/.test(f)) continue;
+      if (/\d/.test(f)) return f + " is not accepted - write latitude/longitude as two numbers / two numbers, e.g. 51/20 (not 51N20W)";
+      return f + " is not a fix name (3-5 letters, or two numbers / two numbers like 51/20)";
+    }
+    return "";
+  }
+  $: routeWarn = routeFocus ? routeProblem(routeDraft) : "";
+  async function saveRoute(): Promise<void> {
+    routeFocus = false;
+    if (!asel) return;
+    const bad = routeProblem(routeDraft);
+    if (bad) { messageOk = false; message = bad; routeDraft = asel.Route.join(" "); return; }
+    if (routeDraft.trim().toUpperCase().split(/\s+/).join(" ") === asel.Route.join(" ")) return;
+    let fixes: string[] = routeDraft.trim().toUpperCase().split(/\s+/);
+    if (!asel.Direction) fixes = fixes.reverse();     // the display shows westbound routes the other way round
+    await save("route", fixes.join(" "));
+  }
+
   async function save(field: string, text: string): Promise<void> {
     if (!asel) return;
     const digits = text.replace(/\D/g, "").replace(/^0+/, "");
@@ -23,7 +50,7 @@
     else changes[field] = text;
     const err = await sess.editFlight(asel.Callsign, changes);
     messageOk = err === "";
-    message = err === "" ? "Saved - the plugin picks it up within a few seconds" : err;
+    message = err === "" ? (field === "route" ? "Route saved on the display. EuroScope's own flight plan is not changed." : "Saved - the plugin picks it up within a few seconds") : err;
     clearTimeout(messageTimer);
     messageTimer = setTimeout(() => (message = ""), 6000);
   }
@@ -160,6 +187,13 @@
             </div>
           {/each}
         </div>
+      </div>
+      <div class="flex flex-col px-2 w-1/3 relative">
+        <label class="font-regular font-bold text-sm">Route (edit)</label>
+        <input id="route-edit" class="h-6 px-1 text-base font-bitmap uppercase {editable ? 'bg-blue-1 text-yellow-300' : 'bg-blue-2 text-white'} border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6 focus:outline-none {routeWarn ? 'border-red-500' : 'focus:border-green-300'}"
+          disabled={!editable} bind:value={routeDraft} on:focus={() => (routeFocus = true)} on:blur={saveRoute}
+          on:keydown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { routeFocus = false; routeDraft = asel.Route.join(" "); e.currentTarget.blur(); } }} />
+        {#if routeWarn}<div class="absolute z-30 top-full left-2 mt-0.5 p-1 w-72 font-regular text-xs text-white bg-red-700 border border-red-300">{routeWarn}</div>{/if}
       </div>
       <EditInput
         label={"Tck"}

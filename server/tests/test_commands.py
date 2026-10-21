@@ -102,3 +102,25 @@ class HttpTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RouteEditTests(unittest.TestCase):
+    def test_route_formats(self):
+        import vnaaats_server as s
+        self.assertEqual(s.route_problem("52/50 52/40 SOMAX"), "")
+        self.assertIn("51/20", s.route_problem("51N20W"))
+        self.assertIn("51/20", s.route_problem("5120N"))
+        self.assertIn("not a fix", s.route_problem("52/50 AB"))
+        self.assertNotEqual(s.route_problem(""), "")
+        ch, err = s.validate_edit({"route": "52/50  52/30"})
+        self.assertEqual(ch, {"route": "52/50 52/30"})
+
+    def test_edit_keeps_times_and_survives_plugin_update(self):
+        import vnaaats_server as s, tempfile, os
+        st = s.FlightStore(os.path.join(tempfile.mkdtemp(), "f.db"))
+        q = {"callsign": "BAW1", "route": "52/50 52/40 52/30", "routeEtas": "1200 1215 1230", "relevant": "1", "track": "RR"}
+        st.upsert(q)
+        rec = st.edit("BAW1", {"route": "52/50 53/40 52/30"}, "CZQO")
+        self.assertEqual(rec["routeEtas"], "1200 -- 1230")
+        st.upsert(q)                                   # plugin posts its old route again
+        self.assertEqual(st.get("BAW1")["route"], "52/50 53/40 52/30")

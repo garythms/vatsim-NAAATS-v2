@@ -63,7 +63,7 @@ NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattr
 SESSION_COOKIE = "vnaaats_session"
 SESSION_SECONDS = 12 * 3600
 DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS,OBSERVER"
-EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit
+EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
 SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
 
 
@@ -282,6 +282,9 @@ class FlightStore:
                 for k in EDIT_FIELDS:
                     rec[k] = old.get(k, rec[k])
                 rec["webEditPending"] = True
+            if old and old.get("routeWeb"):
+                # the route was amended on the web (the plugin cannot read that): keep it
+                rec["route"], rec["routeEtas"], rec["routeWeb"] = old.get("route", rec["route"]), old.get("routeEtas", rec["routeEtas"]), True
             self._track_changes(rec, old, by, now, ("route", "state") + EDIT_FIELDS)
             self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(rec), time.time()))
             self.db.commit()
@@ -318,6 +321,10 @@ class FlightStore:
             rec["callsign"] = cs
             for k, v in changes.items():
                 rec[k] = v
+            if "route" in changes:           # keep the times of fixes that stay; new fixes have none
+                prev = dict(zip(str((old or base).get("route", "")).split(), str((old or base).get("routeEtas", "")).split()))
+                rec["routeEtas"] = " ".join(prev.get(f, "--") for f in changes["route"].split())
+                rec["routeWeb"] = True
             rec["lastUpdated"] = now
             rec["webEditPending"] = True
             self._track_changes(rec, old if old is not None else dict(base, history=[]), by, now, EDIT_FIELDS)
@@ -688,6 +695,26 @@ def _http_json(url, form=None, bearer=None):
         return json.loads(r.read().decode("utf-8"))
 
 
+LATLON_OK = re.compile(r"\d{2}/\d{2}")                 # 51/20 = 51N 020W
+NAMED_OK = re.compile(r"[A-Z]{3,5}")                      # named waypoint, e.g. SOMAX
+
+
+def route_problem(text):
+    """Why a route text is not accepted ("" if fine). Latitude/longitude fixes must be two numbers / two numbers (51/20)."""
+    fixes = str(text).upper().split()
+    if not fixes:
+        return "type the route fixes separated by spaces, for example 52/50 52/40 52/30"
+    if len(fixes) > 40:
+        return "too many fixes"
+    for f in fixes:
+        if LATLON_OK.fullmatch(f) or NAMED_OK.fullmatch(f):
+            continue
+        if re.search(r"\d", f):
+            return "%s is not accepted: write latitude/longitude as two numbers / two numbers, for example 51/20 (not 51N20W)" % f
+        return "%s is not a fix name (3-5 letters, or two numbers / two numbers like 51/20)" % f
+    return ""
+
+
 def validate_edit(body):
     """Check an edit from the web. Returns (changes, error)."""
     changes = {}
@@ -706,6 +733,11 @@ def validate_edit(body):
         if not re.fullmatch(r"[A-Z]{1,3}", t):
             return None, "track must be 1-3 letters (or RR)"
         changes["track"] = t
+    if "route" in body:
+        bad = route_problem(body["route"])
+        if bad:
+            return None, bad
+        changes["route"] = " ".join(str(body["route"]).upper().split())
     if "selcal" in body:
         sc = re.sub(r"[-\s]", "", str(body["selcal"]).upper())
         if sc and not SELCAL_OK.fullmatch(sc):
