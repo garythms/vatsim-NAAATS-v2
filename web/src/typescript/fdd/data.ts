@@ -577,3 +577,28 @@ export function runDataFetcher() : void {
 export function getAircraft(callsign: string): Aircraft | null {
   return findAircraftLocal(callsign) ?? null;
 }
+
+// Minutes from now to the first and last route estimate (negative = already past). null when there are no times.
+export function etaSpan(ac: Aircraft): { entry: number; exit: number } | null {
+  const n: Date = new Date();
+  const nowMin: number = n.getUTCHours() * 60 + n.getUTCMinutes();
+  const offs: number[] = [];
+  const times: string[] = ac.IsConc ? ac.PosCalc : ac.RouteEtas;
+  for (const t of times ?? []) {
+    const m: number = timeToMin(t);
+    if (m < 0) continue;
+    offs.push((((m - nowMin + 720) % 1440) + 1440) % 1440 - 720);   // -720..+719, copes with midnight
+  }
+  return offs.length === 0 ? null : { entry: Math.min(...offs), exit: Math.max(...offs) };
+}
+
+// Strip is wanted on the display: within `ahead` minutes of the oceanic entry, or less than `behind` minutes past the exit.
+// Flights with no times, the selected flight, CPDLC-connected flights and pending natTrak requests always show.
+export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): boolean {
+  if (asel != null && asel.Callsign === ac.Callsign) return true;
+  if (ac.Cpdlc) return true;
+  if (natTrakData.get(ac.Callsign.toUpperCase())?.status === "PENDING") return true;
+  const sp = etaSpan(ac);
+  if (!sp) return true;
+  return sp.entry <= ahead && sp.exit >= -behind;
+}

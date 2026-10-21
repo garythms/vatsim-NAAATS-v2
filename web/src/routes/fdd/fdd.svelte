@@ -57,6 +57,12 @@
   // Search, grouping and sorting
   let search: string = "";
   let groupBy: string = "TRACK";   // TRACK | ENTRY
+  // Traffic window: only flights within 60 min of the oceanic entry, until 5 min after the exit ("ALL" shows everything)
+  const WIN_AHEAD: number = 60;
+  const WIN_BEHIND: number = 5;
+  let windowMode: string = "WINDOW";
+  try { if (localStorage.getItem("vnaaats.window") === "ALL") windowMode = "ALL"; } catch (e) { /* ignore */ }
+  function setWindowMode(v: string): void { windowMode = v; try { localStorage.setItem("vnaaats.window", v); } catch (e) { /* ignore */ } }
   let sortBy: string = "DEFAULT";  // DEFAULT | ETA | CALLSIGN | LEVEL | UPDATED
   function searchMatch(ac: any, s: string): boolean {
     const q = s.trim().toUpperCase();
@@ -73,7 +79,7 @@
     }
   }
   type Group = { key: string; label: string; track: string; rows: any[] };
-  function buildGroups(_tick: number, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string): Group[] {
+  function buildGroups(_tick: number, _win: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string): Group[] {
     const out: Group[] = [];
     const cmp = sorter(by);
     if (g === "ENTRY") {
@@ -94,7 +100,8 @@
     });
     return out;
   }
-  $: groups = buildGroups(tickN, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy);
+  $: groups = buildGroups(tickN, windowMode, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy);
+  $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) n++; })); return n; })() : 0;
   $: shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
   $: concOverdueN = dataHandler.concOverdueList().length + 0 * tickN;
   $: conflictCount = [...dataHandler.conflicts.keys()].length + 0 * tickN;
@@ -103,10 +110,11 @@
     if (e.key === "Escape") search = "";
   }
   function setFilter(f: string): void { filter = f; }
-  function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; search = ""; groupBy = "TRACK"; sortBy = "DEFAULT"; }
+  function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; search = ""; setWindowMode("WINDOW"); groupBy = "TRACK"; sortBy = "DEFAULT"; }
   function matches(ac: any, track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
     if (!typeMatch(ac, pst, fad, wst, term)) return false;
+    if (windowMode === "WINDOW" && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) return false;
     switch (f) {
       case "HL": return ac.AssignedLevel >= HL_MIN_LEVEL;
       case "LL": return ac.AssignedLevel < HL_MIN_LEVEL;
@@ -253,6 +261,13 @@
       {/if}
     </div>
     <input class="px-2 py-0.5 w-48 text-black uppercase" placeholder="Search callsign / fix" bind:value={search} on:keydown={searchKey} />
+    <label title="Show flights within 60 minutes of oceanic entry, until 5 minutes after the exit">Show
+      <select class="text-black" value={windowMode} on:change={(e) => setWindowMode(e.currentTarget.value)}>
+        <option value="WINDOW">entry -60 / exit +5 min</option>
+        <option value="ALL">all flights</option>
+      </select>
+    </label>
+    {#if hiddenCount > 0}<span class="opacity-80" title="Hidden by the time window">{hiddenCount} hidden</span>{/if}
     <label>Group
       <select class="text-black" bind:value={groupBy}>
         <option value="TRACK">by track</option>
