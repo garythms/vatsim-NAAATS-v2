@@ -341,6 +341,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 	// Callsign as shown on the tag: [BAW123] when the aircraft is connected to CPDLC
 	string csText = string(acFP.GetCallsign());
 	if (fp.CpdlcConnected) csText = "[" + csText + "]";
+	string csTagText = csText + (fp.NtSent ? "*" : ""); // width of the callsign plus the natTrak star, for the tag line
 
 	// Check if there is an active handoff to client controller
 	bool isHandoffToMe = string(acFP.GetHandoffTargetControllerCallsign()) == string(screen->GetPlugIn()->ControllerMyself().GetCallsign());
@@ -449,6 +450,12 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		// Callsign
 		text = csText;
 		dc->TextOutA(tagRect.left + 1, tagRect.top, text.c_str());
+		// Red star: natTrak reminder was sent to the pilot
+		if (fp.NtSent) {
+			COLORREF oldColour = dc->SetTextColor(RGB(255, 0, 0));
+			dc->TextOutA(tagRect.left + 1 + dc->GetTextExtent(csText.c_str()).cx, tagRect.top, "*");
+			dc->SetTextColor(oldColour);
+		}
 		offsetY += 15;
 
 		// Orange if observer
@@ -527,7 +534,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		}
 				
 		/// Tag line
-		CSize txtExtent = dc->GetTextExtent(csText.c_str()); // Get callsign length
+		CSize txtExtent = dc->GetTextExtent(csTagText.c_str()); // Get callsign length
 
 		// Pen
 		CPen pen(PS_SOLID, 1, textColour);
@@ -587,7 +594,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		screen->AddScreenObject(SCREEN_TAG, acFP.GetCallsign(), tagRect, true, (string(acFP.GetPilotName()) + " - " + string(acFP.GetFlightPlanData().GetRoute())).c_str());
 
 		// Now create screen object for callsign
-		CRect callsignRect(tagRect.left, tagRect.top, tagRect.left + dc->GetTextExtent(csText.c_str()).cx, tagRect.top + dc->GetTextExtent(csText.c_str()).cy);
+		CRect callsignRect(tagRect.left, tagRect.top, tagRect.left + dc->GetTextExtent(csTagText.c_str()).cx, tagRect.top + dc->GetTextExtent(csTagText.c_str()).cy);
 		screen->AddScreenObject(SCREEN_TAG_CS, acFP.GetCallsign(), callsignRect, true, (string(acFP.GetPilotName()) + " - " + string(acFP.GetFlightPlanData().GetRoute())).c_str());
 
 		// Restore context

@@ -79,12 +79,17 @@
     const e = await sess.editFlight($menuCallsign, { selcal: selcal.toUpperCase() });
     note = e ? "✖ " + e : "✔ SELCAL saved";
   }
+  async function ntMark(sent: boolean): Promise<void> {
+    const e = await m.markNatTrakSent($menuCallsign, sent);
+    note = e ? "\u2716 " + e : (sent ? "\u2714 Marked with a red * (it clears when the pilot requests clearance or an oceanic controller tracks the flight)" : "\u2714 Mark removed");
+    if (!e) { await dataHandler.populateAllAircraft(); ac = dataHandler.getAircraft($menuCallsign); }
+  }
   function openCpdlc(): void { dataHandler.setAsel($menuCallsign); cp.cpdlcPick.set($menuCallsign); cp.cpdlcOpen.set(true); close(); }
   function openPos(): void { dataHandler.setAsel($menuCallsign); pr.posOpen.set(true); close(); }
 
   $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
-  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"]];
+  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["nt", "NatTrak"]];
   const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
@@ -145,6 +150,13 @@
           <div class="flex flex-row">
             <button class="px-2 py-1 mr-2 {BTN}" on:click={() => (wallopText = m.NO_CONTACT_TEXT)}>No Contact</button>
             <button class="px-2 py-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer" disabled={!wallopText.trim()} on:click={() => copy(m.wallopCommand($menuCallsign, wallopText))}>Copy .wallop</button>
+          </div>
+        {:else if tab === "nt"}
+          <div class="text-sm mb-2 opacity-90">Reminds the pilot to request oceanic clearance on natTrak (CPDLC clearance is unavailable).</div>
+          <div class="flex flex-row flex-wrap">
+            <button class="px-2 py-1 mr-2 mb-1 {BTN}" on:click={() => copy(m.natTrakCommand($menuCallsign))}>Copy natTrak message</button>
+            <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(true)}>I have sent it - mark with red *</button>
+            {#if ac && ac.NtSent}<button class="px-2 py-1 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(false)}>Remove mark</button>{/if}
           </div>
         {:else if tab === "cpdlc"}
           {#if onCpdlc}

@@ -391,6 +391,7 @@
             trackedBy={ac.TrackedBy}
             isEquipped={ac.IsEquipped}
             alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
+            ntSent={ac.NtSent}
             cpdlc={ac.Cpdlc}
             cpdlcAlert={visualOn && ($cpdlcStatus.unread?.[ac.Callsign] ?? 0) > 0 && tickN >= 0}
             concOverdue={visualOn && tickN >= 0 && dataHandler.concOverdueFix(ac) !== ""}

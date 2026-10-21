@@ -45,3 +45,6 @@ NEW IN 1.5b1: FDD commands
 Click a callsign on the web Flight Data Display for the aircraft menu. Track, Untrack and Transfer are carried out by this plugin in EuroScope
 (it checks the server every 2 seconds, so keep EuroScope connected as your position). SELCAL test, Contact me and Supervisor copy the
 EuroScope command for you to paste into the command line.
+
+NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
+It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.

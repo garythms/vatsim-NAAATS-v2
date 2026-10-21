@@ -21,6 +21,7 @@
   //export let state: string;
   //export let relevant: boolean;
   export let trackedBy: string;
+  export let ntSent: boolean = false;    // natTrak reminder sent: red star
   export let cpdlc: boolean = false;      // connected to CPDLC: callsign shown as [BAW123]
   export let cpdlcAlert: boolean = false; // unread CPDLC message: flash
   export let concOverdue: boolean = false; // Concorde overdue a position report: flash
@@ -77,7 +78,7 @@
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
     <div class="flex flex-row w-1/7 px-2 hover:cursor-pointer select-none" title="Click for the aircraft menu" on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); menuCallsign.set(callsign); }}>
-      {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
+      {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if ntSent}<span class="text-red-600 font-bold pl-0.5" style="font-size: 1.5em; line-height: 0.6;" title="natTrak reminder sent to the pilot">*</span>{/if}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="flex flex-row w-5/7 hover:cursor-default select-none">
       <!-- columns: dep/arr 8rem, level 3rem, Mach 3.8rem, then each ETA 4.6rem (the header row in fdd.svelte uses the same widths) -->

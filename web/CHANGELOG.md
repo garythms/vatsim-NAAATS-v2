@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.8.0 - 2026-10-21
+- NatTrak tab in the aircraft menu: copies the EuroScope message (.msg CALLSIGN Hello, you will soon be entering oceanic airspace...) and "I have sent it - mark with red *" puts a red * next to the callsign on the strip (and, with plugin 1.5b3, on the EuroScope tag). The * clears by itself when the pilot requests clearance on natTrak or an oceanic controller (CZQO, CZQX, EGGX, NAT, BIRD, KZWY, LPPO, ENOB) tracks the flight. "Remove mark" clears it by hand.
+
 ## 0.7.5 - 2026-10-21
 - Strip columns now have fixed widths (departure/arrival, level, Mach, each ETA) and the track header row uses the same widths, so level/Mach and the fix names no longer run into each other and the times line up under their fixes. The tracking controller (e.g. NAT_FSS) is no longer cut off.
 

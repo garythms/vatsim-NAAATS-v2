@@ -23,6 +23,7 @@ export type Aircraft = {
   Relevant: boolean;
   TargetMode: number;
   LastUpdated: number;
+  NtSent: boolean; // natTrak reminder sent to the pilot (red star) - false once they request or an oceanic controller tracks
   Cpdlc: boolean; // connected to the CPDLC station
   DistNm: number | null; // nm from the pilot to the nearest route fix (VATSIM feed), null if unknown
   Offline: boolean | null; // true = the VATSIM feed is working and this pilot is not on it

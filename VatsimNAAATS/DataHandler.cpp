@@ -530,6 +530,7 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 			netFP.LastUpdated = jsonArray[i].at("lastUpdated");
 			netFP.Cpdlc = jsonArray[i].value("cpdlc", false); // older servers do not send it
 			netFP.CpdlcRelease = jsonArray[i].value("cpdlcRelease", false);
+			netFP.NtSent = jsonArray[i].value("ntSent", false);
 
 			// Get flight plan
 			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
@@ -547,6 +548,7 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 				}
 				if (valuesChanged) fp->WindowRefresh = true;
 				fp->CpdlcConnected = netFP.Cpdlc;
+				fp->NtSent = netFP.NtSent;
 				// After UNICOM the server asks for the tag to be released (done on the draw thread, once per request)
 				if (netFP.CpdlcRelease && !fp->ReleaseHandled) {
 					fp->ReleaseRequested = true;

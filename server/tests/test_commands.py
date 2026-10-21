@@ -147,3 +147,25 @@ class OfflineTests(unittest.TestCase):
         self.assertTrue(n.is_offline("GONE9"))
         n.updated = time.time() - 4000                     # stale feed: cannot tell
         self.assertIsNone(n.is_offline("GONE9"))
+
+
+class NatTrakReminderTests(unittest.TestCase):
+    def test_star(self):
+        import vnaaats_server as s, tempfile, os
+        st = s.FlightStore(os.path.join(tempfile.mkdtemp(), "f.db"))
+        st.upsert({"callsign": "BAW1", "route": "52/50", "relevant": "1", "track": "RR"})
+        self.assertIsNone(st.mark_nt("NOPE1", "me"))
+        st.mark_nt("BAW1", "CZQO_CTR (Gary)")
+        st.upsert({"callsign": "BAW1", "route": "52/50", "relevant": "1", "track": "RR"})     # plugin update keeps the mark
+        rec = st.get("BAW1")
+        self.assertTrue(rec["ntSent"])
+        class Nt:
+            def __init__(self, d): self.d = d
+            def by_callsign(self): return self.d
+        self.assertFalse(s.nt_stops_reminder(rec, Nt({})))
+        self.assertTrue(s.nt_stops_reminder(rec, Nt({"BAW1": {}})))
+        self.assertTrue(s.nt_stops_reminder(dict(rec, trackedBy="CZQO_CTR"), Nt({})))
+        self.assertTrue(s.nt_stops_reminder(dict(rec, trackedBy="NAT_FSS"), Nt({})))
+        self.assertFalse(s.nt_stops_reminder(dict(rec, trackedBy="EGLL_TWR"), Nt({})))
+        st.mark_nt("BAW1", "x", sent=False)
+        self.assertNotIn("ntSent", st.get("BAW1"))

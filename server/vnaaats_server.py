@@ -56,7 +56,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.9.2"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.10.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -87,6 +87,18 @@ def token_to_latlon(token, fixes):
         return round(lat, 6), -float(lon)                    # NAT tracks are west of Greenwich
     v = fixes.get(token.upper())
     return (v[0], v[1]) if v else None
+
+
+OCEANIC_PREFIXES = tuple(x.strip().upper() for x in os.environ.get("VNAAATS_OCEANIC_PREFIXES", "CZQO,CZQX,EGGX,NAT,BIRD,KZWY,LPPO,ENOB").split(",") if x.strip())
+
+
+def nt_stops_reminder(rec, natrak):
+    """The red natTrak star goes away once the pilot has requested clearance, or an oceanic controller tracks the flight."""
+    cs = str(rec.get("callsign", "")).upper()
+    if natrak and cs in natrak.by_callsign():
+        return True
+    by = str(rec.get("trackedBy", "")).upper()
+    return bool(by) and by.startswith(OCEANIC_PREFIXES)
 
 
 def route_distance_nm(route, pos, fixes):
@@ -295,6 +307,8 @@ class FlightStore:
                 for k in EDIT_FIELDS:
                     rec[k] = old.get(k, rec[k])
                 rec["webEditPending"] = True
+            if old and old.get("ntSent"):
+                rec["ntSent"] = old["ntSent"]                 # natTrak reminder sent: survives plugin updates
             if old and old.get("routeWeb"):
                 # the route was amended on the web (the plugin cannot read that): keep it
                 rec["route"], rec["routeEtas"], rec["routeWeb"] = old.get("route", rec["route"]), old.get("routeEtas", rec["routeEtas"]), True
@@ -341,6 +355,28 @@ class FlightStore:
             rec["lastUpdated"] = now
             rec["webEditPending"] = True
             self._track_changes(rec, old if old is not None else dict(base, history=[]), by, now, EDIT_FIELDS)
+            self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(rec), time.time()))
+            self.db.commit()
+        return rec
+
+    def mark_nt(self, callsign, by, sent=True, base=None):
+        """Remember (or forget) that the natTrak reminder was sent to this pilot. Returns the record or None."""
+        cs = callsign.strip().upper()
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self.lock:
+            row = self.db.execute("SELECT data FROM flights WHERE callsign=?", (cs,)).fetchone()
+            if row:
+                rec = json.loads(row[0])
+            elif base is not None:
+                rec = dict(base, history=[])
+                rec["callsign"] = cs
+                rec["lastUpdated"] = now
+            else:
+                return None
+            if sent:
+                rec["ntSent"] = {"by": by, "at": now}
+            else:
+                rec.pop("ntSent", None)
             self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(rec), time.time()))
             self.db.commit()
         return rec
@@ -783,6 +819,9 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec = dict(rec)
         rec["cpdlc"] = bool(cpdlc and cpdlc.is_connected(rec.get("callsign", "")))
         rec["cpdlcRelease"] = bool(cpdlc and cpdlc.released(rec.get("callsign", "")))   # tell the plugin to release the tag (after UNICOM)
+        sent = rec.pop("ntSent", None)
+        rec["ntSentInfo"] = sent
+        rec["ntSent"] = bool(sent) and not nt_stops_reminder(rec, natrak)
         rec["offline"] = network.is_offline(rec.get("callsign", "")) if network else None
         rec["distNm"] = route_distance_nm(rec.get("route", ""), network.position(rec.get("callsign", "")) if network else None, cache.fixes)
         if is_conc(rec.get("type", "")):
@@ -939,6 +978,20 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(400, {"error": err})
                     cid = queue.add(sess["position"], typ, cs, args, by=("%s (%s)" % (sess["position"], sess["name"]))[:60])
                     return self._send(200, {"id": cid})
+                if p == "/NatTrakSent":
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if not sess["position"] or sess["position"] == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position first"})
+                    cs = str(body.get("callsign", "")).strip().upper()
+                    if not re.fullmatch(r"[A-Z0-9]{2,8}", cs):
+                        return self._send(400, {"error": "bad callsign"})
+                    base = None
+                    if network and not store.get(cs):
+                        base = next((f for f in network.all() if f.get("callsign") == cs), None)
+                    rec = store.mark_nt(cs, ("%s (%s)" % (sess["position"], sess["name"]))[:60], bool(body.get("sent", True)), base)
+                    return self._send(200, {"ok": True}) if rec else self._send(404, {"error": "unknown flight"})
                 if p == "/EditPosReport":
                     sess = self._session()
                     if not sess:

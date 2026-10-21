@@ -63,3 +63,16 @@ export async function commandState(id: number): Promise<{ state: string; msg: st
     return await r.json();
   } catch (e) { return { state: "pending", msg: "" }; }
 }
+
+export function natTrakCommand(callsign: string): string {
+  return ".msg " + callsign + " Hello, you will soon be entering oceanic airspace. Please request oceanic clearance via nattrak.vatsim.net no later than 20 minutes before your oceanic entry point. Clearance via CPDLC is unavailable.";
+}
+
+// Remember (sent = true) or forget (false) that the natTrak reminder was sent. Returns an error message or "".
+export async function markNatTrakSent(callsign: string, sent: boolean): Promise<string> {
+  try {
+    const r = await fetch(apiBase + "/NatTrakSent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ callsign, sent }), credentials: "same-origin" });
+    const d = await r.json().catch(() => ({}));
+    return r.ok ? "" : (d.error ?? "could not save");
+  } catch (e) { return "cannot reach the server"; }
+}
