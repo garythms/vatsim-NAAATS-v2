@@ -48,3 +48,5 @@ EuroScope command for you to paste into the command line.
 
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
+
+NEW IN 1.5b5: start-up logging and protection (vNAAATS.log shows each start-up step). If EuroScope still crashes on opening, send vNAAATS.log.

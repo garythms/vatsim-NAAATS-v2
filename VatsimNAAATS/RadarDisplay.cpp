@@ -59,11 +59,13 @@ void CRadarDisplay::PopulateProgramData() {
 	inboundList->MoveList({ CUtils::InboundX, CUtils::InboundY });
 	otherList->MoveList({ CUtils::OthersX, CUtils::OthersY });
 
+	CLogger::Log(CLogType::NORM, "Step: lists moved", "CRadarDisplay::PopulateProgramData");
 	// Dropdown values
 	menuBar->SetDropDownValue(CMenuBar::DRP_AREASEL, CUtils::AreaSelection);
 	menuBar->SetDropDownValue(CMenuBar::DRP_OVERLAYS, CUtils::SelectedOverlay);
 	menuBar->SetDropDownValue(CMenuBar::DRP_TYPESEL, CUtils::PosType);
 
+	CLogger::Log(CLogType::NORM, "Step: dropdown values set", "CRadarDisplay::PopulateProgramData");
 	// Buttons
 	if (CUtils::TagsEnabled && !menuBar->IsButtonPressed(CMenuBar::BTN_TAGS)) {
 		menuBar->SetButtonState(CMenuBar::BTN_TAGS, CInputState::ACTIVE);
@@ -78,6 +80,7 @@ void CRadarDisplay::PopulateProgramData() {
 		menuBar->SetButtonState(CMenuBar::BTN_QCKLOOK, CInputState::ACTIVE);
 	}
 
+	CLogger::Log(CLogType::NORM, "Step: buttons set", "CRadarDisplay::PopulateProgramData");
 	// Parse track ID
 	if (CUtils::SelectedOverlay == DRP_OVL_ALL) {
 		COverlays::CurrentType = COverlayType::TCKS_ALL;
@@ -92,25 +95,32 @@ void CRadarDisplay::PopulateProgramData() {
 		COverlays::CurrentType = COverlayType::TCKS_SEL;
 	}
 
+	CLogger::Log(CLogType::NORM, "Step: overlay chosen", "CRadarDisplay::PopulateProgramData");
 	// Load server address / key from vnaaats.cfg
 	CDataHandler::LoadSettings();
 
+	CLogger::Log(CLogType::NORM, "Step: cfg read", "CRadarDisplay::PopulateProgramData");
 	// Download the tracks
 	CDataHandler::PopulateLatestTrackData(GetPlugIn());
 
+	CLogger::Log(CLogType::NORM, "Step: tracks downloaded", "CRadarDisplay::PopulateProgramData");
 	// Set tracks in menu bar
 	menuBar->MakeDropDownItems(menuBar->DRP_TCKCTRL);
 
+	CLogger::Log(CLogType::NORM, "Step: track list built", "CRadarDisplay::PopulateProgramData");
 	// Initialise fonts
 	FontSelector::InitialiseFonts();
 
+	CLogger::Log(CLogType::NORM, "Step: fonts ready", "CRadarDisplay::PopulateProgramData");
 	// Start cursor update loop
 	appCursor->screen = this;
 	_beginthread(CursorStateUpdater, 0, (void*)appCursor);
 	CLogger::Log(CLogType::NORM, "Firing cursor update sequence thread.", "CRadarDisplay::PopulateProgramData");
 
+	CLogger::Log(CLogType::NORM, "Step: cursor thread started", "CRadarDisplay::PopulateProgramData");
 	// Check plugin version
 	CDataHandler::CheckPluginVersion(GetPlugIn());
+	CLogger::Log(CLogType::NORM, "Start-up finished.", "CRadarDisplay::PopulateProgramData");
 }
 
 // On radar screen refresh (modified to occur 4 times a second)
@@ -1539,11 +1549,26 @@ void CRadarDisplay::OnAsrContentLoaded(bool Loaded)
 	if (!Loaded)
 		return;
 
-	// Load the plugin data
-	CUtils::LoadPluginData(this);
+	CLogger::Log(CLogType::NORM, "ASR loaded, reading saved settings.", "CRadarDisplay::OnAsrContentLoaded");
+	// Load the plugin data (a bad saved value must never take EuroScope down)
+	try {
+		CUtils::LoadPluginData(this);
+	}
+	catch (...) {
+		CLogger::Log(CLogType::EXC, "Saved settings in the ASR could not be read - using defaults.", "CRadarDisplay::OnAsrContentLoaded");
+	}
+	CLogger::Log(CLogType::NORM, "Saved settings done, starting up.", "CRadarDisplay::OnAsrContentLoaded");
 
 	// Populate it
-	PopulateProgramData();
+	try {
+		PopulateProgramData();
+	}
+	catch (const std::exception& e) {
+		CLogger::Log(CLogType::EXC, string("Start-up failed: ") + e.what(), "CRadarDisplay::OnAsrContentLoaded");
+	}
+	catch (...) {
+		CLogger::Log(CLogType::EXC, "Start-up failed (unknown error).", "CRadarDisplay::OnAsrContentLoaded");
+	}
 }
 
 // TODO: Break into individual methods or create ScreenFunctions class/namespace
