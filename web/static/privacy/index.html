@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vNAAATS - Privacy and data handling</title>
+<style>
+  body { margin: 0; background: #0b1b30; color: #e8f0fa; font: 16px/1.55 system-ui, Segoe UI, Arial, sans-serif; }
+  main { max-width: 46rem; margin: 0 auto; padding: 2rem 1rem 3rem; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.15rem; margin: 1.8rem 0 .4rem; color: #a5c7f9; }
+  a { color: #a5c7f9; }
+  .note { background: #12294a; border: 1px solid #2a4a78; border-radius: 6px; padding: .8rem 1rem; }
+  small { color: #9db4d0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>vNAAATS - privacy and data handling</h1>
+  <small>Last updated 21 October 2026</small>
+
+  <p class="note"><strong>vNAAATS is an independent, community project. It is not run, owned or endorsed by VATSIM.</strong>
+  It is for flight simulation only and must never be used for real-world navigation or air traffic control.</p>
+
+  <h2>Who runs it</h2>
+  <p>vNAAATS Version 2 is maintained by Gary Thomas (original vNAAATS by Andrew Ogden). Questions, corrections and requests about your data:
+  <a href="https://github.com/garythms/vatsim-naaats-v2/issues">github.com/garythms/vatsim-naaats-v2/issues</a>.</p>
+
+  <h2>What this site and server handle</h2>
+  <ul>
+    <li><strong>Public VATSIM data.</strong> Pilot callsigns, positions and flight plans, and online controller callsigns and frequencies, are read from VATSIM's public data feeds. Oceanic clearance information comes from natTrak (nattrak.vatsim.net).</li>
+    <li><strong>Flight data you or other controllers enter.</strong> Level, Mach, track, route changes, SELCAL and similar are stored on the server, together with the name and callsign of the controller who last changed them and the time.</li>
+    <li><strong>Sign-in details (Flight Data Display).</strong> If you sign in with VATSIM, the server receives your name, VATSIM ID (CID) and controller rating, which it uses to decide whether you may make changes. If a shared password is used instead, you enter the name you want shown. Your sign-in lives in a session kept in the server's memory for up to 12 hours and is dropped when you sign out or the server restarts.</li>
+    <li><strong>One cookie.</strong> A single sign-in session cookie, used only to keep you signed in. There are no advertising, analytics or tracking cookies.</li>
+    <li><strong>CPDLC messages.</strong> Datalink messages sent through the server's CPDLC station (via the Hoppie network) are kept on the server so controllers can see the conversation.</li>
+    <li><strong>Position times for Concorde.</strong> Times typed in for Concorde flights are kept for 24 hours.</li>
+    <li><strong>Standard server logs.</strong> Like any web server, requests (including IP address, time and page) are written to the server's ordinary logs for running and fixing the service. They are not shared or used for anything else.</li>
+    <li><strong>The EuroScope plugin.</strong> It sends flight plan changes and your controller callsign to this server, using the personal key you were given.</li>
+  </ul>
+
+  <h2>What we do not do</h2>
+  <ul>
+    <li>We do not sell or give your data to anyone, and we do not use it for advertising or tracking.</li>
+    <li>We do not collect passwords for VATSIM or any other service. VATSIM sign-in takes place on VATSIM's own site.</li>
+  </ul>
+
+  <h2>Your choices</h2>
+  <p>You can sign out at any time. To ask what is held about you, or to have your details removed, contact us using the link above and quote your VATSIM ID.</p>
+
+  <p><a href="/">Back to vNAAATS</a></p>
+</main>
+</body>
+</html>
