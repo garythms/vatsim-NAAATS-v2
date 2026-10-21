@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.7.3 - 2026-10-21
+- Flights with no times at all are now judged by where the pilot is (live VATSIM position): they only show when within 200 nm of a fix on their route. If the pilot's position is not known they still show. (Server 0.9.1 sends the distance.)
+
 ## 0.7.2 - 2026-10-21
 - Route can be amended in the flight plan panel ("Route (edit)"). Latitude/longitude fixes must be two numbers / two numbers (51/20); 51N20W and similar are refused with a red warning as you type. Fixes you keep keep their times; new fixes have none. The change is on the display and server only - EuroScope's own flight plan is not changed.
 

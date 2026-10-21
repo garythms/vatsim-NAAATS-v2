@@ -37,6 +37,7 @@ interface JsonAcObj {
   lastUpdated: string;
   source?: string;
   cpdlc?: boolean;
+  distNm?: number | null;
   posReports?: Record<string, { est: string; act: string; by: string; at: string }>;
   updatedBy?: string;
   updatedAt?: string;
@@ -317,6 +318,7 @@ export async function populateAllAircraft() : Promise<void> {
             LastUpdated: Date.parse(objArr[i]?.lastUpdated),
             Source: objArr[i]?.source ?? "plugin",
             Cpdlc: objArr[i]?.cpdlc ?? false,
+            DistNm: objArr[i]?.distNm ?? null,
             Entry: routePoints[0] ?? "",
             Exit: routePoints[routePoints.length - 1] ?? "",
             EntryEta: etaMinutes(routeEtas),
@@ -592,6 +594,8 @@ export function etaSpan(ac: Aircraft): { entry: number; exit: number } | null {
   return offs.length === 0 ? null : { entry: Math.min(...offs), exit: Math.max(...offs) };
 }
 
+export const NO_TIME_RANGE_NM: number = 200;
+
 // Strip is wanted on the display: within `ahead` minutes of the oceanic entry, or less than `behind` minutes past the exit.
 // Flights with no times, the selected flight, CPDLC-connected flights and pending natTrak requests always show.
 export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): boolean {
@@ -599,6 +603,7 @@ export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): bo
   if (ac.Cpdlc) return true;
   if (natTrakData.get(ac.Callsign.toUpperCase())?.status === "PENDING") return true;
   const sp = etaSpan(ac);
-  if (!sp) return true;
+  // No times at all: use how far the pilot is from the route (VATSIM feed). Unknown position = show.
+  if (!sp) return ac.DistNm == null || ac.DistNm <= NO_TIME_RANGE_NM;
   return sp.entry <= ahead && sp.exit >= -behind;
 }

@@ -124,3 +124,14 @@ class RouteEditTests(unittest.TestCase):
         self.assertEqual(rec["routeEtas"], "1200 -- 1230")
         st.upsert(q)                                   # plugin posts its old route again
         self.assertEqual(st.get("BAW1")["route"], "52/50 53/40 52/30")
+
+
+class DistanceTests(unittest.TestCase):
+    def test_distance(self):
+        import vnaaats_server as s
+        fixes = {}
+        self.assertEqual(s.route_distance_nm("52/50 52/40", (52.0, -50.0), fixes), 0)
+        d = s.route_distance_nm("52/50 52/40", (52.0, -45.0), fixes)
+        self.assertTrue(150 < d < 200, d)                      # ~5 degrees of longitude at 52N, nearest fix 52/40 or 52/50
+        self.assertIsNone(s.route_distance_nm("52/50", None, fixes))
+        self.assertIsNone(s.route_distance_nm("ZZZZZ", (52.0, -45.0), fixes))
