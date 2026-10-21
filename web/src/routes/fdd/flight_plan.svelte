@@ -6,6 +6,7 @@
   import EditInput from "../../props/fdd/edit_input.svelte";
   import * as sess from "../../typescript/fdd/session";
   import type { Aircraft } from "../../typescript/fdd/objects";
+  import { posOpen } from "../../typescript/fdd/posreports";
 
   const { session } = sess;
   $: editable = sess.canEdit($session);
@@ -122,7 +123,7 @@
         <EditInput
           label={"Spd"}
           width={"w-28"}
-          value={"M0" + asel.AssignedMach}
+          value={"M" + String(asel.AssignedMach).padStart(3, "0")}
           {editable}
           onCommit={(t) => save("mach", t)}
         />
@@ -185,6 +186,10 @@
       />
     </div>
     <div class="px-3 pt-0.5 text-xs font-regular text-white leading-tight">
+      {#if asel.IsConc}
+        <button class="px-2 py-0.5 mb-0.5 font-bold border border-blue-6 {dataHandler.concOverdueFix(asel) !== '' && dataHandler.visualOn ? 'nt-flash text-black' : 'bg-blue-3'}"
+          on:click={() => posOpen.set(true)}>Position reports{dataHandler.concOverdueFix(asel) !== "" ? " - OVERDUE at " + dataHandler.concOverdueFix(asel) : ""}</button>
+      {/if}
       {#if message}
         <div class={messageOk ? "text-green-300" : "text-yellow-300"}>{message}</div>
       {/if}

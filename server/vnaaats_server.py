@@ -55,7 +55,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.7.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.8.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -193,6 +193,21 @@ def to_bool(v):
     return str(v).strip().lower() in ("1", "true", "yes", "y")
 
 
+def is_conc(aircraft_type):
+    """Concorde (ICAO type CONC) reports by voice, so controllers type its times in."""
+    return str(aircraft_type or "").strip().upper().startswith("CONC")
+
+
+def clean_time(value):
+    """'1432', '14:32' or '1432z' -> '1432'; '' -> ''; anything else -> None."""
+    t = re.sub(r"[:\sZz]", "", str(value or ""))
+    if t == "":
+        return ""
+    if re.fullmatch(r"([01]\d|2[0-3])[0-5]\d", t):
+        return t
+    return None
+
+
 def to_int(v, default=0):
     try:
         return int(float(v))
@@ -206,7 +221,25 @@ class FlightStore:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute("CREATE TABLE IF NOT EXISTS flights (callsign TEXT PRIMARY KEY, data TEXT NOT NULL, updated REAL NOT NULL)")
         self.db.execute("CREATE TABLE IF NOT EXISTS fixes (name TEXT PRIMARY KEY, lat REAL NOT NULL, lon REAL NOT NULL)")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS pos_reports (callsign TEXT NOT NULL, fix TEXT NOT NULL, est TEXT NOT NULL DEFAULT '',
+            act TEXT NOT NULL DEFAULT '', by TEXT NOT NULL DEFAULT '', at TEXT NOT NULL DEFAULT '', ts REAL NOT NULL, PRIMARY KEY (callsign, fix))""")
         self.db.commit()
+
+    # --- position reports for aircraft that report by voice (Concorde): estimate and actual time per route fix
+    def pos_set(self, callsign, fix, est, act, by):
+        cs, fix = callsign.strip().upper(), fix.strip().upper()
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self.lock:
+            if not est and not act:
+                self.db.execute("DELETE FROM pos_reports WHERE callsign=? AND fix=?", (cs, fix))
+            else:
+                self.db.execute("INSERT OR REPLACE INTO pos_reports VALUES (?,?,?,?,?,?,?)", (cs, fix, est, act, by, now, time.time()))
+            self.db.commit()
+
+    def pos_get(self, callsign):
+        with self.lock:
+            rows = self.db.execute("SELECT fix, est, act, by, at FROM pos_reports WHERE callsign=?", (callsign.strip().upper(),)).fetchall()
+        return {f: {"est": e, "act": a, "by": b, "at": t} for f, e, a, b, t in rows}
 
     def all_flights(self, newest_first=True):
         with self.lock:
@@ -311,6 +344,7 @@ class FlightStore:
     def purge(self):
         with self.lock:
             self.db.execute("DELETE FROM flights WHERE updated < ?", (time.time() - STALE_FLIGHT_SECONDS,))
+            self.db.execute("DELETE FROM pos_reports WHERE ts < ?", (time.time() - 24 * 3600,))
             self.db.commit()
 
 
@@ -653,7 +687,7 @@ def validate_edit(body):
         changes["assignedLevel"] = lv
     if "mach" in body:
         m = to_int(str(body["mach"]).lstrip("Mm.").lstrip("0") or "0", -1)
-        if not 1 <= m <= 199:
+        if not 1 <= m <= 299:
             return None, "mach must be e.g. 84 for M0.84"
         changes["assignedMach"] = m
     if "track" in body:
@@ -685,6 +719,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec = dict(rec)
         rec["cpdlc"] = bool(cpdlc and cpdlc.is_connected(rec.get("callsign", "")))
         rec["cpdlcRelease"] = bool(cpdlc and cpdlc.released(rec.get("callsign", "")))   # tell the plugin to release the tag (after UNICOM)
+        if is_conc(rec.get("type", "")):
+            rec["posReports"] = store.pos_get(rec.get("callsign", ""))
         return rec
     secure_cookie = auth.public_url.startswith("https://")
 
@@ -826,6 +862,26 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     except RuntimeError as e:
                         return self._send(502, {"error": str(e)})
                     return self._send(200, msg)
+                if p == "/EditPosReport":
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if not sess["position"] or sess["position"] == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position to enter position reports"})
+                    cs = str(body.get("callsign", "")).strip().upper()
+                    fix = str(body.get("fix", "")).strip().upper()
+                    if not re.fullmatch(r"[A-Z0-9/]{2,12}", fix):
+                        return self._send(400, {"error": "bad fix name"})
+                    est, act = clean_time(body.get("est", "")), clean_time(body.get("act", ""))
+                    if est is None or act is None:
+                        return self._send(400, {"error": "times are four digits, for example 1432"})
+                    rec = store.get(cs) or (next((f for f in network.all() if f.get("callsign") == cs), None) if network else None)
+                    if not rec:
+                        return self._send(404, {"error": "unknown flight"})
+                    if not is_conc(rec.get("type", "")):
+                        return self._send(400, {"error": "position reports are only for Concorde"})
+                    store.pos_set(cs, fix, est, act, ("%s (%s)" % (sess["position"], sess["name"]))[:60])
+                    return self._send(200, with_cpdlc(rec))
                 if p == "/EditFlight":
                     sess = self._session()
                     if not sess:

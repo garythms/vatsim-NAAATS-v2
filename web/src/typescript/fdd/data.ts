@@ -37,6 +37,7 @@ interface JsonAcObj {
   lastUpdated: string;
   source?: string;
   cpdlc?: boolean;
+  posReports?: Record<string, { est: string; act: string; by: string; at: string }>;
   updatedBy?: string;
   updatedAt?: string;
   history?: { at: string; by: string; changes: Record<string, [any, any]> }[];
@@ -285,6 +286,14 @@ export async function populateAllAircraft() : Promise<void> {
             objArr[i].track = "RR";
           }
 
+          // Concorde: typed-in actual / estimated times replace the calculated ones
+          const isConc: boolean = /^CONC/i.test(objArr[i]?.type ?? "");
+          const posReports = isConc ? objArr[i].posReports ?? {} : {};
+          const posCalc: string[] = [...routeEtas];
+          const shownEtas: string[] = isConc
+            ? routePoints.map((fix: string, k: number) => posReports[fix]?.act || posReports[fix]?.est || routeEtas[k] || "--")
+            : routeEtas;
+
           const ac: Aircraft = {
             Callsign: objArr[i]?.callsign,
             Type: objArr[i]?.type,
@@ -292,7 +301,7 @@ export async function populateAllAircraft() : Promise<void> {
             AssignedMach: objArr[i]?.assignedMach,
             Track: objArr[i]?.track,
             Route: routePoints,
-            RouteEtas: routeEtas,
+            RouteEtas: shownEtas,
             Departure: objArr[i]?.departure,
             Arrival: objArr[i]?.arrival,
             Etd: objArr[i]?.etd,
@@ -314,6 +323,10 @@ export async function populateAllAircraft() : Promise<void> {
             UpdatedBy: objArr[i]?.updatedBy ?? "",
             UpdatedAt: objArr[i]?.updatedAt ? Date.parse(objArr[i].updatedAt!) : 0,
             History: objArr[i]?.history ?? [],
+            IsConc: isConc,
+            PosFixes: [...routePoints],
+            PosCalc: posCalc,
+            PosReports: posReports,
           };
           // Check the track
           if (ac.Track != "RR" && currentNatTracks.has(ac.Track)) {
@@ -337,6 +350,38 @@ export async function populateAllAircraft() : Promise<void> {
     }
   );
   return;
+}
+
+// ---- Concorde position reports ---------------------------------------------------------------------
+function timeToMin(t: string): number {
+  const d: string = (t ?? "").replace(/\D/g, "");
+  return d.length === 4 ? parseInt(d.slice(0, 2)) * 60 + parseInt(d.slice(2)) : -1;
+}
+
+// The fix this Concorde is overdue to report at ("" if none): the first fix with no actual time whose estimate
+// (typed, else calculated) passed more than 3 minutes ago. Estimates more than 90 minutes old are ignored.
+export function concOverdueFix(ac: Aircraft): string {
+  if (!ac.IsConc) return "";
+  const n: Date = new Date();
+  const nowMin: number = n.getUTCHours() * 60 + n.getUTCMinutes();
+  for (let i: number = 0; i < ac.PosFixes.length; i++) {
+    const fix: string = ac.PosFixes[i];
+    const r = ac.PosReports[fix];
+    if (r && r.act) continue; // already reported
+    const est: number = timeToMin(r?.est || ac.PosCalc[i]);
+    if (est < 0) continue; // no time to judge by
+    const late: number = (((nowMin - est) % 1440) + 1440) % 1440;
+    if (late > 720) return ""; // still in the future
+    if (late > 90) continue; // stale
+    return late > 3 ? fix : "";
+  }
+  return "";
+}
+
+export function concOverdueList(): string[] {
+  const out: string[] = [];
+  networkAircraft.forEach((m: Map<string, Aircraft>) => m.forEach((ac: Aircraft) => { if (concOverdueFix(ac) !== "") out.push(ac.Callsign); }));
+  return out;
 }
 
 // ---- natTrak request alerts -------------------------------------------------------------------------

@@ -63,6 +63,18 @@ export function vatsimLogin(): void {
 }
 
 // changes: any of level, mach, track, selcal. Returns an error message, or "" on success.
+// Concorde position report: est / act are four digits ("" clears). Returns an error message or "".
+export async function editPosReport(callsign: string, fix: string, est: string, act: string): Promise<string> {
+  const r = await post("/EditPosReport", { callsign, fix, est, act });
+  if (!r.ok) {
+    if (r.data.error && /log in/.test(r.data.error)) await refreshSession();
+    return r.data.error ?? "could not save";
+  }
+  await dataHandler.populateAllAircraft();
+  dataHandler.reselect(callsign);
+  return "";
+}
+
 export async function editFlight(callsign: string, changes: Record<string, string | number>): Promise<string> {
   const r = await post("/EditFlight", Object.assign({ callsign }, changes));
   if (!r.ok) {

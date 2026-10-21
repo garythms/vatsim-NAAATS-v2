@@ -291,6 +291,7 @@ class HttpTests(unittest.TestCase):
         store = s.FlightStore(os.path.join(tmp, "f.db"))
         store.upsert({"callsign": "BAW123", "level": "350", "mach": "84", "track": "A", "relevant": "1"})
         store.upsert({"callsign": "DLH9", "level": "350", "mach": "84", "track": "A", "relevant": "1"})
+        store.upsert({"callsign": "CONC1", "type": "CONC", "level": "500", "mach": "200", "track": "RR", "route": "52/50 52/40 52/30", "routeEtas": "1200 1215 1230", "relevant": "1"})
         cache = s.TrackCache(s.load_fixes())
         auth = s.Auth({"VNAAATS_FDD_PASSWORD": "pw"})
         cls.hub = c.CpdlcHub(os.path.join(tmp, "h.db"), make_client=lambda code, st: c.HoppieClient("http://x", code, st, http=cls.hop),
@@ -377,6 +378,25 @@ class HttpTests(unittest.TestCase):
         self.assertEqual((code, body["ok"]), (200, False))           # not connected: harmless
         self.assertIn("cpdlcRelease", self.call("/GetSingleFlightData?callsign=BAW123")[1][0])
         self.assertTrue(any("CONTACT" in t["text"] or "UNICOM" in t["text"] for t in self.call("/cpdlc/templates")[1]))
+
+    def test_concorde_position_reports(self):
+        ck = self.ck
+        self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "act": "1203"})[0], 401)
+        self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "act": "1203"}, self.login("OBSERVER"))[0], 403)
+        code, rec, _ = self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "est": "12:00", "act": "1203z"}, ck)
+        self.assertEqual(code, 200)
+        self.assertEqual(rec["posReports"]["52/50"]["act"], "1203")
+        self.assertEqual(rec["posReports"]["52/50"]["est"], "1200")
+        self.assertIn("CZQO_CTR", rec["posReports"]["52/50"]["by"])
+        self.assertEqual(self.call("/EditFlight", {"callsign": "CONC1", "mach": "200"}, ck)[0], 200)       # Mach 2.00 is allowed
+        self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/40", "est": "9999"}, ck)[0], 400)
+        self.assertEqual(self.call("/EditPosReport", {"callsign": "BAW123", "fix": "52/40", "est": "1210"}, ck)[0], 400)   # not Concorde
+        self.assertEqual(self.call("/EditPosReport", {"callsign": "NOPE1", "fix": "52/40", "est": "1210"}, ck)[0], 404)
+        flights = {f["callsign"]: f for f in self.call("/GetAllFlightData")[1]}
+        self.assertIn("52/50", flights["CONC1"]["posReports"])
+        self.assertNotIn("posReports", flights["BAW123"])
+        self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "est": "", "act": ""}, ck)       # clearing removes the row
+        self.assertEqual(self.call("/GetSingleFlightData?callsign=CONC1")[1][0]["posReports"], {})
 
     def test_position_change_stops_station(self):
         ck = self.login("NAT_FSS")

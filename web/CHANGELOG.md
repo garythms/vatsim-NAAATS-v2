@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.6.0 - 2026-10-21
+- Concorde (type CONC) position reports: a "Position reports" button in the flight plan panel opens a table of every route fix with Calc, Est and Actual times (four digits, typed in by the controller; "now" fills the current time). Typed times replace the calculated times on the strip.
+- A Concorde flashes (strip, flight plan button, red "overdue" count in the top bar, and the row in the table) when the next fix's time passed more than 3 minutes ago with no reported time.
+- Mach is shown with three digits (M084, M200) so Concorde's Mach 2.00 displays correctly; the server now accepts Mach up to 2.99.
+
 ## 0.5.0 - 2026-10-21
 - CPDLC sound for messages from pilots (your own sound file), instead of the beep.
 - "Standard messages..." list in the CPDLC drawer (the TopSky list) and a UNICOM button (asks to confirm): sends "THERE IS NO FURTHER ATC AVAILABLE. SERVICE TERMINATED. MONITOR ADVISORY ON 122.800", logs the pilot off when they answer WILCO/ROGER and releases the tag in EuroScope.

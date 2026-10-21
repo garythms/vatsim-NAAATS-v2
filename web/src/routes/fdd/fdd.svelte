@@ -96,6 +96,7 @@
   }
   $: groups = buildGroups(tickN, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy);
   $: shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
+  $: concOverdueN = dataHandler.concOverdueList().length + 0 * tickN;
   $: conflictCount = [...dataHandler.conflicts.keys()].length + 0 * tickN;
   function searchKey(e: KeyboardEvent): void {
     if (e.key === "Enter" && groups.length > 0) dataHandler.setAsel(groups[0].rows[0].Callsign);
@@ -274,6 +275,9 @@
       </button>
     {/if}
     <span class="opacity-70">{shownCount} shown</span>
+    {#if concOverdueN > 0}
+      <span class="px-1 font-bold {visualOn && tickN >= 0 ? 'nt-flash text-black' : 'text-yellow-300'}" title="Concorde flights overdue a position report">&#9201; {concOverdueN} overdue</span>
+    {/if}
     {#if conflictCount > 0}
       <span class="text-yellow-300 font-bold" title="Flights with a warning are marked on their strip">&#9888; {conflictCount}</span>
     {/if}
@@ -373,6 +377,7 @@
             alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
             cpdlc={ac.Cpdlc}
             cpdlcAlert={visualOn && ($cpdlcStatus.unread?.[ac.Callsign] ?? 0) > 0 && tickN >= 0}
+            concOverdue={visualOn && tickN >= 0 && dataHandler.concOverdueFix(ac) !== ""}
             warning={(dataHandler.conflicts.get(ac.Callsign) ?? []).join("; ")}
             updatedBy={ac.UpdatedBy}
             updatedAt={ac.UpdatedAt}

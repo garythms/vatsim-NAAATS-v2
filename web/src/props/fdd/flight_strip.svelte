@@ -22,6 +22,7 @@
   export let trackedBy: string;
   export let cpdlc: boolean = false;      // connected to CPDLC: callsign shown as [BAW123]
   export let cpdlcAlert: boolean = false; // unread CPDLC message: flash
+  export let concOverdue: boolean = false; // Concorde overdue a position report: flash
   export let warning: string = "";   // conflict / sanity warning text ("" = none)
   export let updatedBy: string = "";
   export let updatedAt: number = 0;
@@ -69,7 +70,7 @@
       </div>
     </div>
   {/if}
-  <div class="flex flex-row items-center w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert || cpdlcAlert ? 'nt-flash' : ''} text-black hover:cursor-default"
+  <div class="flex flex-row items-center w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert || cpdlcAlert || concOverdue ? 'nt-flash' : ''} text-black hover:cursor-default"
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
@@ -85,7 +86,7 @@
         {assignedLevel}
       </div>
       <div class="w-1/12 mr-2">
-        {assignedMach > 0 ? "M0" + assignedMach : ""}
+        {assignedMach > 0 ? "M" + String(assignedMach).padStart(3, "0") : ""}
       </div>
       {#each routeEtas as eta}
         <div class="w-1/11">

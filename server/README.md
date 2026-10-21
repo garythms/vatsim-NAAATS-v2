@@ -56,3 +56,7 @@ Cautions:
 - Passing CPDLC on to the next controller's station is not automatic: the pilot logs on to the next station themselves.
 - Polling removes messages from Hoppie's queue, so nothing else (TopSky, another client) may be logged on as the same station callsign.
 - LOGOFF handling and exact reply behaviour have not yet been checked against the live Hoppie system.
+
+## Concorde position reports (server 0.8.0)
+
+Concorde (aircraft type starting `CONC`) reports by voice, so controllers type its times in on the FDD. `POST /EditPosReport {callsign, fix, est, act}` (signed in, not OBSERVER) stores an estimate and/or actual time (four digits; both empty clears it) per route fix, with who entered it. `posReports` is added to a CONC flight's data; the FDD shows the typed times in place of the calculated ones and flashes when a fix is more than 3 minutes overdue. Reports are kept for 24 hours. The plugin does not show these times yet.
