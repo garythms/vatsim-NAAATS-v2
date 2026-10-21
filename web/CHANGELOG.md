@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 0.4.0 - 2026-10-21
+- New page /beta: always links the newest plugin beta download, with install steps. Homepage has a "Download plugin beta" button.
 - CPDLC: aircraft connected to CPDLC show their callsign in brackets, e.g. [BAW123], on the strip and in the flight plan panel.
 - New CPDLC drawer (button in the info bar, with unread count): connected aircraft, message thread, quick replies (UNABLE / STANDBY / ROGER), templates, send. Sound alert on new messages. Needs a controller position to send.
 - Each controller signs in to CPDLC with their own Hoppie code (typed in the drawer, kept in server memory only). Stations: CZQO = CZQX, EGGX = EGGX, NAT_FSS = NATX.
