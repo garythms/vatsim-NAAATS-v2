@@ -12,36 +12,19 @@
   let vFDate: Date = new Date(validFrom * 1000);
   let vTDate: Date = new Date(validTo * 1000);
 
-  let vFString: string =
-    (vFDate.getUTCHours() < 9
-      ? "0" + vFDate.getUTCHours()
-      : vFDate.getUTCHours()
-    ).toString() +
-    (vFDate.getUTCMinutes() < 9
-      ? "0" + vFDate.getUTCMinutes()
-      : vFDate.getUTCMinutes()
-    ).toString();
-  let vTString: string =
-    (vTDate.getUTCHours() < 9
-      ? "0" + vTDate.getUTCHours()
-      : vTDate.getUTCHours()
-    ).toString() +
-    (vTDate.getUTCMinutes() < 9
-      ? "0" + vTDate.getUTCMinutes()
-      : vTDate.getUTCMinutes()
-    ).toString();
-
-  let timeString = vFString + "z - " + vTString + "z";
+  const hhmm = (d: Date): string => String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0");
+  // One short line: 1130-1900z
+  let timeString = hhmm(vFDate) + "-" + hhmm(vTDate) + "z";
 </script>
 
 <div class="flex flex-col text-black select-none hover:cursor-default">
   <div
     class="flex flex-row px-3 py-1 {direction ? 'bg-blue-9' : 'bg-yellow-300'}"
   >
-    <div class="flex flex-row w-2/7">
+    <div class="flex flex-row flex-shrink-0 whitespace-nowrap" style="width: 7em;">
       {timeString}
     </div>
-    <div class="flex flex-row w-4/5">
+    <div class="flex flex-row flex-1 min-w-0">
       {#each flightLevels as level}
         <div class="pr-2.5">
           {level / 100}
@@ -54,10 +37,10 @@
       ? 'bg-blue-10'
       : 'bg-yellow-100'} border-b-2 border-black border-opacity-30"
   >
-    <div class="flex flex-row w-2/7">
+    <div class="flex flex-row flex-shrink-0" style="width: 7em;">
       {id}
     </div>
-    <div class="flex flex-row w-4/5">
+    <div class="flex flex-row flex-1 min-w-0">
       {#each route as wp}
         <div class="pr-2.5">
           {wp.name}
