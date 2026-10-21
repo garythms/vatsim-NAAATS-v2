@@ -30,6 +30,7 @@ vector<CDataHandler::CRemoteCommand> CDataHandler::remoteQueue;
 std::atomic<bool> CDataHandler::RemotePollBusy(false);
 clock_t CDataHandler::RemoteLastPoll = 0;
 bool CDataHandler::SquawkOnClearance = true;
+bool CDataHandler::AutoType = false;
 
 string CDataHandler::UrlEncode(const string& value) {
 	static const char* hex = "0123456789ABCDEF";
@@ -59,6 +60,7 @@ void CDataHandler::LoadSettings() {
 		if (k == "server") server = v;
 		else if (k == "key") key = v;
 		else if (k == "squawk") SquawkOnClearance = (v != "0");
+		else if (k == "autotype") AutoType = (v == "1");
 	}
 	while (!server.empty() && server.back() == '/') server.pop_back();
 	FddUrl = server + "/fdd";
@@ -726,6 +728,7 @@ void CDataHandler::PollRemoteCommands(void* args) {
 						rc.Selcal = a.value("selcal", "");
 						rc.Target = a.value("target", "");
 						rc.Freq = a.value("freq", "");
+						rc.Text = a.value("text", "");
 					}
 					if (rc.Id > 0) remoteQueue.push_back(rc);
 				}

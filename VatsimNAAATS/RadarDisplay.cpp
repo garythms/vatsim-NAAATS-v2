@@ -114,6 +114,47 @@ void CRadarDisplay::PopulateProgramData() {
 }
 
 // On radar screen refresh (modified to occur 4 times a second)
+// Find EuroScope's main window (the visible top-level window of this process)
+static BOOL CALLBACK FindEsWindow(HWND hwnd, LPARAM lParam) {
+	DWORD pid = 0;
+	GetWindowThreadProcessId(hwnd, &pid);
+	if (pid == GetCurrentProcessId() && IsWindowVisible(hwnd) && GetWindow(hwnd, GW_OWNER) == NULL && GetWindowTextLengthA(hwnd) > 0) {
+		*(HWND*)lParam = hwnd;
+		return FALSE;
+	}
+	return TRUE;
+}
+
+// Type a line into EuroScope's command line: Home (focuses it), the text, Enter.
+// EuroScope is brought to the front first (the controller has just clicked in the browser). Fails if Windows will not allow that.
+static bool TypeIntoEuroScope(const string& text) {
+	HWND es = NULL;
+	EnumWindows(FindEsWindow, (LPARAM)&es);
+	if (!es) return false;
+	HWND fg = GetForegroundWindow();
+	DWORD pid = 0;
+	if (fg) GetWindowThreadProcessId(fg, &pid);
+	if (pid != GetCurrentProcessId()) {
+		if (IsIconic(es)) ShowWindow(es, SW_RESTORE);
+		keybd_event(VK_MENU, 0, 0, 0); // an Alt tap lets this process take the foreground
+		keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
+		SetForegroundWindow(es);
+		fg = GetForegroundWindow();
+		pid = 0;
+		if (fg) GetWindowThreadProcessId(fg, &pid);
+		if (pid != GetCurrentProcessId()) return false;
+	}
+	vector<INPUT> in;
+	auto key = [&](WORD vk, bool up) { INPUT i = {}; i.type = INPUT_KEYBOARD; i.ki.wVk = vk; if (up) i.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(i); };
+	key(VK_HOME, false); key(VK_HOME, true);
+	for (unsigned char ch : text) {
+		INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wScan = ch; d.ki.dwFlags = KEYEVENTF_UNICODE; in.push_back(d);
+		INPUT u = d; u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP; in.push_back(u);
+	}
+	key(VK_RETURN, false); key(VK_RETURN, true);
+	return SendInput((UINT)in.size(), in.data(), sizeof(INPUT)) == in.size();
+}
+
 void CRadarDisplay::RunRemoteCommands()
 {
 	CPlugIn* plugin = GetPlugIn();
@@ -193,6 +234,12 @@ void CRadarDisplay::RunRemoteCommands()
 				if (!target.IsValid()) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Target + " is not online in EuroScope"); continue; }
 				if (!es.InitiateHandoff(cmd.Target.c_str())) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not start the handoff to " + cmd.Target); continue; }
 				CDataHandler::ReportRemoteResult(cmd.Id, true, "Handoff to " + cmd.Target + " started");
+			}
+			else if (cmd.Type == "selcal" || cmd.Type == "contactme" || cmd.Type == "natmsg") {
+				if (!CDataHandler::AutoType) { CDataHandler::ReportRemoteResult(cmd.Id, false, "auto-typing is off (add autotype=1 to vnaaats.cfg) - use Copy and paste instead"); continue; }
+				if (!(cmd.Text.rfind(".selcal ", 0) == 0 || cmd.Text.rfind(".contactme ", 0) == 0 || cmd.Text.rfind(".msg ", 0) == 0)) { CDataHandler::ReportRemoteResult(cmd.Id, false, "refused: not an allowed command"); continue; }
+				if (TypeIntoEuroScope(cmd.Text)) CDataHandler::ReportRemoteResult(cmd.Id, true, "Sent to EuroScope: " + cmd.Text.substr(0, 40));
+				else CDataHandler::ReportRemoteResult(cmd.Id, false, "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste");
 			}
 			else {
 				CDataHandler::ReportRemoteResult(cmd.Id, false, "unknown command");

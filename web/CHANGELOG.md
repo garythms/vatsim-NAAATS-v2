@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.9.0 - 2026-10-21
+- "Send" buttons for SELCAL test, Contact me and the natTrak message: the plugin (1.5b4, with `autotype=1` in vnaaats.cfg) brings EuroScope to the front and types the command into its command line. If that is switched off or Windows refuses, the command is copied instead and the menu says so. Supervisor stays copy-and-paste.
+
 ## 0.8.0 - 2026-10-21
 - NatTrak tab in the aircraft menu: copies the EuroScope message (.msg CALLSIGN Hello, you will soon be entering oceanic airspace...) and "I have sent it - mark with red *" puts a red * next to the callsign on the strip (and, with plugin 1.5b3, on the EuroScope tag). The * clears by itself when the pilot requests clearance on natTrak or an oceanic controller (CZQO, CZQX, EGGX, NAT, BIRD, KZWY, LPPO, ENOB) tracks the flight. "Remove mark" clears it by hand.
 

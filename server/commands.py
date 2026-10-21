@@ -12,11 +12,15 @@ import re
 import threading
 import time
 
-TYPES = ("track", "untrack", "transfer")
+TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg")   # last three are typed into EuroScope by the plugin (autotype=1)
 TTL_SECONDS = 300          # an unclaimed command is dropped after this
 KEEP_SECONDS = 600         # finished commands stay readable this long
 SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
 CALLSIGN_OK = re.compile(r"[A-Z0-9_\-]{2,12}")
+
+
+NATMSG = ("Hello, you will soon be entering oceanic airspace. Please request oceanic clearance via nattrak.vatsim.net "
+          "no later than 20 minutes before your oceanic entry point. Clearance via CPDLC is unavailable.")
 
 
 def clean_command(body):
@@ -48,6 +52,15 @@ def clean_command(body):
             return None, None, None, "choose a controller to transfer to"
         freq = str(body.get("freq", "")).strip()
         args = {"target": target, "freq": freq if re.fullmatch(r"1[0-3]\d\.\d{1,3}", freq) else ""}
+    elif typ == "selcal":
+        sel = re.sub(r"[-\s]", "", str(body.get("selcal", "")).upper())
+        if not SELCAL_OK.fullmatch(sel):
+            return None, None, None, "SELCAL must be 4 letters from A-H, J-M, P-S"
+        args = {"text": ".selcal " + sel}
+    elif typ == "contactme":
+        args = {"text": ".contactme " + cs}
+    elif typ == "natmsg":
+        args = {"text": ".msg " + cs + " " + NATMSG}
     return typ, cs, args, None
 
 

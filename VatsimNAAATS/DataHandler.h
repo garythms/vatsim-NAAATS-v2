@@ -52,6 +52,7 @@ class CDataHandler
 
 	// Read vnaaats.cfg (server address, API key, squawk option) from the DLL folder
 	static void LoadSettings();
+	static bool AutoType; // autotype=1: type .selcal / .contactme / .msg into EuroScope when the FDD asks
 	static bool SquawkOnClearance; // assign 2000 when a clearance is sent
 	static string ControllerCallsign; // my EuroScope callsign, sent with changes
 	static string FddUrl; // flight data display address (server + /fdd)
@@ -59,7 +60,7 @@ class CDataHandler
 	// Commands sent from the web flight data display (track / untrack / transfer)
 	struct CRemoteCommand {
 		int Id = 0;
-		string Type, Callsign, Level, Mach, Selcal, Target, Freq;
+		string Type, Callsign, Level, Mach, Selcal, Target, Freq, Text;
 	};
 	static void PollRemoteCommands(void* args); // async: asks the server for waiting commands
 	static void ReportRemoteCommand(void* args); // async: tells the server how a command went

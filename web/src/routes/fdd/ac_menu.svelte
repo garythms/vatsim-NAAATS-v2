@@ -140,11 +140,13 @@
         {:else if tab === "selcal"}
           <div class="flex flex-row items-center">
             <input class="w-20 px-1 mr-2 text-black uppercase" maxlength="4" bind:value={selcal} />
+            <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit || !m.validSelcal(selcal)} on:click={() => typeIn({ type: "selcal", selcal: selcal.toUpperCase() }, m.selcalCommand(selcal))}>Send SELCAL test</button>
             <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
         {:else if tab === "contact"}
-          <button class="px-2 py-1 {BTN}" on:click={() => copy(m.contactMeCommand($menuCallsign))}>Copy .contactme {$menuCallsign}</button>
+          <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "contactme" }, m.contactMeCommand($menuCallsign))}>Send Contact me to {$menuCallsign}</button>
+          <button class="px-2 py-1 {BTN}" on:click={() => copy(m.contactMeCommand($menuCallsign))}>Copy .contactme</button>
         {:else if tab === "sup"}
           <textarea class="w-full px-1 mb-2 text-black" rows="3" bind:value={wallopText} placeholder="Message to the supervisors" />
           <div class="flex flex-row">
@@ -152,8 +154,9 @@
             <button class="px-2 py-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer" disabled={!wallopText.trim()} on:click={() => copy(m.wallopCommand($menuCallsign, wallopText))}>Copy .wallop</button>
           </div>
         {:else if tab === "nt"}
-          <div class="text-sm mb-2 opacity-90">Reminds the pilot to request oceanic clearance on natTrak (CPDLC clearance is unavailable).</div>
+          <div class="text-sm mb-2 opacity-90">"Send" types it into EuroScope for you (needs autotype=1 in vnaaats.cfg, plugin 1.5b4). Reminds the pilot to request oceanic clearance on natTrak (CPDLC clearance is unavailable).</div>
           <div class="flex flex-row flex-wrap">
+            <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "natmsg" }, m.natTrakCommand($menuCallsign))}>Send natTrak message</button>
             <button class="px-2 py-1 mr-2 mb-1 {BTN}" on:click={() => copy(m.natTrakCommand($menuCallsign))}>Copy natTrak message</button>
             <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(true)}>I have sent it - mark with red *</button>
             {#if ac && ac.NtSent}<button class="px-2 py-1 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(false)}>Remove mark</button>{/if}

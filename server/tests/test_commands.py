@@ -169,3 +169,13 @@ class NatTrakReminderTests(unittest.TestCase):
         self.assertFalse(s.nt_stops_reminder(dict(rec, trackedBy="EGLL_TWR"), Nt({})))
         st.mark_nt("BAW1", "x", sent=False)
         self.assertNotIn("ntSent", st.get("BAW1"))
+
+
+class TypedCommandTests(unittest.TestCase):
+    def test_typed(self):
+        import commands as c
+        self.assertEqual(c.clean_command({"type": "contactme", "callsign": "baw1"})[2], {"text": ".contactme BAW1"})
+        self.assertEqual(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "ab-cd"})[2], {"text": ".selcal ABCD"})
+        self.assertIsNotNone(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "ZZZZ"})[3])
+        t = c.clean_command({"type": "natmsg", "callsign": "BAW1"})[2]["text"]
+        self.assertTrue(t.startswith(".msg BAW1 Hello, you will soon be entering oceanic airspace."))
