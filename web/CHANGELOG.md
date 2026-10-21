@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.9.7 - 2026-10-21
+- Headset icon now shows who the pilot is talking to, taken from the VATSIM radio frequency they have tuned: bold green = oceanic controller, faded green = domestic controller, orange = UNICOM 122.800. Hover shows e.g. "Tracked by NAT_FSS (133.500)". If VATSIM has no radio info it falls back to who is tracking the aircraft in EuroScope. Needs server 0.11.0.
+
 ## 0.9.6 - 2026-10-21
 - "Group" now also has "by flight level": flights are grouped under FL400, FL380, ... highest first, each heading showing how many aircraft.
 

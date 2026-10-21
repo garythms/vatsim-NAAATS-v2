@@ -149,6 +149,21 @@ class OfflineTests(unittest.TestCase):
         self.assertIsNone(n.is_offline("GONE9"))
 
 
+class CommTests(unittest.TestCase):
+    def test_comm(self):
+        import vnaaats_server as s
+        n = s.NetworkTraffic(None, "x", None)
+        n.atc_freq = {"133.500": "CZQO_CTR", "127.100": "EGTT_CTR"}
+        n.tuned = {"A1": {"133.500"}, "B2": {"127.100"}, "C3": {"122.800"}, "D4": {"118.000"}}
+        self.assertEqual(n.comm_for("a1")["kind"], "oceanic")
+        self.assertEqual(n.comm_for("B2")["by"], "EGTT_CTR")
+        self.assertEqual(n.comm_for("C3")["kind"], "unicom")
+        self.assertIsNone(n.comm_for("D4"))
+        self.assertIsNone(n.comm_for("NOPE"))
+        n.refresh_transceivers(lambda: [{"callsign": "E5", "transceivers": [{"frequency": 133500000}, {"frequency": 133500000}]}])
+        self.assertEqual(n.comm_for("E5")["by"], "CZQO_CTR")
+
+
 class NatTrakReminderTests(unittest.TestCase):
     def test_star(self):
         import vnaaats_server as s, tempfile, os

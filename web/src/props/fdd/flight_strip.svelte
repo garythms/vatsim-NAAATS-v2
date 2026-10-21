@@ -22,6 +22,21 @@
   //export let relevant: boolean;
   export let trackedBy: string;
   export let cols: number = 6;          // number of fix columns in the list (same for every row so everything lines up)
+  export let comm: { kind: string; by: string; freq: string } | null = null;   // VATSIM radio: oceanic / domestic / unicom
+  // Headset icon: bold green = oceanic controller, faded green = domestic controller, orange = UNICOM 122.800.
+  // Taken from the frequency the pilot has tuned on VATSIM; if that is not known, falls back to who is tracking in EuroScope.
+  $: radio = radioInfo(comm, trackedBy);
+  function radioInfo(c: { kind: string; by: string; freq: string } | null, tb: string) {
+    let kind = c?.kind ?? "", by = c?.by ?? "", freq = c?.freq ?? "";
+    if (!kind && tb && tb !== "NATTRAK") {
+      by = tb;
+      kind = /^(CZQO|CZQX|EGGX|NAT|BIRD|KZWY|LPPO|ENOB)/i.test(tb) ? "oceanic" : "domestic";
+    }
+    if (kind === "oceanic") return { tip: "Tracked by " + by + (freq ? " (" + freq + ")" : ""), color: "#15803d", opacity: 1, bold: 1.2 };
+    if (kind === "domestic") return { tip: "Tracked by " + by + (freq ? " (" + freq + ")" : "") + " - domestic", color: "#16a34a", opacity: 0.5, bold: 0 };
+    if (kind === "unicom") return { tip: "On UNICOM 122.800", color: "#c2410c", opacity: 1, bold: 0.6 };
+    return null;
+  }
   export let ntSent: boolean = false;    // natTrak reminder sent: red star
   export let cpdlc: boolean = false;      // connected to CPDLC: callsign shown as [BAW123]
   export let cpdlcAlert: boolean = false; // unread CPDLC message: flash
@@ -95,9 +110,9 @@
           <span title={clearanceTip} class="inline-flex" aria-label="Clearance processed on natTrak">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 3h-4.2A3 3 0 0 0 12 1a3 3 0 0 0-2.8 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-2 14-4-4 1.4-1.4L10 14.2l6.6-6.6L18 9z" /></svg>
           </span>
-        {:else if trackedBy != ""}
-          <span title={"Tracked by " + trackedBy} class="inline-flex" aria-label={"Tracked by " + trackedBy}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2a9 9 0 0 0-9 9v7a3 3 0 0 0 3 3h1v-8H5v-2a7 7 0 0 1 14 0v2h-2v8h2v1a2 2 0 0 1-2 2h-3v2h3a4 4 0 0 0 4-4V11a9 9 0 0 0-9-9z" /></svg>
+        {:else if radio}
+          <span title={radio.tip} class="inline-flex" style={"color: " + radio.color + "; opacity: " + radio.opacity + ";"} aria-label={radio.tip}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width={radio.bold}><path d="M12 2a9 9 0 0 0-9 9v7a3 3 0 0 0 3 3h1v-8H5v-2a7 7 0 0 1 14 0v2h-2v8h2v1a2 2 0 0 1-2 2h-3v2h3a4 4 0 0 0 4-4V11a9 9 0 0 0-9-9z" /></svg>
           </span>
         {/if}
     </div>

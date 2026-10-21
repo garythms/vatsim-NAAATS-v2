@@ -39,6 +39,7 @@ interface JsonAcObj {
   cpdlc?: boolean;
   distNm?: number | null;
   ntSent?: boolean;
+  comm?: { kind: string; by: string; freq: string } | null;
   offline?: boolean | null;
   posReports?: Record<string, { est: string; act: string; by: string; at: string }>;
   updatedBy?: string;
@@ -322,6 +323,7 @@ export async function populateAllAircraft() : Promise<void> {
             Cpdlc: objArr[i]?.cpdlc ?? false,
             DistNm: objArr[i]?.distNm ?? null,
             NtSent: objArr[i]?.ntSent ?? false,
+            Comm: objArr[i]?.comm ?? null,
             Offline: objArr[i]?.offline ?? null,
             Entry: routePoints[0] ?? "",
             Exit: routePoints[routePoints.length - 1] ?? "",

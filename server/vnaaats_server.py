@@ -56,8 +56,9 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.10.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.11.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
+VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
 SESSION_COOKIE = "vnaaats_session"
@@ -546,6 +547,8 @@ class NetworkTraffic:
         self.flights, self.updated, self.error = [], None, None
         self.positions = {}      # callsign -> (lat, lon) for every pilot on the network (used by the CPDLC 250 nm logon rule)
         self.controllers = []    # online ATC that aircraft can be transferred to: [{callsign, frequency, name, facility}]
+        self.atc_freq = {}       # "133.500" -> callsign of every online controller (any position)
+        self.tuned = {}          # pilot callsign -> set of frequencies (MHz string) the pilot has tuned, from the transceivers feed
 
     def is_offline(self, callsign):
         """True only when the feed is healthy (recent, has pilots) and this callsign is not in it. None if we cannot tell."""
@@ -557,6 +560,42 @@ class NetworkTraffic:
     def position(self, callsign):
         with self.lock:
             return self.positions.get((callsign or "").upper())
+
+    def comm_for(self, callsign):
+        """Who the pilot is talking to: {"kind": "oceanic"|"domestic"|"unicom", "by": callsign or "", "freq": "133.500"} or None.
+        Worked out from the frequencies the pilot has tuned (transceivers feed) matched to the online controllers."""
+        with self.lock:
+            freqs = self.tuned.get((callsign or "").upper())
+            if not freqs:
+                return None
+            for f in sorted(freqs):
+                by = self.atc_freq.get(f)
+                if by:
+                    return {"kind": "oceanic" if by.startswith(OCEANIC_PREFIXES) else "domestic", "by": by, "freq": f}
+            if "122.800" in freqs:
+                return {"kind": "unicom", "by": "UNICOM", "freq": "122.800"}
+        return None
+
+    def refresh_transceivers(self, fetch=None):
+        try:
+            if fetch:
+                data = fetch()
+            else:
+                req = urllib.request.Request(VATSIM_TRANSCEIVERS, headers={"User-Agent": "vnaaats-server"})
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    data = json.loads(r.read().decode("utf-8"))
+            tuned = {}
+            for row in data:
+                cs = str(row.get("callsign", "")).upper()
+                for t in row.get("transceivers", []):
+                    try:
+                        tuned.setdefault(cs, set()).add("%.3f" % (int(t["frequency"]) / 1e6))
+                    except (KeyError, TypeError, ValueError):
+                        pass
+            with self.lock:
+                self.tuned = tuned
+        except Exception as e:
+            log.error("Transceivers refresh failed: %s", e)
 
     def refresh(self, fetch=None):
         try:
@@ -580,7 +619,14 @@ class NetworkTraffic:
                 except (KeyError, TypeError, ValueError):
                     pass
             ctrls = []
+            atc = {}
             for c in data.get("controllers", []):
+                try:
+                    cs, fr = str(c["callsign"]).upper(), "%.3f" % float(c.get("frequency", 0))
+                    if int(c.get("facility", 0)) >= 1 and not cs.endswith("_ATIS") and fr != "199.998":
+                        atc[fr] = cs
+                except (KeyError, TypeError, ValueError):
+                    pass
                 try:
                     if int(c.get("facility", 0)) in (1, 5, 6) and not str(c["callsign"]).upper().endswith("_ATIS"):
                         ctrls.append({"callsign": str(c["callsign"]).upper(), "frequency": str(c.get("frequency", "")),
@@ -590,8 +636,10 @@ class NetworkTraffic:
             with self.lock:
                 self.flights, self.updated, self.error = out, time.time(), None
                 self.positions = pos
+                self.atc_freq = atc
                 self.controllers = sorted(ctrls, key=lambda x: x["callsign"])
             log.info("Network traffic refreshed: %d oceanic flights", len(out))
+            self.refresh_transceivers()
         except Exception as e:
             with self.lock:
                 self.error = str(e)
@@ -823,6 +871,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec["ntSentInfo"] = sent
         rec["ntSent"] = bool(sent) and not nt_stops_reminder(rec, natrak)
         rec["offline"] = network.is_offline(rec.get("callsign", "")) if network else None
+        rec["comm"] = network.comm_for(rec.get("callsign", "")) if network and hasattr(network, "comm_for") else None
         rec["distNm"] = route_distance_nm(rec.get("route", ""), network.position(rec.get("callsign", "")) if network else None, cache.fixes)
         if is_conc(rec.get("type", "")):
             rec["posReports"] = store.pos_get(rec.get("callsign", ""))
