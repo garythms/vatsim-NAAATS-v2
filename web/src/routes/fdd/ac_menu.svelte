@@ -15,6 +15,7 @@
   let mach: string = "";
   let selcal: string = "";
   let note: string = "";
+  let copied: string = "";
   let busy: boolean = false;
   let controllers: m.Controller[] = [];
   let pickedCtrl: string = "";
@@ -26,14 +27,14 @@
 
   function openFor(cs: string): void {
     ac = dataHandler.getAircraft(cs);
-    tab = "track"; note = ""; busy = false; wallopText = ""; pickedCtrl = "";
+    tab = "track"; note = ""; copied = ""; busy = false; wallopText = ""; pickedCtrl = "";
     level = ac && ac.AssignedLevel ? String(ac.AssignedLevel) : "";
     mach = ac && ac.AssignedMach ? String(ac.AssignedMach).padStart(3, "0") : "";
     selcal = ac && ac.Selcal && ac.Selcal !== "N/A" ? String(ac.Selcal) : "";
     m.loadControllers().then((c) => (controllers = c));
   }
   function close(): void { menuCallsign.set(""); }
-  function pickTab(t: string): void { tab = t; note = ""; }
+  function pickTab(t: string): void { tab = t; note = ""; copied = ""; }
 
   async function waitFor(id: number): Promise<void> {
     note = "Sent to EuroScope...";
@@ -56,7 +57,8 @@
   }
 
   async function copy(text: string): Promise<void> {
-    note = (await m.copyText(text)) ? "Copied: " + text + " - paste it into the EuroScope command line and press Enter." : "Could not copy. Type: " + text;
+    copied = text;
+    note = (await m.copyText(text)) ? "" : "Could not copy automatically - type it in yourself.";
   }
 
   function track(): void {
@@ -82,75 +84,86 @@
 
   $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
-  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["contact", "Contact me"], ["sup", "Supervisor"], ["cpdlc", "CPDLC"]];
+  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["contact", "Contact me"], ["cpdlc", "CPDLC"]];
+  const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
 {#if $menuCallsign}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-regular" on:click|self={close}>
-    <div class="bg-grey-500 text-white border border-blue-4 w-full max-w-md p-3 select-none">
-      <div class="flex flex-row justify-between mb-2">
-        <span class="text-lg">{$menuCallsign}</span>
-        <span class="underline hover:cursor-pointer" on:click={close}>close</span>
+  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
+    <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 40rem;">
+      <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
+        <span>Aircraft menu - {$menuCallsign}</span>
+        <span class="underline hover:cursor-pointer text-sm" on:click={close}>close</span>
       </div>
-      <div class="flex flex-row flex-wrap mb-2">
-        {#each tabs as t}
-          <span class="px-2 py-0.5 mr-1 mb-1 border border-blue-4 hover:cursor-pointer {tab === t[0] ? 'bg-blue-4' : ''}" on:click={() => pickTab(t[0])}>{t[1]}</span>
-        {/each}
-        {#if isConc}
-          <span class="px-2 py-0.5 mr-1 mb-1 border border-blue-4 hover:cursor-pointer" on:click={openPos}>Position reports</span>
+      <div class="p-3">
+        <div class="flex flex-row flex-wrap items-center mb-3 select-none">
+          {#each tabs as t}
+            <span class="px-2 py-0.5 mr-1 mb-1 {BTN} {tab === t[0] ? 'bg-blue-1 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6' : ''}" on:click={() => pickTab(t[0])}>{t[1]}</span>
+          {/each}
+          {#if isConc}
+            <span class="px-2 py-0.5 mr-1 mb-1 {BTN}" on:click={openPos}>Position reports</span>
+          {/if}
+          <span class="ml-auto px-2 py-0.5 mb-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer {tab === 'sup' ? 'bg-red-900' : ''}" on:click={() => pickTab("sup")}>Supervisor</span>
+        </div>
+
+        {#if tab === "track"}
+          <div class="flex flex-row mb-3">
+            <label class="mr-3 text-sm">FL <input class="w-16 px-1 text-black" bind:value={level} /></label>
+            <label class="mr-3 text-sm">Mach <input class="w-16 px-1 text-black" bind:value={mach} placeholder="084" /></label>
+            <label class="text-sm">SELCAL <input class="w-20 px-1 text-black uppercase" maxlength="4" bind:value={selcal} /></label>
+          </div>
+          <div class="flex flex-row">
+            <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>SELCAL test (copy)</button>
+            <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={track}>Track aircraft</button>
+          </div>
+        {:else if tab === "untrack"}
+          <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={untrack}>Untrack aircraft</button>
+        {:else if tab === "transfer"}
+          {#if controllers.length === 0}
+            <div class="text-sm opacity-80">No online controllers found.</div>
+          {:else}
+            <select class="w-full px-1 py-0.5 text-black mb-3" bind:value={pickedCtrl}>
+              <option value="">Choose controller</option>
+              {#each controllers as c}
+                <option value={c.callsign}>{c.callsign} {c.frequency} {c.name}</option>
+              {/each}
+            </select>
+            <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit || !pickedCtrl} on:click={transfer}>Transfer</button>
+          {/if}
+        {:else if tab === "selcal"}
+          <div class="flex flex-row items-center">
+            <input class="w-20 px-1 mr-2 text-black uppercase" maxlength="4" bind:value={selcal} />
+            <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
+            <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
+          </div>
+        {:else if tab === "contact"}
+          <button class="px-2 py-1 {BTN}" on:click={() => copy(m.contactMeCommand($menuCallsign))}>Copy .contactme {$menuCallsign}</button>
+        {:else if tab === "sup"}
+          <textarea class="w-full px-1 mb-2 text-black" rows="3" bind:value={wallopText} placeholder="Message to the supervisors" />
+          <div class="flex flex-row">
+            <button class="px-2 py-1 mr-2 {BTN}" on:click={() => (wallopText = m.NO_CONTACT_TEXT)}>No Contact</button>
+            <button class="px-2 py-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer" disabled={!wallopText.trim()} on:click={() => copy(m.wallopCommand($menuCallsign, wallopText))}>Copy .wallop</button>
+          </div>
+        {:else if tab === "cpdlc"}
+          {#if onCpdlc}
+            <button class="px-2 py-1 {BTN}" on:click={openCpdlc}>Open CPDLC for {$menuCallsign}</button>
+          {:else}
+            <div class="text-sm opacity-80">{$menuCallsign} is not connected to CPDLC.</div>
+          {/if}
         {/if}
+
+        {#if copied}
+          <div class="mt-3 p-2 border-2 border-yellow-300 bg-blue-1 text-sm">
+            <div class="font-bold text-yellow-300">Message copied</div>
+            <div class="font-mono my-1 break-words">{copied}</div>
+            <div>Now go to EuroScope, click in the command line, paste it (Ctrl+V) and press Enter to send it.</div>
+          </div>
+        {/if}
+        {#if !canEdit && (tab === "track" || tab === "untrack" || tab === "transfer")}
+          <div class="mt-3 text-sm text-yellow-300">Sign in and choose your position to use this.</div>
+        {/if}
+        {#if note}<div class="mt-3 text-sm break-words {note.charAt(0) === '\u2714' ? 'text-green-300' : 'text-yellow-300'}">{note}</div>{/if}
       </div>
-
-      {#if tab === "track"}
-        <div class="flex flex-row mb-2">
-          <label class="mr-2">FL <input class="w-16 px-1 text-black" bind:value={level} /></label>
-          <label class="mr-2">Mach <input class="w-16 px-1 text-black" bind:value={mach} placeholder="084" /></label>
-          <label>SELCAL <input class="w-20 px-1 text-black uppercase" maxlength="4" bind:value={selcal} /></label>
-        </div>
-        <div class="flex flex-row">
-          <button class="px-2 py-0.5 mr-2 border border-blue-4" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>SELCAL test (copy)</button>
-          <button class="px-2 py-0.5 border border-green-500" disabled={busy || !canEdit} on:click={track}>Track aircraft</button>
-        </div>
-      {:else if tab === "untrack"}
-        <button class="px-2 py-0.5 border border-green-500" disabled={busy || !canEdit} on:click={untrack}>Untrack aircraft</button>
-      {:else if tab === "transfer"}
-        {#if controllers.length === 0}
-          <div>No online controllers found.</div>
-        {:else}
-          <select class="w-full px-1 text-black mb-2" bind:value={pickedCtrl}>
-            <option value="">Choose controller</option>
-            {#each controllers as c}
-              <option value={c.callsign}>{c.callsign} {c.frequency} {c.name}</option>
-            {/each}
-          </select>
-          <button class="px-2 py-0.5 border border-green-500" disabled={busy || !canEdit || !pickedCtrl} on:click={transfer}>Transfer</button>
-        {/if}
-      {:else if tab === "selcal"}
-        <div class="flex flex-row">
-          <input class="w-20 px-1 mr-2 text-black uppercase" maxlength="4" bind:value={selcal} />
-          <button class="px-2 py-0.5 mr-2 border border-blue-4" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
-          <button class="px-2 py-0.5 border border-blue-4" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
-        </div>
-      {:else if tab === "contact"}
-        <button class="px-2 py-0.5 border border-blue-4" on:click={() => copy(m.contactMeCommand($menuCallsign))}>Copy .contactme {$menuCallsign}</button>
-      {:else if tab === "sup"}
-        <textarea class="w-full px-1 mb-2 text-black" rows="3" bind:value={wallopText} placeholder="Message to the supervisors" />
-        <div class="flex flex-row">
-          <button class="px-2 py-0.5 mr-2 border border-blue-4" on:click={() => (wallopText = m.NO_CONTACT_TEXT)}>No Contact</button>
-          <button class="px-2 py-0.5 border border-blue-4" disabled={!wallopText.trim()} on:click={() => copy(m.wallopCommand($menuCallsign, wallopText))}>Copy .wallop</button>
-        </div>
-      {:else if tab === "cpdlc"}
-        {#if onCpdlc}
-          <button class="px-2 py-0.5 border border-blue-4" on:click={openCpdlc}>Open CPDLC for {$menuCallsign}</button>
-        {:else}
-          <div>{$menuCallsign} is not connected to CPDLC.</div>
-        {/if}
-      {/if}
-
-      {#if !canEdit && (tab === "track" || tab === "untrack" || tab === "transfer")}
-        <div class="mt-2 text-yellow-300">Sign in and choose your position to use this.</div>
-      {/if}
-      {#if note}<div class="mt-2 text-sm break-words">{note}</div>{/if}
     </div>
   </div>
 {/if}
