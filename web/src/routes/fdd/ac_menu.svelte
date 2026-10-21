@@ -56,6 +56,17 @@
     busy = false;
   }
 
+  // Ask the plugin to type the command into EuroScope. If that does not work, copy it instead and say so.
+  async function typeIn(body: Record<string, string | number>, text: string): Promise<void> {
+    copied = "";
+    await send(body);
+    if (note.charAt(0) === "\u2716") {
+      const why = note;
+      await copy(text);
+      note = why + " - the command was copied instead, so paste it in.";
+    }
+  }
+
   async function copy(text: string): Promise<void> {
     copied = text;
     note = (await m.copyText(text)) ? "" : "Could not copy automatically - type it in yourself.";
@@ -95,7 +106,7 @@
 
 {#if $menuCallsign}
   <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
-    <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 46rem;">
+    <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 52rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
         <span>Aircraft menu - {$menuCallsign}</span>
         <span class="underline hover:cursor-pointer text-sm" on:click={close}>close</span>
@@ -140,12 +151,12 @@
         {:else if tab === "selcal"}
           <div class="flex flex-row items-center">
             <input class="w-20 px-1 mr-2 text-black uppercase" maxlength="4" bind:value={selcal} />
-            <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit || !m.validSelcal(selcal)} on:click={() => typeIn({ type: "selcal", selcal: selcal.toUpperCase() }, m.selcalCommand(selcal))}>Send SELCAL test</button>
+            <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit || !m.validSelcal(selcal)} on:click={() => typeIn({ type: "selcal", selcal: selcal.toUpperCase() }, m.selcalCommand(selcal))}>Send</button>
             <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
         {:else if tab === "contact"}
-          <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "contactme" }, m.contactMeCommand($menuCallsign))}>Send Contact me to {$menuCallsign}</button>
+          <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "contactme" }, m.contactMeCommand($menuCallsign))}>Send</button>
           <button class="px-2 py-1 {BTN}" on:click={() => copy(m.contactMeCommand($menuCallsign))}>Copy .contactme</button>
         {:else if tab === "sup"}
           <textarea class="w-full px-1 mb-2 text-black" rows="3" bind:value={wallopText} placeholder="Message to the supervisors" />
@@ -154,9 +165,9 @@
             <button class="px-2 py-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer" disabled={!wallopText.trim()} on:click={() => copy(m.wallopCommand($menuCallsign, wallopText))}>Copy .wallop</button>
           </div>
         {:else if tab === "nt"}
-          <div class="text-sm mb-2 opacity-90">"Send" types it into EuroScope for you (needs autotype=1 in vnaaats.cfg, plugin 1.5b4). Reminds the pilot to request oceanic clearance on natTrak (CPDLC clearance is unavailable).</div>
+          <div class="text-sm mb-2 opacity-90">"Send" types it into EuroScope for you (needs autotype=1 in vnaaats.cfg and plugin 1.5b4). Reminds the pilot to request oceanic clearance on natTrak (CPDLC clearance is unavailable).</div>
           <div class="flex flex-row flex-wrap">
-            <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "natmsg" }, m.natTrakCommand($menuCallsign))}>Send natTrak message</button>
+            <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "natmsg" }, m.natTrakCommand($menuCallsign))}>Send</button>
             <button class="px-2 py-1 mr-2 mb-1 {BTN}" on:click={() => copy(m.natTrakCommand($menuCallsign))}>Copy natTrak message</button>
             <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(true)}>I have sent it - mark with red *</button>
             {#if ac && ac.NtSent}<button class="px-2 py-1 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(false)}>Remove mark</button>{/if}
