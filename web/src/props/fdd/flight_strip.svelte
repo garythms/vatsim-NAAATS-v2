@@ -60,10 +60,11 @@
       on:mouseup={stripMouseUp}
       on:mouseleave={stripMouseUp}>
       <div class="flex flex-row justify-start items-center w-full">
-        <div class="flex flex-row w-0.32" />
-        <div class="flex flex-row w-0.68">
+        <div class="w-1/7" />
+        <div class="flex flex-row w-5/7">
+          <div style="width: 14.8rem; flex-shrink: 0;" />
           {#each route as rte}
-            <div class="w-1/11 select-none hover:cursor-default whitespace-nowrap">
+            <div style="width: 4.6rem; flex-shrink: 0;" class="select-none hover:cursor-default whitespace-nowrap overflow-hidden">
               {rte}
             </div>
           {/each}
@@ -79,25 +80,25 @@
       {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="flex flex-row w-5/7 hover:cursor-default select-none">
-      <!-- TODO fix this alignment -->
-      <div class="w-1/7 whitespace-nowrap pr-1" style="font-size: 0.88em;">
+      <!-- columns: dep/arr 8rem, level 3rem, Mach 3.8rem, then each ETA 4.6rem (the header row in fdd.svelte uses the same widths) -->
+      <div class="whitespace-nowrap overflow-hidden pr-1" style="width: 8rem; flex-shrink: 0; font-size: 0.88em;">
         {departure}/{arrival}
       </div>
-      <div class="w-1/20">
+      <div style="width: 3rem; flex-shrink: 0;">
         {assignedLevel}
       </div>
-      <div class="w-1/12 mr-2">
+      <div style="width: 3.8rem; flex-shrink: 0;">
         {assignedMach > 0 ? "M" + String(assignedMach).padStart(3, "0") : ""}
       </div>
       {#each routeEtas as eta}
-        <div class="w-1/11">
+        <div style="width: 4.6rem; flex-shrink: 0;">
           {eta != "--" ? eta : "\xa0\xa0\xa0\xa0"}
         </div>
       {/each}
     </div>
     <div class="flex flex-row justify-end w-1/5 hover:cursor-default select-none">
-      <div class="w-1/3">{type}</div>
-      <div class="w-3/7">
+      <div class="w-1/4">{type}</div>
+      <div class="flex-1 whitespace-nowrap overflow-hidden pr-1">
         {trackedBy != "" ? trackedBy : "\xa0"}
       </div>
     </div>

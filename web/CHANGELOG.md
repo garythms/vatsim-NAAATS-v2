@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.7.5 - 2026-10-21
+- Strip columns now have fixed widths (departure/arrival, level, Mach, each ETA) and the track header row uses the same widths, so level/Mach and the fix names no longer run into each other and the times line up under their fixes. The tracking controller (e.g. NAT_FSS) is no longer cut off.
+
 ## 0.7.4 - 2026-10-21
 - Flights whose pilot is no longer on the VATSIM network are hidden (when the VATSIM feed is working). The selected flight, CPDLC-connected flights and pending natTrak requests still show. If the feed is unavailable, nothing is hidden for this reason.
 

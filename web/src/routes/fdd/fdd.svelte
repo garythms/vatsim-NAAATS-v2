@@ -360,21 +360,22 @@
     {:else}
       {#each groups as g (g.key)}
         <div class="flex flex-row justify-start w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
-          <div class="w-1/2 px-3">
+          <div class="w-1/7 px-3">
             {g.label}
           </div>
-          <div class="flex flex-row w-full justify-start">
+          <div class="flex flex-row w-5/7 justify-start">
+            <div style="width: 14.8rem; flex-shrink: 0;" />
             {#if g.track == "RR" || g.track == ""}
-              {g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}
+              <div class="whitespace-nowrap">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
             {:else}
               {#each dataHandler.currentNatTracks.get(g.track).Route as waypoint}
-                <div class="w-1/10">
+                <div style="width: 4.6rem; flex-shrink: 0;" class="whitespace-nowrap overflow-hidden">
                   {waypoint.name}
                 </div>
               {/each}
             {/if}
           </div>
-          <div class="1/7 px-3" />
+          <div class="w-1/5" />
         </div>
         {#each g.rows as ac (ac.Callsign)}
           <FlightStrip 
