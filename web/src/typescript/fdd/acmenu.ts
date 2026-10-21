@@ -44,7 +44,7 @@ export function wallopCommand(callsign: string, text: string): string {
   const t = text.trim().replace(/"/g, "'");
   return ".wallop " + callsign + " " + (t.indexOf(" ") >= 0 ? '"' + t + '"' : t);
 }
-export function validSelcal(code: string): boolean { return /^[A-HJ-MP-S]{4}$/.test(code.toUpperCase()); }
+export function validSelcal(code: string): boolean { return /^[A-Z]{4}$/.test(code.toUpperCase()); }
 
 // Send a command to the controller's EuroScope. Returns an error message, or the command id as a number.
 export async function queueCommand(body: Record<string, string | number>): Promise<string | number> {

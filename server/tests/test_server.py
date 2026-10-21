@@ -286,7 +286,7 @@ class EditTests(unittest.TestCase):
     def test_edit_validates(self):
         ck = self.login()
         self.post_plugin("VAL1", 350)
-        for bad in ({"level": 5000}, {"mach": 0}, {"track": "A1"}, {"selcal": "AINO"}, {}):
+        for bad in ({"level": 5000}, {"mach": 0}, {"track": "A1"}, {"selcal": "AB1"}, {}):
             self.assertEqual(self.call("/EditFlight", dict(bad, callsign="VAL1"), ck)[0], 400, bad)
         self.assertEqual(self.call("/EditFlight", {"callsign": "NOPE9", "level": 350}, ck)[0], 404)
 

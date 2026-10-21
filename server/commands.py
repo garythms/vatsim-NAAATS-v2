@@ -15,7 +15,7 @@ import time
 TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg")   # last three are typed into EuroScope by the plugin (autotype=1)
 TTL_SECONDS = 300          # an unclaimed command is dropped after this
 KEEP_SECONDS = 600         # finished commands stay readable this long
-SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
+SELCAL_OK = re.compile(r"[A-Z]{4}")
 CALLSIGN_OK = re.compile(r"[A-Z0-9_\-]{2,12}")
 
 
@@ -44,7 +44,7 @@ def clean_command(body):
             return None, None, None, "Mach must be e.g. 84 for M0.84"
         sel = re.sub(r"[-\s]", "", str(body.get("selcal", "")).upper())
         if sel and not SELCAL_OK.fullmatch(sel):
-            return None, None, None, "SELCAL must be 4 letters from A-H, J-M, P-S"
+            return None, None, None, "SELCAL must be 4 letters, like ABCD"
         args = {"level": level, "mach": mach, "selcal": sel}
     elif typ == "transfer":
         target = str(body.get("target", "")).strip().upper()
@@ -55,7 +55,7 @@ def clean_command(body):
     elif typ == "selcal":
         sel = re.sub(r"[-\s]", "", str(body.get("selcal", "")).upper())
         if not SELCAL_OK.fullmatch(sel):
-            return None, None, None, "SELCAL must be 4 letters from A-H, J-M, P-S"
+            return None, None, None, "SELCAL must be 4 letters, like ABCD"
         args = {"text": ".selcal " + sel}
     elif typ == "contactme":
         args = {"text": ".contactme " + cs}

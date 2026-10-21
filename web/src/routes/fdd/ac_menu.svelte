@@ -73,7 +73,7 @@
   }
 
   function track(): void {
-    if (selcal && !m.validSelcal(selcal)) { note = "✖ SELCAL is 4 letters (A-H, J-M, P-S)"; return; }
+    if (selcal && !m.validSelcal(selcal)) { note = "✖ SELCAL must be 4 letters, like ABCD"; return; }
     send({ type: "track", level, mach, selcal: selcal.toUpperCase() });
   }
   function untrack(): void {
@@ -86,7 +86,7 @@
     send({ type: "transfer", target: c.callsign, freq: c.frequency });
   }
   async function saveSelcal(): Promise<void> {
-    if (!m.validSelcal(selcal)) { note = "✖ SELCAL is 4 letters (A-H, J-M, P-S)"; return; }
+    if (!m.validSelcal(selcal)) { note = "✖ SELCAL must be 4 letters, like ABCD"; return; }
     const e = await sess.editFlight($menuCallsign, { selcal: selcal.toUpperCase() });
     note = e ? "✖ " + e : "✔ SELCAL saved";
   }
