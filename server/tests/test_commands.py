@@ -11,7 +11,7 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(cm.clean_command({"type": "track", "callsign": "BAW123", "level": "350", "mach": "200"})[2]["mach"], 200)
         for bad in ({"type": "track", "callsign": "BAW123", "level": "0", "mach": "84"},
                     {"type": "track", "callsign": "BAW123", "level": "350", "mach": "0"},
-                    {"type": "track", "callsign": "BAW123", "level": "350", "mach": "84", "selcal": "AB1"},
+                    {"type": "track", "callsign": "BAW123", "level": "350", "mach": "84", "selcal": "AINO"},
                     {"type": "nuke", "callsign": "BAW123"}, {"type": "untrack", "callsign": "bad callsign"},
                     {"type": "transfer", "callsign": "BAW123", "target": ""}):
             self.assertIsNotNone(cm.clean_command(bad)[3], bad)
@@ -176,6 +176,6 @@ class TypedCommandTests(unittest.TestCase):
         import commands as c
         self.assertEqual(c.clean_command({"type": "contactme", "callsign": "baw1"})[2], {"text": ".contactme BAW1"})
         self.assertEqual(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "ab-cd"})[2], {"text": ".selcal ABCD"})
-        self.assertIsNotNone(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "ABC1"})[3])
+        self.assertIsNotNone(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "APPW"})[3])
         t = c.clean_command({"type": "natmsg", "callsign": "BAW1"})[2]["text"]
         self.assertTrue(t.startswith(".msg BAW1 Hello, you will soon be entering oceanic airspace."))

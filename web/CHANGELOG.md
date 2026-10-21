@@ -3,7 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 0.9.2 - 2026-10-21
-- SELCAL accepts any four letters (like ABCD or APPW). It was wrongly refusing codes using letters outside the usual SELCAL set.
+- SELCAL is checked against the 16 SELCAL letters (A-H, J-M, P-S). A red warning in the menu says which letters are not allowed, e.g. "SELCAL cannot use W".
 
 ## 0.9.0 - 2026-10-21
 - "Send" buttons for SELCAL test, Contact me and the natTrak message: the plugin (1.5b4, with `autotype=1` in vnaaats.cfg) brings EuroScope to the front and types the command into its command line. If that is switched off or Windows refuses, the command is copied instead and the menu says so. Supervisor stays copy-and-paste.

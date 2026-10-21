@@ -64,7 +64,7 @@ SESSION_COOKIE = "vnaaats_session"
 SESSION_SECONDS = 12 * 3600
 DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS,OBSERVER"
 EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
-SELCAL_OK = re.compile(r"[A-Z]{4}")
+SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
 
 
 # ----------------------------------------------------------------------------- fixes
@@ -797,7 +797,7 @@ def validate_edit(body):
     if "selcal" in body:
         sc = re.sub(r"[-\s]", "", str(body["selcal"]).upper())
         if sc and not SELCAL_OK.fullmatch(sc):
-            return None, "SELCAL must be 4 letters, like ABCD"
+            return None, "SELCAL must be 4 letters from A-H, J-M, P-S (no I, N, O, T-Z), like ABCD"
         changes["selcal"] = sc
     if not changes:
         return None, "nothing to change"

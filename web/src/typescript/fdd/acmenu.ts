@@ -44,7 +44,14 @@ export function wallopCommand(callsign: string, text: string): string {
   const t = text.trim().replace(/"/g, "'");
   return ".wallop " + callsign + " " + (t.indexOf(" ") >= 0 ? '"' + t + '"' : t);
 }
-export function validSelcal(code: string): boolean { return /^[A-Z]{4}$/.test(code.toUpperCase()); }
+export function validSelcal(code: string): boolean { return /^[A-HJ-MP-S]{4}$/.test(code.toUpperCase()); }
+// Why a SELCAL code is not valid ("" if it is). Valid letters: A-H, J-M, P-S.
+export function selcalProblem(code: string): string {
+  const c = code.toUpperCase().replace(/[-\s]/g, "");
+  if (c.length !== 4) return "SELCAL must be exactly 4 letters, like ABCD";
+  const bad = [...new Set(c.split("").filter((ch) => !/[A-HJ-MP-S]/.test(ch)))];
+  return bad.length ? "SELCAL cannot use " + bad.join(", ") + " - only A-H, J-M and P-S are used (no I, N, O or T-Z)" : "";
+}
 
 // Send a command to the controller's EuroScope. Returns an error message, or the command id as a number.
 export async function queueCommand(body: Record<string, string | number>): Promise<string | number> {

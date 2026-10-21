@@ -22,6 +22,7 @@
   let wallopText: string = "";
   let ac: any = null;
 
+  $: selcalWarn = selcal ? m.selcalProblem(selcal) : "";
   $: canEdit = sess.canEdit($session);
   $: if ($menuCallsign !== lastCs) { lastCs = $menuCallsign; if ($menuCallsign) openFor($menuCallsign); }
 
@@ -73,7 +74,7 @@
   }
 
   function track(): void {
-    if (selcal && !m.validSelcal(selcal)) { note = "✖ SELCAL must be 4 letters, like ABCD"; return; }
+    if (selcal && !m.validSelcal(selcal)) { note = "✖ " + m.selcalProblem(selcal); return; }
     send({ type: "track", level, mach, selcal: selcal.toUpperCase() });
   }
   function untrack(): void {
@@ -86,7 +87,7 @@
     send({ type: "transfer", target: c.callsign, freq: c.frequency });
   }
   async function saveSelcal(): Promise<void> {
-    if (!m.validSelcal(selcal)) { note = "✖ SELCAL must be 4 letters, like ABCD"; return; }
+    if (!m.validSelcal(selcal)) { note = "✖ " + m.selcalProblem(selcal); return; }
     const e = await sess.editFlight($menuCallsign, { selcal: selcal.toUpperCase() });
     note = e ? "✖ " + e : "✔ SELCAL saved";
   }
@@ -180,6 +181,9 @@
           {/if}
         {/if}
 
+        {#if selcalWarn && (tab === "track" || tab === "selcal")}
+          <div class="mt-3 p-1 text-sm text-white bg-red-700 border border-red-300">{selcalWarn}</div>
+        {/if}
         {#if copied}
           <div class="mt-3 p-2 border-2 border-yellow-300 bg-blue-1 text-sm">
             <div class="font-bold text-yellow-300">Message copied</div>
