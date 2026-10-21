@@ -4,7 +4,7 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 
 ## 0.9.8 - 2026-10-21
 - Headset icon: aircraft that are online but not on any controller or UNICOM now show a red crossed-out headset ("Not tracked by any controller").
-- Transfer list only offers the stations in the TopSky list (topsky_cpdlc.txt), not every controller online. Needs server 0.11.1.
+- Transfer list only offers the stations in the TopSky list (topsky_cpdlc.txt), not every controller online. Needs server 0.11.1. With none online the Transfer tab says "No adjacent ATC - Send to UNICOM".
 
 ## 0.9.7 - 2026-10-21
 - Headset icon now shows who the pilot is talking to, taken from the VATSIM radio frequency they have tuned: bold green = oceanic controller, faded green = domestic controller, orange = UNICOM 122.800. Hover shows e.g. "Tracked by NAT_FSS (133.500)". If VATSIM has no radio info it falls back to who is tracking the aircraft in EuroScope. Needs server 0.11.0.
