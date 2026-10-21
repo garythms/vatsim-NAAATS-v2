@@ -56,7 +56,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.9.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.9.2"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -511,6 +511,13 @@ class NetworkTraffic:
         self.positions = {}      # callsign -> (lat, lon) for every pilot on the network (used by the CPDLC 250 nm logon rule)
         self.controllers = []    # online ATC that aircraft can be transferred to: [{callsign, frequency, name, facility}]
 
+    def is_offline(self, callsign):
+        """True only when the feed is healthy (recent, has pilots) and this callsign is not in it. None if we cannot tell."""
+        with self.lock:
+            if not self.positions or not self.updated or time.time() - self.updated > 600:
+                return None
+            return (callsign or "").upper() not in self.positions
+
     def position(self, callsign):
         with self.lock:
             return self.positions.get((callsign or "").upper())
@@ -776,6 +783,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec = dict(rec)
         rec["cpdlc"] = bool(cpdlc and cpdlc.is_connected(rec.get("callsign", "")))
         rec["cpdlcRelease"] = bool(cpdlc and cpdlc.released(rec.get("callsign", "")))   # tell the plugin to release the tag (after UNICOM)
+        rec["offline"] = network.is_offline(rec.get("callsign", "")) if network else None
         rec["distNm"] = route_distance_nm(rec.get("route", ""), network.position(rec.get("callsign", "")) if network else None, cache.fixes)
         if is_conc(rec.get("type", "")):
             rec["posReports"] = store.pos_get(rec.get("callsign", ""))

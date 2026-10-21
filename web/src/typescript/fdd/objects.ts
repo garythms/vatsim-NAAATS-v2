@@ -25,6 +25,7 @@ export type Aircraft = {
   LastUpdated: number;
   Cpdlc: boolean; // connected to the CPDLC station
   DistNm: number | null; // nm from the pilot to the nearest route fix (VATSIM feed), null if unknown
+  Offline: boolean | null; // true = the VATSIM feed is working and this pilot is not on it
   Entry: string; // first and last named/lat-lon point of the route in flight order (before any display reversal)
   Exit: string;
   EntryEta: number; // minutes since midnight at the first route point, -1 if unknown

@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.7.4 - 2026-10-21
+- Flights whose pilot is no longer on the VATSIM network are hidden (when the VATSIM feed is working). The selected flight, CPDLC-connected flights and pending natTrak requests still show. If the feed is unavailable, nothing is hidden for this reason.
+
 ## 0.7.3 - 2026-10-21
 - Flights with no times at all are now judged by where the pilot is (live VATSIM position): they only show when within 200 nm of a fix on their route. If the pilot's position is not known they still show. (Server 0.9.1 sends the distance.)
 

@@ -135,3 +135,15 @@ class DistanceTests(unittest.TestCase):
         self.assertTrue(150 < d < 200, d)                      # ~5 degrees of longitude at 52N, nearest fix 52/40 or 52/50
         self.assertIsNone(s.route_distance_nm("52/50", None, fixes))
         self.assertIsNone(s.route_distance_nm("ZZZZZ", (52.0, -45.0), fixes))
+
+
+class OfflineTests(unittest.TestCase):
+    def test_offline(self):
+        import vnaaats_server as s, time
+        n = s.NetworkTraffic(None, "off", None)
+        self.assertIsNone(n.is_offline("BAW1"))            # no feed yet: cannot tell
+        n.positions, n.updated = {"BAW1": (50.0, -10.0)}, time.time()
+        self.assertFalse(n.is_offline("baw1"))
+        self.assertTrue(n.is_offline("GONE9"))
+        n.updated = time.time() - 4000                     # stale feed: cannot tell
+        self.assertIsNone(n.is_offline("GONE9"))

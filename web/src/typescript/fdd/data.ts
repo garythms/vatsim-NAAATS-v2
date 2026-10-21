@@ -38,6 +38,7 @@ interface JsonAcObj {
   source?: string;
   cpdlc?: boolean;
   distNm?: number | null;
+  offline?: boolean | null;
   posReports?: Record<string, { est: string; act: string; by: string; at: string }>;
   updatedBy?: string;
   updatedAt?: string;
@@ -319,6 +320,7 @@ export async function populateAllAircraft() : Promise<void> {
             Source: objArr[i]?.source ?? "plugin",
             Cpdlc: objArr[i]?.cpdlc ?? false,
             DistNm: objArr[i]?.distNm ?? null,
+            Offline: objArr[i]?.offline ?? null,
             Entry: routePoints[0] ?? "",
             Exit: routePoints[routePoints.length - 1] ?? "",
             EntryEta: etaMinutes(routeEtas),
@@ -602,6 +604,7 @@ export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): bo
   if (asel != null && asel.Callsign === ac.Callsign) return true;
   if (ac.Cpdlc) return true;
   if (natTrakData.get(ac.Callsign.toUpperCase())?.status === "PENDING") return true;
+  if (ac.Offline === true) return false;     // not on the VATSIM network any more
   const sp = etaSpan(ac);
   // No times at all: use how far the pilot is from the route (VATSIM feed). Unknown position = show.
   if (!sp) return ac.DistNm == null || ac.DistNm <= NO_TIME_RANGE_NM;
