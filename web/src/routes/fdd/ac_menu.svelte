@@ -139,7 +139,7 @@
           <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={untrack}>Untrack aircraft</button>
         {:else if tab === "transfer"}
           {#if controllers.length === 0}
-            <div class="text-sm opacity-80">No online controllers found.</div>
+            <div class="text-sm opacity-80">No transfer stations online.</div>
           {:else}
             <select class="w-full px-1 py-0.5 text-black mb-3" bind:value={pickedCtrl}>
               <option value="">Choose controller</option>

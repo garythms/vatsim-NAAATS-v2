@@ -158,10 +158,21 @@ class CommTests(unittest.TestCase):
         self.assertEqual(n.comm_for("a1")["kind"], "oceanic")
         self.assertEqual(n.comm_for("B2")["by"], "EGTT_CTR")
         self.assertEqual(n.comm_for("C3")["kind"], "unicom")
-        self.assertIsNone(n.comm_for("D4"))
+        self.assertIsNone(n.comm_for("D4"))                   # online status unknown: no verdict
+        n.positions = {"D4": (50.0, -20.0)}
+        self.assertEqual(n.comm_for("D4")["kind"], "none")    # online, tuned to nobody: not tracked
         self.assertIsNone(n.comm_for("NOPE"))
         n.refresh_transceivers(lambda: [{"callsign": "E5", "transceivers": [{"frequency": 133500000}, {"frequency": 133500000}]}])
         self.assertEqual(n.comm_for("E5")["by"], "CZQO_CTR")
+
+
+class StationListTests(unittest.TestCase):
+    def test_listed(self):
+        import cpdlc as c
+        for cs in ("NAT_FSS", "CZQO_CTR", "EGTT_CTR", "EISN_CTR", "EGPX_N_CTR", "KZNY_CTR", "LPPO_FSS"):
+            self.assertTrue(c.station_listed(cs), cs)
+        for cs in ("EGLL_TWR", "EGKK_APP", "KJFK_GND", ""):
+            self.assertFalse(c.station_listed(cs), cs)
 
 
 class NatTrakReminderTests(unittest.TestCase):

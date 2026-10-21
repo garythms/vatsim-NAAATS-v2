@@ -28,6 +28,7 @@
   $: radio = radioInfo(comm, trackedBy);
   function radioInfo(c: { kind: string; by: string; freq: string } | null, tb: string) {
     let kind = c?.kind ?? "", by = c?.by ?? "", freq = c?.freq ?? "";
+    if (kind === "none") kind = "";
     if (!kind && tb && tb !== "NATTRAK") {
       by = tb;
       kind = /^(CZQO|CZQX|EGGX|NAT|BIRD|KZWY|LPPO|ENOB)/i.test(tb) ? "oceanic" : "domestic";
@@ -35,6 +36,7 @@
     if (kind === "oceanic") return { tip: "Tracked by " + by + (freq ? " (" + freq + ")" : ""), color: "#15803d", opacity: 1, bold: 1.2 };
     if (kind === "domestic") return { tip: "Tracked by " + by + (freq ? " (" + freq + ")" : "") + " - domestic", color: "#16a34a", opacity: 0.5, bold: 0 };
     if (kind === "unicom") return { tip: "On UNICOM 122.800", color: "#c2410c", opacity: 1, bold: 0.6 };
+    if (c?.kind === "none") return { tip: "Not tracked by any controller (not on UNICOM either)", color: "#dc2626", opacity: 1, bold: 0, none: true };
     return null;
   }
   export let ntSent: boolean = false;    // natTrak reminder sent: red star
@@ -112,7 +114,7 @@
           </span>
         {:else if radio}
           <span title={radio.tip} class="inline-flex" style={"color: " + radio.color + "; opacity: " + radio.opacity + ";"} aria-label={radio.tip}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width={radio.bold}><path d="M12 2a9 9 0 0 0-9 9v7a3 3 0 0 0 3 3h1v-8H5v-2a7 7 0 0 1 14 0v2h-2v8h2v1a2 2 0 0 1-2 2h-3v2h3a4 4 0 0 0 4-4V11a9 9 0 0 0-9-9z" /></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" stroke="currentColor" stroke-width={radio.bold}><path d="M12 2a9 9 0 0 0-9 9v7a3 3 0 0 0 3 3h1v-8H5v-2a7 7 0 0 1 14 0v2h-2v8h2v1a2 2 0 0 1-2 2h-3v2h3a4 4 0 0 0 4-4V11a9 9 0 0 0-9-9z" />{#if radio.none}<path d="M3 3 21 21" stroke="currentColor" stroke-width="2.4" fill="none" />{/if}</svg>
           </span>
         {/if}
     </div>

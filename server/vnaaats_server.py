@@ -56,7 +56,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.11.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.11.1"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -574,6 +574,8 @@ class NetworkTraffic:
                     return {"kind": "oceanic" if by.startswith(OCEANIC_PREFIXES) else "domestic", "by": by, "freq": f}
             if "122.800" in freqs:
                 return {"kind": "unicom", "by": "UNICOM", "freq": "122.800"}
+            if (callsign or "").upper() in self.positions:      # online and tuned to nobody we know: not tracked by anyone
+                return {"kind": "none", "by": "", "freq": ""}
         return None
 
     def refresh_transceivers(self, fetch=None):
@@ -1123,7 +1125,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if not network:
                         return self._send(200, [])
                     with network.lock:
-                        return self._send(200, list(network.controllers))
+                        return self._send(200, [c for c in network.controllers if cpdlc_mod.station_listed(c["callsign"])])
                 if p == "/PluginCommands":                    # polled by the plugin
                     if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
                         return self._send(401, {"error": "bad key"})

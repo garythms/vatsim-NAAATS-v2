@@ -98,6 +98,12 @@ def station_display_name(callsign):
     return friendly_name(cs) if cs else ""
 
 
+def station_listed(callsign):
+    """True if this controller callsign is one of the stations in topsky_cpdlc.txt (the only ones aircraft are transferred to)."""
+    prefix = (callsign or "").strip().upper().split("_")[0]
+    return CALLSIGN_ALIASES.get(prefix, prefix) in STATION_NAMES or prefix in STATION_SHORT
+
+
 def nm_between(lat1, lon1, lat2, lon2):
     """Great circle distance in nautical miles."""
     p1, p2 = math.radians(lat1), math.radians(lat2)
