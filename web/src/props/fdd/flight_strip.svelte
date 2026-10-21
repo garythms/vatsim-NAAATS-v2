@@ -21,6 +21,7 @@
   //export let state: string;
   //export let relevant: boolean;
   export let trackedBy: string;
+  export let cols: number = 6;          // number of fix columns in the list (same for every row so everything lines up)
   export let ntSent: boolean = false;    // natTrak reminder sent: red star
   export let cpdlc: boolean = false;      // connected to CPDLC: callsign shown as [BAW123]
   export let cpdlcAlert: boolean = false; // unread CPDLC message: flash
@@ -67,46 +68,29 @@
       on:mousedown={stripMouseDown}
       on:mouseup={stripMouseUp}
       on:mouseleave={stripMouseUp}>
-      <div class="flex flex-row justify-start items-center w-full">
-        <div class="w-1/7 flex-shrink-0" />
-        <div class="flex flex-row flex-1 min-w-0 overflow-hidden">
-          <div style="width: 14.8rem; flex-shrink: 0;" />
-          {#each route as rte}
-            <div style="width: 4.6rem; flex-shrink: 0;" class="select-none hover:cursor-default whitespace-nowrap overflow-hidden">
-              {rte}
-            </div>
-          {/each}
-        </div>
+      <div class="strip-grid w-full" style="--cols: {cols};">
+        <div style="grid-column: 1 / span 4;" />
+        {#each route as rte}
+          <div class="select-none hover:cursor-default whitespace-nowrap overflow-hidden">{rte}</div>
+        {/each}
       </div>
     </div>
   {/if}
-  <div class="flex flex-row items-center w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert || cpdlcAlert || concOverdue ? 'nt-flash' : ''} text-black hover:cursor-default"
+  <div class="strip-grid w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert || cpdlcAlert || concOverdue ? 'nt-flash' : ''} text-black hover:cursor-default" style="--cols: {cols};"
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
-    <div class="flex flex-row w-1/7 flex-shrink-0 px-2 hover:cursor-pointer select-none" title="Click for the aircraft menu" on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); menuCallsign.set(callsign); }}>
+    <div class="flex flex-row items-center whitespace-nowrap overflow-hidden pl-2 hover:cursor-pointer select-none" title="Click for the aircraft menu" on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); menuCallsign.set(callsign); }}>
       {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if ntSent}<span class="text-red-600 font-bold pl-0.5" style="font-size: 1.5em; line-height: 0.6;" title="natTrak reminder sent to the pilot">*</span>{/if}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
-    <div class="flex flex-row flex-1 min-w-0 overflow-hidden hover:cursor-default select-none">
-      <!-- columns: dep/arr 8rem, level 3rem, Mach 3.8rem, then each ETA 4.6rem (the header row in fdd.svelte uses the same widths) -->
-      <div class="whitespace-nowrap overflow-hidden pr-1" style="width: 8rem; flex-shrink: 0; font-size: 0.88em;">
-        {departure}/{arrival}
-      </div>
-      <div style="width: 3rem; flex-shrink: 0;">
-        {assignedLevel}
-      </div>
-      <div style="width: 3.8rem; flex-shrink: 0;">
-        {assignedMach > 0 ? "M" + String(assignedMach).padStart(3, "0") : ""}
-      </div>
-      {#each routeEtas as eta}
-        <div style="width: 4.6rem; flex-shrink: 0;">
-          {eta != "--" ? eta : "\xa0\xa0\xa0\xa0"}
-        </div>
-      {/each}
-    </div>
-    <div class="flex flex-row items-center justify-end flex-shrink-0 select-none hover:cursor-default" style="width: 6.5rem;">
-      <div style="width: 3.6rem;" class="whitespace-nowrap">{type}</div>
-      <div style="width: 2rem;" class="flex items-center justify-center">
+    <div class="whitespace-nowrap overflow-hidden select-none" style="font-size: 0.88em;">{departure}/{arrival}</div>
+    <div class="select-none">{assignedLevel}</div>
+    <div class="select-none">{assignedMach > 0 ? "M" + String(assignedMach).padStart(3, "0") : ""}</div>
+    {#each Array(cols) as _, i}
+      <div class="select-none">{routeEtas[i] !== undefined && routeEtas[i] != "--" ? routeEtas[i] : ""}</div>
+    {/each}
+    <div class="whitespace-nowrap select-none">{type}</div>
+    <div class="flex items-center justify-center select-none">
         {#if trackedBy === "NATTRAK"}
           <span title={clearanceTip} class="inline-flex" aria-label="Clearance processed on natTrak">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 3h-4.2A3 3 0 0 0 12 1a3 3 0 0 0-2.8 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-2 14-4-4 1.4-1.4L10 14.2l6.6-6.6L18 9z" /></svg>
@@ -116,7 +100,15 @@
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 2a9 9 0 0 0-9 9v7a3 3 0 0 0 3 3h1v-8H5v-2a7 7 0 0 1 14 0v2h-2v8h2v1a2 2 0 0 1-2 2h-3v2h3a4 4 0 0 0 4-4V11a9 9 0 0 0-9-9z" /></svg>
           </span>
         {/if}
-      </div>
     </div>
   </div>
 </div>
+<style>
+  /* One grid for every strip and the header rows, so the columns always line up and scale with the list font.
+     Columns: callsign, dep/arr, level, Mach, <cols> fix times, aircraft type, tracking icon. */
+  :global(.strip-grid) {
+    display: grid;
+    grid-template-columns: 7.4em 5.8em 2.5em 3.2em repeat(var(--cols, 6), minmax(2.9em, 1fr)) 3.2em 1.8em;
+    align-items: center;
+  }
+</style>

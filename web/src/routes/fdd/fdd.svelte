@@ -102,6 +102,8 @@
   }
   $: groups = buildGroups(tickN, windowMode, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy);
   $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) n++; })); return n; })() : 0;
+  // Number of fix columns: the longest route among the shown flights and track headers, so every row lines up
+  $: cols = Math.min(10, Math.max(5, ...groups.map((g) => Math.max(g.track && g.track !== "RR" ? (dataHandler.currentNatTracks.get(g.track)?.Route.length ?? 0) : 0, ...g.rows.map((r: any) => r.RouteEtas.length)))));
   $: shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
   $: concOverdueN = dataHandler.concOverdueList().length + 0 * tickN;
   $: conflictCount = [...dataHandler.conflicts.keys()].length + 0 * tickN;
@@ -359,26 +361,20 @@
       </div>
     {:else}
       {#each groups as g (g.key)}
-        <div class="flex flex-row justify-start w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
-          <div class="w-1/7 flex-shrink-0 px-3">
-            {g.label}
-          </div>
-          <div class="flex flex-row flex-1 min-w-0 overflow-hidden justify-start">
-            <div style="width: 14.8rem; flex-shrink: 0;" />
-            {#if g.track == "RR" || g.track == ""}
-              <div class="whitespace-nowrap">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
-            {:else}
-              {#each dataHandler.currentNatTracks.get(g.track).Route as waypoint}
-                <div style="width: 4.6rem; flex-shrink: 0;" class="whitespace-nowrap overflow-hidden">
-                  {waypoint.name}
-                </div>
-              {/each}
-            {/if}
-          </div>
-          <div class="flex-shrink-0" style="width: 6.5rem;" />
+        <div class="strip-grid w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default" style="--cols: {cols};">
+          <div class="px-3 whitespace-nowrap">{g.label}</div>
+          {#if g.track == "RR" || g.track == ""}
+            <div class="whitespace-nowrap" style="grid-column: 4 / span 4;">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
+          {:else}
+            <div style="grid-column: 2 / span 3;" />
+            {#each dataHandler.currentNatTracks.get(g.track).Route as waypoint}
+              <div class="whitespace-nowrap overflow-hidden">{waypoint.name}</div>
+            {/each}
+          {/if}
         </div>
         {#each g.rows as ac (ac.Callsign)}
           <FlightStrip 
+            cols={cols}
             callsign={ac.Callsign}
             type={ac.Type}
             assignedLevel={ac.AssignedLevel}
