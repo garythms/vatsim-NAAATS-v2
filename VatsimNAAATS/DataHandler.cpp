@@ -93,7 +93,7 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
 		if (FAILED(hr)) {
 			int code = (int)hr;
 			// Show user message
-			plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to fetch version info. Code: ") + to_string(code), true, true, true, true, true);
+			plugin->DisplayUserMessage("vNAAATS", "Error", (string("Failed to fetch version info. Code: ") + to_string(code)).c_str(), true, true, true, true, true);
 			// Clogger
 			CLogger::Log(CLogType::ERR, string("Could not fetch version info. Code: ") + to_string(code), "CDataHandler::CheckPluginVersion");
 			return -1;
@@ -150,7 +150,7 @@ int CDataHandler::PopulateLatestTrackData(CPlugIn* plugin) {
 		if (FAILED(hr)) {
 			int code = (int)hr;
 			// Show user message
-			plugin->DisplayUserMessage("vNAAATS", "Error", string("Track data download failed. Code: ") + to_string(code), true, true, true, true, true);
+			plugin->DisplayUserMessage("vNAAATS", "Error", (string("Track data download failed. Code: ") + to_string(code)).c_str(), true, true, true, true, true);
 			// Clogger
 			CLogger::Log(CLogType::ERR, string("Could not connect to tracks API. Code: ") + to_string(code), "CDataHandler::PopulateLatestTrackData");
 			return 1;
@@ -259,7 +259,7 @@ int CDataHandler::GetTrackSource(CPlugIn* plugin) {
 		if (FAILED(hr)) {
 			int code = (int)hr;
 			// Show user message
-			plugin->DisplayUserMessage("vNAAATS", "Error", string("Track source retrieval failed. Code: ") + to_string(code), true, true, true, true, true);
+			plugin->DisplayUserMessage("vNAAATS", "Error", (string("Track source retrieval failed. Code: ") + to_string(code)).c_str(), true, true, true, true, true);
 			// Clogger
 			CLogger::Log(CLogType::ERR, string("Could not connect to the vNAAATS network. Code: ") + to_string(code), "CDataHandler::GetTrackSource");
 			return 1;
