@@ -1,4 +1,4 @@
-vNAAATS V2 plugin - BETA 1.4b2 (testers)
+vNAAATS V2 plugin - BETA 1.4b3 (testers)
 =========================================
 
 INSTALL
@@ -13,7 +13,11 @@ INSTALL
 5. Start EuroScope > Other SET > Plug-ins > Load, pick VatsimNAAATS.dll.
 6. If it will not load, install the Microsoft Visual C++ 2015-2022 Redistributable (x86).
 
-NEW IN 1.4b2
+NEW IN 1.4b3
+- CPDLC handoff: when you hand an aircraft that is on CPDLC to another controller (flight plan window > Co-ordination / Active Authorities > Transfer), the pilot is sent "CONTACT <station name> ON <frequency>, BYE." and is logged off CPDLC when they reply WILCO/ROGER.
+- UNICOM (button in the FDD CPDLC drawer): the pilot is told there is no further ATC, logged off when they reply, and the tag is released in EuroScope.
+
+ALSO IN 1.4b2
 - Radar targets are now aircraft icons (pointing along the heading) instead of stars and diamonds. Filled = cleared, outline = not cleared yet.
 
 ALSO IN 1.4b1

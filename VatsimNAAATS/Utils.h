@@ -150,6 +150,8 @@ class CUtils { // TODO: refactor into namespace
 			string Callsign;
 			CPlugIn* plugin = nullptr;
 			CNetworkFlightPlan* FP = nullptr;
+			string Target; // CPDLC handoff: controller callsign being handed to
+			string Freq;   // CPDLC handoff: their frequency, e.g. 127.500
 		};
 
 		// DLL path

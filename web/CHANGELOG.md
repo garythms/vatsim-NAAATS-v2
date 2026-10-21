@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.5.0 - 2026-10-21
+- CPDLC sound for messages from pilots (your own sound file), instead of the beep.
+- "Standard messages..." list in the CPDLC drawer (the TopSky list) and a UNICOM button (asks to confirm): sends "THERE IS NO FURTHER ATC AVAILABLE. SERVICE TERMINATED. MONITOR ADVISORY ON 122.800", logs the pilot off when they answer WILCO/ROGER and releases the tag in EuroScope.
+
 ## 0.4.0 - 2026-10-21
 - New page /beta: always links the newest plugin beta download, with install steps. Homepage has a "Download plugin beta" button.
 - CPDLC: aircraft connected to CPDLC show their callsign in brackets, e.g. [BAW123], on the strip and in the flight plan panel.

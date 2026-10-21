@@ -38,6 +38,33 @@ export type CpdlcMessage = {
 export const cpdlcStatus = writable<CpdlcStatus>({ enabled: false, connected: [], unread: {} });
 export const cpdlcOpen = writable<boolean>(false);
 export const cpdlcPick = writable<string>("");     // callsign chosen in the panel
+export type Freetext = { ra: string; text: string };
+export const cpdlcFreetexts = writable<Freetext[]>([]);   // standard messages from the server (TopSky list)
+
+let cpdlcAudio: HTMLAudioElement | null = null;
+// The sound for a message from a pilot (static/cpdlc.wav). Respects the FDD sound switch.
+export function playCpdlcSound(): void {
+  if (!dataHandler.soundOn) return;
+  try {
+    cpdlcAudio = cpdlcAudio ?? new Audio("/cpdlc.wav");
+    cpdlcAudio.currentTime = 0;
+    const p = cpdlcAudio.play();
+    if (p && p.catch) p.catch(() => dataHandler.playPing());   // autoplay blocked: fall back to the beep
+  } catch (e) { /* no audio */ }
+}
+
+export async function loadFreetexts(): Promise<void> {
+  try {
+    const r = await fetch(apiBase + "/cpdlc/templates", { credentials: "same-origin" });
+    if (r.ok) cpdlcFreetexts.set(await r.json());
+  } catch (e) { /* keep the built-in buttons */ }
+}
+
+export async function sendUnicom(callsign: string): Promise<string> {
+  const r = await post("/cpdlc/unicom", { callsign });
+  if (r.ok) { refreshCpdlc(); return ""; }
+  return r.data.error ?? "UNICOM message failed";
+}
 
 let prevUnread: number = -1;     // -1 until the first answer, so old messages do not ping on page load
 let timer: any = null;
@@ -53,7 +80,7 @@ export async function refreshCpdlc(): Promise<void> {
     const s: CpdlcStatus = await r.json();
     cpdlcStatus.set(s);
     const total = unreadTotal(s);
-    if (prevUnread >= 0 && total > prevUnread && dataHandler.soundOn) dataHandler.playPing();
+    if (prevUnread >= 0 && total > prevUnread) playCpdlcSound();
     prevUnread = total;
   } catch (e) { /* offline: keep what we have */ }
 }
@@ -61,6 +88,7 @@ export async function refreshCpdlc(): Promise<void> {
 export function startCpdlcPolling(): void {
   if (timer) return;
   refreshCpdlc();
+  loadFreetexts();
   timer = setInterval(refreshCpdlc, 4000);
 }
 

@@ -295,6 +295,7 @@ struct CNetworkFlightPlan {
 	string TrackedById;
 	string LastUpdated;
 	bool Cpdlc = false; // connected to the CPDLC station on the server
+	bool CpdlcRelease = false; // server asks to release the tag (pilot sent to UNICOM)
 };
 
 struct CAircraftFlightPlan {
@@ -370,6 +371,8 @@ struct CAircraftFlightPlan {
 	bool IsValid = false;
 	bool IsRelevant = true;
 	bool CpdlcConnected = false; // show [CALLSIGN] on the radar tag
+	bool ReleaseRequested = false; // release the tag on the next draw (set after UNICOM)
+	bool ReleaseHandled = false;   // the current server release request has been acted on
 	bool WindowRefresh = false; // server changed level/speed/track/SELCAL: refresh the open flight plan window
 	bool SelcalManual = false; // SELCAL typed in by the controller: do not overwrite from remarks
 	bool IsFirstUpdate = false; // So that we can disable flight plan window until the plan has been fetched from server at least once

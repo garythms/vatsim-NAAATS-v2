@@ -2929,6 +2929,24 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 			try {
 				CLogger::Log(CLogType::NORM, "Initiating handoff of aircraft " + primedPlan->Callsign + " to station " + selectedAuthority + ".", "CRadarDisplay::OnRefresh");
 				screen->GetPlugIn()->FlightPlanSelect(primedPlan->Callsign.c_str()).InitiateHandoff(selectedAuthority.c_str());
+
+				// On CPDLC? Then the server tells the pilot "CONTACT <station> ON <frequency>, BYE." and logs them off when they reply
+				if (primedPlan->CpdlcConnected) {
+					string freq = "";
+					auto ctrl = onlineControllers.find(selectedAuthority);
+					if (ctrl != onlineControllers.end()) {
+						char buf[16];
+						snprintf(buf, sizeof(buf), "%.3f", ctrl->second.GetPrimaryFrequency());
+						freq = buf;
+					}
+					CUtils::CNetworkAsyncData* hd = new CUtils::CNetworkAsyncData();
+					hd->Screen = screen;
+					hd->Callsign = primedPlan->Callsign;
+					hd->Target = selectedAuthority;
+					hd->Freq = freq;
+					hd->plugin = screen->GetPlugIn();
+					_beginthread(CDataHandler::PostCpdlcHandoff, 0, (void*)hd); // Async
+				}
 				SetButtonState(BTN_XCHANGE_TRANSFER, CInputState::DISABLED);
 				windowButtons[BTN_XCHANGE_TRACK].Label = "Track";
 				selectedAuthority = "";

@@ -49,6 +49,12 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 	// Aircraft position
 	CPosition position = target->GetPosition().GetPosition();
 
+	// After UNICOM + logoff the server asks for the tag to be released
+	if (acFP->ReleaseRequested) {
+		acFP->ReleaseRequested = false;
+		if (fp.GetTrackingControllerIsMe()) fp.EndTracking();
+	}
+
 	// Save context for later
 	int sDC = dc->SaveDC();
 

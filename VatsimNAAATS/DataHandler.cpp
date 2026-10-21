@@ -22,6 +22,7 @@ string CDataHandler::TrackSource = DEFAULT_SERVER + "/GetTrackSource";
 string CDataHandler::GetSingleAircraft = DEFAULT_SERVER + "/GetSingleFlightData?callsign=";
 string CDataHandler::PostSingleAircraft = DEFAULT_SERVER + "/PostFlightData?code=";
 string CDataHandler::FlightDataUpdate = DEFAULT_SERVER + "/UpdateFlightData?code=";
+string CDataHandler::CpdlcHandoffUrl = DEFAULT_SERVER + "/CpdlcHandoff?code=";
 bool CDataHandler::SquawkOnClearance = true;
 
 string CDataHandler::UrlEncode(const string& value) {
@@ -60,6 +61,7 @@ void CDataHandler::LoadSettings() {
 	GetSingleAircraft = server + "/GetSingleFlightData?callsign=";
 	PostSingleAircraft = server + "/PostFlightData?code=" + UrlEncode(key);
 	FlightDataUpdate = server + "/UpdateFlightData?code=" + UrlEncode(key);
+	CpdlcHandoffUrl = server + "/CpdlcHandoff?code=" + UrlEncode(key);
 	if (key.empty()) CLogger::Log(CLogType::WARN, "No API key in vnaaats.cfg - flight data cannot be saved to the server.", "CDataHandler::LoadSettings");
 }
 
@@ -519,6 +521,7 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 			netFP.TargetMode = jsonArray[i].at("targetMode");
 			netFP.LastUpdated = jsonArray[i].at("lastUpdated");
 			netFP.Cpdlc = jsonArray[i].value("cpdlc", false); // older servers do not send it
+			netFP.CpdlcRelease = jsonArray[i].value("cpdlcRelease", false);
 
 			// Get flight plan
 			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
@@ -536,6 +539,12 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 				}
 				if (valuesChanged) fp->WindowRefresh = true;
 				fp->CpdlcConnected = netFP.Cpdlc;
+				// After UNICOM the server asks for the tag to be released (done on the draw thread, once per request)
+				if (netFP.CpdlcRelease && !fp->ReleaseHandled) {
+					fp->ReleaseRequested = true;
+					fp->ReleaseHandled = true;
+				}
+				if (!netFP.CpdlcRelease) fp->ReleaseHandled = false;
 				// Simply update all the values
 				fp->FlightLevel = to_string(netFP.AssignedLevel);
 				fp->Mach = to_string(netFP.AssignedMach);
@@ -678,6 +687,29 @@ void CDataHandler::PostNetworkAircraft(void* args) {
 		delete args;
 		return;
 	}
+}
+
+void CDataHandler::PostCpdlcHandoff(void* args) {
+	CUtils::CNetworkAsyncData* data = (CUtils::CNetworkAsyncData*) args;
+	try {
+		string reqUrl = CpdlcHandoffUrl;
+		reqUrl += "&callsign=" + UrlEncode(data->Callsign);
+		reqUrl += "&target=" + UrlEncode(data->Target);
+		reqUrl += "&freq=" + UrlEncode(data->Freq);
+		reqUrl += "&by=" + UrlEncode(ControllerCallsign);
+
+		LPCSTR lpcURL = reqUrl.c_str();
+		DeleteUrlCacheEntry(lpcURL);
+		CComPtr<IStream> pStream;
+		HRESULT hr = URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
+		if (FAILED(hr)) {
+			CLogger::Log(CLogType::ERR, "Could not send the CPDLC handoff message for " + data->Callsign + ".", "CDataHandler::PostCpdlcHandoff");
+		}
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "CPDLC handoff failed for " + data->Callsign + ": " + string(e.what()), "CDataHandler::PostCpdlcHandoff");
+	}
+	delete data;
 }
 
 void CDataHandler::UpdateNetworkAircraft(void* args) {

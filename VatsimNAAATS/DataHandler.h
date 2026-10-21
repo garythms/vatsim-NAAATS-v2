@@ -54,6 +54,7 @@ class CDataHandler
 	static string ControllerCallsign; // my EuroScope callsign, sent with changes
 	static string FddUrl; // flight data display address (server + /fdd)
 	static string UrlEncode(const string& value); // percent-encode a query value
+	static void PostCpdlcHandoff(void* args); // tell the server a handoff was started (it messages the pilot if on CPDLC)
 	
 	private:
 		// Methods
@@ -71,4 +72,5 @@ class CDataHandler
 		static string GetSingleAircraft;
 		static string FlightDataUpdate;
 		static string PostSingleAircraft;
+		static string CpdlcHandoffUrl;
 };

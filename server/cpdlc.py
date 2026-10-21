@@ -17,6 +17,8 @@ RA = reply wanted: WU wilco/unable, AN affirm/negative, R roger, NE none, Y/N fo
 Poll answer:   ok {FROM type {packet}} {FROM type {packet}} ...      (or just "ok", or "error {reason}")
 """
 import logging
+import math
+import os
 import random
 import re
 import sqlite3
@@ -35,6 +37,81 @@ FAST_POLL_SECONDS = 120          # keep polling every ~20 s for this long after 
 MAX_TEXT = 240
 REPLY_STATES = (("WILCO", "WILCO"), ("UNABLE", "UNABLE"), ("ROGER", "ROGER"), ("AFFIRM", "AFFIRM"),
                 ("NEGATIVE", "NEGATIVE"), ("STANDBY", "STANDBY"))
+
+
+OCA_REQUEST_RE = re.compile(r"\bOCEANIC\s+CLEARANCE\b|\bOCEANIC\s+CLX\b|\bOCA\s+CLEARANCE\b|\bREQUEST\s+CLEARANCE\b")
+MSG_OCA_UNABLE = "UNABLE TO PROVIDE OCEANIC CLEARANCES VIA CPDLC. PLEASE VISIT NATTRAK.VATSIM.NET AND SUBMIT YOUR REQUEST THERE"
+MSG_TOO_FAR = "UNABLE. CONTACT CONTROLLER ON VOICE 20 MILES BEFORE OCEANIC ENTRY POINT"
+MSG_UNICOM = "THERE IS NO FURTHER ATC AVAILABLE. SERVICE TERMINATED. MONITOR ADVISORY ON 122.800"
+LOGOFF_TEXT = "LOGOFF"          # UNVERIFIED against the live Hoppie network: what the ground sends to log a pilot off
+NEAR_OCEANIC_NM = 250            # pilots further than this from the oceanic airspace are refused a CPDLC logon
+RELEASE_SECONDS = 180            # how long a "release the tag" request stays visible to the plugin
+PENDING_SECONDS = 1800           # a handoff/UNICOM waiting for the pilot's WILCO is forgotten after this
+
+
+# ----------------------------------------------------------------------------- station names and free texts (TopSky list)
+def _load_topsky(path=None):
+    path = path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "topsky_cpdlc.txt")
+    names, short, freetext = {}, {}, []
+    try:
+        section = ""
+        for line in open(path, encoding="utf-8", errors="replace"):
+            line = line.strip()
+            if not line or line.startswith("//"):
+                continue
+            if line.startswith("["):
+                section = line.upper()
+                continue
+            parts = line.split(":", 3)
+            if section == "[STATIONS]" and parts[0].upper() == "LOGIN" and len(parts) == 4:
+                names.setdefault(parts[1].strip().upper(), parts[2].strip())
+                short.setdefault(parts[3].strip().upper(), parts[2].strip())
+            elif section == "[FREETEXT]" and parts[0].upper() == "FREETEXT" and len(parts) == 3:
+                freetext.append({"ra": parts[1].strip().upper(), "text": parts[2].strip()})
+    except OSError:
+        log.warning("topsky_cpdlc.txt not found: station names and free texts unavailable")
+    return names, short, freetext
+
+
+STATION_NAMES, STATION_SHORT, FREETEXTS = _load_topsky()
+CALLSIGN_ALIASES = {"NAT": "NATX", "LFRR": "LFXX", "LFBB": "LFXX", "LFMM": "LFXX", "LFEE": "LFXX", "LFFF": "LFXX"}
+
+
+def friendly_name(raw):
+    """'SHANNON CTL' -> 'Shannon Control', 'NEW YORK RADIO' -> 'New York Radio'."""
+    out = []
+    for w in raw.replace("_", " ").split():
+        u = w.upper()
+        out.append("Control" if u in ("CTL", "CTR") else u.lower() if u in ("AND", "OF") else w.capitalize())
+    return " ".join(out)
+
+
+def station_display_name(callsign):
+    """EuroScope controller callsign (EISN_CTR, NAT_FSS, EGPX_N_CTR ...) -> the full station name for pilots."""
+    cs = (callsign or "").strip().upper()
+    prefix = cs.split("_")[0]
+    code = CALLSIGN_ALIASES.get(prefix, prefix)
+    if code in STATION_NAMES:
+        return friendly_name(STATION_NAMES[code])
+    if prefix in STATION_SHORT:
+        return friendly_name(STATION_SHORT[prefix])
+    return friendly_name(cs) if cs else ""
+
+
+def nm_between(lat1, lon1, lat2, lon2):
+    """Great circle distance in nautical miles."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 3440.065 * 2 * math.asin(min(1.0, math.sqrt(a)))
+
+
+def near_oceanic(lat, lon, tracks, limit_nm=NEAR_OCEANIC_NM):
+    """True/False: within limit_nm of any waypoint of the active tracks. None if there are no tracks to judge by."""
+    pts = [(p["latitude"], p["longitude"]) for t in tracks for p in t.get("route", [])]
+    if not pts:
+        return None
+    return any(nm_between(lat, lon, a, b) <= limit_nm for a, b in pts)
 
 
 # ----------------------------------------------------------------------------- protocol helpers
@@ -99,10 +176,13 @@ class HoppieClient:
 
 # ----------------------------------------------------------------------------- the station
 class CpdlcStation:
-    def __init__(self, db_path, client, auto_accept=True, now=time.time):
+    def __init__(self, db_path, client, auto_accept=True, now=time.time, locate=None, on_release=None):
         self.client = client
         self.auto_accept = auto_accept
         self.now = now
+        self.locate = locate or (lambda callsign: None)          # callsign -> True (near oceanic) / False (too far) / None (unknown)
+        self.on_release = on_release or (lambda callsign: None)  # called when the tag should be released in EuroScope
+        self.pending = {}                                        # callsign -> {"min", "kind", "ts"}: waiting for the pilot's WILCO/ROGER
         self.lock = threading.RLock()
         self.db = sqlite3.connect(db_path, check_same_thread=False)
         self.db.execute("""CREATE TABLE IF NOT EXISTS cpdlc_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL,
@@ -230,7 +310,9 @@ class CpdlcStation:
         text = pkt["text"].upper()
         if "REQUEST LOGON" in text or text.strip() == "LOGON":
             self._store("DOWN", sender, pkt["min"], pkt["mrn"], pkt["ra"], pkt["text"], state="LOGON", seen=1)
-            if self.auto_accept:
+            if self.auto_accept and self.locate(sender.upper()) is False:
+                self._auto_reply(sender, MSG_TOO_FAR, pkt["min"], "NE")      # too far from the airspace: refuse
+            elif self.auto_accept:
                 self.accept_logon(sender, pkt["min"])
             else:
                 self._store("DOWN", sender, None, None, "", "LOGON WAITING FOR ACCEPT", state="", seen=0)
@@ -238,6 +320,10 @@ class CpdlcStation:
         if re.search(r"\bLOGOFF\b|\bLOG OFF\b", text):
             self._store("DOWN", sender, pkt["min"], pkt["mrn"], pkt["ra"], pkt["text"], state="", seen=1)
             self._set_connected(sender, False)
+            return
+        if OCA_REQUEST_RE.search(text):                       # oceanic clearances are not available by CPDLC on VATSIM
+            self._store("DOWN", sender, pkt["min"], pkt["mrn"], pkt["ra"], pkt["text"], state="ANSWERED", seen=1)
+            self._auto_reply(sender, MSG_OCA_UNABLE, pkt["min"], "R")
             return
         state = "OPEN" if pkt["ra"] == "Y" else ""
         self._store("DOWN", sender, pkt["min"], pkt["mrn"], pkt["ra"], pkt["text"], state=state, seen=0)
@@ -248,6 +334,64 @@ class CpdlcStation:
                         self.db.execute("UPDATE cpdlc_messages SET state=? WHERE callsign=? AND dir='UP' AND min=?", (name, sender, pkt["mrn"]))
                         self.db.commit()
                     break
+            pend = self.pending.get(sender.upper())
+            if pend and pend["min"] == pkt["mrn"]:
+                if text.startswith("WILCO") or text.startswith("ROGER"):
+                    self.finish(sender.upper())
+                elif text.startswith("UNABLE"):
+                    self.pending.pop(sender.upper(), None)
+
+    def _auto_reply(self, callsign, text, their_min, ra):
+        """Answer a pilot straight away (the message is logged as sent by 'auto')."""
+        cs = callsign.upper()
+        mn = self._alloc_min()
+        try:
+            self._send_packet(cs, mn, their_min, ra, text)
+        except RuntimeError as e:
+            log.warning("auto reply to %s failed: %s", cs, e)
+            return
+        self._store("UP", cs, mn, their_min, ra, text, state="", by="auto")
+
+    # --- handoff and UNICOM: tell the pilot, and when they answer WILCO/ROGER log them off
+    def _start_pending(self, cs, row, kind):
+        with self.lock:
+            now = self.now()
+            for k in [k for k, v in self.pending.items() if now - v["ts"] > PENDING_SECONDS]:
+                del self.pending[k]
+            self.pending[cs] = {"min": row["min"], "kind": kind, "ts": now}
+
+    def handoff(self, callsign, name, freq="", by=""):
+        cs = (callsign or "").strip().upper()
+        name = re.sub(r"[^A-Za-z0-9 ]", "", name or "").strip().upper()
+        freq = freq.strip() if re.fullmatch(r"1[0-3]\d\.\d{1,3}", (freq or "").strip()) and freq.strip() != "199.998" else ""
+        if not name:
+            raise ValueError("no station name")
+        text = "CONTACT %s%s, BYE." % (name, " ON " + freq if freq else "")
+        row = self.send(cs, text, ra="WU", by=by)
+        self._start_pending(cs, row, "handoff")
+        return row
+
+    def unicom(self, callsign, by=""):
+        cs = (callsign or "").strip().upper()
+        row = self.send(cs, MSG_UNICOM, ra="WU", by=by)
+        self._start_pending(cs, row, "unicom")
+        return row
+
+    def finish(self, callsign):
+        """The pilot acknowledged: log them off CPDLC (and, after UNICOM, ask the plugin to release the tag)."""
+        cs = callsign.upper()
+        pend = self.pending.pop(cs, None)
+        if not pend:
+            return
+        mn = self._alloc_min()
+        try:
+            self._send_packet(cs, mn, None, "NE", LOGOFF_TEXT)
+            self._store("UP", cs, mn, None, "NE", LOGOFF_TEXT, state="", by="auto")
+        except RuntimeError as e:
+            log.warning("logoff of %s failed: %s", cs, e)
+        self._set_connected(cs, False)
+        if pend["kind"] == "unicom":
+            self.on_release(cs)
 
     def accept_logon(self, callsign, their_min=None):
         cs = callsign.upper()
@@ -351,8 +495,10 @@ def parse_stations(text):
 
 
 class CpdlcHub:
-    def __init__(self, db_path, url=DEFAULT_URL, auto_accept=True, stations=None, make_client=None, is_session_alive=None, now=time.time, start_threads=True):
+    def __init__(self, db_path, url=DEFAULT_URL, auto_accept=True, stations=None, make_client=None, is_session_alive=None, now=time.time, start_threads=True, locate=None):
         self.db_path, self.url, self.auto_accept, self.now = db_path, url, auto_accept, now
+        self.locate = locate
+        self.release_times = {}
         self.stations_map = stations or {}
         self.make_client = make_client or (lambda code, station: HoppieClient(self.url, code, station))
         self.is_session_alive = is_session_alive or (lambda token: True)
@@ -405,7 +551,7 @@ class CpdlcHub:
             if cur:                                # same controller re-entering a code
                 cur["obj"].client.logon = code
                 return station, None
-            obj = CpdlcStation(self.db_path, client, auto_accept=self.auto_accept, now=self.now)
+            obj = CpdlcStation(self.db_path, client, auto_accept=self.auto_accept, now=self.now, locate=self.locate, on_release=self._mark_released)
             self.running[station] = {"token": token, "obj": obj}
         if self.start_threads:
             threading.Thread(target=obj.loop, daemon=True).start()
@@ -431,6 +577,30 @@ class CpdlcHub:
     def is_connected(self, callsign):
         with self.lock:
             return any(v["obj"].is_connected(callsign) for v in self.running.values())
+
+    def station_with(self, callsign):
+        """The running station this aircraft is connected to, or None."""
+        with self.lock:
+            for v in self.running.values():
+                if v["obj"].is_connected(callsign):
+                    return v["obj"]
+        return None
+
+    def handoff(self, callsign, target, freq="", by=""):
+        """Plugin handoff: tell the pilot to contact the next station. Returns the message, or raises ValueError."""
+        st = self.station_with(callsign.upper())
+        if not st:
+            raise ValueError("%s is not connected to CPDLC" % callsign)
+        return st.handoff(callsign, station_display_name(target), freq, by=by)
+
+    def _mark_released(self, callsign):
+        with self.lock:
+            self.release_times[callsign.upper()] = self.now()
+
+    def released(self, callsign):
+        with self.lock:
+            ts = self.release_times.get((callsign or "").upper())
+            return bool(ts and self.now() - ts < RELEASE_SECONDS)
 
     def status(self, token=None, position=""):
         mine = self.get(token) if token else None

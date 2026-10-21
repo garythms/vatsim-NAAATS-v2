@@ -4,7 +4,7 @@
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
 
-  const { cpdlcStatus, cpdlcOpen, cpdlcPick } = cp;
+  const { cpdlcStatus, cpdlcOpen, cpdlcPick, cpdlcFreetexts } = cp;
   const { session } = sess;
 
   let messages: cp.CpdlcMessage[] = [];
@@ -18,6 +18,7 @@
   let timer: any;
   let thread: HTMLElement;
   let lastSeenFor: string = "";
+  let unicomAsk: boolean = false;
   let hoppieCode: string = "";
   let logonErr: string = "";
   let logonBusy: boolean = false;
@@ -27,6 +28,22 @@
     logonErr = await cp.logonCpdlc(hoppieCode.trim());
     logonBusy = false;
     if (logonErr === "") hoppieCode = "";          // do not keep the code in the page
+  }
+  function useFree(e: Event): void {
+    const sel = e.target as HTMLSelectElement;
+    const f = $cpdlcFreetexts[parseInt(sel.value)];
+    if (f) { text = f.text; ra = f.ra === "NE" ? "NE" : "R"; replyTo = null; }
+    sel.value = "";
+  }
+  async function doUnicom(): Promise<void> {
+    unicomAsk = false;
+    busy = true;
+    const err = await cp.sendUnicom(shown);
+    busy = false;
+    sendOk = err === "";
+    sendMsg = err === "" ? "UNICOM message sent. The pilot is logged off when they answer WILCO/ROGER." : err;
+    if (err === "") refresh();
+    setTimeout(() => (sendMsg = ""), 8000);
   }
   function signOut(): void { messages = []; cp.logoffCpdlc(); }
 
@@ -153,6 +170,19 @@
             {#each cp.templates as t}
               <button class="px-1.5 py-0.5 text-xs bg-blue-3 border border-blue-6 hover:bg-blue-4" on:click={() => useTemplate(t)}>{t.label}</button>
             {/each}
+          </div>
+          <div class="flex flex-row items-center gap-2 mb-1">
+            <select class="text-black text-xs flex-1 min-w-0" on:change={useFree}>
+              <option value="">Standard messages...</option>
+              {#each $cpdlcFreetexts as f, i}<option value={i}>{f.text.length > 60 ? f.text.slice(0, 58) + "..." : f.text}</option>{/each}
+            </select>
+            {#if !unicomAsk}
+              <button class="px-2 py-0.5 text-xs font-bold bg-yellow-300 text-black" on:click={() => (unicomAsk = true)}>UNICOM</button>
+            {:else}
+              <span class="text-xs text-yellow-300">Send [{shown}] to UNICOM?</span>
+              <button class="px-2 py-0.5 text-xs font-bold bg-yellow-300 text-black" on:click={doUnicom}>Yes</button>
+              <button class="px-2 py-0.5 text-xs bg-blue-3 border border-blue-6" on:click={() => (unicomAsk = false)}>No</button>
+            {/if}
           </div>
           {#if replyTo}<div class="text-xs text-yellow-300 mb-1">Replying to: {replyTo.readable} <span class="underline hover:cursor-pointer" on:click={() => (replyTo = null)}>cancel</span></div>{/if}
           <textarea class="w-full px-2 py-1 text-black uppercase" rows="2" maxlength="240" placeholder="Message to [{shown}] - @ marks the changeable parts" bind:value={text} on:keydown={key}></textarea>

@@ -55,7 +55,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.6.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.7.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -453,6 +453,11 @@ class NetworkTraffic:
         self.cache, self.url, self.natrak = cache, url, natrak
         self.lock = threading.Lock()
         self.flights, self.updated, self.error = [], None, None
+        self.positions = {}      # callsign -> (lat, lon) for every pilot on the network (used by the CPDLC 250 nm logon rule)
+
+    def position(self, callsign):
+        with self.lock:
+            return self.positions.get((callsign or "").upper())
 
     def refresh(self, fetch=None):
         try:
@@ -469,8 +474,15 @@ class NetworkTraffic:
                 rec = convert_network_pilot(pilot, tracks)
                 if rec and rec["callsign"]:
                     out.append(rec)
+            pos = {}
+            for pilot in data.get("pilots", []):
+                try:
+                    pos[str(pilot["callsign"]).upper()] = (float(pilot["latitude"]), float(pilot["longitude"]))
+                except (KeyError, TypeError, ValueError):
+                    pass
             with self.lock:
                 self.flights, self.updated, self.error = out, time.time(), None
+                self.positions = pos
             log.info("Network traffic refreshed: %d oceanic flights", len(out))
         except Exception as e:
             with self.lock:
@@ -672,6 +684,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         """Add "cpdlc": true/false (connected to our CPDLC station) to a flight record."""
         rec = dict(rec)
         rec["cpdlc"] = bool(cpdlc and cpdlc.is_connected(rec.get("callsign", "")))
+        rec["cpdlcRelease"] = bool(cpdlc and cpdlc.released(rec.get("callsign", "")))   # tell the plugin to release the tag (after UNICOM)
         return rec
     secure_cookie = auth.public_url.startswith("https://")
 
@@ -774,7 +787,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if cpdlc:
                         cpdlc.stop(self._token())                  # a new position means a different CPDLC station
                     return self._send(200, self._status(self._session()))
-                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff"):
+                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom"):
                     if not cpdlc:
                         return self._send(404, {"error": "CPDLC is not switched on"})
                     sess = self._session()
@@ -797,6 +810,13 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if p == "/cpdlc/seen":
                         st.mark_seen(str(body.get("callsign", "")))
                         return self._send(200, {"ok": True})
+                    if p == "/cpdlc/unicom":
+                        try:
+                            return self._send(200, st.unicom(str(body.get("callsign", "")), by="%s (%s)" % (sess["position"], sess["name"])))
+                        except ValueError as e:
+                            return self._send(400, {"error": str(e)})
+                        except RuntimeError as e:
+                            return self._send(502, {"error": str(e)})
                     try:
                         mrn = body.get("mrn")
                         msg = st.send(str(body.get("callsign", "")), str(body.get("text", "")), str(body.get("ra", "WU")),
@@ -859,6 +879,20 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 if p == "/GetAllNatTracks":
                     with cache.lock:
                         return self._send(200, cache.tracks)
+                if p == "/cpdlc/templates":
+                    return self._send(200, cpdlc_mod.FREETEXTS)
+                if p == "/CpdlcHandoff":                       # called by the plugin when a handoff is started in EuroScope
+                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
+                        return self._send(401, {"error": "bad key"})
+                    if not cpdlc:
+                        return self._send(200, {"ok": False, "error": "CPDLC is off"})
+                    try:
+                        msg = cpdlc.handoff(q.get("callsign", ""), q.get("target", ""), q.get("freq", ""), by=q.get("by", ""))
+                    except ValueError as e:
+                        return self._send(200, {"ok": False, "error": str(e)})      # not connected is normal, not an error
+                    except RuntimeError as e:
+                        return self._send(502, {"ok": False, "error": str(e)})
+                    return self._send(200, {"ok": True, "text": msg["text"]})
                 if p == "/cpdlc/status":
                     if not cpdlc:
                         return self._send(200, {"enabled": False, "connected": [], "unread": {}})
@@ -960,7 +994,15 @@ def main():
     cpdlc = None
     auth = Auth()
     if os.environ.get("VNAAATS_CPDLC", "on").lower() != "off":
+        def locate(callsign):                              # is this pilot within 250 nm of the oceanic airspace?
+            pos = network.position(callsign) if network else None
+            if not pos:
+                return None                                # not seen on the feed (yet): do not block
+            with cache.lock:
+                tracks = list(cache.tracks)
+            return cpdlc_mod.near_oceanic(pos[0], pos[1], tracks)
         cpdlc = cpdlc_mod.CpdlcHub(os.environ.get("VNAAATS_DB", os.path.join(HERE, "vnaaats.db")),
+                                   locate=locate,
                                    url=os.environ.get("VNAAATS_HOPPIE_URL", cpdlc_mod.DEFAULT_URL),
                                    auto_accept=os.environ.get("VNAAATS_CPDLC_AUTOACCEPT", "1") != "0",
                                    stations=cpdlc_mod.parse_stations(os.environ.get("VNAAATS_CPDLC_STATIONS", "")),

@@ -22,9 +22,9 @@ class FakeHoppie:
         return "ok"
 
 
-def make(auto=True):
+def make(auto=True, **kw):
     hop = FakeHoppie()
-    st = c.CpdlcStation(os.path.join(tempfile.mkdtemp(), "c.db"), c.HoppieClient("http://x", "code", "CZQO", http=hop), auto_accept=auto)
+    st = c.CpdlcStation(os.path.join(tempfile.mkdtemp(), "c.db"), c.HoppieClient("http://x", "code", "CZQO", http=hop), auto_accept=auto, **kw)
     return hop, st
 
 
@@ -141,6 +141,89 @@ class StationTests(unittest.TestCase):
         self.assertEqual(st.client.logon, "")
 
 
+class AutomationTests(unittest.TestCase):
+    def uplinks(self, hop):
+        return [x["packet"] for x in hop.sent if x["type"] == "cpdlc"]
+
+    def test_oceanic_clearance_request_is_refused_automatically(self):
+        hop, st = make()
+        hop.queue = [("BAW9", "/data2/1//Y/REQUEST LOGON")]
+        st.poll_once()
+        hop.queue = [("BAW9", "/data2/2//Y/REQUEST OCEANIC CLEARANCE NAT A FL350 M84")]
+        st.poll_once()
+        last = self.uplinks(hop)[-1]
+        self.assertIn("UNABLE TO PROVIDE OCEANIC CLEARANCES VIA CPDLC", last)
+        self.assertIn("NATTRAK.VATSIM.NET", last)
+        self.assertTrue(last.startswith("/data2/") and "/2/R/" in last)          # answers message 2, reply wanted (roger)
+        m = [x for x in st.messages("BAW9") if x["dir"] == "DOWN" and "OCEANIC" in x["text"]][0]
+        self.assertEqual((m["state"], m["seen"]), ("ANSWERED", True))            # no alert for the controller
+
+    def test_logon_distance_rule(self):
+        for answer, connected in ((True, True), (None, True), (False, False)):
+            hop, st = make(locate=lambda cs, a=answer: a)
+            hop.queue = [("BAW9", "/data2/1//Y/REQUEST LOGON")]
+            st.poll_once()
+            self.assertEqual(st.is_connected("BAW9"), connected)
+            if not connected:
+                self.assertIn("UNABLE. CONTACT CONTROLLER ON VOICE 20 MILES BEFORE OCEANIC ENTRY POINT", self.uplinks(hop)[-1])
+                self.assertNotIn("LOGON ACCEPTED", " ".join(self.uplinks(hop)))
+
+    def test_near_oceanic(self):
+        tracks = [{"route": [{"latitude": 52, "longitude": -15}, {"latitude": 52, "longitude": -30}]}]
+        self.assertTrue(c.near_oceanic(52, -10, tracks))            # about 185 nm from the entry
+        self.assertFalse(c.near_oceanic(51.5, -0.1, tracks))        # London
+        self.assertIsNone(c.near_oceanic(52, -10, []))
+
+    def connect(self, **kw):
+        hop, st = make(**kw)
+        hop.queue = [("BAW9", "/data2/1//Y/REQUEST LOGON")]
+        st.poll_once()
+        return hop, st
+
+    def test_handoff_then_wilco_logs_off(self):
+        hop, st = self.connect()
+        row = st.handoff("BAW9", "Shannon Control", "127.500", by="CZQO_CTR")
+        self.assertIn("CONTACT SHANNON CONTROL ON 127.500, BYE.", self.uplinks(hop)[-1])
+        self.assertTrue(st.is_connected("BAW9"))
+        hop.queue = [("BAW9", "/data2/9/%d/N/WILCO" % row["min"])]
+        st.poll_once()
+        self.assertFalse(st.is_connected("BAW9"))
+        self.assertIn("/NE/LOGOFF", self.uplinks(hop)[-1])
+
+    def test_handoff_without_frequency_and_unable_keeps_connection(self):
+        hop, st = self.connect()
+        row = st.handoff("BAW9", "Brest Control", "199.998")
+        self.assertIn("CONTACT BREST CONTROL, BYE.", self.uplinks(hop)[-1])
+        hop.queue = [("BAW9", "/data2/9/%d/N/UNABLE" % row["min"])]
+        st.poll_once()
+        self.assertTrue(st.is_connected("BAW9"))
+        self.assertNotIn("/NE/LOGOFF", " ".join(self.uplinks(hop)))
+
+    def test_unicom_wilco_logs_off_and_asks_for_release(self):
+        released = []
+        hop, st = self.connect(on_release=released.append)
+        row = st.unicom("BAW9", by="CZQO_CTR")
+        self.assertIn("THERE IS NO FURTHER ATC AVAILABLE. SERVICE TERMINATED. MONITOR ADVISORY ON 122.800", self.uplinks(hop)[-1])
+        hop.queue = [("BAW9", "/data2/9/%d/N/ROGER" % row["min"])]
+        st.poll_once()
+        self.assertFalse(st.is_connected("BAW9"))
+        self.assertEqual(released, ["BAW9"])
+
+    def test_other_reply_does_not_log_off(self):
+        hop, st = self.connect()
+        row = st.unicom("BAW9")
+        hop.queue = [("BAW9", "/data2/9/%d/N/STANDBY" % row["min"])]
+        st.poll_once()
+        self.assertTrue(st.is_connected("BAW9"))
+
+    def test_station_names(self):
+        self.assertEqual(c.station_display_name("EISN_CTR"), "Shannon Control")
+        self.assertEqual(c.station_display_name("EGPX_N_CTR"), "Scottish Control")
+        self.assertEqual(c.station_display_name("NAT_FSS"), "Shanwick and Gander Radio")
+        self.assertEqual(c.station_display_name("LFRR_CTR"), "Brest Control")
+        self.assertTrue(any("UNICOM" in f["ra"] for f in c.FREETEXTS))
+
+
 class HubTests(unittest.TestCase):
     def make_hub(self, alive=None):
         hop = FakeHoppie()
@@ -173,6 +256,21 @@ class HubTests(unittest.TestCase):
         hop.refuse = True
         self.assertIn("Hoppie said", hub.start("t1", "CZQO_CTR", "abcdef12")[1])
         self.assertIsNone(hub.get("t1"))
+
+    def test_hub_handoff_and_release_flag(self):
+        hop, hub = self.make_hub()
+        hub.start("t1", "CZQO_CTR", "abcdef12")
+        st = hub.get("t1")
+        hop.queue = [("BAW9", "/data2/1//Y/REQUEST LOGON")]
+        st.poll_once()
+        self.assertTrue(hub.station_with("BAW9") is st)
+        msg = hub.handoff("BAW9", "EISN_CTR", "127.500", by="x")
+        self.assertIn("CONTACT SHANNON CONTROL ON 127.500, BYE.", msg["text"])
+        with self.assertRaises(ValueError):
+            hub.handoff("NOPE1", "EISN_CTR")
+        self.assertFalse(hub.released("BAW9"))
+        hub._mark_released("BAW9")
+        self.assertTrue(hub.released("BAW9"))
 
     def test_reap_when_session_ends(self):
         alive = {"t1"}
@@ -264,6 +362,21 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.call("/cpdlc/send", {"callsign": "BAW123", "text": "HELLO", "ra": "ZZ"}, ck)[0], 400)
         texts = [m["text"] for m in self.call("/cpdlc/messages?callsign=BAW123", None, ck)[1]]
         self.assertIn("EXPECT CLIMB FL370 AT 30W", texts)
+
+    def test_unicom_button_and_plugin_handoff_endpoint(self):
+        ck = self.ck
+        code, msg, _ = self.call("/cpdlc/unicom", {"callsign": "BAW123"}, ck)
+        self.assertEqual(code, 200)
+        self.assertIn("NO FURTHER ATC", msg["text"])
+        self.assertEqual(self.call("/cpdlc/unicom", {"callsign": "DLH9"}, ck)[0], 400)
+        self.assertEqual(self.call("/CpdlcHandoff?code=wrong&callsign=BAW123&target=EISN_CTR")[0], 401)
+        code, body, _ = self.call("/CpdlcHandoff?code=" + "k" * 20 + "&callsign=BAW123&target=EISN_CTR&freq=127.500&by=CZQO_CTR")
+        self.assertEqual((code, body["ok"]), (200, True))
+        self.assertIn("SHANNON CONTROL", body["text"])
+        code, body, _ = self.call("/CpdlcHandoff?code=" + "k" * 20 + "&callsign=DLH9&target=EISN_CTR")
+        self.assertEqual((code, body["ok"]), (200, False))           # not connected: harmless
+        self.assertIn("cpdlcRelease", self.call("/GetSingleFlightData?callsign=BAW123")[1][0])
+        self.assertTrue(any("CONTACT" in t["text"] or "UNICOM" in t["text"] for t in self.call("/cpdlc/templates")[1]))
 
     def test_position_change_stops_station(self):
         ck = self.login("NAT_FSS")
