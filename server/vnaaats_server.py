@@ -50,12 +50,13 @@ from urllib.parse import parse_qs, urlparse
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import cpdlc as cpdlc_mod
+import commands as commands_mod
 log = logging.getLogger("vnaaats")
 
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.8.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.9.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
@@ -488,6 +489,7 @@ class NetworkTraffic:
         self.lock = threading.Lock()
         self.flights, self.updated, self.error = [], None, None
         self.positions = {}      # callsign -> (lat, lon) for every pilot on the network (used by the CPDLC 250 nm logon rule)
+        self.controllers = []    # online ATC that aircraft can be transferred to: [{callsign, frequency, name, facility}]
 
     def position(self, callsign):
         with self.lock:
@@ -514,9 +516,18 @@ class NetworkTraffic:
                     pos[str(pilot["callsign"]).upper()] = (float(pilot["latitude"]), float(pilot["longitude"]))
                 except (KeyError, TypeError, ValueError):
                     pass
+            ctrls = []
+            for c in data.get("controllers", []):
+                try:
+                    if int(c.get("facility", 0)) in (1, 5, 6) and not str(c["callsign"]).upper().endswith("_ATIS"):
+                        ctrls.append({"callsign": str(c["callsign"]).upper(), "frequency": str(c.get("frequency", "")),
+                                      "name": str(c.get("name", "")), "facility": int(c["facility"])})
+                except (KeyError, TypeError, ValueError):
+                    pass
             with self.lock:
                 self.flights, self.updated, self.error = out, time.time(), None
                 self.positions = pos
+                self.controllers = sorted(ctrls, key=lambda x: x["callsign"])
             log.info("Network traffic refreshed: %d oceanic flights", len(out))
         except Exception as e:
             with self.lock:
@@ -711,7 +722,8 @@ MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css
         ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
 
 
-def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None):
+def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None):
+    queue = queue if queue is not None else commands_mod.CommandQueue()
     auth = auth or Auth({})
 
     def with_cpdlc(rec):
@@ -862,6 +874,17 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     except RuntimeError as e:
                         return self._send(502, {"error": str(e)})
                     return self._send(200, msg)
+                if p == "/cmd/queue":
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if not sess["position"] or sess["position"] == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position first"})
+                    typ, cs, args, err = commands_mod.clean_command(body)
+                    if err:
+                        return self._send(400, {"error": err})
+                    cid = queue.add(sess["position"], typ, cs, args, by=("%s (%s)" % (sess["position"], sess["name"]))[:60])
+                    return self._send(200, {"id": cid})
                 if p == "/EditPosReport":
                     sess = self._session()
                     if not sess:
@@ -935,6 +958,31 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 if p == "/GetAllNatTracks":
                     with cache.lock:
                         return self._send(200, cache.tracks)
+                if p == "/cmd/status":
+                    if not self._session():
+                        return self._send(401, {"error": "log in first"})
+                    st = queue.status(to_int(q.get("id"), 0))
+                    return self._send(200, st) if st else self._send(404, {"error": "unknown command"})
+                if p == "/GetControllers":
+                    if not network:
+                        return self._send(200, [])
+                    with network.lock:
+                        return self._send(200, list(network.controllers))
+                if p == "/PluginCommands":                    # polled by the plugin
+                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
+                        return self._send(401, {"error": "bad key"})
+                    return self._send(200, queue.pending_for(q.get("me", "")))
+                if p == "/PluginCommandDone":
+                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
+                        return self._send(401, {"error": "bad key"})
+                    ok = q.get("ok", "0") == "1"
+                    c = queue.done(to_int(q.get("id"), 0), ok, q.get("msg", ""))
+                    if c and ok and c["type"] == "transfer" and cpdlc:        # handoff started: tell the pilot (if on CPDLC)
+                        try:
+                            cpdlc.handoff(c["callsign"], c["args"]["target"], c["args"].get("freq", ""), by=c["by"])
+                        except (ValueError, RuntimeError):
+                            pass
+                    return self._send(200, {"ok": bool(c)})
                 if p == "/cpdlc/templates":
                     return self._send(200, cpdlc_mod.FREETEXTS)
                 if p == "/CpdlcHandoff":                       # called by the plugin when a handoff is started in EuroScope

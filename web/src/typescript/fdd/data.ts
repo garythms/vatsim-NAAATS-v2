@@ -572,3 +572,8 @@ export function runDataFetcher() : void {
     parseNatTracks();
   }, 300000);
 }
+
+// Look up one aircraft by callsign (for the aircraft menu)
+export function getAircraft(callsign: string): Aircraft | null {
+  return findAircraftLocal(callsign) ?? null;
+}

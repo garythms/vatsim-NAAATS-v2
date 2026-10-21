@@ -1,6 +1,7 @@
 <script lang="ts">
   import * as utils from "../../typescript/fdd/utils";
   import * as dataHandler from "../../typescript/fdd/data";
+  import { menuCallsign } from "../../typescript/fdd/acmenu";
 
   // Elements for spread prop
   export let callsign: string;
@@ -74,7 +75,7 @@
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
-    <div class="flex flex-row w-1/7 px-2 hover:cursor-default select-none">
+    <div class="flex flex-row w-1/7 px-2 hover:cursor-pointer select-none" title="Click for the aircraft menu" on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); menuCallsign.set(callsign); }}>
       {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="flex flex-row w-5/7 hover:cursor-default select-none">

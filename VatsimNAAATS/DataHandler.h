@@ -6,6 +6,8 @@
 #include "Utils.h"
 #include "Logger.h"
 #include <json.hpp>
+#include <mutex>
+#include <atomic>
 
 using namespace std;
 using namespace EuroScopePlugIn;
@@ -54,6 +56,17 @@ class CDataHandler
 	static string ControllerCallsign; // my EuroScope callsign, sent with changes
 	static string FddUrl; // flight data display address (server + /fdd)
 	static string UrlEncode(const string& value); // percent-encode a query value
+	// Commands sent from the web flight data display (track / untrack / transfer)
+	struct CRemoteCommand {
+		int Id = 0;
+		string Type, Callsign, Level, Mach, Selcal, Target, Freq;
+	};
+	static void PollRemoteCommands(void* args); // async: asks the server for waiting commands
+	static void ReportRemoteCommand(void* args); // async: tells the server how a command went
+	static vector<CRemoteCommand> TakeRemoteCommands(); // commands collected so far (called from the EuroScope thread)
+	static void ReportRemoteResult(int id, bool ok, const string& msg);
+	static std::atomic<bool> RemotePollBusy;
+	static clock_t RemoteLastPoll;
 	static void PostCpdlcHandoff(void* args); // tell the server a handoff was started (it messages the pilot if on CPDLC)
 	
 	private:
@@ -73,4 +86,8 @@ class CDataHandler
 		static string FlightDataUpdate;
 		static string PostSingleAircraft;
 		static string CpdlcHandoffUrl;
+		static string CommandsUrl;
+		static string CommandDoneUrl;
+		static std::mutex remoteLock;
+		static vector<CRemoteCommand> remoteQueue;
 };

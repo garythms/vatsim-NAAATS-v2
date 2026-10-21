@@ -23,6 +23,12 @@ string CDataHandler::GetSingleAircraft = DEFAULT_SERVER + "/GetSingleFlightData?
 string CDataHandler::PostSingleAircraft = DEFAULT_SERVER + "/PostFlightData?code=";
 string CDataHandler::FlightDataUpdate = DEFAULT_SERVER + "/UpdateFlightData?code=";
 string CDataHandler::CpdlcHandoffUrl = DEFAULT_SERVER + "/CpdlcHandoff?code=";
+string CDataHandler::CommandsUrl = DEFAULT_SERVER + "/PluginCommands?code=";
+string CDataHandler::CommandDoneUrl = DEFAULT_SERVER + "/PluginCommandDone?code=";
+std::mutex CDataHandler::remoteLock;
+vector<CDataHandler::CRemoteCommand> CDataHandler::remoteQueue;
+std::atomic<bool> CDataHandler::RemotePollBusy(false);
+clock_t CDataHandler::RemoteLastPoll = 0;
 bool CDataHandler::SquawkOnClearance = true;
 
 string CDataHandler::UrlEncode(const string& value) {
@@ -62,6 +68,8 @@ void CDataHandler::LoadSettings() {
 	PostSingleAircraft = server + "/PostFlightData?code=" + UrlEncode(key);
 	FlightDataUpdate = server + "/UpdateFlightData?code=" + UrlEncode(key);
 	CpdlcHandoffUrl = server + "/CpdlcHandoff?code=" + UrlEncode(key);
+	CommandsUrl = server + "/PluginCommands?code=" + UrlEncode(key);
+	CommandDoneUrl = server + "/PluginCommandDone?code=" + UrlEncode(key);
 	if (key.empty()) CLogger::Log(CLogType::WARN, "No API key in vnaaats.cfg - flight data cannot be saved to the server.", "CDataHandler::LoadSettings");
 }
 
@@ -687,6 +695,73 @@ void CDataHandler::PostNetworkAircraft(void* args) {
 		delete args;
 		return;
 	}
+}
+
+void CDataHandler::PollRemoteCommands(void* args) {
+	try {
+		string reqUrl = CommandsUrl + "&me=" + UrlEncode(ControllerCallsign);
+		LPCSTR lpcURL = reqUrl.c_str();
+		DeleteUrlCacheEntry(lpcURL);
+		CComPtr<IStream> pStream;
+		HRESULT hr = URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
+		if (SUCCEEDED(hr)) {
+			string body;
+			char buf[16384];
+			DWORD got = 0;
+			while (SUCCEEDED(pStream->Read(buf, sizeof(buf), &got)) && got > 0) body.append(buf, got);
+			auto arr = json::parse(body);
+			if (arr.is_array()) {
+				std::lock_guard<std::mutex> lock(remoteLock);
+				for (auto& item : arr) {
+					CRemoteCommand rc;
+					rc.Id = item.value("id", 0);
+					rc.Type = item.value("type", "");
+					rc.Callsign = item.value("callsign", "");
+					if (item.contains("args") && item["args"].is_object()) {
+						auto& a = item["args"];
+						if (a.contains("level")) rc.Level = to_string(a["level"].get<int>());
+						if (a.contains("mach")) rc.Mach = to_string(a["mach"].get<int>());
+						rc.Selcal = a.value("selcal", "");
+						rc.Target = a.value("target", "");
+						rc.Freq = a.value("freq", "");
+					}
+					if (rc.Id > 0) remoteQueue.push_back(rc);
+				}
+			}
+		}
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Could not check for FDD commands: " + string(e.what()), "CDataHandler::PollRemoteCommands");
+	}
+	RemotePollBusy = false;
+}
+
+vector<CDataHandler::CRemoteCommand> CDataHandler::TakeRemoteCommands() {
+	std::lock_guard<std::mutex> lock(remoteLock);
+	vector<CRemoteCommand> out;
+	out.swap(remoteQueue);
+	return out;
+}
+
+struct CRemoteResult { int Id; bool Ok; string Msg; };
+
+void CDataHandler::ReportRemoteResult(int id, bool ok, const string& msg) {
+	_beginthread(CDataHandler::ReportRemoteCommand, 0, (void*)new CRemoteResult{ id, ok, msg });
+}
+
+void CDataHandler::ReportRemoteCommand(void* args) {
+	CRemoteResult* r = (CRemoteResult*)args;
+	try {
+		string reqUrl = CommandDoneUrl + "&id=" + to_string(r->Id) + "&ok=" + (r->Ok ? "1" : "0") + "&msg=" + UrlEncode(r->Msg);
+		LPCSTR lpcURL = reqUrl.c_str();
+		DeleteUrlCacheEntry(lpcURL);
+		CComPtr<IStream> pStream;
+		URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Could not report an FDD command result: " + string(e.what()), "CDataHandler::ReportRemoteCommand");
+	}
+	delete r;
 }
 
 void CDataHandler::PostCpdlcHandoff(void* args) {

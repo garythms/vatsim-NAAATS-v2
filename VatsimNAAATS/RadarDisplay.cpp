@@ -8,6 +8,7 @@
 #include "Utils.h"
 #include "ConflictDetection.h"
 #include "DataHandler.h"
+#include "RoutesHelper.h"
 #include <thread>
 #include <gdiplus.h>
 #include <ctype.h>
@@ -113,8 +114,101 @@ void CRadarDisplay::PopulateProgramData() {
 }
 
 // On radar screen refresh (modified to occur 4 times a second)
+void CRadarDisplay::RunRemoteCommands()
+{
+	CPlugIn* plugin = GetPlugIn();
+	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) return;
+	CDataHandler::ControllerCallsign = plugin->ControllerMyself().GetCallsign();
+
+	// Ask the server for new commands about every 2 seconds
+	if (!CDataHandler::RemotePollBusy && (double)(clock() - CDataHandler::RemoteLastPoll) / (double)CLOCKS_PER_SEC >= 2.0) {
+		CDataHandler::RemoteLastPoll = clock();
+		CDataHandler::RemotePollBusy = true;
+		_beginthread(CDataHandler::PollRemoteCommands, 0, nullptr);
+	}
+
+	vector<CDataHandler::CRemoteCommand> cmds = CDataHandler::TakeRemoteCommands();
+	for (auto& cmd : cmds) {
+		try {
+			CFlightPlan es = plugin->FlightPlanSelect(cmd.Callsign.c_str());
+			if (!es.IsValid()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope has no flight plan for " + cmd.Callsign); continue; }
+			bool mine = es.GetTrackingControllerIsMe();
+			string trackedBy = es.GetTrackingControllerCallsign();
+
+			if (cmd.Type == "track") {
+				if (!mine && !trackedBy.empty()) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is already tracked by " + trackedBy); continue; }
+				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(cmd.Callsign);
+				if (!fp->IsValid) { CDataHandler::ReportRemoteResult(cmd.Id, false, "vNAAATS has not loaded " + cmd.Callsign + " yet - try again in a few seconds"); continue; }
+				if (!mine && !es.StartTracking()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not let you track " + cmd.Callsign); continue; }
+				fp->FlightLevel = cmd.Level;
+				fp->Mach = cmd.Mach;
+				if (!cmd.Selcal.empty()) { fp->SELCAL = cmd.Selcal; fp->SelcalManual = true; }
+				fp->Sector = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerId();
+				fp->IsCleared = true;
+				if (CDataHandler::SquawkOnClearance) CUtils::AssignOceanicSquawk(plugin, cmd.Callsign);
+
+				CNetworkFlightPlan* netFP = new CNetworkFlightPlan();
+				netFP->Callsign = fp->Callsign;
+				netFP->Type = fp->Type;
+				netFP->AssignedLevel = stoi(fp->FlightLevel);
+				netFP->AssignedMach = stoi(fp->Mach);
+				netFP->Track = fp->Track;
+				netFP->Departure = fp->Depart;
+				netFP->Arrival = fp->Dest;
+				netFP->Direction = CUtils::GetAircraftDirection(plugin->RadarTargetSelect(cmd.Callsign.c_str()).GetPosition().GetReportedHeadingTrueNorth());
+				netFP->Selcal = fp->SELCAL == "N/A" ? "" : fp->SELCAL;
+				netFP->DatalinkConnected = fp->DLStatus == "true";
+				netFP->IsEquipped = fp->IsEquipped;
+				netFP->State = fp->State;
+				netFP->Etd = fp->Etd;
+				netFP->Relevant = true;
+				netFP->TargetMode = CUtils::GetTargetMode(plugin->RadarTargetSelect(cmd.Callsign.c_str()).GetPosition().GetRadarFlags());
+				netFP->TrackedBy = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerCallsign();
+				netFP->TrackedById = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerId();
+				netFP->Route = "";
+				netFP->RouteEtas = "";
+				vector<CRoutePosition> rte;
+				CRoutesHelper::GetRoute(this, &rte, cmd.Callsign);
+				for (size_t i = 0; i < rte.size(); i++) {
+					netFP->Route += rte[i].Fix + (i + 1 < rte.size() ? " " : "");
+					netFP->RouteEtas += rte[i].Estimate + (i + 1 < rte.size() ? " " : "");
+				}
+				CUtils::CNetworkAsyncData* data = new CUtils::CNetworkAsyncData();
+				data->Screen = this;
+				data->Callsign = fp->Callsign;
+				data->FP = netFP;
+				_beginthread(CDataHandler::PostNetworkAircraft, 0, (void*)data);
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Tracking " + cmd.Callsign);
+			}
+			else if (cmd.Type == "untrack") {
+				if (!mine) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is not tracked by you"); continue; }
+				es.EndTracking();
+				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(cmd.Callsign);
+				if (fp->IsValid) fp->Sector = "-1";
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Released " + cmd.Callsign);
+			}
+			else if (cmd.Type == "transfer") {
+				if (!mine) { CDataHandler::ReportRemoteResult(cmd.Id, false, "Track " + cmd.Callsign + " first - you can only transfer your own aircraft"); continue; }
+				CController target = plugin->ControllerSelect(cmd.Target.c_str());
+				if (!target.IsValid()) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Target + " is not online in EuroScope"); continue; }
+				if (!es.InitiateHandoff(cmd.Target.c_str())) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not start the handoff to " + cmd.Target); continue; }
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Handoff to " + cmd.Target + " started");
+			}
+			else {
+				CDataHandler::ReportRemoteResult(cmd.Id, false, "unknown command");
+			}
+		}
+		catch (exception & e) {
+			CLogger::Log(CLogType::EXC, "FDD command failed: " + string(e.what()), "CRadarDisplay::RunRemoteCommands");
+			CDataHandler::ReportRemoteResult(cmd.Id, false, "plugin error");
+		}
+	}
+}
+
 void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 {
+	if (Phase == REFRESH_PHASE_BEFORE_TAGS) RunRemoteCommands();
+
 	// Create device context
 	CDC dc;
 	dc.Attach(hDC);

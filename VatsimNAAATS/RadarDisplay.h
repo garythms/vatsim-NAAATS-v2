@@ -29,6 +29,7 @@ class CRadarDisplay : public CRadarScreen
 
 		// Custom methods	
 		void PopulateProgramData();
+		void RunRemoteCommands(); // carry out track / untrack / transfer requests sent from the web display
 
 		// Public properties
 		CPosition RulerPoint1;

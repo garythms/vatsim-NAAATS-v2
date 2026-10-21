@@ -40,3 +40,8 @@ REPORTING BUGS
 https://github.com/garythms/vatsim-naaats-v2/issues
 Include: callsign, what you clicked, what you expected, what happened, plugin version (shown when it loads),
 and the log file (vnaaats log in the DLL folder or EuroScope folder) if you can find it.
+
+NEW IN 1.5b1: FDD commands
+Click a callsign on the web Flight Data Display for the aircraft menu. Track, Untrack and Transfer are carried out by this plugin in EuroScope
+(it checks the server every 2 seconds, so keep EuroScope connected as your position). SELCAL test, Contact me and Supervisor copy the
+EuroScope command for you to paste into the command line.

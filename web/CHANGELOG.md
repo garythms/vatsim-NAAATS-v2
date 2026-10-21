@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.7.0 - 2026-10-21
+- Click a callsign for the aircraft menu: Track (level, Mach, SELCAL), Untrack (asks to confirm), Transfer (online controllers), SELCAL, Contact me, Supervisor request (with a "No Contact" quick text), CPDLC, and Position reports (Concorde only).
+- Track, Untrack and Transfer are sent to your EuroScope (plugin 1.5b1 or newer) and the result is shown in the menu.
+- SELCAL test, Contact me and Supervisor copy the EuroScope command (.selcal / .contactme / .wallop) to paste into the command line, because plugins cannot run those themselves.
+
 ## 0.6.0 - 2026-10-21
 - Concorde (type CONC) position reports: a "Position reports" button in the flight plan panel opens a table of every route fix with Calc, Est and Actual times (four digits, typed in by the controller; "now" fills the current time). Typed times replace the calculated times on the strip.
 - A Concorde flashes (strip, flight plan button, red "overdue" count in the top bar, and the row in the table) when the next fix's time passed more than 3 minutes ago with no reported time.

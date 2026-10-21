@@ -1,0 +1,156 @@
+<script lang="ts">
+  import * as dataHandler from "../../typescript/fdd/data";
+  import * as sess from "../../typescript/fdd/session";
+  import * as cp from "../../typescript/fdd/cpdlc";
+  import * as pr from "../../typescript/fdd/posreports";
+  import * as m from "../../typescript/fdd/acmenu";
+
+  const { session } = sess;
+  const { menuCallsign } = m;
+  const { cpdlcStatus } = cp;
+
+  let tab: string = "track";
+  let lastCs: string = "";
+  let level: string = "";
+  let mach: string = "";
+  let selcal: string = "";
+  let note: string = "";
+  let busy: boolean = false;
+  let controllers: m.Controller[] = [];
+  let pickedCtrl: string = "";
+  let wallopText: string = "";
+  let ac: any = null;
+
+  $: canEdit = sess.canEdit($session);
+  $: if ($menuCallsign !== lastCs) { lastCs = $menuCallsign; if ($menuCallsign) openFor($menuCallsign); }
+
+  function openFor(cs: string): void {
+    ac = dataHandler.getAircraft(cs);
+    tab = "track"; note = ""; busy = false; wallopText = ""; pickedCtrl = "";
+    level = ac && ac.AssignedLevel ? String(ac.AssignedLevel) : "";
+    mach = ac && ac.AssignedMach ? String(ac.AssignedMach).padStart(3, "0") : "";
+    selcal = ac && ac.Selcal && ac.Selcal !== "N/A" ? String(ac.Selcal) : "";
+    m.loadControllers().then((c) => (controllers = c));
+  }
+  function close(): void { menuCallsign.set(""); }
+  function pickTab(t: string): void { tab = t; note = ""; }
+
+  async function waitFor(id: number): Promise<void> {
+    note = "Sent to EuroScope...";
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const s = await m.commandState(id);
+      if (s.state === "ok") { note = "✔ " + (s.msg || "Done"); await dataHandler.populateAllAircraft(); return; }
+      if (s.state === "failed") { note = "✖ " + s.msg; return; }
+      if (s.state === "waiting") note = "Waiting - is your EuroScope running with the vNAAATS plugin and signed in as " + $session.position + "?";
+    }
+    note = "No answer from EuroScope yet.";
+  }
+
+  async function send(body: Record<string, string | number>): Promise<void> {
+    busy = true; note = "";
+    const r = await m.queueCommand(Object.assign({ callsign: $menuCallsign }, body));
+    if (typeof r === "string") note = "✖ " + r;
+    else await waitFor(r);
+    busy = false;
+  }
+
+  async function copy(text: string): Promise<void> {
+    note = (await m.copyText(text)) ? "Copied: " + text + " - paste it into the EuroScope command line and press Enter." : "Could not copy. Type: " + text;
+  }
+
+  function track(): void {
+    if (selcal && !m.validSelcal(selcal)) { note = "✖ SELCAL is 4 letters (A-H, J-M, P-S)"; return; }
+    send({ type: "track", level, mach, selcal: selcal.toUpperCase() });
+  }
+  function untrack(): void {
+    if (!confirm("Release " + $menuCallsign + "?")) return;
+    send({ type: "untrack" });
+  }
+  function transfer(): void {
+    const c = controllers.find((x) => x.callsign === pickedCtrl);
+    if (!c) { note = "✖ Choose a controller"; return; }
+    send({ type: "transfer", target: c.callsign, freq: c.frequency });
+  }
+  async function saveSelcal(): Promise<void> {
+    if (!m.validSelcal(selcal)) { note = "✖ SELCAL is 4 letters (A-H, J-M, P-S)"; return; }
+    const e = await sess.editFlight($menuCallsign, { selcal: selcal.toUpperCase() });
+    note = e ? "✖ " + e : "✔ SELCAL saved";
+  }
+  function openCpdlc(): void { dataHandler.setAsel($menuCallsign); cp.cpdlcPick.set($menuCallsign); cp.cpdlcOpen.set(true); close(); }
+  function openPos(): void { dataHandler.setAsel($menuCallsign); pr.posOpen.set(true); close(); }
+
+  $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
+  $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
+  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["contact", "Contact me"], ["sup", "Supervisor"], ["cpdlc", "CPDLC"]];
+</script>
+
+{#if $menuCallsign}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 font-regular" on:click|self={close}>
+    <div class="bg-grey-500 text-white border border-blue-4 w-full max-w-md p-3 select-none">
+      <div class="flex flex-row justify-between mb-2">
+        <span class="text-lg">{$menuCallsign}</span>
+        <span class="underline hover:cursor-pointer" on:click={close}>close</span>
+      </div>
+      <div class="flex flex-row flex-wrap mb-2">
+        {#each tabs as t}
+          <span class="px-2 py-0.5 mr-1 mb-1 border border-blue-4 hover:cursor-pointer {tab === t[0] ? 'bg-blue-4' : ''}" on:click={() => pickTab(t[0])}>{t[1]}</span>
+        {/each}
+        {#if isConc}
+          <span class="px-2 py-0.5 mr-1 mb-1 border border-blue-4 hover:cursor-pointer" on:click={openPos}>Position reports</span>
+        {/if}
+      </div>
+
+      {#if tab === "track"}
+        <div class="flex flex-row mb-2">
+          <label class="mr-2">FL <input class="w-16 px-1 text-black" bind:value={level} /></label>
+          <label class="mr-2">Mach <input class="w-16 px-1 text-black" bind:value={mach} placeholder="084" /></label>
+          <label>SELCAL <input class="w-20 px-1 text-black uppercase" maxlength="4" bind:value={selcal} /></label>
+        </div>
+        <div class="flex flex-row">
+          <button class="px-2 py-0.5 mr-2 border border-blue-4" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>SELCAL test (copy)</button>
+          <button class="px-2 py-0.5 border border-green-500" disabled={busy || !canEdit} on:click={track}>Track aircraft</button>
+        </div>
+      {:else if tab === "untrack"}
+        <button class="px-2 py-0.5 border border-green-500" disabled={busy || !canEdit} on:click={untrack}>Untrack aircraft</button>
+      {:else if tab === "transfer"}
+        {#if controllers.length === 0}
+          <div>No online controllers found.</div>
+        {:else}
+          <select class="w-full px-1 text-black mb-2" bind:value={pickedCtrl}>
+            <option value="">Choose controller</option>
+            {#each controllers as c}
+              <option value={c.callsign}>{c.callsign} {c.frequency} {c.name}</option>
+            {/each}
+          </select>
+          <button class="px-2 py-0.5 border border-green-500" disabled={busy || !canEdit || !pickedCtrl} on:click={transfer}>Transfer</button>
+        {/if}
+      {:else if tab === "selcal"}
+        <div class="flex flex-row">
+          <input class="w-20 px-1 mr-2 text-black uppercase" maxlength="4" bind:value={selcal} />
+          <button class="px-2 py-0.5 mr-2 border border-blue-4" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
+          <button class="px-2 py-0.5 border border-blue-4" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
+        </div>
+      {:else if tab === "contact"}
+        <button class="px-2 py-0.5 border border-blue-4" on:click={() => copy(m.contactMeCommand($menuCallsign))}>Copy .contactme {$menuCallsign}</button>
+      {:else if tab === "sup"}
+        <textarea class="w-full px-1 mb-2 text-black" rows="3" bind:value={wallopText} placeholder="Message to the supervisors" />
+        <div class="flex flex-row">
+          <button class="px-2 py-0.5 mr-2 border border-blue-4" on:click={() => (wallopText = m.NO_CONTACT_TEXT)}>No Contact</button>
+          <button class="px-2 py-0.5 border border-blue-4" disabled={!wallopText.trim()} on:click={() => copy(m.wallopCommand($menuCallsign, wallopText))}>Copy .wallop</button>
+        </div>
+      {:else if tab === "cpdlc"}
+        {#if onCpdlc}
+          <button class="px-2 py-0.5 border border-blue-4" on:click={openCpdlc}>Open CPDLC for {$menuCallsign}</button>
+        {:else}
+          <div>{$menuCallsign} is not connected to CPDLC.</div>
+        {/if}
+      {/if}
+
+      {#if !canEdit && (tab === "track" || tab === "untrack" || tab === "transfer")}
+        <div class="mt-2 text-yellow-300">Sign in and choose your position to use this.</div>
+      {/if}
+      {#if note}<div class="mt-2 text-sm break-words">{note}</div>{/if}
+    </div>
+  </div>
+{/if}
