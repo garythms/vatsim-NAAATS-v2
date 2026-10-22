@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.10.2 - 2026-10-22
+- The "Entry time" box is now labelled "Entry".
+
 ## 0.10.1 - 2026-10-22
 - Flight plan panel: Dest now sits next to Depart; "Etd" replaced by the editable "Entry time" (time at the oceanic entry fix); SELCAL moved to the Route row beside the route box.
 - State box now shows CTL when an ATC position is tracking the flight, "--" otherwise (it used to show a fixed "UC").

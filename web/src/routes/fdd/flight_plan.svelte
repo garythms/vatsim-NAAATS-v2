@@ -116,8 +116,8 @@
         isDisabled={true}
       />
       <EditInput
-        label={"Entry time"}
-        width={"w-20"}
+        label={"Entry"}
+        width={"w-16"}
         value={dataHandler.entryClock(asel)}
         maxlength={4}
         editable={editable && !asel.IsConc && dataHandler.entryClock(asel) !== ""}
