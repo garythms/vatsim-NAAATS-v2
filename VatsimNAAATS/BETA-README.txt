@@ -66,4 +66,4 @@ NEW IN 1.5b7 (and 1.5b6): fixed a crash on opening when the plugin could not rea
 NEW IN 1.5b5: start-up logging and protection (vNAAATS.log shows each start-up step). If EuroScope still crashes on opening, send vNAAATS.log.
 
 vNAAATS.asr (in the zip)
-This is the vNAAATS radar screen layout. It has no sector-file name or personal settings in it, so it should open with whatever Gander sector file you have loaded. Put it in your EuroScope ASR folder, or open it from Open SCT/ASR. If EuroScope still shows a "different sector file" warning, pick your latest Gander (EXCXO) sector file, then press Save once.
+This is the vNAAATS radar screen layout. Its sector-file lines are left blank, like the AeroNav ASR files, and it has no personal settings in it, so it should open with whatever Gander sector file you have loaded. Put it in your EuroScope ASR folder, or open it from Open SCT/ASR. If EuroScope still shows a "different sector file" warning, pick your latest Gander (EXCXO) sector file, then press Save once.

@@ -1,6 +1,8 @@
 DisplayTypeName:vNAAATS Display
 DisplayTypeNeedRadarContent:0
 DisplayTypeGeoReferenced:1
+SECTORFILE:
+SECTORTITLE:
 ARTCC boundary:CZQO Shannon Transfer Line:
 ARTCC high boundary:BGGL - Sondrestorm Oceanic FIR:
 ARTCC high boundary:BIRD - Reykjavic FIR:
