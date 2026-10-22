@@ -567,7 +567,14 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 				fp->Dest = netFP.Arrival;
 				fp->Etd = netFP.Etd;
 				fp->State = netFP.State;
-				fp->IsEquipped = netFP.IsEquipped;
+				// Work equipment out again from the EuroScope flight plan each time: the value saved on the server can be a stale "not
+				// equipped" from when the plan was first loaded (remarks not there yet). Fall back to the server value if EuroScope has no remarks.
+				{
+					CFlightPlan esFp = screen->GetPlugIn()->FlightPlanSelect(callsign.c_str());
+					string esRemarks = esFp.IsValid() ? string(esFp.GetFlightPlanData().GetRemarks()) : "";
+					if (!esRemarks.empty()) fp->IsEquipped = CUtils::IsAircraftEquipped(esRemarks, esFp.GetFlightPlanData().GetAircraftInfo(), esFp.GetFlightPlanData().GetCapibilities());
+					else fp->IsEquipped = netFP.IsEquipped;
+				}
 				fp->IsRelevant = netFP.Relevant;
 				fp->DLStatus = to_string(netFP.DatalinkConnected);
 				fp->TargetMode = CUtils::GetTargetMode(screen->GetPlugIn()->RadarTargetSelect(callsign.c_str()).GetPosition().GetRadarFlags());
