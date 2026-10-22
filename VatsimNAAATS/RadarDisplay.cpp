@@ -157,6 +157,7 @@ static bool TypeIntoEuroScope(const string& text) {
 	vector<INPUT> in;
 	auto key = [&](WORD vk, bool up) { INPUT i = {}; i.type = INPUT_KEYBOARD; i.ki.wVk = vk; if (up) i.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(i); };
 	key(VK_HOME, false); key(VK_HOME, true);
+	key(VK_SHIFT, false); key(VK_END, false); key(VK_END, true); key(VK_SHIFT, true); // select anything already in the command line so the new text replaces it
 	for (unsigned char ch : text) {
 		INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wScan = ch; d.ki.dwFlags = KEYEVENTF_UNICODE; in.push_back(d);
 		INPUT u = d; u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP; in.push_back(u);
@@ -179,6 +180,21 @@ void CRadarDisplay::RunRemoteCommands()
 	}
 
 	vector<CDataHandler::CRemoteCommand> cmds = CDataHandler::TakeRemoteCommands();
+	// Typed commands (.selcal / .contactme / .msg) go one at a time, at least 1.5 s apart: EuroScope needs time to run the
+	// previous line, otherwise two commands end up joined on one line in the command box.
+	static vector<CDataHandler::CRemoteCommand> typeBacklog;
+	static clock_t lastTyped = 0;
+	vector<CDataHandler::CRemoteCommand> now;
+	for (auto& c : cmds) {
+		if (c.Type == "selcal" || c.Type == "contactme" || c.Type == "natmsg") typeBacklog.push_back(c);
+		else now.push_back(c);
+	}
+	if (!typeBacklog.empty() && (lastTyped == 0 || (double)(clock() - lastTyped) / (double)CLOCKS_PER_SEC >= 1.5)) {
+		now.push_back(typeBacklog.front());
+		typeBacklog.erase(typeBacklog.begin());
+		lastTyped = clock();
+	}
+	cmds = now;
 	for (auto& cmd : cmds) {
 		try {
 			CFlightPlan es = plugin->FlightPlanSelect(cmd.Callsign.c_str());
