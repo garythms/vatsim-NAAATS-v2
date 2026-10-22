@@ -190,7 +190,9 @@ class CpdlcStation:
         self.on_release = on_release or (lambda callsign: None)  # called when the tag should be released in EuroScope
         self.pending = {}                                        # callsign -> {"min", "kind", "ts"}: waiting for the pilot's WILCO/ROGER
         self.lock = threading.RLock()
-        self.db = sqlite3.connect(db_path, check_same_thread=False)
+        self.db = sqlite3.connect(db_path, check_same_thread=False, timeout=30)
+        try: self.db.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.DatabaseError: pass
         self.db.execute("""CREATE TABLE IF NOT EXISTS cpdlc_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL,
             dir TEXT NOT NULL, callsign TEXT NOT NULL, min INTEGER, mrn INTEGER, ra TEXT, text TEXT NOT NULL,
             state TEXT NOT NULL DEFAULT '', seen INTEGER NOT NULL DEFAULT 1, by TEXT NOT NULL DEFAULT '')""")

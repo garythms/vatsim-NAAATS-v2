@@ -56,7 +56,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.12.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.12.1"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -245,7 +245,9 @@ def to_int(v, default=0):
 class FlightStore:
     def __init__(self, path):
         self.lock = threading.Lock()
-        self.db = sqlite3.connect(path, check_same_thread=False)
+        self.db = sqlite3.connect(path, check_same_thread=False, timeout=30)
+        try: self.db.execute("PRAGMA journal_mode=WAL")
+        except sqlite3.DatabaseError: pass
         self.db.execute("CREATE TABLE IF NOT EXISTS flights (callsign TEXT PRIMARY KEY, data TEXT NOT NULL, updated REAL NOT NULL)")
         self.db.execute("CREATE TABLE IF NOT EXISTS dismissed (callsign TEXT PRIMARY KEY, at REAL NOT NULL, by TEXT NOT NULL DEFAULT '')")
         self.db.execute("CREATE TABLE IF NOT EXISTS fixes (name TEXT PRIMARY KEY, lat REAL NOT NULL, lon REAL NOT NULL)")
@@ -286,6 +288,7 @@ class FlightStore:
     def dismissed_set(self):
         with self.lock:
             self.db.execute("DELETE FROM dismissed WHERE at < ?", (time.time() - self.DISMISS_SECONDS,))
+            self.db.commit()      # never leave a write open: it would lock the CPDLC database connection out ("database is locked")
             rows = self.db.execute("SELECT callsign FROM dismissed").fetchall()
         return {r[0] for r in rows}
 
