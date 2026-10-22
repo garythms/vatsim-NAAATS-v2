@@ -41,6 +41,7 @@ jobs:
           Copy-Item (Get-ChildItem -Recurse -Filter VatsimNAAATS.dll | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1).FullName pkg/
           Copy-Item VatsimNAAATS/vnaaats.example.cfg pkg/
           Copy-Item VatsimNAAATS/BETA-README.txt pkg/
+          Copy-Item VatsimNAAATS/vNAAATS.asr pkg/
           Compress-Archive -Path pkg/* -DestinationPath VatsimNAAATS-plugin.zip -Force
       - name: Publish release
         if: github.event_name == 'push' && github.ref_name == 'server-and-squawk'
