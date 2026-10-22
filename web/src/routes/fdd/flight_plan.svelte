@@ -108,21 +108,20 @@
         value={asel.Departure}
         isDisabled={true}
       />
-
       <TextInput
-        label={"Etd"}
-        identifier={"etd"}
-        width={"w-16"}
-        value={asel.Etd.toString() + "z"}
+        label={"Dest"}
+        identifier={"dest"}
+        width={"w-14"}
+        value={asel.Arrival}
         isDisabled={true}
       />
       <EditInput
-        label={"SELCAL"}
-        width={"w-16"}
-        value={asel.Selcal ?? ""}
-        maxlength={5}
-        {editable}
-        onCommit={(t) => save("selcal", t)}
+        label={"Entry time"}
+        width={"w-20"}
+        value={dataHandler.entryClock(asel)}
+        maxlength={4}
+        editable={editable && !asel.IsConc && dataHandler.entryClock(asel) !== ""}
+        onCommit={(t) => save("entryEta", t)}
       />
       <TextInput
         label={"Datalink"}
@@ -159,14 +158,6 @@
           {editable}
           onCommit={(t) => save("level", t)}
         />
-        <TextInput
-          label={"Dest"}
-          identifier={"dest"}
-          width={"w-14"}
-          value={asel.Arrival}
-          isDisabled={true}
-          labelOnTop={false}
-        />
       </div>
     </div>
     <div class="flex flex-row items-top pt-1 px-1 ml-1 justify-start">
@@ -178,12 +169,12 @@
         {#if routeWarn}<div class="absolute z-30 top-full left-2 mt-0.5 p-1 w-72 font-regular text-xs text-white bg-red-700 border border-red-300">{routeWarn}</div>{/if}
       </div>
       <EditInput
-        label={"Entry"}
-        width={"w-14"}
-        value={dataHandler.entryClock(asel)}
-        maxlength={4}
-        editable={editable && !asel.IsConc && dataHandler.entryClock(asel) !== ""}
-        onCommit={(t) => save("entryEta", t)}
+        label={"SELCAL"}
+        width={"w-16"}
+        value={asel.Selcal ?? ""}
+        maxlength={5}
+        {editable}
+        onCommit={(t) => save("selcal", t)}
       />
       <EditInput
         label={"Tck"}
@@ -197,7 +188,7 @@
         label={"State"}
         identifier={"level"}
         width={"w-9"}
-        value={"UC"}
+        value={asel.TrackedBy && asel.TrackedBy !== "NATTRAK" ? "CTL" : "--"}
         isDisabled={true}
       />
     </div>
