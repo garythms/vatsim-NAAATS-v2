@@ -41,6 +41,7 @@
       <div class="text-sm opacity-80 mt-3">The zip has the plugin DLL, an example config file and a testers' README. It always holds the newest build.</div>
     </div>
 
+    <p class="mb-4 p-3 border-2 border-blue-10 bg-blue-3">First time? Follow the <a href="https://vnaaats.com/guide" class="underline font-bold">full install guide</a> (includes the radar screen file and sector file steps).</p>
     <h2 class="text-2xl font-bold mb-2">Install in five steps</h2>
     <ol class="list-decimal ml-6 space-y-1 mb-6">
       <li>Close EuroScope and unzip the download.</li>
