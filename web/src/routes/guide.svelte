@@ -18,7 +18,7 @@
     </ul>
 
     <h2 class="text-2xl font-bold mb-2">1. Get the Gander package</h2>
-    <p class="mb-6 opacity-90">Download and run the Gander Oceanic package from <b>AeroNav</b> (aero-nav.com). Open EuroScope with that package once, so you can see the oceanic map, then close EuroScope.</p>
+    <p class="mb-6 opacity-90">Download and run the Gander Oceanic package from <b>AeroNav</b>: <a class="underline" href="https://files.aero-nav.com/EXCXO">files.aero-nav.com/EXCXO</a>. Open EuroScope with that package once, so you can see the oceanic map, then close EuroScope.</p>
 
     <h2 class="text-2xl font-bold mb-2">2. Download the plugin</h2>
     <p class="mb-3 opacity-90">Get the newest zip from the <a class="underline" href="https://vnaaats.com/beta">download page</a> (or from the Gander website if you were given a ready-made zip). Unzip it into a folder you will remember, for example <b>Documents\vNAAATS</b>. It holds:</p>
