@@ -101,7 +101,7 @@
       <TextInput
         label={"ACID"}
         identifier={"acid"}
-        width={"w-32"}
+        width={"w-24"}
         value={asel.Callsign}
         isDisabled={true}
       />
@@ -137,7 +137,7 @@
       <TextInput
         label={"Datalink"}
         identifier={"datalink"}
-        width={"w-28"}
+        width={"w-24"}
         value={asel.Cpdlc ? "CPDLC on" : "No CPDLC"}
         inputForeColour={"text-black"}
         backColour={asel.Cpdlc ? "bg-green-400" : "bg-red-500"}
