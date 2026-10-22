@@ -149,21 +149,49 @@ static bool TypeIntoEuroScope(const string& text) {
 		keybd_event(VK_MENU, 0, 0, 0); // an Alt tap lets this process take the foreground
 		keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
 		SetForegroundWindow(es);
+		Sleep(150);
 		fg = GetForegroundWindow();
 		pid = 0;
 		if (fg) GetWindowThreadProcessId(fg, &pid);
 		if (pid != GetCurrentProcessId()) return false;
 	}
+	// This runs on its own thread with short pauses, so EuroScope's own thread can finish each step (move focus to the
+	// command line, clear it, take the text, run the line) before the next keys arrive. Sending everything in one burst
+	// left old text in the box and glued commands together.
+	auto send = [&](vector<INPUT>& in) { if (!in.empty()) SendInput((UINT)in.size(), in.data(), sizeof(INPUT)); in.clear(); };
 	vector<INPUT> in;
-	auto key = [&](WORD vk, bool up) { INPUT i = {}; i.type = INPUT_KEYBOARD; i.ki.wVk = vk; if (up) i.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(i); };
-	key(VK_HOME, false); key(VK_HOME, true);
-	key(VK_SHIFT, false); key(VK_END, false); key(VK_END, true); key(VK_SHIFT, true); // select anything already in the command line so the new text replaces it
+	auto key = [&](WORD vk) {
+		INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wVk = vk; in.push_back(d);
+		INPUT u = d; u.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(u);
+	};
+	key(VK_HOME); send(in);                       // Home focuses the command line
+	Sleep(300);
+	key(VK_END);                                  // then empty it: End and plenty of Backspaces, whatever was left in it
+	for (int n = 0; n < 300; n++) key(VK_BACK);
+	send(in);
+	Sleep(300);
 	for (unsigned char ch : text) {
 		INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wScan = ch; d.ki.dwFlags = KEYEVENTF_UNICODE; in.push_back(d);
 		INPUT u = d; u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP; in.push_back(u);
 	}
-	key(VK_RETURN, false); key(VK_RETURN, true);
-	return SendInput((UINT)in.size(), in.data(), sizeof(INPUT)) == in.size();
+	send(in);
+	Sleep(300);
+	key(VK_RETURN); send(in);
+	return true;
+}
+
+struct CTypeJob { string Text; int Id; };
+static volatile LONG TypingBusy = 0;
+static void TypeThread(void* arg) {
+	CTypeJob* job = (CTypeJob*)arg;
+	try {
+		if (TypeIntoEuroScope(job->Text)) CDataHandler::ReportRemoteResult(job->Id, true, "Sent to EuroScope: " + job->Text.substr(0, 40));
+		else CDataHandler::ReportRemoteResult(job->Id, false, "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste");
+	}
+	catch (...) { CDataHandler::ReportRemoteResult(job->Id, false, "plugin error while typing"); }
+	Sleep(1200);                                    // leave EuroScope time to run the line before the next one
+	InterlockedExchange(&TypingBusy, 0);
+	delete job;
 }
 
 void CRadarDisplay::RunRemoteCommands()
@@ -189,7 +217,7 @@ void CRadarDisplay::RunRemoteCommands()
 		if (c.Type == "selcal" || c.Type == "contactme" || c.Type == "natmsg") typeBacklog.push_back(c);
 		else now.push_back(c);
 	}
-	if (!typeBacklog.empty() && (lastTyped == 0 || (double)(clock() - lastTyped) / (double)CLOCKS_PER_SEC >= 1.5)) {
+	if (!typeBacklog.empty() && TypingBusy == 0 && (lastTyped == 0 || (double)(clock() - lastTyped) / (double)CLOCKS_PER_SEC >= 1.5)) {
 		now.push_back(typeBacklog.front());
 		typeBacklog.erase(typeBacklog.begin());
 		lastTyped = clock();
@@ -264,8 +292,8 @@ void CRadarDisplay::RunRemoteCommands()
 			else if (cmd.Type == "selcal" || cmd.Type == "contactme" || cmd.Type == "natmsg") {
 				if (!CDataHandler::AutoType) { CDataHandler::ReportRemoteResult(cmd.Id, false, "auto-typing is off (add autotype=1 to vnaaats.cfg) - use Copy and paste instead"); continue; }
 				if (!(cmd.Text.rfind(".selcal ", 0) == 0 || cmd.Text.rfind(".contactme ", 0) == 0 || cmd.Text.rfind(".msg ", 0) == 0)) { CDataHandler::ReportRemoteResult(cmd.Id, false, "refused: not an allowed command"); continue; }
-				if (TypeIntoEuroScope(cmd.Text)) CDataHandler::ReportRemoteResult(cmd.Id, true, "Sent to EuroScope: " + cmd.Text.substr(0, 40));
-				else CDataHandler::ReportRemoteResult(cmd.Id, false, "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste");
+				InterlockedExchange(&TypingBusy, 1);
+				_beginthread(TypeThread, 0, (void*)new CTypeJob{ cmd.Text, cmd.Id });   // the thread reports the result
 			}
 			else {
 				CDataHandler::ReportRemoteResult(cmd.Id, false, "unknown command");
