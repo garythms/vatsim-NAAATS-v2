@@ -1,7 +1,26 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as site from "../typescript/site";
-  onMount(() => { site.setTitle("Install guide"); document.body.style.opacity = "100%"; });
+  const repo = "garythms/vatsim-NAAATS-v2";
+  let version: string = "";
+  let zipUrl: string = "https://github.com/" + repo + "/releases/tag/latest-build";
+  let direct: boolean = false;
+  onMount(async () => {
+    site.setTitle("Install guide");
+    document.body.style.opacity = "100%";
+    try {
+      const v = await fetch("https://raw.githubusercontent.com/" + repo + "/server-and-squawk/pluginversion.txt");
+      if (v.ok) version = (await v.text()).trim();
+    } catch (e) { /* the page still works without it */ }
+    try {
+      const r = await fetch("https://api.github.com/repos/" + repo + "/releases/tags/latest-build");
+      if (r.ok) {
+        const rel = await r.json();
+        const a = (rel.assets ?? []).find((x: any) => x.name.endsWith(".zip"));
+        if (a) { zipUrl = a.browser_download_url; direct = true; }
+      }
+    } catch (e) { /* falls back to the release page */ }
+  });
 </script>
 
 <div class="min-h-screen bg-blue-1 text-white font-web flex flex-col items-center px-4 py-10">
@@ -10,11 +29,17 @@
     <h1 class="text-4xl font-bold mt-3 mb-1">vNAAATS V2 - first-time install guide</h1>
     <div class="opacity-80 mb-6">For controllers using EuroScope on Windows. Allow about 15 minutes.</div>
 
+    <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
+      <div class="text-lg font-bold">Plugin pack{version ? " - " + version : ""}</div>
+      <a href={zipUrl} class="inline-block my-2 px-5 py-2 font-bold bg-blue-10 text-black">{direct ? "Download VatsimNAAATS-plugin.zip" : "Open the download page"}</a>
+      <div class="text-sm opacity-80">Always the newest build: the plugin DLL, the vNAAATS.asr screen file, an example config and a short README. The <b>key</b> is not in the zip - get it from the Gander Oceanic website members page.</div>
+    </div>
+
     <h2 class="text-2xl font-bold mb-2">Before you start</h2>
     <ul class="list-disc ml-6 space-y-1 mb-6">
       <li>EuroScope installed and working, and a VATSIM controller rating.</li>
       <li>The official <b>Gander Oceanic sector package from AeroNav</b> (it also keeps your AIRAC up to date).</li>
-      <li>The plugin zip, with the <b>key</b> you were given (ask the Gander Oceanic team; do not share it).</li>
+      <li>The plugin pack (the download box above) and the <b>key</b> from the Gander Oceanic website members page. Do not share the key.</li>
     </ul>
 
     <h2 class="text-2xl font-bold mb-2">1. Get the Gander package</h2>

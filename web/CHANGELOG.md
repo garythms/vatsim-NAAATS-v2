@@ -3,7 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 0.11.3 - 2026-10-22
-- New install guide at /guide (linked from the download page), with the AeroNav Gander package link.
+- New install guide at /guide (linked from the download page), with the AeroNav Gander package link and a download button for the newest plugin pack.
 
 ## 0.11.2 - 2026-10-22
 - The aircraft menu "NatTrak" tab is now "RCL REQ" (the clearance-request reminder message).
