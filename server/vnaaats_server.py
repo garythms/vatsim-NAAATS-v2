@@ -56,7 +56,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.11.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.12.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -247,6 +247,7 @@ class FlightStore:
         self.lock = threading.Lock()
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute("CREATE TABLE IF NOT EXISTS flights (callsign TEXT PRIMARY KEY, data TEXT NOT NULL, updated REAL NOT NULL)")
+        self.db.execute("CREATE TABLE IF NOT EXISTS dismissed (callsign TEXT PRIMARY KEY, at REAL NOT NULL, by TEXT NOT NULL DEFAULT '')")
         self.db.execute("CREATE TABLE IF NOT EXISTS fixes (name TEXT PRIMARY KEY, lat REAL NOT NULL, lon REAL NOT NULL)")
         self.db.execute("""CREATE TABLE IF NOT EXISTS pos_reports (callsign TEXT NOT NULL, fix TEXT NOT NULL, est TEXT NOT NULL DEFAULT '',
             act TEXT NOT NULL DEFAULT '', by TEXT NOT NULL DEFAULT '', at TEXT NOT NULL DEFAULT '', ts REAL NOT NULL, PRIMARY KEY (callsign, fix))""")
@@ -267,6 +268,40 @@ class FlightStore:
         with self.lock:
             rows = self.db.execute("SELECT fix, est, act, by, at FROM pos_reports WHERE callsign=?", (callsign.strip().upper(),)).fetchall()
         return {f: {"est": e, "act": a, "by": b, "at": t} for f, e, a, b, t in rows}
+
+    DISMISS_SECONDS = 12 * 3600       # a removed strip stays hidden this long unless it is added again
+
+    def dismiss(self, callsign, by):
+        cs = callsign.strip().upper()
+        with self.lock:
+            self.db.execute("DELETE FROM flights WHERE callsign=?", (cs,))
+            self.db.execute("INSERT OR REPLACE INTO dismissed VALUES (?,?,?)", (cs, time.time(), by))
+            self.db.commit()
+
+    def undismiss(self, callsign):
+        with self.lock:
+            self.db.execute("DELETE FROM dismissed WHERE callsign=?", (callsign.strip().upper(),))
+            self.db.commit()
+
+    def dismissed_set(self):
+        with self.lock:
+            self.db.execute("DELETE FROM dismissed WHERE at < ?", (time.time() - self.DISMISS_SECONDS,))
+            rows = self.db.execute("SELECT callsign FROM dismissed").fetchall()
+        return {r[0] for r in rows}
+
+    def add_manual(self, rec, by):
+        """Put a flight on the display by hand. If we already hold it, keep what we have and just mark it as added by hand."""
+        cs = rec["callsign"]
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with self.lock:
+            self.db.execute("DELETE FROM dismissed WHERE callsign=?", (cs,))
+            row = self.db.execute("SELECT data FROM flights WHERE callsign=?", (cs,)).fetchone()
+            out = json.loads(row[0]) if row else dict(rec, history=[])
+            out["manual"] = {"by": by, "at": now}
+            out["lastUpdated"] = now
+            self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(out), time.time()))
+            self.db.commit()
+        return out
 
     def all_flights(self, newest_first=True):
         with self.lock:
@@ -310,6 +345,10 @@ class FlightStore:
                 rec["webEditPending"] = True
             if old and old.get("ntSent"):
                 rec["ntSent"] = old["ntSent"]                 # natTrak reminder sent: survives plugin updates
+            if old and old.get("manual"):
+                rec["manual"] = old["manual"]                 # added by hand on the display: stays so
+            if old and old.get("etaWeb") and not old.get("routeWeb"):
+                rec["routeEtas"], rec["etaWeb"] = old.get("routeEtas", rec["routeEtas"]), True   # entry time set on the web
             if old and old.get("routeWeb"):
                 # the route was amended on the web (the plugin cannot read that): keep it
                 rec["route"], rec["routeEtas"], rec["routeWeb"] = old.get("route", rec["route"]), old.get("routeEtas", rec["routeEtas"]), True
@@ -347,8 +386,12 @@ class FlightStore:
                 return None
             rec = dict(old if old is not None else base)
             rec["callsign"] = cs
+            entry = changes.pop("entryEta", None)
             for k, v in changes.items():
                 rec[k] = v
+            if entry:
+                rec["routeEtas"] = shift_entry_eta(str(rec.get("routeEtas", "")), entry, len(str(rec.get("route", "")).split()))
+                rec["etaWeb"] = True
             if "route" in changes:           # keep the times of fixes that stay; new fixes have none
                 prev = dict(zip(str((old or base).get("route", "")).split(), str((old or base).get("routeEtas", "")).split()))
                 rec["routeEtas"] = " ".join(prev.get(f, "--") for f in changes["route"].split())
@@ -497,6 +540,36 @@ def convert_network_pilot(pilot, tracks):
 
 
 
+def convert_manual_pilot(pilot, tracks):
+    """A flight added by hand: the same record as the VATSIM feed gives, but for any pilot with a flight plan.
+    If the route does not have two oceanic coordinates the plain fixes of the route are used and the direction is a guess
+    from where the flight starts (Europe = westbound)."""
+    rec = convert_network_pilot(pilot, tracks)
+    if rec:
+        return rec
+    fp = pilot.get("flight_plan") or {}
+    if not fp:
+        return None
+    names = []
+    for tok in (fp.get("route") or "").upper().split():
+        if tok == "DCT" or re.fullmatch(r"[A-Z]{1,2}\d{1,3}[A-Z]?", tok) or re.fullmatch(r"[NMK]\d{3,4}[FAMS]\d{3,4}", tok):
+            continue
+        names.append(tok)
+    dep = (fp.get("departure") or "").upper()
+    rec = {
+        "callsign": pilot.get("callsign", "").upper(), "type": fp.get("aircraft_short") or "",
+        "assignedLevel": parse_level(fp.get("altitude")), "assignedMach": 0,
+        "track": "RR", "route": " ".join(names), "routeEtas": " ".join(["--"] * len(names)),
+        "departure": dep, "arrival": fp.get("arrival") or "",
+        "direction": not dep[:1] in ("E", "L", "B"), "etd": fp.get("deptime") or "", "selcal": "",
+        "datalinkConnected": False, "isEquipped": True, "state": "", "relevant": True,
+        "trackedBy": "", "trackedById": "", "targetMode": 3,
+        "lastUpdated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "source": "vatsim",
+    }
+    return rec
+
+
 class NatTrakFeed:
     """natTrak clearances and pending requests (public endpoint, no login). Keeps the last good copy."""
     def __init__(self, url=NATTRAK_PLUGIN_URL):
@@ -548,6 +621,7 @@ class NetworkTraffic:
         self.positions = {}      # callsign -> (lat, lon) for every pilot on the network (used by the CPDLC 250 nm logon rule)
         self.controllers = []    # online ATC that aircraft can be transferred to: [{callsign, frequency, name, facility}]
         self.atc_freq = {}       # "133.500" -> callsign of every online controller (any position)
+        self.pilots = {}         # callsign -> the pilot as in the VATSIM feed (for adding a flight by hand)
         self.tuned = {}          # pilot callsign -> set of frequencies (MHz string) the pilot has tuned, from the transceivers feed
 
     def is_offline(self, callsign):
@@ -560,6 +634,10 @@ class NetworkTraffic:
     def position(self, callsign):
         with self.lock:
             return self.positions.get((callsign or "").upper())
+
+    def lookup_pilot(self, callsign):
+        with self.lock:
+            return self.pilots.get((callsign or "").upper())
 
     def comm_for(self, callsign):
         """Who the pilot is talking to: {"kind": "oceanic"|"domestic"|"unicom", "by": callsign or "", "freq": "133.500"} or None.
@@ -615,6 +693,12 @@ class NetworkTraffic:
                 if rec and rec["callsign"]:
                     out.append(rec)
             pos = {}
+            raw = {}
+            for pilot in data.get("pilots", []):
+                try:
+                    raw[str(pilot["callsign"]).upper()] = pilot
+                except (KeyError, TypeError):
+                    pass
             for pilot in data.get("pilots", []):
                 try:
                     pos[str(pilot["callsign"]).upper()] = (float(pilot["latitude"]), float(pilot["longitude"]))
@@ -638,6 +722,7 @@ class NetworkTraffic:
             with self.lock:
                 self.flights, self.updated, self.error = out, time.time(), None
                 self.positions = pos
+                self.pilots = raw
                 self.atc_freq = atc
                 self.controllers = sorted(ctrls, key=lambda x: x["callsign"])
             log.info("Network traffic refreshed: %d oceanic flights", len(out))
@@ -821,6 +906,40 @@ def route_problem(text):
     return ""
 
 
+def _hhmm_to_min(t):
+    return int(t[:2]) * 60 + int(t[2:])
+
+
+def shift_entry_eta(etas, new_entry, n_fixes):
+    """Move the oceanic entry time to new_entry (HHMM) and shift every other fix time by the same amount.
+    Times run in order along the flight, so the entry is the earliest of them (whichever way round the list is stored).
+    A flight with no times yet gets the entry time on its first fix and nothing else."""
+    parts = etas.split()
+    valid = [i for i, t in enumerate(parts) if re.fullmatch(r"\d{4}", t)]
+    if not valid:
+        return " ".join([new_entry] + ["--"] * max(n_fixes - 1, 0))
+    # unwrap midnight so the times form one run, then find the earliest
+    mins, prev, day = {}, None, 0
+    for i in valid:
+        m = _hhmm_to_min(parts[i])
+        if prev is not None and m + day * 1440 < prev - 720:
+            day += 1
+        elif prev is not None and m + day * 1440 > prev + 720:
+            day -= 1
+        mins[i] = m + day * 1440
+        prev = mins[i]
+    delta = _hhmm_to_min(new_entry) - (min(mins.values()) % 1440)
+    if delta > 720:
+        delta -= 1440
+    elif delta < -720:
+        delta += 1440
+    out = list(parts)
+    for i in valid:
+        t = (mins[i] + delta) % 1440
+        out[i] = "%02d%02d" % (t // 60, t % 60)
+    return " ".join(out)
+
+
 def validate_edit(body):
     """Check an edit from the web. Returns (changes, error)."""
     changes = {}
@@ -844,6 +963,11 @@ def validate_edit(body):
         if bad:
             return None, bad
         changes["route"] = " ".join(str(body["route"]).upper().split())
+    if "entryEta" in body:
+        e = re.sub(r"\D", "", str(body["entryEta"]))
+        if len(e) != 4 or int(e[:2]) > 23 or int(e[2:]) > 59:
+            return None, "entry time must be four digits, 0000-2359 (e.g. 1530)"
+        changes["entryEta"] = e
     if "selcal" in body:
         sc = re.sub(r"[-\s]", "", str(body["selcal"]).upper())
         if sc and not SELCAL_OK.fullmatch(sc):
@@ -1063,6 +1187,28 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(400, {"error": "position reports are only for Concorde"})
                     store.pos_set(cs, fix, est, act, ("%s (%s)" % (sess["position"], sess["name"]))[:60])
                     return self._send(200, with_cpdlc(rec))
+                if p in ("/AddFlight", "/RemoveFlight"):
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if not sess["position"] or sess["position"] == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position first (observers are read-only)"})
+                    cs = re.sub(r"[^A-Z0-9]", "", str(body.get("callsign", "")).upper())
+                    if not cs:
+                        return self._send(400, {"error": "type a callsign"})
+                    by = ("%s (%s)" % (sess["position"], sess["name"]))[:60]
+                    if p == "/RemoveFlight":
+                        store.dismiss(cs, by)
+                        return self._send(200, {"ok": True, "callsign": cs})
+                    pilot = network.lookup_pilot(cs) if network else None
+                    if not pilot:
+                        return self._send(404, {"error": cs + " is not on the VATSIM network right now - check the callsign"})
+                    with cache.lock:
+                        tracks_now = list(cache.tracks)
+                    rec = convert_manual_pilot(pilot, tracks_now)
+                    if not rec:
+                        return self._send(404, {"error": cs + " has no flight plan filed on VATSIM"})
+                    return self._send(200, with_cpdlc(store.add_manual(rec, by)))
                 if p == "/EditFlight":
                     sess = self._session()
                     if not sess:
@@ -1195,9 +1341,11 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     rec = store.upsert(q)
                     return self._send(200, rec) if rec else self._send(400, {"error": "callsign required"})
                 if p == "/GetAllFlightData":
-                    return self._send(200, [with_cpdlc(f) for f in store.all_flights(newest_first=q.get("sort", "1") != "0")])
+                    hidden = store.dismissed_set()
+                    return self._send(200, [with_cpdlc(f) for f in store.all_flights(newest_first=q.get("sort", "1") != "0") if f.get("callsign") not in hidden])
                 if p == "/GetNetworkTraffic":
-                    return self._send(200, [with_cpdlc(f) for f in network.all()] if network else [])
+                    hidden = store.dismissed_set()
+                    return self._send(200, [with_cpdlc(f) for f in network.all() if f.get("callsign") not in hidden] if network else [])
                 if p == "/GetNatTrakData":
                     return self._send(200, natrak.all() if natrak else [])
                 if p == "/PostNamedFix":

@@ -119,6 +119,16 @@
   $: shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
   $: concOverdueN = dataHandler.concOverdueList().length + 0 * tickN;
   $: conflictCount = [...dataHandler.conflicts.keys()].length + 0 * tickN;
+  let addCs: string = "";
+  let addMsg: string = "";
+  async function addStrip(): Promise<void> {
+    const cs = addCs.trim().toUpperCase();
+    if (!cs) return;
+    addMsg = "Adding...";
+    const e = await sess.addFlight(cs);
+    addMsg = e ? e : "";
+    if (!e) { addCs = ""; dataHandler.setAsel(cs); }
+  }
   function searchKey(e: KeyboardEvent): void {
     if (e.key === "Enter" && groups.length > 0) dataHandler.setAsel(groups[0].rows[0].Callsign);
     if (e.key === "Escape") search = "";
@@ -274,6 +284,11 @@
         <span class="opacity-70">View only (editing is not switched on)</span>
       {/if}
     </div>
+    {#if sess.canEdit($session)}
+      <input class="px-2 py-0.5 w-28 text-black uppercase" placeholder="Add callsign" bind:value={addCs} on:keydown={(e) => { if (e.key === "Enter") addStrip(); }} title="Add a flight that is on VATSIM by typing its callsign" />
+      <button class="px-2 py-0.5 bg-blue-3 border border-blue-6" on:click={addStrip}>Add</button>
+      {#if addMsg}<span class="text-yellow-300">{addMsg}</span>{/if}
+    {/if}
     <input class="px-2 py-0.5 w-48 text-black uppercase" placeholder="Search callsign / fix" bind:value={search} on:keydown={searchKey} />
     <label title="Show flights within 60 minutes of oceanic entry, until 5 minutes after the exit">Show
       <select class="text-black" value={windowMode} on:change={(e) => setWindowMode(e.currentTarget.value)}>

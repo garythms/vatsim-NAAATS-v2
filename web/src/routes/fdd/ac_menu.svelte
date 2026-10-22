@@ -91,6 +91,15 @@
     const e = await sess.editFlight($menuCallsign, { selcal: selcal.toUpperCase() });
     note = e ? "✖ " + e : "✔ SELCAL saved";
   }
+  async function removeStrip(): Promise<void> {
+    busy = true;
+    const cs = $menuCallsign;
+    const e = await sess.removeFlight(cs);
+    busy = false;
+    if (e) { note = "\u2716 " + e; return; }
+    if (dataHandler.asel && dataHandler.asel.Callsign === cs) dataHandler.clearAsel();
+    close();
+  }
   async function ntMark(sent: boolean): Promise<void> {
     const e = await m.markNatTrakSent($menuCallsign, sent);
     note = e ? "\u2716 " + e : (sent ? "\u2714 Marked with a red * (it clears when the pilot requests clearance or an oceanic controller tracks the flight)" : "\u2714 Mark removed");
@@ -101,7 +110,7 @@
 
   $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
-  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["nt", "NatTrak"]];
+  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["nt", "NatTrak"], ["remove", "Remove"]];
   const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
@@ -135,6 +144,10 @@
             <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>SELCAL test (copy)</button>
             <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={track}>Track aircraft</button>
           </div>
+        {:else if tab === "remove"}
+          <div class="text-sm mb-2 text-yellow-300">Remove {$menuCallsign} from the display? It stays hidden for 12 hours unless someone adds it again. This does not change EuroScope or VATSIM.</div>
+          <button class="px-2 py-1 bg-red-700 border-2 border-red-300 font-bold" disabled={busy || !canEdit} on:click={removeStrip}>Yes, remove {$menuCallsign}</button>
+          <button class="px-2 py-1 ml-2 {BTN}" on:click={() => pickTab("track")}>Cancel</button>
         {:else if tab === "untrack"}
           <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={untrack}>Untrack aircraft</button>
         {:else if tab === "transfer"}

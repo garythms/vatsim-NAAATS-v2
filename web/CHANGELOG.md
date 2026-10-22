@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.10.0 - 2026-10-22
+- Remove a strip: aircraft menu > Remove, with a warning first. The strip stays hidden for 12 hours unless someone adds it again.
+- Add a strip: type a callsign in "Add callsign" (top bar) and press Add. The flight is looked up on VATSIM and stays on the display.
+- Entry time: edit the "Entry" box in the flight plan panel and all the other fix times move by the same amount.
+
 ## 0.9.10 - 2026-10-22
 - Flight plan panel: removed the blue callsign box and the blue route/times list (the Route (edit) box now uses the space).
 - "Datalink" now means CPDLC: green "CPDLC on" when the pilot is logged on to the vNAAATS CPDLC station, red "No CPDLC" otherwise (it used to say Connected when a natTrak request existed).

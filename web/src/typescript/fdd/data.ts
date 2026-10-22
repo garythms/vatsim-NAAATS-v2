@@ -39,6 +39,7 @@ interface JsonAcObj {
   cpdlc?: boolean;
   distNm?: number | null;
   ntSent?: boolean;
+  manual?: any;
   comm?: { kind: string; by: string; freq: string } | null;
   offline?: boolean | null;
   posReports?: Record<string, { est: string; act: string; by: string; at: string }>;
@@ -122,6 +123,17 @@ export function setAsel(callsign: string): void {
   if (found != null) {
     asel = found;
   }
+}
+
+export function clearAsel(): void { asel = null; }
+
+// Clock time (HHMM) at the first route point in flight order, "" if the flight has no times
+export function entryClock(ac: Aircraft): string {
+  for (const t of ac.PosCalc ?? []) {
+    const d: string = (t ?? "").replace(/\D/g, "");
+    if (d.length === 4) return d;
+  }
+  return "";
 }
 
 export async function parseNatTracks(): Promise<void> {
@@ -323,6 +335,7 @@ export async function populateAllAircraft() : Promise<void> {
             Cpdlc: objArr[i]?.cpdlc ?? false,
             DistNm: objArr[i]?.distNm ?? null,
             NtSent: objArr[i]?.ntSent ?? false,
+            Manual: !!objArr[i]?.manual,
             Comm: objArr[i]?.comm ?? null,
             Offline: objArr[i]?.offline ?? null,
             Entry: routePoints[0] ?? "",
@@ -619,7 +632,7 @@ function oceanicHold(ac: Aircraft): boolean {
 
 export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): boolean {
   if (asel != null && asel.Callsign === ac.Callsign) return true;
-  if (ac.Cpdlc) return true;
+  if (ac.Cpdlc || ac.Manual) return true;
   if (oceanicHold(ac)) return true;
   if (natTrakData.get(ac.Callsign.toUpperCase())?.status === "PENDING") return true;
   if (ac.Offline === true) return false;     // not on the VATSIM network any more

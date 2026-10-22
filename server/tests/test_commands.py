@@ -175,6 +175,57 @@ class StationListTests(unittest.TestCase):
             self.assertFalse(c.station_listed(cs), cs)
 
 
+class RemoveAddEntryTests(unittest.TestCase):
+    def setUp(self):
+        import vnaaats_server as s, tempfile, os
+        self.s = s
+        self.st = s.FlightStore(os.path.join(tempfile.mkdtemp(), "f.db"))
+
+    def test_remove_hides_then_add_brings_back(self):
+        s, st = self.s, self.st
+        st.upsert({"callsign": "BAW1", "route": "52/50 52/40", "relevant": "1", "track": "RR"})
+        st.dismiss("baw1", "me")
+        self.assertIsNone(st.get("BAW1"))
+        self.assertIn("BAW1", st.dismissed_set())
+        rec = st.add_manual({"callsign": "BAW1", "route": "52/50", "routeEtas": "--", "track": "RR", "relevant": True}, "me")
+        self.assertEqual(rec["manual"]["by"], "me")
+        self.assertNotIn("BAW1", st.dismissed_set())
+        st.upsert({"callsign": "BAW1", "route": "52/50", "relevant": "1", "track": "RR"})      # plugin update keeps the flag
+        self.assertTrue(st.get("BAW1")["manual"])
+
+    def test_dismiss_expires(self):
+        st = self.st
+        st.dismiss("OLD1", "me")
+        st.db.execute("UPDATE dismissed SET at = at - 13*3600")
+        self.assertNotIn("OLD1", st.dismissed_set())
+
+    def test_entry_shift(self):
+        s = self.s
+        self.assertEqual(s.shift_entry_eta("1200 1215 1230 --", "1300", 4), "1300 1315 1330 --")
+        self.assertEqual(s.shift_entry_eta("2350 0005 0020", "2340", 3), "2340 2355 0010")
+        self.assertEqual(s.shift_entry_eta("0020 0005 2350", "0030", 3), "0100 0045 0030")
+        self.assertEqual(s.shift_entry_eta("-- -- --", "1000", 3), "1000 -- --")
+        self.assertIsNotNone(s.validate_edit({"entryEta": "1530"})[0])
+        self.assertIsNone(s.validate_edit({"entryEta": "2561"})[0])
+        self.assertIsNone(s.validate_edit({"entryEta": "15"})[0])
+
+    def test_edit_entry_survives_plugin_update(self):
+        st = self.st
+        st.upsert({"callsign": "BAW2", "route": "52/50 52/40", "routeEtas": "1200 1215", "relevant": "1", "track": "RR"})
+        rec = st.edit("BAW2", {"entryEta": "1300"}, "me")
+        self.assertEqual(rec["routeEtas"], "1300 1315")
+        st.upsert({"callsign": "BAW2", "route": "52/50 52/40", "routeEtas": "1205 1220", "relevant": "1", "track": "RR"})
+        self.assertEqual(st.get("BAW2")["routeEtas"], "1300 1315")
+
+    def test_manual_pilot_without_oceanic_route(self):
+        s = self.s
+        pilot = {"callsign": "BAW9", "flight_plan": {"route": "DCT BEDRA UL9 NAXIL N0450F350 DCT", "departure": "EGLL", "arrival": "KJFK", "altitude": "35000", "aircraft_short": "B772"}}
+        rec = s.convert_manual_pilot(pilot, [])
+        self.assertEqual(rec["route"], "BEDRA NAXIL")
+        self.assertFalse(rec["direction"])
+        self.assertIsNone(s.convert_manual_pilot({"callsign": "NOFP1"}, []))
+
+
 class NatTrakReminderTests(unittest.TestCase):
     def test_star(self):
         import vnaaats_server as s, tempfile, os

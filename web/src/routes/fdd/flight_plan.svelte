@@ -47,10 +47,13 @@
     const changes: Record<string, string | number> = {};
     if (field === "mach") changes.mach = digits;
     else if (field === "level") changes.level = digits;
-    else changes[field] = text;
+    else if (field === "entryEta") {
+      if (!/^([01]\d|2[0-3])[0-5]\d$/.test(text)) { messageOk = false; message = "Type the entry time as four digits, e.g. 1435"; return; }
+      changes.entryEta = text;
+    } else changes[field] = text;
     const err = await sess.editFlight(asel.Callsign, changes);
     messageOk = err === "";
-    message = err === "" ? (field === "route" ? "Route saved on the display. EuroScope's own flight plan is not changed." : "Saved - the plugin picks it up within a few seconds") : err;
+    message = err === "" ? (field === "route" ? "Route saved on the display. EuroScope's own flight plan is not changed." : field === "entryEta" ? "Entry time changed - the other fix times have moved with it. EuroScope is not changed." : "Saved - the plugin picks it up within a few seconds") : err;
     clearTimeout(messageTimer);
     messageTimer = setTimeout(() => (message = ""), 6000);
   }
@@ -174,6 +177,14 @@
           on:keydown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { routeFocus = false; routeDraft = asel.Route.join(" "); e.currentTarget.blur(); } }} />
         {#if routeWarn}<div class="absolute z-30 top-full left-2 mt-0.5 p-1 w-72 font-regular text-xs text-white bg-red-700 border border-red-300">{routeWarn}</div>{/if}
       </div>
+      <EditInput
+        label={"Entry"}
+        width={"w-14"}
+        value={dataHandler.entryClock(asel)}
+        maxlength={4}
+        editable={editable && !asel.IsConc && dataHandler.entryClock(asel) !== ""}
+        onCommit={(t) => save("entryEta", t)}
+      />
       <EditInput
         label={"Tck"}
         width={"w-10"}

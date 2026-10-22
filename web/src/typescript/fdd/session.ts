@@ -85,3 +85,26 @@ export async function editFlight(callsign: string, changes: Record<string, strin
   dataHandler.reselect(callsign);
   return "";
 }
+
+// Add a flight by callsign (looked up on VATSIM). Returns an error message, or "" on success.
+export async function addFlight(callsign: string): Promise<string> {
+  const r = await post("/AddFlight", { callsign });
+  if (!r.ok) {
+    if (r.data.error && /log in/.test(r.data.error)) await refreshSession();
+    return r.data.error ?? "could not add the flight";
+  }
+  await dataHandler.populateAllAircraft();
+  dataHandler.reselect(callsign.toUpperCase());
+  return "";
+}
+
+// Hide a strip from the display. Returns an error message, or "" on success.
+export async function removeFlight(callsign: string): Promise<string> {
+  const r = await post("/RemoveFlight", { callsign });
+  if (!r.ok) {
+    if (r.data.error && /log in/.test(r.data.error)) await refreshSession();
+    return r.data.error ?? "could not remove the flight";
+  }
+  await dataHandler.populateAllAircraft();
+  return "";
+}
