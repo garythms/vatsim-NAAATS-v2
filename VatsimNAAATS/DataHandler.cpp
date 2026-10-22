@@ -13,6 +13,7 @@ using json = nlohmann::json;
 // Server settings. Defaults are replaced by vnaaats.cfg (next to the DLL) in LoadSettings().
 static const string DEFAULT_SERVER = "https://vnaaats.com";
 string CDataHandler::ControllerCallsign = "";
+string CDataHandler::BetaUrl = DEFAULT_SERVER + "/beta";
 string CDataHandler::FddUrl = DEFAULT_SERVER + "/fdd";
 string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";
 map<string, CAircraftFlightPlan> CDataHandler::flights;
@@ -64,6 +65,7 @@ void CDataHandler::LoadSettings() {
 	}
 	while (!server.empty() && server.back() == '/') server.pop_back();
 	FddUrl = server + "/fdd";
+	BetaUrl = server + "/beta";
 	TrackURL = server + "/GetAllNatTracks";
 	TrackSource = server + "/GetTrackSource";
 	GetSingleAircraft = server + "/GetSingleFlightData?callsign=";
@@ -118,13 +120,13 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
 	// Check version
 	if (responseString != PLUGIN_VERSION) {
 		// Display dialog if update available
-		int msgBox = MessageBox(NULL, (LPCSTR)("A new version of vNAAATS (" + responseString + ") is now available. Your version: " + PLUGIN_VERSION +
-			"\nPlease update as soon as possible to avoid possible compatibility issues.\nFind the new version on the GitHub releases page.").c_str(),
-			(LPCSTR)"vNAAATS Version Notification", MB_ICONWARNING | MB_OK);
+		int msgBox = MessageBox(NULL, (LPCSTR)("A new version of vNAAATS (" + responseString + ") is available. Your version: " + PLUGIN_VERSION +
+			"\n\nClick OK to open the download page.\nClose EuroScope, then replace ONLY VatsimNAAATS.dll with the new one.\nKeep your existing vnaaats.cfg - do not overwrite it.").c_str(),
+			(LPCSTR)"vNAAATS Version Notification", MB_ICONINFORMATION | MB_OK);
 
 		if (msgBox == IDOK) {
-			// Open the website
-			ShellExecute(NULL, "open", "https://github.com/garythms/vatsim-naaats-v2/releases/tag/latest-build", NULL, NULL, SW_SHOWNORMAL);
+			// Open the download page on our own server
+			ShellExecute(NULL, "open", BetaUrl.c_str(), NULL, NULL, SW_SHOWNORMAL);
 		}
 		return msgBox;
 	}

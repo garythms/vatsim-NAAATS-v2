@@ -55,6 +55,7 @@ class CDataHandler
 	static bool AutoType; // autotype=1: type .selcal / .contactme / .msg into EuroScope when the FDD asks
 	static bool SquawkOnClearance; // assign 2000 when a clearance is sent
 	static string ControllerCallsign; // my EuroScope callsign, sent with changes
+	static string BetaUrl; // download page (server + /beta)
 	static string FddUrl; // flight data display address (server + /fdd)
 	static string UrlEncode(const string& value); // percent-encode a query value
 	// Commands sent from the web flight data display (track / untrack / transfer)

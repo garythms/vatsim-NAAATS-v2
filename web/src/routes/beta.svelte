@@ -49,6 +49,9 @@
       <li>Open it in Notepad. Set <b>server=https://vnaaats.com</b> and paste the <b>key=</b> you were sent. Keep the key private.</li>
       <li>In EuroScope: Other SET &gt; Plug-ins &gt; Load, and pick the DLL.</li>
     </ol>
+    <h2 class="text-2xl font-bold mb-2">Updating an existing install</h2>
+    <p class="mb-6 opacity-90">Close EuroScope and replace <b>only VatsimNAAATS.dll</b> with the new one from the zip. <b>Keep your existing vnaaats.cfg</b> - do not copy the example file over it, or you will lose your key. Make sure it is the DLL EuroScope actually loads (Other SET &gt; Plug-ins shows its folder).</p>
+
     <p class="mb-6 opacity-90">If it will not load, install the Microsoft Visual C++ 2015-2022 Redistributable (x86). The README in the zip has the full steps.</p>
 
     <h2 class="text-2xl font-bold mb-2">What you need</h2>

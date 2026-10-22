@@ -2035,7 +2035,7 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 	textInputs[TXT_COMMS].Content = primedPlan->Communications;
 	textInputs[TXT_OWNERSHIP].Content = primedPlan->Sector;
 	textInputs[TXT_SELCAL].Content = primedPlan->SELCAL;
-	textInputs[TXT_DATALINK].Content = primedPlan->DLStatus == "true" ? "ONLINE" : "OFFLINE";
+	textInputs[TXT_DATALINK].Content = primedPlan->CpdlcConnected ? "CPDLC ON" : "CPDLC OFF"; // real state: is the pilot logged on to our CPDLC station
 
 
 	// If tracked by other controller

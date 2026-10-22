@@ -13,7 +13,7 @@ import threading
 import time
 
 TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg")   # last three are typed into EuroScope by the plugin (autotype=1)
-TTL_SECONDS = 300          # an unclaimed command is dropped after this
+TTL_SECONDS = 60           # an unclaimed command is dropped after this (old clicks must not fire minutes later)
 KEEP_SECONDS = 600         # finished commands stay readable this long
 SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
 CALLSIGN_OK = re.compile(r"[A-Z0-9_\-]{2,12}")
