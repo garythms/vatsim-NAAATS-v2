@@ -801,7 +801,7 @@ bool CUtils::IsAircraftEquipped(string rawRemarks, string rawAcInfo, char equipC
 	// Extract B1 & B2 if they exist
 	if (pbnFound != string::npos) {
 		pbnFound += 4;
-		for (char c = rawRemarks[pbnFound]; c != ' '; c = rawRemarks[pbnFound]) {
+		for (char c = pbnFound < rawRemarks.size() ? rawRemarks[pbnFound] : ' '; c != ' '; c = pbnFound < rawRemarks.size() ? rawRemarks[pbnFound] : ' ') {
 			if (c == 'B' && (rawRemarks[pbnFound + 1] == '1' || rawRemarks[pbnFound + 1] == '2')) {
 				return true;
 			}
@@ -819,6 +819,7 @@ bool CUtils::IsAircraftEquipped(string rawRemarks, string rawAcInfo, char equipC
 			return true; // Aircraft is AGCS equipped
 		return false;
 	}
+	return false; // nothing to judge by: not shown as equipped
 }
 
 // Get radar target mode

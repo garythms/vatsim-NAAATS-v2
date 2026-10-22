@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 1.5b11: fixed a possible crash when reading an aircraft's equipment (PBN remarks at the end of a flight plan). A red-free * under the callsign on a tag means the aircraft is NOT AGCS equipped.
+
 NEW IN 1.5b10: the update pop-up now opens the vNAAATS download page and says to replace only VatsimNAAATS.dll and keep vnaaats.cfg. The flight plan window "Datalink" box now shows CPDLC ON / CPDLC OFF (whether the pilot is logged on to the vNAAATS CPDLC station).
 
 NEW IN 1.5b9: Send buttons (SELCAL, Contact, NatTrak message) now type one command at a time and replace anything already in the EuroScope command line, so two commands are no longer joined into one line.

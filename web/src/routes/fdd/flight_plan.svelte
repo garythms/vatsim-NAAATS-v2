@@ -125,12 +125,12 @@
         label={"Datalink"}
         identifier={"datalink"}
         width={"w-32"}
-        value={dataHandler.natTrakData.get(asel.Callsign) != null ? "Connected" : "Disconnected"}
+        value={asel.Cpdlc ? "CPDLC on" : "No CPDLC"}
         inputForeColour={"text-black"}
-        backColour={dataHandler.natTrakData.get(asel.Callsign) != null ? "bg-green-400" : "bg-red-500"}
+        backColour={asel.Cpdlc ? "bg-green-400" : "bg-red-500"}
         isDisabled={true}
       />
-      <!-- TODO: Change datalink colour if not connected -->
+      <!-- Datalink = is the pilot logged on to our CPDLC station -->
       <TextInput
         label={"Sector"}
         identifier={"sector"}
@@ -140,13 +140,7 @@
       />
     </div>
     <div class="flex flex-row items-top justify-start">
-      <div class="flex flex-row justify-start w-1/4">
-        <div
-          class="flex flex-row items-center justify-center m-1.5 ml-2 w-48 h-8 bg-blue-9 text-black font-bitmap text-xl font-thin">
-          {asel.Cpdlc ? "[" + asel.Callsign + "]" : asel.Callsign}
-        </div>
-      </div>
-      <div class="flex flex-row items-start py-1.5 justify-start w-3/4">
+      <div class="flex flex-row items-start py-1.5 pl-2 justify-start w-full">
         <EditInput
           label={"Spd"}
           width={"w-28"}
@@ -173,22 +167,7 @@
       </div>
     </div>
     <div class="flex flex-row items-top pt-1 px-1 ml-1 justify-start">
-      <div class="flex flex-row items-start overflow-x-scroll mt-2.5  px-1.5 py-0.5 justify-start w-5/6 h-16 bg-blue-9 
-      border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6 text-black font-bitmap text-xl font-thin select-none cursor-default">
-        <div class="flex flex-row">
-          {#each asel.Route as point, i}
-            <div class="flex flex-col pr-6">
-              <div>
-                {point}
-              </div>
-              <div>
-                {asel.RouteEtas[i] == "--" ? "\xa0\xa0" : asel.RouteEtas[i]}
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-      <div class="flex flex-col px-2 w-1/3 relative">
+      <div class="flex flex-col px-2 flex-1 relative">
         <label class="font-regular font-bold text-sm">Route (edit)</label>
         <input id="route-edit" class="h-6 px-1 text-base font-bitmap uppercase {editable ? 'bg-blue-1 text-yellow-300' : 'bg-blue-2 text-white'} border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6 focus:outline-none {routeWarn ? 'border-red-500' : 'focus:border-green-300'}"
           disabled={!editable} bind:value={routeDraft} on:focus={() => (routeFocus = true)} on:blur={saveRoute}
