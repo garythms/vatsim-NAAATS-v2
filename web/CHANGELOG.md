@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.11.4 - 2026-10-22
+- Two downloads: the download page now gives just the plugin DLL for people updating; the install guide has the full first-time pack (zip).
+
 ## 0.11.3 - 2026-10-22
 - New install guide at /guide (linked from the download page), with the AeroNav Gander package link and a download button for the newest plugin pack.
 

@@ -50,4 +50,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest-build --yes --cleanup-tag 2>$null
-          gh release create latest-build VatsimNAAATS-plugin.zip --prerelease --target ${{ github.sha }} --title "Latest plugin build" --notes "Automatic build of the server-and-squawk branch (${{ github.sha }})."
+          gh release create latest-build VatsimNAAATS-plugin.zip pkg/VatsimNAAATS.dll --prerelease --target ${{ github.sha }} --title "Latest plugin build" --notes "Automatic build of the server-and-squawk branch (${{ github.sha }})."
