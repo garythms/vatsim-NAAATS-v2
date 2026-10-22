@@ -4,6 +4,7 @@
   import * as cp from "../../typescript/fdd/cpdlc";
   import * as pr from "../../typescript/fdd/posreports";
   import * as m from "../../typescript/fdd/acmenu";
+  import { hideStrip } from "../../typescript/fdd/hide";
 
   const { session } = sess;
   const { menuCallsign } = m;
@@ -91,12 +92,9 @@
     const e = await sess.editFlight($menuCallsign, { selcal: selcal.toUpperCase() });
     note = e ? "✖ " + e : "✔ SELCAL saved";
   }
-  async function removeStrip(): Promise<void> {
-    busy = true;
+  function hideThis(): void {
     const cs = $menuCallsign;
-    const e = await sess.removeFlight(cs);
-    busy = false;
-    if (e) { note = "\u2716 " + e; return; }
+    hideStrip(cs);
     if (dataHandler.asel && dataHandler.asel.Callsign === cs) dataHandler.clearAsel();
     close();
   }
@@ -110,7 +108,7 @@
 
   $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
-  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["nt", "NatTrak"], ["remove", "Remove"]];
+  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["nt", "NatTrak"], ["remove", "Hide"]];
   const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
@@ -145,8 +143,8 @@
             <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={track}>Track aircraft</button>
           </div>
         {:else if tab === "remove"}
-          <div class="text-sm mb-2 text-yellow-300">Remove {$menuCallsign} from the display? It stays hidden for 12 hours unless someone adds it again. This does not change EuroScope or VATSIM.</div>
-          <button class="px-2 py-1 bg-red-700 border-2 border-red-300 font-bold" disabled={busy || !canEdit} on:click={removeStrip}>Yes, remove {$menuCallsign}</button>
+          <div class="text-sm mb-2 text-yellow-300">Hide {$menuCallsign} from your display? Only you stop seeing it, and only for 12 hours. Nobody else is affected and EuroScope and VATSIM are not touched. To bring it back, use the Hidden list or type the callsign in Add callsign.</div>
+          <button class="px-2 py-1 bg-red-700 border-2 border-red-300 font-bold" on:click={hideThis}>Yes, hide {$menuCallsign}</button>
           <button class="px-2 py-1 ml-2 {BTN}" on:click={() => pickTab("track")}>Cancel</button>
         {:else if tab === "untrack"}
           <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={untrack}>Untrack aircraft</button>

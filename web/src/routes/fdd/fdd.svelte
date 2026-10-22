@@ -7,6 +7,7 @@
   import * as dataHandler from "../../typescript/fdd/data";
   import * as site from "../../typescript/site";
   import * as sess from "../../typescript/fdd/session";
+  import { hidden, unhideStrip } from "../../typescript/fdd/hide";
   import * as cp from "../../typescript/fdd/cpdlc";
 
   const { session } = sess;
@@ -79,7 +80,7 @@
     }
   }
   type Group = { key: string; label: string; track: string; rows: any[]; kind?: string };
-  function buildGroups(_tick: number, _win: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string): Group[] {
+  function buildGroups(_tick: number, _win: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string, _hid: Record<string, number>): Group[] {
     const out: Group[] = [];
     const cmp = sorter(by);
     if (g === "LEVEL") {
@@ -112,7 +113,7 @@
     });
     return out;
   }
-  $: groups = buildGroups(tickN, windowMode, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy);
+  $: groups = buildGroups(tickN, windowMode, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy, $hidden);
   $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) n++; })); return n; })() : 0;
   // Number of fix columns: the longest route among the shown flights and track headers, so every row lines up
   $: cols = Math.min(10, Math.max(5, ...groups.map((g) => Math.max(g.track && g.track !== "RR" ? (dataHandler.currentNatTracks.get(g.track)?.Route.length ?? 0) : 0, ...g.rows.map((r: any) => r.RouteEtas.length)))));
@@ -124,6 +125,8 @@
   async function addStrip(): Promise<void> {
     const cs = addCs.trim().toUpperCase();
     if (!cs) return;
+    if ($hidden[cs]) { unhideStrip(cs); addCs = ""; addMsg = ""; dataHandler.setAsel(cs); return; }   // hidden by you earlier: just bring it back
+    if (dataHandler.getAircraft(cs)) { addCs = ""; addMsg = ""; dataHandler.setAsel(cs); return; }
     addMsg = "Adding...";
     const e = await sess.addFlight(cs);
     addMsg = e ? e : "";
@@ -137,6 +140,7 @@
   function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; search = ""; setWindowMode("WINDOW"); groupBy = "TRACK"; sortBy = "DEFAULT"; }
   function matches(ac: any, track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
+    if ($hidden[ac.Callsign.toUpperCase()]) return false;     // hidden by this person only
     if (!typeMatch(ac, pst, fad, wst, term)) return false;
     if (windowMode === "WINDOW" && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) return false;
     switch (f) {
@@ -287,6 +291,12 @@
     {#if sess.canEdit($session)}
       <input class="px-2 py-0.5 w-28 text-black uppercase" placeholder="Add callsign" bind:value={addCs} on:keydown={(e) => { if (e.key === "Enter") addStrip(); }} title="Add a flight that is on VATSIM by typing its callsign" />
       <button class="px-2 py-0.5 bg-blue-3 border border-blue-6" on:click={addStrip}>Add</button>
+      {#if Object.keys($hidden).length > 0}
+        <select class="text-black w-28" value="" on:change={(e) => { unhideStrip(e.currentTarget.value); e.currentTarget.value = ""; }} title="Strips you have hidden - pick one to bring it back">
+          <option value="">Hidden ({Object.keys($hidden).length})</option>
+          {#each Object.keys($hidden) as h}<option value={h}>Unhide {h}</option>{/each}
+        </select>
+      {/if}
       {#if addMsg}<span class="text-yellow-300">{addMsg}</span>{/if}
     {/if}
     <input class="px-2 py-0.5 w-48 text-black uppercase" placeholder="Search callsign / fix" bind:value={search} on:keydown={searchKey} />

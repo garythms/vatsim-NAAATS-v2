@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.11.0 - 2026-10-22
+- "Remove" is now "Hide": it hides the strip for you only (this browser, 12 hours). Nobody else's display changes. Bring a strip back from the "Hidden" list in the top bar or by typing its callsign in Add callsign.
+- Sector and State boxes merged into one "ATC" box: the callsign of the controller tracking the flight (green), or who the pilot is tuned to on VATSIM (oceanic green, domestic pale green), red UNICOM, or red NONE.
+
 ## 0.10.2 - 2026-10-22
 - The "Entry time" box is now labelled "Entry".
 

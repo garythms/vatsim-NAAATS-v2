@@ -70,6 +70,17 @@
     return Object.entries(h.changes).filter(([k]) => k !== "route").map(([k, v]) => (names[k] ?? k) + " " + (v[0] === "" || v[0] == null ? "-" : v[0]) + "\u2192" + (v[1] === "" ? "-" : v[1])).join(", ");
   }
 
+  // Who has the aircraft: the tracking controller's callsign, else who the pilot is tuned to on VATSIM; red = UNICOM or nobody
+  function trackedByBox(ac: Aircraft): { text: string; fore: string; back: string } {
+    if (ac.TrackedBy && ac.TrackedBy !== "NATTRAK") return { text: ac.TrackedBy, fore: "text-black", back: "bg-green-400" };
+    const c = ac.Comm;
+    if (c && c.kind === "oceanic") return { text: c.by, fore: "text-black", back: "bg-green-400" };
+    if (c && c.kind === "domestic") return { text: c.by, fore: "text-black", back: "bg-green-200" };
+    if (c && c.kind === "unicom") return { text: "UNICOM", fore: "text-white", back: "bg-red-600" };
+    return { text: "NONE", fore: "text-white", back: "bg-red-600" };
+  }
+  $: trackedBy = asel ? trackedByBox(asel) : { text: "", fore: "text-white", back: "" };
+
   // Externals
   let asel: Aircraft;
   $: asel = dataHandler.asel;
@@ -126,18 +137,19 @@
       <TextInput
         label={"Datalink"}
         identifier={"datalink"}
-        width={"w-32"}
+        width={"w-28"}
         value={asel.Cpdlc ? "CPDLC on" : "No CPDLC"}
         inputForeColour={"text-black"}
         backColour={asel.Cpdlc ? "bg-green-400" : "bg-red-500"}
         isDisabled={true}
       />
-      <!-- Datalink = is the pilot logged on to our CPDLC station -->
       <TextInput
-        label={"Sector"}
-        identifier={"sector"}
-        width={"w-10"}
-        value={asel.SectorID == "" ? "--" : asel.SectorID}
+        label={"ATC"}
+        identifier={"trackedby"}
+        width={"w-28"}
+        value={trackedBy.text}
+        inputForeColour={trackedBy.fore}
+        backColour={trackedBy.back}
         isDisabled={true}
       />
     </div>
@@ -183,13 +195,6 @@
         maxlength={3}
         {editable}
         onCommit={(t) => save("track", t)}
-      />
-      <TextInput
-        label={"State"}
-        identifier={"level"}
-        width={"w-9"}
-        value={asel.TrackedBy && asel.TrackedBy !== "NATTRAK" ? "CTL" : "--"}
-        isDisabled={true}
       />
     </div>
     <div class="flex flex-row items-top pt-0.5 w-full justify-self-start">
