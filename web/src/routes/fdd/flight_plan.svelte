@@ -222,6 +222,12 @@
       {#if message}
         <div class={messageOk ? "text-green-300" : "text-yellow-300"}>{message}</div>
       {/if}
+      {#if asel.ContactMeAt && Date.now() - asel.ContactMeAt < 4 * 3600000}
+        <div class={dataHandler.contactMeState(asel) === "red" ? "text-red-400 font-bold" : dataHandler.contactMeState(asel) === "yellow" ? "text-yellow-300" : "opacity-80"}
+             title="Turns red after 20 minutes if nobody is tracking the flight and it is still in oceanic airspace">
+          Contact me sent at {hhmm(asel.ContactMeAt)} ({Math.max(0, Math.floor((Date.now() - asel.ContactMeAt) / 60000))} min ago){dataHandler.contactMeState(asel) === "red" ? " - no track after 20 min" : ""}
+        </div>
+      {/if}
       {#if asel.UpdatedBy}
         <div class="opacity-80" title="Who last changed level, Mach, track, SELCAL or route">
           Last change {hhmm(asel.UpdatedAt)} by {asel.UpdatedBy}{lastChange(asel) ? " - " + lastChange(asel) : ""}

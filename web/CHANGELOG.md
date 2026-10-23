@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.18.1 - 2026-10-23
+- Contact me: the time it was sent is shown in the Flight Plan panel ("Contact me sent at 1854z (12 min ago)", red once 20 minutes pass with no track) and in the strip's tooltip.
+
 ## 0.18.0 - 2026-10-23
 - The FDD can be installed as an app (server 0.19.3): in Chrome or Edge use the install icon in the address bar. It opens in its own window with its own icon. Nothing is stored for offline use, so it is always the newest version.
 
