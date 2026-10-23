@@ -10,6 +10,7 @@
   import { hidden, unhideStrip } from "../../typescript/fdd/hide";
   import * as cp from "../../typescript/fdd/cpdlc";
   import * as esSel from "../../typescript/fdd/esselect";
+  import { espicked } from "../../typescript/fdd/esselect";
 
   const { session } = sess;
   const { cpdlcStatus, cpdlcOpen, cpdlcAttention } = cp;
@@ -80,7 +81,7 @@
   let sortBy: string = "DEFAULT";  // DEFAULT | ETA | CALLSIGN | LEVEL | UPDATED
   function searchMatch(ac: any, s: string): boolean {
     const q = s.trim().toUpperCase();
-    if (q === "") return true;
+    if (q === "" || isPicked(ac)) return true;
     return [ac.Callsign, ac.Departure, ac.Arrival, ac.Track, ac.Entry, ac.Exit, ac.Type].some((v: string) => (v ?? "").toUpperCase().includes(q));
   }
   function sorter(by: string): (a: any, b: any) => number {
@@ -93,7 +94,7 @@
     }
   }
   type Group = { key: string; label: string; track: string; rows: any[]; kind?: string };
-  function buildGroups(_tick: number, _win: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string, _hid: Record<string, number>): Group[] {
+  function buildGroups(_tick: number, _win: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string, _hid: Record<string, number>, _pick: string): Group[] {
     const out: Group[] = [];
     const cmp = sorter(by);
     if (g === "LEVEL") {
@@ -121,12 +122,12 @@
       return out;
     }
     dataHandler.networkAircraft.forEach((m, track) => {
-      const rows = [...m.values()].filter((ac) => matches(ac, track, f, pst, fad, wst, term) && searchMatch(ac, s)).sort(cmp);
+      const rows = [...m.values()].filter((ac) => isPicked(ac) || (matches(ac, track, f, pst, fad, wst, term) && searchMatch(ac, s))).sort(cmp);
       if (rows.length > 0) out.push({ key: track, label: track != "RR" ? track : "RANDOM", track, rows });
     });
     return out;
   }
-  $: groups = buildGroups(tickN, windowMode, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy, $hidden);
+  $: groups = buildGroups(tickN, windowMode, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy, $hidden, $espicked);
   $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) n++; })); return n; })() : 0;
   // Number of fix columns: the longest route among the shown flights and track headers, so every row lines up
   $: cols = Math.min(10, Math.max(5, ...groups.map((g) => Math.max(g.track && g.track !== "RR" ? (dataHandler.currentNatTracks.get(g.track)?.Route.length ?? 0) : 0, ...g.rows.map((r: any) => r.RouteEtas.length)))));
@@ -151,7 +152,10 @@
   }
   function setFilter(f: string): void { filter = f; }
   function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; search = ""; setWindowMode("WINDOW"); groupBy = "TRACK"; sortBy = "DEFAULT"; }
+  // The aircraft just clicked in EuroScope is always on the list, whatever the filters, search, window or Hide say
+  function isPicked(ac: any): boolean { return !!$espicked && ac.Callsign.toUpperCase() === $espicked && !!ac.Relevant; }
   function matches(ac: any, track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
+    if (isPicked(ac)) return true;
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
     if ($hidden[ac.Callsign.toUpperCase()]) return false;     // hidden by this person only
     if (!typeMatch(ac, pst, fad, wst, term)) return false;

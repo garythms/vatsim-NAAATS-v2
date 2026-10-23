@@ -25,7 +25,7 @@ async function poll(): Promise<void> {
       setTimeout(() => {
         const el = document.getElementById("strip-" + d.callsign);
         if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 60);
+      }, 200);
     }
   } catch (e) { /* offline: try again next time */ }
 }
