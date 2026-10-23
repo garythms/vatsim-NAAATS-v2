@@ -2,8 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.17.2 - 2026-10-23
+- Re-track after a crash (server 0.19.2, plugin 1.5b20): only if you are back within 5 minutes, and not if someone with a different name has signed in on the FDD at your position.
+
 ## 0.17.1 - 2026-10-23
-- Server 0.19.0 + plugin 1.5b19: if EuroScope crashes or you lose your connection, the plugin tracks your aircraft again about 20 seconds after you reconnect (within 15 minutes, never an aircraft another controller has taken). retrack=0 in vnaaats.cfg turns it off.
+- Server 0.19.0 + plugin 1.5b19: if EuroScope crashes or you lose your connection, the plugin tracks your aircraft again about 20 seconds after you reconnect (within 5 minutes, never an aircraft another controller has taken, and not if a different name has signed in on the FDD at your position). retrack=0 in vnaaats.cfg turns it off.
 
 ## 0.17.0 - 2026-10-23
 - Contact me sent from the FDD (server 0.18.0): the aircraft's callsign cell turns yellow. If 20 minutes later no oceanic controller is tracking it and it is still in oceanic airspace (by its route times), it turns red. It clears as soon as an oceanic controller tracks the flight (or after 4 hours).

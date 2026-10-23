@@ -412,3 +412,26 @@ class RetrackTest(unittest.TestCase):
             self.assertEqual(get("/PluginRetrack?code=%s&me=EGGX_CTR" % KEY)[1], {"callsigns": []})
         finally:
             srv.shutdown()
+
+
+class RetrackTakeoverTest(unittest.TestCase):
+    def test_other_name_blocks_retrack(self):
+        tmp = tempfile.mkdtemp()
+        store = s.FlightStore(os.path.join(tmp, "t.db"))
+        auth = s.Auth({"VNAAATS_FDD_PASSWORD": "pw"})
+        srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(s.TrackCache(s.load_fixes()), store, KEY, auth=auth))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:%d" % srv.server_port
+        def get(p):
+            with urllib.request.urlopen(base + p) as r:
+                return json.loads(r.read().decode())
+        try:
+            t1 = auth.create_session("1", "Gary Thomas", "password"); auth.set_position(t1, "CZQO_CTR")
+            get("/PluginTracked?code=%s&me=CZQO_CTR&list=BAW1,DLH2" % KEY)
+            self.assertEqual(get("/PluginRetrack?code=%s&me=CZQO_CTR" % KEY)["callsigns"], ["BAW1", "DLH2"])      # same person: fine
+            auth.logout(t1)
+            self.assertEqual(get("/PluginRetrack?code=%s&me=CZQO_CTR" % KEY)["callsigns"], ["BAW1", "DLH2"])      # nobody on the FDD: fine
+            t2 = auth.create_session("2", "Someone Else", "password"); auth.set_position(t2, "CZQO_CTR")
+            self.assertEqual(get("/PluginRetrack?code=%s&me=CZQO_CTR" % KEY)["callsigns"], [])                   # somebody else took the position
+        finally:
+            srv.shutdown()

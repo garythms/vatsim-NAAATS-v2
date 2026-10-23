@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.19.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.19.2"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -880,6 +880,13 @@ class Auth:
         for t in [t for t, e in self.states.items() if e < now]:
             del self.states[t]
 
+    def names_at(self, position):
+        """Lower-case names of the people signed in on the FDD at this position right now."""
+        position = (position or "").strip().upper()
+        now = time.time()
+        with self.lock:
+            return {s["name"].strip().lower() for s in self.sessions.values() if s["position"] == position and s["expires"] > now and s.get("name")}
+
     def create_session(self, cid, name, via):
         token = secrets.token_urlsafe(32)
         with self.lock:
@@ -1098,7 +1105,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
     es_pick = {}                      # controller callsign -> {"callsign", "seq", "ts"}: the aircraft last clicked in that EuroScope
     es_pick_lock = threading.Lock()
     tracked_now = {}                  # controller callsign -> {"list": [callsigns], "ts"}: what that EuroScope was tracking last time it told us
-    RETRACK_WINDOW = 900              # seconds: after a crash the controller gets the aircraft back if they return within this time
+    RETRACK_WINDOW = 300              # seconds: after a crash the controller gets the aircraft back if they return within this time
+    plugin_seen = {}                  # controller callsign -> last time its plugin asked for commands (so we know it is alive)
 
     def key_problem(code):
         """"" when the plugin key is good, else why not: "unknown", "expired" or "revoked"."""
@@ -1453,7 +1461,11 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     lst = [c for c in (re.sub(r"[^A-Z0-9]", "", x.upper())[:8] for x in q.get("list", "").split(",")) if c][:100]
                     if me:
                         with es_pick_lock:
-                            tracked_now[me] = {"list": lst, "ts": time.time()}
+                            old = tracked_now.get(me)
+                            fresh = bool(old) and time.time() - old["ts"] <= RETRACK_WINDOW      # same sitting as the last report
+                            owners = set(old["owners"]) if fresh else set()
+                            owners |= auth.names_at(me)                           # who is signed in on the FDD at this position right now
+                            tracked_now[me] = {"list": lst, "ts": time.time(), "owners": owners}
                     return self._send(200, {"ok": True})
                 if p == "/PluginRetrack":                     # after a crash / reconnect: which aircraft did this controller have?
                     bad = key_problem(q.get("code", ""))
@@ -1463,14 +1475,22 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     with es_pick_lock:
                         cur = tracked_now.get(me)
                     ok = bool(cur) and time.time() - cur["ts"] <= RETRACK_WINDOW
+                    if ok:
+                        now_names = auth.names_at(me)
+                        if now_names and cur["owners"] and not (now_names & cur["owners"]):
+                            ok = False                                            # somebody else has signed in on this position on the FDD: not theirs to get back
                     return self._send(200, {"callsigns": cur["list"] if ok else []})
                 if p == "/asel":                              # the FDD asks which aircraft its controller clicked in EuroScope
                     sess = self._session()
                     pos = (sess["position"] if sess else "").upper()
                     with es_pick_lock:
                         cur = es_pick.get(pos)
+                        if sess and pos in tracked_now and time.time() - plugin_seen.get(pos, 0) < 15:
+                            tracked_now[pos]["owners"].add(sess["name"].strip().lower())    # this person is on the FDD while the plugin is alive
                     return self._send(200, {"callsign": cur["callsign"] if cur else "", "seq": cur["seq"] if cur else 0})
                 if p == "/PluginCommands":                    # polled by the plugin
+                    with es_pick_lock:
+                        plugin_seen[re.sub(r"[^A-Z0-9_\-]", "", q.get("me", "").upper())[:16]] = time.time()
                     bad = key_problem(q.get("code", ""))
                     if bad:
                         return self._send(401, {"error": "bad key", "reason": bad})

@@ -247,8 +247,11 @@ void CRadarDisplay::RunRemoteCommands()
 			for (CFlightPlan f = plugin->FlightPlanSelectFirst(); f.IsValid(); f = plugin->FlightPlanSelectNext(f)) {
 				if (f.GetTrackingControllerIsMe()) list += (list.empty() ? "" : ",") + string(f.GetCallsign());
 			}
-			if (list != lastReported) {
+			static clock_t lastSent = 0;
+			// also sent once a minute when nothing changed: this is how the server knows I was still here before a crash
+			if (list != lastReported || (double)(clock() - lastSent) / (double)CLOCKS_PER_SEC >= 60.0) {
 				lastReported = list;
+				lastSent = clock();
 				_beginthread(CDataHandler::ReportTracked, 0, (void*)new CTrackedPush{ CDataHandler::ControllerCallsign, list });
 			}
 		}

@@ -49,7 +49,9 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
-NEW IN 1.5b19: after a EuroScope crash or a lost connection, the plugin tracks again the aircraft you had (only ones nobody else is tracking, and only if you are back within 15 minutes). It starts about 20 seconds after you reconnect. retrack=0 in vnaaats.cfg turns it off. Needs server 0.19.0.
+NEW IN 1.5b20: the re-track after a crash now only happens if you are back within 5 minutes, and not if someone else has signed in on the FDD at your position (a different name). Needs server 0.19.2.
+
+NEW IN 1.5b19: after a EuroScope crash or a lost connection, the plugin tracks again the aircraft you had (only ones nobody else is tracking, and only if you are back within 5 minutes). It starts about 20 seconds after you reconnect. retrack=0 in vnaaats.cfg turns it off. Needs server 0.19.0.
 
 NEW IN 1.5b18: click an aircraft in EuroScope and its strip is outlined in yellow and scrolled into view on the FDD (needs server 0.17.0 / display 0.16.0).
 
