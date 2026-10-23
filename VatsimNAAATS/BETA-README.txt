@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 1.5b15: fixes a crash in 1.5b14 when new aircraft appeared (use 1.5b15, not 1.5b14).
+
 NEW IN 1.5b14:
 - Note / scratchpad: the note box on the FDD flight plan is the EuroScope scratchpad. It shows under the tag and goes with the aircraft to the next controller; notes typed in EuroScope show on the FDD.
 - Track on the FDD now accepts a handoff that is being offered to you.

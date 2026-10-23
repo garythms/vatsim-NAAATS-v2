@@ -293,10 +293,10 @@ CAircraftFlightPlan* CDataHandler::GetFlightData(string callsign) {
 		
 		return &flights.find(callsign)->second;
 	}
-	// Return invalid
-	CAircraftFlightPlan fp;
-	fp.IsValid = false;
-	return &fp;
+	// Return invalid. Must outlive this call: it used to return the address of a local variable, which crashed callers that read it.
+	static CAircraftFlightPlan invalidFp;
+	invalidFp.IsValid = false;
+	return &invalidFp;
 }
 
 void CDataHandler::GetFlightData(string callsign, CAircraftFlightPlan& fp) {
@@ -922,14 +922,16 @@ string CDataHandler::SyncScratch(CFlightPlan& esFp) {
 	if (!esFp.IsValid()) return "";
 	string cs = esFp.GetCallsign();
 	CAircraftFlightPlan* fp = GetFlightData(cs);
-	string es = esFp.GetControllerAssignedData().GetScratchPadString();
-	if (!fp->IsValid || !fp->NetScratchKnown) return es;   // not on the server yet: just show what EuroScope has
+	const char* esRaw = esFp.GetControllerAssignedData().GetScratchPadString();
+	string es = esRaw ? esRaw : "";
+	if (flights.find(cs) == flights.end() || !fp->IsValid || !fp->NetScratchKnown) return es;   // not on the server yet: just show what EuroScope has   // not on the server yet: just show what EuroScope has
 	string net = fp->NetScratch;
 
 	auto push = [&](const string& text) { _beginthread(PushScratch, 0, (void*)new CScratchPush{ cs, text }); };
 	auto write = [&](const string& text) {
 		esFp.GetControllerAssignedData().SetScratchPadString(text.c_str());
-		string back = esFp.GetControllerAssignedData().GetScratchPadString();
+		const char* backRaw = esFp.GetControllerAssignedData().GetScratchPadString();
+		string back = backRaw ? backRaw : "";
 		fp->ScratchSynced = (back == text) ? text : back;   // if EuroScope refused, stay with what it still has
 		if (back != text) fp->ScratchRetryAt = clock() + 5 * CLOCKS_PER_SEC;
 	};
