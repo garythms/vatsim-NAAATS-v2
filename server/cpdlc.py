@@ -205,6 +205,8 @@ class CpdlcStation:
         self.stop_flag = False
         # Connections are NOT restored: a station only polls while a controller is signed in to it, so after a stop pilots must log on again.
         self.db.execute("DELETE FROM cpdlc_conn2 WHERE station=?", (client.station,))
+        # A new sign-in starts with nothing unread: whatever is left from earlier sessions is old.
+        self.db.execute("UPDATE cpdlc_messages SET seen=1 WHERE station=? AND seen=0", (client.station,))
         self.db.commit()
         self.connected = {}
         self.next_min = 1
@@ -243,7 +245,9 @@ class CpdlcStation:
 
     def unread(self):
         with self.lock:
-            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages WHERE station=? AND seen=0 GROUP BY callsign", (self.client.station,))}
+            # only aircraft that are connected now: nothing can be done about a message from one that is not
+            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages WHERE station=? AND seen=0 GROUP BY callsign", (self.client.station,))
+                    if c in self.connected}
 
     def _set_connected(self, callsign, yes):
         with self.lock:
@@ -303,6 +307,7 @@ class CpdlcStation:
         mn = self._alloc_min()
         self._send_packet(cs, mn, mrn, ra, text)
         mid = self._store("UP", cs, mn, mrn, ra, text, state="SENT" if ra != "NE" else "", by=by)
+        self.mark_seen(cs)                                    # answering counts as having read what they sent
         if mrn is not None:                                   # answering a pilot request closes it
             with self.lock:
                 self.db.execute("UPDATE cpdlc_messages SET state='ANSWERED' WHERE callsign=? AND dir='DOWN' AND min=? AND state='OPEN'", (cs, mrn))
@@ -334,7 +339,8 @@ class CpdlcStation:
             self._auto_reply(sender, MSG_OCA_UNABLE, pkt["min"], "R")
             return
         state = "OPEN" if pkt["ra"] == "Y" else ""
-        self._store("DOWN", sender, pkt["min"], pkt["mrn"], pkt["ra"], pkt["text"], state=state, seen=0)
+        # A message from an aircraft that is not logged on is old mail that was waiting at Hoppie: keep it in the log but do not alert.
+        self._store("DOWN", sender, pkt["min"], pkt["mrn"], pkt["ra"], pkt["text"], state=state, seen=0 if self.is_connected(sender) else 1)
         if pkt["mrn"] is not None:                            # a reply to one of our uplinks
             for word, name in REPLY_STATES:
                 if text.startswith(word):

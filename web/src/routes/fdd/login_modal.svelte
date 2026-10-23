@@ -24,7 +24,26 @@
     password = "";
     busy = false;
   }
+  // Before the first time a position is used in this browser, explain the one-off natTrak sign-in.
+  let askNat: string = "";                       // the position waiting for the answer
+  function natDone(): boolean {
+    try { return localStorage.getItem("vnaaats.nattrakSignedIn") === "1"; } catch (e) { return false; }
+  }
   async function pick(p: string): Promise<void> {
+    if (p !== "OBSERVER" && !natDone()) { askNat = p; return; }
+    error = await sess.choosePosition(p);
+  }
+  async function natYes(): Promise<void> {
+    const p = askNat;
+    window.open("https://nattrak.vatsim.net/", "_blank");        // the controller signs in there by hand
+    try { localStorage.setItem("vnaaats.nattrakSignedIn", "1"); } catch (e) { /* asked again next time */ }
+    askNat = "";
+    error = await sess.choosePosition(p);
+  }
+  async function natLater(already: boolean): Promise<void> {
+    const p = askNat;
+    if (already) { try { localStorage.setItem("vnaaats.nattrakSignedIn", "1"); } catch (e) { /* ignore */ } }
+    askNat = "";
     error = await sess.choosePosition(p);
   }
   function skip(): void {
@@ -52,6 +71,12 @@
             <button class="w-full py-2 font-bold bg-blue-10 text-black" disabled={busy || !name || !password}>Sign in</button>
           </form>
         {/if}
+      {:else if askNat}
+        <div class="mb-2 font-bold">natTrak sign-in</div>
+        <div class="mb-3 text-sm">To control natTrak from the FDD you need to sign in <b>once</b> to your natTrak account through VATSIM. Are you ready to proceed? This opens natTrak in a new tab, where you press <b>Sign in</b> yourself.</div>
+        <button class="w-full mb-2 py-2 font-bold bg-blue-10 text-black" on:click={natYes}>Yes, open natTrak</button>
+        <button class="w-full mb-2 py-1 text-sm border border-blue-6 bg-blue-4" on:click={() => natLater(true)}>I am already signed in to natTrak</button>
+        <button class="w-full py-1 text-sm underline opacity-80" on:click={() => natLater(false)}>Not now (ask me next time)</button>
       {:else}
         <div class="mb-3 text-sm opacity-80">Hello {$session.name}. Which position are you working?</div>
         <div class="grid grid-cols-2 gap-2 mb-3">

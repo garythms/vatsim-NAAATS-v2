@@ -54,6 +54,19 @@ class StationTests(unittest.TestCase):
         self.assertEqual((acc["to"], acc["from"], acc["packet"]), ("BAW123", "CZQO", "/data2/1/5/NE/LOGON ACCEPTED"))
         self.assertEqual(st.status()["connected"][0]["callsign"], "BAW123")
 
+    def test_old_mail_is_not_unread_and_reply_clears(self):
+        hop, st = make()
+        hop.queue = [("OLD1", "/data2/9//Y/REQUEST LEVEL FL360")]       # waiting at Hoppie, pilot is not logged on
+        st.poll_once()
+        self.assertEqual(st.unread(), {})
+        hop.queue = [("BAW123", "/data2/5//Y/REQUEST LOGON")]
+        st.poll_once()
+        hop.queue = [("BAW123", "/data2/6//Y/REQUEST LEVEL FL380")]
+        st.poll_once()
+        self.assertEqual(st.unread(), {"BAW123": 1})
+        st.send("BAW123", "ROGER", ra="NE")
+        self.assertEqual(st.unread(), {})
+
     def test_manual_accept_waits(self):
         hop, st = make(auto=False)
         hop.queue = [("DLH1", "/data2/2//Y/REQUEST LOGON")]

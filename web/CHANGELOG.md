@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.13.1 - 2026-10-23
+- CPDLC: signing in no longer brings up old messages that were waiting at Hoppie. Unread now counts only aircraft that are logged on, and starts at zero for each new sign-in. Sending a reply marks that aircraft's messages as read, so the flashing stops. Needs server 0.13.1.
+- After you pick a position for the first time in a browser, a message explains the one-off natTrak sign-in and opens nattrak.vatsim.net in a new tab, where you press Sign in yourself.
+
 ## 0.13.0 - 2026-10-23
 - New user manual at /manual: every feature of the display and the plugin, with a contents list and a step-by-step shift. Linked from the install guide and the download page.
 
