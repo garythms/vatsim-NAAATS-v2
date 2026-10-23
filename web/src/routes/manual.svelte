@@ -82,6 +82,7 @@
       <li><b>Sort</b> - newest first, entry ETA, callsign, level or last changed.</li>
       <li><b>CPDLC button</b> - opens the CPDLC drawer. It shows how many aircraft are connected, an envelope with the unread count, and flashes "new logon" when a pilot has just logged on. See section 9.</li>
       <li><b>n shown</b> - how many strips are listed.</li>
+      <li><b>Auto RCL: ON/OFF</b> - the automatic RCL REQ reminder (section 8). Click to switch it for everyone. Hover to see which controller's EuroScope is the sender.</li>
       <li><b>Overdue</b> (flashing clock) - Concorde flights overdue a position report. See section 11.</li>
       <li><b>Warning triangle + number</b> - how many flights currently have a warning on their strip.</li>
     </ul>
@@ -116,6 +117,7 @@
       <li><b>Transfer</b> - pick the controller to hand the aircraft to and press Transfer. Only stations from the CPDLC station list are offered. If none are online it says <i>No adjacent ATC - Send to UNICOM</i> (use the UNICOM button in the CPDLC drawer).</li>
       <li><b>SELCAL</b> - enter or change the 4-letter code and use <b>Send</b> to run a SELCAL check in EuroScope, <b>Copy .selcal</b> to paste it yourself, or <b>Save code</b> to store it on the flight. Letters allowed: A-H, J-M, P-S (a red warning names any that are not).</li>
       <li><b>CPDLC</b> - opens the CPDLC drawer for this aircraft if the pilot is connected.</li>
+      <li><b>Note</b> - type a short note (up to 15 characters) and press Save note: the EuroScope scratchpad (also in the flight plan panel).</li>
       <li><b>RCL REQ</b> - the reminder asking the pilot to request oceanic clearance on natTrak (CPDLC clearance is not available). <b>Send</b> types the message into EuroScope for you, <b>Copy</b> copies it, <b>I have sent it - mark with red *</b> puts the red * on the strip and the radar tag, and <b>Remove mark</b> clears it.</li>
       <li><b>Hide</b> - hides the strip <b>for you only</b>, in this browser, for 12 hours. Nobody else is affected and EuroScope and VATSIM are not touched. Bring it back from the <i>Hidden</i> list or with <i>Add callsign</i>.</li>
       <li><b>Position reports</b> - Concorde only. See section 11.</li>
@@ -147,6 +149,14 @@
       <li><b>CLEARED</b> - clearances already issued, with the time. Clicking one selects that flight.</li>
     </ul>
     <p class="mb-6 opacity-90">At the top of the CLEARED box, <b>Visual</b> turns the flashing and tab-title alert on or off, <b>Audio</b> turns the sound on or off, and <b>Tone</b> cycles through Ping, Chime and Beep (it plays a preview). Your choices are remembered in your browser.</p>
+
+    <h3 class="text-lg font-bold mt-4 mb-1">Automatic RCL REQ reminder</h3>
+    <p class="mb-3 opacity-90">Switched <b>on by default</b>. The server watches every flight and, when one has <b>not</b> asked for clearance on natTrak, sends it the same RCL REQ message as the aircraft menu button, without anyone clicking. A flight is sent the reminder when:</p>
+    <ul class="list-disc ml-6 space-y-1 mb-3">
+      <li>its oceanic entry estimate is within <b>45 minutes</b>, <b>or</b> it is within <b>200 nm</b> of a fix on its route (and it has not already passed its entry time);</li>
+      <li>it is online and moving, has no natTrak request, is not tracked by an oceanic controller, and has not been reminded already (by hand or automatically).</li>
+    </ul>
+    <p class="mb-3 opacity-90">The message is typed into <b>EuroScope</b> by one oceanic controller who is online with the plugin and <b>autotype=1</b> (the first one alphabetically, if there are several). It is sent one flight at a time, and the strip gets the red * when it has gone. If it fails (for example autotype is off) it tries again after 5 minutes, up to three times. Your EuroScope command line is used for a second or two when it sends, so expect a short interruption if you are typing. Use <b>Auto RCL: ON</b> in the controls bar to switch it off for everyone; the setting is remembered by the server.</p>
 
     <h2 id="cpdlc" class="text-2xl font-bold mb-2">9. CPDLC</h2>
     <p class="mb-3 opacity-90">Pilots connect to the vNAAATS CPDLC station and you talk to them from the CPDLC drawer, opened with the <b>CPDLC</b> button in the controls bar.</p>

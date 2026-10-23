@@ -15,6 +15,7 @@
   let level: string = "";
   let mach: string = "";
   let selcal: string = "";
+  let scratch: string = "";
   let note: string = "";
   let copied: string = "";
   let busy: boolean = false;
@@ -33,6 +34,7 @@
     level = ac && ac.AssignedLevel ? String(ac.AssignedLevel) : "";
     mach = ac && ac.AssignedMach ? String(ac.AssignedMach).padStart(3, "0") : "";
     selcal = ac && ac.Selcal && ac.Selcal !== "N/A" ? String(ac.Selcal) : "";
+    scratch = ac && ac.Scratch ? String(ac.Scratch) : "";
     m.loadControllers().then((c) => (controllers = c));
   }
   function close(): void { menuCallsign.set(""); }
@@ -92,6 +94,12 @@
     const e = await sess.editFlight($menuCallsign, { selcal: selcal.toUpperCase() });
     note = e ? "✖ " + e : "✔ SELCAL saved";
   }
+  async function saveScratch(): Promise<void> {
+    const t = scratch.toUpperCase().replace(/\s+/g, " ").trim();
+    if (!/^[A-Z0-9 \/.,+*-]{0,15}$/.test(t)) { note = "\u2716 Note: up to 15 letters, numbers, spaces and / . , + * -"; return; }
+    const e = await sess.editFlight($menuCallsign, { scratch: t });
+    note = e ? "\u2716 " + e : "\u2714 Note saved - it shows under the tag in EuroScope";
+  }
   function hideThis(): void {
     const cs = $menuCallsign;
     hideStrip(cs);
@@ -108,7 +116,7 @@
 
   $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
-  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["nt", "RCL REQ"], ["remove", "Hide"]];
+  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["scratch", "Note"], ["cpdlc", "CPDLC"], ["nt", "RCL REQ"], ["remove", "Hide"]];
   const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
@@ -166,6 +174,12 @@
             <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit || !m.validSelcal(selcal)} on:click={() => typeIn({ type: "selcal", selcal: selcal.toUpperCase() }, m.selcalCommand(selcal))}>Send</button>
             <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
+          </div>
+        {:else if tab === "scratch"}
+          <div class="text-sm mb-2 opacity-90">A short note (up to 15 characters) for this aircraft. It is the EuroScope scratchpad: it shows under the tag and goes with the aircraft to the next controller.</div>
+          <div class="flex flex-row items-center">
+            <input class="w-40 px-1 mr-2 text-black uppercase" maxlength="15" bind:value={scratch} on:keydown={(e) => { if (e.key === "Enter") saveScratch(); }} />
+            <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveScratch}>Save note</button>
           </div>
         {:else if tab === "contact"}
           <div class="text-sm mb-2 opacity-90">"Send" selects {$menuCallsign} in EuroScope and runs .contactme for you. If you copy it instead, click the aircraft in EuroScope first, then paste the command.</div>

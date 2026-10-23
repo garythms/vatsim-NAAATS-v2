@@ -82,8 +82,8 @@
     <h2 class="text-2xl font-bold mb-2">Updating</h2>
     <p class="mb-6 opacity-90">Close EuroScope and replace <b>only VatsimNAAATS.dll</b>. <b>Keep your existing vnaaats.cfg</b> and your saved screen. Do not copy the example config over it or you will lose your key.</p>
 
-    <h2 class="text-2xl font-bold mb-2">Optional: let the display type commands for you</h2>
-    <p class="mb-6 opacity-90">Add <b>autotype=1</b> on a new line in <b>vnaaats.cfg</b>. The Send buttons for SELCAL, contact me and RCL REQ in the display then type the command into EuroScope for you. Leave it out and use the Copy buttons instead if you prefer.</p>
+    <h2 class="text-2xl font-bold mb-2">Let the display type commands for you (autotype)</h2>
+    <p class="mb-6 opacity-90">The example config has <b>autotype=1</b> switched on. The Send buttons for SELCAL, contact me and RCL REQ in the display then type the command into EuroScope for you, and your EuroScope can send the <b>automatic RCL REQ reminders</b> (see the manual). If you would rather copy and paste, set <b>autotype=0</b> (the automatic reminders then come from another controller's EuroScope).</p>
 
     <h2 class="text-2xl font-bold mb-2">If something goes wrong</h2>
     <ul class="list-disc ml-6 space-y-2 mb-6">

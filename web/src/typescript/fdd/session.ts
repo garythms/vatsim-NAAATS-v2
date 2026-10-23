@@ -108,3 +108,20 @@ export async function removeFlight(callsign: string): Promise<string> {
   await dataHandler.populateAllAircraft();
   return "";
 }
+
+// ---- automatic RCL REQ reminder (switch on the server, shown in the controls bar)
+export type RclAuto = { on: boolean; sender: string; inflight: number; error: string };
+export const rclAuto = writable<RclAuto>({ on: false, sender: "", inflight: 0, error: "" });
+
+export async function refreshRclAuto(): Promise<void> {
+  try {
+    const r = await fetch(apiBase + "/rcl/auto", { credentials: "same-origin" });
+    if (r.ok) rclAuto.set(await r.json());
+  } catch (e) { /* keep the last answer */ }
+}
+
+export async function setRclAuto(on: boolean): Promise<string> {
+  const r = await post("/rcl/auto", { on });
+  if (r.ok) { rclAuto.set(r.data); return ""; }
+  return r.data.error ?? "could not change the setting";
+}

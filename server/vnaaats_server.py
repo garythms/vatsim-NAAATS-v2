@@ -52,12 +52,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import cpdlc as cpdlc_mod
 import commands as commands_mod
+import rcl_auto as rcl_auto_mod
 log = logging.getLogger("vnaaats")
 
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.13.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.14.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1011,7 +1012,7 @@ MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css
         ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
 
 
-def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None):
+def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None):
     queue = queue if queue is not None else commands_mod.CommandQueue()
     auth = auth or Auth({})
 
@@ -1180,6 +1181,17 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(400, {"error": err})
                     cid = queue.add(sess["position"], typ, cs, args, by=("%s (%s)" % (sess["position"], sess["name"]))[:60])
                     return self._send(200, {"id": cid})
+                if p == "/rcl/auto":
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if not sess["position"] or sess["position"] == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position first"})
+                    if not rcl:
+                        return self._send(404, {"error": "automatic RCL REQ is not available on this server"})
+                    rcl.set_enabled(bool(body.get("on", True)))
+                    log.info("Auto RCL REQ switched %s by %s", "ON" if rcl.enabled else "OFF", sess["position"])
+                    return self._send(200, rcl.status())
                 if p == "/NatTrakSent":
                     sess = self._session()
                     if not sess:
@@ -1308,18 +1320,24 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 if p == "/PluginCommands":                    # polled by the plugin
                     if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
                         return self._send(401, {"error": "bad key"})
+                    if rcl:
+                        rcl.note_poll(q.get("me", ""))
                     return self._send(200, queue.pending_for(q.get("me", "")))
                 if p == "/PluginCommandDone":
                     if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
                         return self._send(401, {"error": "bad key"})
                     ok = q.get("ok", "0") == "1"
                     c = queue.done(to_int(q.get("id"), 0), ok, q.get("msg", ""))
+                    if c and rcl and c.get("by") == "AUTO":                  # the automatic RCL REQ reminder
+                        rcl.done(c, ok, q.get("msg", ""))
                     if c and ok and c["type"] == "transfer" and cpdlc:        # handoff started: tell the pilot (if on CPDLC)
                         try:
                             cpdlc.handoff(c["callsign"], c["args"]["target"], c["args"].get("freq", ""), by=c["by"])
                         except (ValueError, RuntimeError):
                             pass
                     return self._send(200, {"ok": bool(c)})
+                if p == "/rcl/auto":
+                    return self._send(200, rcl.status() if rcl else {"on": False, "sender": "", "inflight": 0, "error": "not available"})
                 if p == "/cpdlc/templates":
                     return self._send(200, cpdlc_mod.FREETEXTS)
                 if p == "/CpdlcHandoff":                       # called by the plugin when a handoff is started in EuroScope
@@ -1455,7 +1473,12 @@ def main():
     else:
         log.info("CPDLC is OFF (VNAAATS_CPDLC=off)")
     log.info("Web editing: %s", "VATSIM Connect + password" if auth.connect_enabled and auth.password else "VATSIM Connect" if auth.connect_enabled else "password" if auth.password else "OFF (set VNAAATS_FDD_PASSWORD)")
-    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc)).serve_forever()
+    queue = commands_mod.CommandQueue()
+    rcl = None
+    if os.environ.get("VNAAATS_RCL_AUTO", "on").lower() != "off" and network:
+        rcl = rcl_auto_mod.RclAuto(store, queue, network, natrak, lambda route, pos: route_distance_nm(route, pos, cache.fixes), OCEANIC_PREFIXES)
+        log.info("Automatic RCL REQ reminders are available (%s)", "ON" if rcl.enabled else "switched off on the display")
+    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl)).serve_forever()
 
 
 if __name__ == "__main__":

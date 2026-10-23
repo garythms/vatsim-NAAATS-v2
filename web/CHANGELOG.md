@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.14.0 - 2026-10-23
+- Automatic RCL REQ reminder (server 0.14.0, on by default): a flight with no natTrak request, within 45 minutes of its oceanic entry estimate or within 200 nm of a fix on its route, is sent the RCL REQ message automatically, typed in by an online oceanic controller's EuroScope (needs plugin 1.5b13+ and autotype=1). Retries after 5 minutes (3 tries). "Auto RCL: ON/OFF" in the controls bar switches it for everyone.
+- New "Note" tab in the aircraft menu to set the scratchpad note. The flight plan panel scrolls when the window is short, and its Note box is labelled plainly "Note".
+- The example config now has autotype=1.
+
 ## 0.13.1 - 2026-10-23
 - CPDLC: signing in no longer brings up old messages that were waiting at Hoppie. Unread now counts only aircraft that are logged on, and starts at zero for each new sign-in. Sending a reply marks that aircraft's messages as read, so the flashing stops. Needs server 0.13.1.
 - After you pick a position for the first time in a browser, a message explains the one-off natTrak sign-in and opens nattrak.vatsim.net in a new tab, where you press Sign in yourself.

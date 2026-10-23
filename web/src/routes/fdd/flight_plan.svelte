@@ -92,7 +92,7 @@
 </script>
 
 <div
-  class="flex flex-col w-full h-1/3 overflow-hidden border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10">
+  class="flex flex-col w-full h-1/3 overflow-y-auto border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10">
   <Titlebar
     label="Flight Plan - {asel == null ? 'No selection' : asel.Cpdlc ? '[' + asel.Callsign + ']' : asel.Callsign}"/>
   {#if asel != null}
@@ -181,7 +181,7 @@
         {#if routeWarn}<div class="absolute z-30 top-full left-2 mt-0.5 p-1 w-72 font-regular text-xs text-white bg-red-700 border border-red-300">{routeWarn}</div>{/if}
       </div>
       <EditInput
-        label={"\u{1F4DD} Note"}
+        label={"Note"}
         width={"w-32"}
         value={asel.Scratch ?? ""}
         maxlength={15}
