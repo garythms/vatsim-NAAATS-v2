@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.17.3 - 2026-10-23
+- The privacy page (/privacy) is now a proper page of the site. Before, opening it from a link inside the site gave "Not found: /privacy". It now also describes personal keys, the roster check and the re-track memory.
+
 ## 0.17.2 - 2026-10-23
 - Re-track after a crash (server 0.19.2, plugin 1.5b20): only if you are back within 5 minutes, and not if someone with a different name has signed in on the FDD at your position.
 
