@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.15.0 - 2026-10-23
+- NAT track in the filed route (server 0.16.0): a route such as "... HOIST NATF GOMUP ..." is now checked against today's tracks. NATF is replaced by track F's fixes between the filed entry and exit fix (or the whole track if only one end is given), the strip gets the oceanic coordinates and sits under that track. A NAT letter with no active track is dropped. Applies to flights from the VATSIM feed, flights added by callsign, and flights sent by the plugin.
+
 ## 0.14.2 - 2026-10-23
 - Server 0.15.1: the server now reads the Gander Oceanic roster feed (ganderoceanic.ca/api/roster) itself. A personal key is only issued to a CID that is certified and active, and every 6 hours keys of members who have dropped off are withdrawn. A broken or empty feed never withdraws anything.
 

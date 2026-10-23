@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.15.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.16.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -497,6 +497,47 @@ def oceanic_point(token):
     return None
 
 
+# ----------------------------------------------------------------------------- NAT track tokens in filed routes
+NAT_TOKEN = re.compile(r"NAT([A-Z])")
+
+
+def expand_nat_tokens(tokens, tracks, etas=None):
+    """Pilots file  ENTRY NATF EXIT  (for example  HOIST NATF GOMUP). Replace the NATx token by the fixes of the
+    active track x, from the filed entry fix to the filed exit fix, so the route has the oceanic coordinates.
+    Returns (tokens, etas, expanded_letters). etas (a list the same length as tokens, or None) gets "--" for new fixes.
+    A NATx token with no active track of that letter is dropped (it is not a real fix)."""
+    by_id = {str(t.get("id", "")).upper(): [str(r["name"]).upper() for r in t.get("route", [])] for t in tracks}
+    out, out_etas, done = [], ([] if etas is not None else None), []
+    for i, tok in enumerate(tokens):
+        m = NAT_TOKEN.fullmatch(_SPEEDLEVEL.sub("", tok.upper()))
+        if not m:
+            out.append(tok)
+            if out_etas is not None:
+                out_etas.append(etas[i] if i < len(etas) else "--")
+            continue
+        names = by_id.get(m.group(1))
+        if not names:
+            continue                                          # no such track today: drop the token
+        prev = next((x.upper() for x in reversed(out) if x.upper() != "DCT"), None)
+        nxt = next((x.upper() for x in tokens[i + 1:] if x.upper() != "DCT" and not NAT_TOKEN.fullmatch(_SPEEDLEVEL.sub("", x.upper()))), None)
+        ip = names.index(prev) if prev in names else None
+        inn = names.index(nxt) if nxt in names else None
+        if ip is not None and inn is not None:
+            inner = names[ip + 1:inn] if ip < inn else list(reversed(names[inn + 1:ip]))
+        elif ip is not None:
+            inner = names[ip + 1:]
+        elif inn is not None:
+            inner = names[:inn]
+        else:
+            inner = names
+        for n in inner:
+            out.append(n)
+            if out_etas is not None:
+                out_etas.append("--")
+        done.append(m.group(1))
+    return out, out_etas, done
+
+
 def parse_level(alt):
     """Flight plan altitude ('39000', 'FL390', 'F390', '390', 'A050') -> flight level (390)."""
     digits = re.sub(r"\D", "", alt or "")
@@ -519,7 +560,7 @@ def convert_network_pilot(pilot, tracks):
     The route is the oceanic coordinates plus the named entry fix before them and the exit fix after them."""
     fp = pilot.get("flight_plan") or {}
     route_str = fp.get("route") or ""
-    tokens = route_str.split()
+    tokens = expand_nat_tokens(route_str.split(), tracks)[0]  # HOIST NATF GOMUP -> HOIST <track F fixes> GOMUP
     idx = []                                                  # (index in route, (name, lat, lon)) of oceanic coordinates
     for i, tok in enumerate(tokens):
         p = oceanic_point(tok)
@@ -575,7 +616,7 @@ def convert_manual_pilot(pilot, tracks):
     if not fp:
         return None
     names = []
-    for tok in (fp.get("route") or "").upper().split():
+    for tok in expand_nat_tokens((fp.get("route") or "").upper().split(), tracks)[0]:
         if tok == "DCT" or re.fullmatch(r"[A-Z]{1,2}\d{1,3}[A-Z]?", tok) or re.fullmatch(r"[NMK]\d{3,4}[FAMS]\d{3,4}", tok):
             continue
         names.append(tok)
@@ -1443,6 +1484,18 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     bad = key_problem(q.get("code", ""))
                     if bad:
                         return self._send(401, {"error": "bad key", "reason": bad})
+                    if "NAT" in str(q.get("route", "")).upper():          # a filed NATx token: replace it by that track's fixes
+                        with cache.lock:
+                            tracks_now = list(cache.tracks)
+                        toks = str(q.get("route", "")).split()
+                        et = str(q.get("routeEtas", "")).split()
+                        new, new_et, done = expand_nat_tokens(toks, tracks_now, et if len(et) == len(toks) else None)
+                        if done or len(new) != len(toks):
+                            q = dict(q, route=" ".join(new))
+                            if new_et is not None:
+                                q["routeEtas"] = " ".join(new_et)
+                            elif "routeEtas" in q:
+                                q["routeEtas"] = " ".join(["--"] * len(new))
                     rec = store.upsert(q)
                     return self._send(200, rec) if rec else self._send(400, {"error": "callsign required"})
                 if p == "/GetAllFlightData":
