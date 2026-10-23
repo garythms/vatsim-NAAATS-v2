@@ -153,7 +153,7 @@ onMount(async () => {
     <div class="flex flex-row h-1/14 justify-evenly items-center font-web font-semibold overflow-hidden bg-blue-0" >
         <div class="tracking-wide text-center">
             Copyright © Andrew Ogden 2020-2021 (original vNAAATS). Version 2 © Gary Thomas 2026. FOR FLIGHT SIMULATION ONLY. NOT TO BE USED FOR REAL WORLD NAVIGATION.
-            <br />Independent community project, not run or endorsed by VATSIM. <a href="https://vnaaats.com/privacy/" class="underline">Privacy and data handling</a>.
+            <br />Independent community project, not run or endorsed by VATSIM. <a href="/privacy" class="underline">Privacy and data handling</a>.
             <br />Learn more about the VATSIM network <a href="https://vatsim.net" class="underline">here</a>.
         </div>
     </div>

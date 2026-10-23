@@ -230,6 +230,6 @@
       <li><b>Reporting a bug:</b> include the callsign, what you clicked, what you expected, what happened, the plugin version (first line of vNAAATS.log) and the log file. Report at <a class="underline" href="https://github.com/garythms/vatsim-naaats-v2/issues">GitHub issues</a> or to the Gander Oceanic team.</li>
     </ul>
 
-    <p class="text-sm opacity-80">Independent community project, not run or endorsed by VATSIM. <a class="underline" href="https://vnaaats.com/privacy/">Privacy and data handling</a>.</p>
+    <p class="text-sm opacity-80">Independent community project, not run or endorsed by VATSIM. <a class="underline" href="/privacy">Privacy and data handling</a>.</p>
   </div>
 </div>

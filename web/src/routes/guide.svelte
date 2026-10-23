@@ -95,6 +95,6 @@
     </ul>
 
     <p class="text-sm opacity-80">Independent community project, not run or endorsed by VATSIM.
-      <a class="underline" href="https://vnaaats.com/privacy/">Privacy and data handling</a>.</p>
+      <a class="underline" href="/privacy">Privacy and data handling</a>.</p>
   </div>
 </div>
