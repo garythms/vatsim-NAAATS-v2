@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.18.0 - 2026-10-23
+- The FDD can be installed as an app (server 0.19.3): in Chrome or Edge use the install icon in the address bar. It opens in its own window with its own icon. Nothing is stored for offline use, so it is always the newest version.
+
 ## 0.17.5 - 2026-10-23
 - Privacy page: contact email info@vnaaats.com, why data is used, how long it is kept, where the server is, and your rights (GDPR-style, for everyone).
 

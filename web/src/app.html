@@ -11,6 +11,8 @@
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="/favicon.png" />
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<meta name="theme-color" content="#0b1b30" />
 		<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>Loading content...</title>
@@ -18,5 +20,8 @@
 	</head>
 	<body class="text-white font-regular font-extrabold bg-blue-1" style="opacity: 0%;">
 		<div id="svelte">%svelte.body%</div>
+		<script>
+			if ("serviceWorker" in navigator) { window.addEventListener("load", function () { try { navigator.serviceWorker.register("/sw.js"); } catch (e) {} }); }
+		</script>
 	</body
 </html>

@@ -52,6 +52,7 @@
       <li>Open <a class="underline" href="https://vnaaats.com/fdd">vnaaats.com/fdd</a> in your browser.</li>
       <li>Sign in with the login you were given and choose your <b>position</b> (CZQO_CTR, EGGX_CTR and so on). The position is what other controllers see on "last changed" and "tracked by".</li>
     </ol>
+    <p class="mb-3 opacity-90"><b>Use it as an app:</b> in Chrome or Edge, open the FDD and click the <i>install</i> icon at the right end of the address bar (or the three-dot menu, then <i>Install vNAAATS FDD</i> / <i>Apps</i>). It then opens in its own window with its own icon, which suits a second monitor. It is still the same website, so updates arrive automatically.</p>
     <p class="mb-3 opacity-90"><b>Just watch</b> lets you look without signing in. A viewer cannot edit anything. The top bar then says <i>View only</i>; choose <i>sign in to edit</i> there to change your mind. Use <i>change</i> to pick another position and <i>sign out</i> when you finish.</p>
     <p class="mb-6 opacity-90">Keep EuroScope connected while you work: the plugin asks the server every 2 seconds whether you have asked for something (track, transfer, SELCAL and so on), and does nothing if EuroScope is offline.</p>
 
