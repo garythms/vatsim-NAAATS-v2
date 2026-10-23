@@ -69,6 +69,9 @@ echo
 echo "== Health check"
 curl -fsS http://127.0.0.1:8080/health || echo "(server not answering yet - run: journalctl -u vnaaats -n 50)"
 echo
+# Optional: tell the Discord channel about the new version (needs VNAAATS_DISCORD_WEBHOOK in /etc/vnaaats.env)
+python3 "$(dirname "$0")/announce.py" "$(dirname "$0")/.." || true
+echo
 if [ -n "$NEWKEY" ]; then
   echo "=============================================================="
   echo " YOUR API KEY (save it somewhere safe, it is shown only once):"

@@ -10,6 +10,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       # The EuroScope SDK import library is not in the repo (it is distributed with the EuroScope plugin SDK).
       # Put EuroScopePlugInDll.lib in the repo's lib folder (git add -f lib/EuroScopePlugInDll.lib) to enable the build.
       - name: Check SDK library
@@ -51,3 +53,31 @@ jobs:
         run: |
           gh release delete latest-build --yes --cleanup-tag 2>$null
           gh release create latest-build VatsimNAAATS-plugin.zip pkg/VatsimNAAATS.dll --prerelease --target ${{ github.sha }} --title "Latest plugin build" --notes "Automatic build of the server-and-squawk branch (${{ github.sha }})."
+      # Optional Discord notice when the plugin version number changes (needs the repository secret DISCORD_WEBHOOK).
+      - name: Announce on Discord
+        if: github.event_name == 'push' && github.ref_name == 'server-and-squawk'
+        shell: pwsh
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          try {
+            if (-not $env:DISCORD_WEBHOOK) { Write-Host "No DISCORD_WEBHOOK secret set - skipping."; exit 0 }
+            $ver = (Get-Content pluginversion.txt -Raw).Trim()
+            $prev = ""
+            try { $prev = ((git show HEAD~1:pluginversion.txt) -join "").Trim() } catch { }
+            if ($ver -eq $prev) { Write-Host "Version unchanged ($ver) - skipping."; exit 0 }
+            $lines = Get-Content VatsimNAAATS/BETA-README.txt
+            $notes = @(); $on = $false
+            foreach ($l in $lines) {
+              if ($l -match "^NEW IN $([regex]::Escape($ver))") { $on = $true; $notes += ($l -replace "^NEW IN [^:]*:?\s*", ""); continue }
+              if ($on -and $l.Trim() -eq "") { break }
+              if ($on) { $notes += $l }
+            }
+            $text = ($notes -join "`n").Trim()
+            $msg = "**vNAAATS plugin $ver is out**`n"
+            if ($text) { $msg += "`n$text`n" }
+            $msg += "`nUpdating? Close EuroScope and replace only VatsimNAAATS.dll (keep your vnaaats.cfg): https://vnaaats.com/beta`nFirst time? https://vnaaats.com/guide"
+            if ($msg.Length -gt 1900) { $msg = $msg.Substring(0, 1900) }
+            Invoke-RestMethod -Uri $env:DISCORD_WEBHOOK -Method Post -ContentType "application/json" -Body (@{ content = $msg } | ConvertTo-Json) | Out-Null
+            Write-Host "Posted to Discord."
+          } catch { Write-Host "Discord notice failed (build is fine): $($_.Exception.Message)" }
