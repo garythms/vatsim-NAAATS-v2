@@ -996,7 +996,7 @@ def validate_edit(body):
             return None, "SELCAL must be 4 letters from A-H, J-M, P-S (no I, N, O, T-Z), like ABCD"
         changes["selcal"] = sc
     if "scratch" in body:
-        sp = str(body["scratch"]).strip().upper()
+        sp = " ".join(str(body["scratch"]).upper().split())
         if not SCRATCH_OK.fullmatch(sp):
             return None, "the note can be up to %d letters, numbers, spaces and / . , + - *" % SCRATCH_MAX
         changes["scratch"] = sp
