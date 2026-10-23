@@ -170,11 +170,19 @@ static bool TypeIntoEuroScope(const string& text) {
 	for (int n = 0; n < 300; n++) key(VK_BACK);
 	send(in);
 	Sleep(300);
+	// One character at a time with a short pause: EuroScope shows a dot-command hint while ".msg" is being typed and could
+	// swallow the space that follows it (".msgBAW123 Hello"). Spaces are sent as a real Space key press.
 	for (unsigned char ch : text) {
-		INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wScan = ch; d.ki.dwFlags = KEYEVENTF_UNICODE; in.push_back(d);
-		INPUT u = d; u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP; in.push_back(u);
+		if (ch == ' ') {
+			key(VK_SPACE);
+		}
+		else {
+			INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wScan = ch; d.ki.dwFlags = KEYEVENTF_UNICODE; in.push_back(d);
+			INPUT u = d; u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP; in.push_back(u);
+		}
+		send(in);
+		Sleep(ch == ' ' ? 60 : 10);
 	}
-	send(in);
 	Sleep(300);
 	key(VK_RETURN); send(in);
 	return true;
