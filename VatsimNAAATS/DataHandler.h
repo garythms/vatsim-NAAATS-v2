@@ -12,6 +12,8 @@
 using namespace std;
 using namespace EuroScopePlugIn;
 
+struct CAselPush { string Me, Callsign; }; // reported to the server when the selected aircraft changes
+
 class CDataHandler
 {
 	public:
@@ -60,6 +62,8 @@ class CDataHandler
 	static string ScratchUrl; // server + /PluginScratch?code=KEY
 	static string SyncScratch(CFlightPlan& esFp); // two-way sync of the scratchpad note between EuroScope and the server; returns the note
 	static void PushScratch(void* args);
+	static string AselUrl; // server + /PluginAsel?code=KEY
+	static void ReportAsel(void* args); // tells the server which aircraft was clicked in EuroScope
 	static string UrlEncode(const string& value); // percent-encode a query value
 	// Commands sent from the web flight data display (track / untrack / transfer)
 	struct CRemoteCommand {

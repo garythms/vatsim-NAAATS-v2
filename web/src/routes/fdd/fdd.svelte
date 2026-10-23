@@ -9,6 +9,7 @@
   import * as sess from "../../typescript/fdd/session";
   import { hidden, unhideStrip } from "../../typescript/fdd/hide";
   import * as cp from "../../typescript/fdd/cpdlc";
+  import * as esSel from "../../typescript/fdd/esselect";
 
   const { session } = sess;
   const { cpdlcStatus, cpdlcOpen, cpdlcAttention } = cp;
@@ -24,6 +25,7 @@
     // Start the fetcher
     dataHandler.runDataFetcher();
     cp.startCpdlcPolling();
+    esSel.startEsSelect();
     sess.refreshRclAuto();
     rclTimer = setInterval(sess.refreshRclAuto, 10000);
 
@@ -41,6 +43,7 @@
   }
   onDestroy(async () => {
     if (rclTimer) clearInterval(rclTimer);
+    esSel.stopEsSelect();
     // Hello homepage
     site.setSiteSection(0);
     clearInterval(dataHandler.acUpdateJob);

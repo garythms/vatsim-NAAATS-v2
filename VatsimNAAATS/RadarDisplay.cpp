@@ -366,6 +366,8 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 	if (GetPlugIn()->FlightPlanSelectASEL().GetCallsign() != asel) {
 		asel = GetPlugIn()->FlightPlanSelectASEL().GetCallsign();
 		CLogger::Log(CLogType::NORM, "Selected aircraft changed to " + asel + ".", "CRadarDisplay::OnRefresh");
+		// Tell the server, so the FDD can outline this aircraft's strip
+		if (!CDataHandler::ControllerCallsign.empty()) _beginthread(CDataHandler::ReportAsel, 0, (void*)new CAselPush{ CDataHandler::ControllerCallsign, asel });
 	}
 
 	// Set the flight plan button state
@@ -1239,6 +1241,7 @@ void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, P
 			CFlightPlan fp = GetPlugIn()->FlightPlanSelect(sObjectId);
 			GetPlugIn()->SetASELAircraft(fp);
 			CLogger::Log(CLogType::NORM, "Selected aircraft changed to " + asel + ".", "CRadarDisplay::OnClickScreenObject");
+			if (!CDataHandler::ControllerCallsign.empty()) _beginthread(CDataHandler::ReportAsel, 0, (void*)new CAselPush{ CDataHandler::ControllerCallsign, asel });
 			
 			// Re-instantiate FPW if needed
 			if (newFP) {

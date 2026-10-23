@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { espicked } from "../../typescript/fdd/esselect";
   import * as utils from "../../typescript/fdd/utils";
   import * as dataHandler from "../../typescript/fdd/data";
   import { menuCallsign } from "../../typescript/fdd/acmenu";
@@ -74,7 +75,7 @@
   }
 </script>
 
-<div class="hover:border-green-500 hover:border-2" title={tip}
+<div id={"strip-" + callsign} style={$espicked === callsign ? "outline: 3px solid #fde047; outline-offset: -3px;" : ""} class="hover:border-green-500 hover:border-2" title={tip}
   on:click={() => {
     if (dataHandler.isNatTrakAlert(callsign)) dataHandler.openNatTrakFor(callsign); // flashing request: open natTrak
     dataHandler.ackNatTrak(callsign);

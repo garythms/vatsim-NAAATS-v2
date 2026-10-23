@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 1.5b18: click an aircraft in EuroScope and its strip is outlined in yellow and scrolled into view on the FDD (needs server 0.17.0 / display 0.16.0).
+
 NEW IN 1.5b17: fixes a lost space when typing into EuroScope (".msgBAW123 Hello..." instead of ".msg BAW123 Hello..."). The plugin now types one character at a time and presses a real Space key.
 
 NEW IN 1.5b16: no feature changes - this build tests the automatic Discord update notice. Handoff accept via Track needs 1.5b15 or newer.

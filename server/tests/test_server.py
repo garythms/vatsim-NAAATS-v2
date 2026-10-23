@@ -354,3 +354,28 @@ class ConnectTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AselTest(unittest.TestCase):
+    """Plugin reports the aircraft clicked in EuroScope; the FDD asks for it by session position."""
+    def test_pick_roundtrip(self):
+        tmp = tempfile.mkdtemp()
+        cache = s.TrackCache(s.load_fixes())
+        store = s.FlightStore(os.path.join(tmp, "a.db"))
+        srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, store, KEY))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:%d" % srv.server_port
+        try:
+            def get(p):
+                try:
+                    with urllib.request.urlopen(base + p) as r:
+                        return r.status, json.loads(r.read().decode())
+                except urllib.error.HTTPError as e:
+                    return e.code, json.loads(e.read().decode() or "{}")
+            self.assertEqual(get("/PluginAsel?code=wrong&me=CZQO_CTR&callsign=BAW1")[0], 401)
+            self.assertEqual(get("/PluginAsel?code=%s&me=CZQO_CTR&callsign=baw123" % KEY)[0], 200)
+            self.assertEqual(get("/PluginAsel?code=%s&me=CZQO_CTR&callsign=baw123" % KEY)[0], 200)   # same aircraft: no new pick
+            self.assertEqual(get("/PluginAsel?code=%s&me=CZQO_CTR&callsign=DLH9" % KEY)[0], 200)
+            self.assertEqual(get("/asel"), (200, {"callsign": "", "seq": 0}))      # no sign-in: nothing
+        finally:
+            srv.shutdown()

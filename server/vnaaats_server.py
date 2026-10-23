@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.16.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.17.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1074,6 +1074,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         return rec
     secure_cookie = auth.public_url.startswith("https://")
     shared_key_ok = os.environ.get("VNAAATS_SHARED_KEY", "on").lower() != "off"
+    es_pick = {}                      # controller callsign -> {"callsign", "seq", "ts"}: the aircraft last clicked in that EuroScope
+    es_pick_lock = threading.Lock()
 
     def key_problem(code):
         """"" when the plugin key is good, else why not: "unknown", "expired" or "revoked"."""
@@ -1408,6 +1410,24 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     text = " ".join(q.get("text", "").upper().split())[:SCRATCH_MAX]
                     text = "".join(ch for ch in text if SCRATCH_OK.fullmatch(ch) or ch == " ")
                     return self._send(200, {"ok": store.set_scratch(q.get("callsign", ""), text, "Plugin")})
+                if p == "/PluginAsel":                        # the plugin reports the aircraft selected in EuroScope
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
+                    me = re.sub(r"[^A-Z0-9_\-]", "", q.get("me", "").upper())[:16]
+                    cs = re.sub(r"[^A-Z0-9]", "", q.get("callsign", "").upper())[:8]
+                    if me:
+                        with es_pick_lock:
+                            old = es_pick.get(me, {"seq": 0})
+                            if old.get("callsign") != cs:
+                                es_pick[me] = {"callsign": cs, "seq": old["seq"] + 1, "ts": time.time()}
+                    return self._send(200, {"ok": True})
+                if p == "/asel":                              # the FDD asks which aircraft its controller clicked in EuroScope
+                    sess = self._session()
+                    pos = (sess["position"] if sess else "").upper()
+                    with es_pick_lock:
+                        cur = es_pick.get(pos)
+                    return self._send(200, {"callsign": cur["callsign"] if cur else "", "seq": cur["seq"] if cur else 0})
                 if p == "/PluginCommands":                    # polled by the plugin
                     bad = key_problem(q.get("code", ""))
                     if bad:

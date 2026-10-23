@@ -15,6 +15,7 @@ static const string DEFAULT_SERVER = "https://vnaaats.com";
 string CDataHandler::ControllerCallsign = "";
 string CDataHandler::BetaUrl = DEFAULT_SERVER + "/beta";
 string CDataHandler::ScratchUrl = "";
+string CDataHandler::AselUrl = "";
 string CDataHandler::FddUrl = DEFAULT_SERVER + "/fdd";
 string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";
 map<string, CAircraftFlightPlan> CDataHandler::flights;
@@ -75,6 +76,7 @@ void CDataHandler::LoadSettings() {
 	CpdlcHandoffUrl = server + "/CpdlcHandoff?code=" + UrlEncode(key);
 	CommandsUrl = server + "/PluginCommands?code=" + UrlEncode(key);
 	ScratchUrl = server + "/PluginScratch?code=" + UrlEncode(key);
+	AselUrl = server + "/PluginAsel?code=" + UrlEncode(key);
 	CommandDoneUrl = server + "/PluginCommandDone?code=" + UrlEncode(key);
 	if (key.empty()) CLogger::Log(CLogType::WARN, "No API key in vnaaats.cfg - flight data cannot be saved to the server.", "CDataHandler::LoadSettings");
 }
@@ -901,6 +903,22 @@ void CDataHandler::UpdateNetworkAircraft(void* args) {
 //  - changed on the FDD     -> write it into EuroScope (only if EuroScope allows it)
 // Runs on the draw thread.
 struct CScratchPush { string Callsign, Text; };
+
+void CDataHandler::ReportAsel(void* args) {
+	CAselPush* p = (CAselPush*)args;
+	try {
+		if (!AselUrl.empty() && !p->Me.empty()) {
+			string reqUrl = AselUrl + "&me=" + UrlEncode(p->Me) + "&callsign=" + UrlEncode(p->Callsign);
+			DeleteUrlCacheEntry(reqUrl.c_str());
+			CComPtr<IStream> pStream;
+			URLOpenBlockingStream(NULL, reqUrl.c_str(), &pStream, 0, NULL);
+		}
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Could not report the selected aircraft: " + string(e.what()), "CDataHandler::ReportAsel");
+	}
+	delete p;
+}
 
 void CDataHandler::PushScratch(void* args) {
 	CScratchPush* p = (CScratchPush*)args;
