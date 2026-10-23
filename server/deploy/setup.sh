@@ -58,6 +58,8 @@ systemctl restart vnaaats
 echo "== Web front (Caddy)"
 if [ -n "$DOMAIN" ]; then
   printf '%s {\n    reverse_proxy 127.0.0.1:8080\n}\n' "$DOMAIN" > /etc/caddy/Caddyfile
+elif grep -q "reverse_proxy 127.0.0.1:8080" /etc/caddy/Caddyfile 2>/dev/null; then
+  echo "(keeping your existing Caddy settings)"        # a re-install never replaces a working domain setup
 else
   printf ':80 {\n    reverse_proxy 127.0.0.1:8080\n}\n' > /etc/caddy/Caddyfile
 fi
