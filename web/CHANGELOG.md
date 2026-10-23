@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.17.4 - 2026-10-23
+- Privacy page: says the roster check covers the oceanic controllers of Gander Oceanic, VATSIM UK and Virtual New York ARTCC (all listed on the Gander roster).
+
 ## 0.17.3 - 2026-10-23
 - The privacy page (/privacy) is now a proper page of the site. Before, opening it from a link inside the site gave "Not found: /privacy". It now also describes personal keys, the roster check and the re-track memory.
 
