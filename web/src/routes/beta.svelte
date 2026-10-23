@@ -44,6 +44,7 @@
       <div class="text-sm opacity-80 mt-3">Already installed? Close EuroScope and replace <b>only</b> the DLL. Keep your <b>vnaaats.cfg</b>.</div>
     </div>
 
+    <p class="mb-4 opacity-90">How everything works: <a href="https://vnaaats.com/manual" class="underline font-bold">user manual</a>.</p>
     <p class="mb-4 p-3 border-2 border-blue-10 bg-blue-3">First time installing? Use the <a href="https://vnaaats.com/guide" class="underline font-bold">install guide</a>. It has the full first-time pack (plugin, radar screen file, example config) and the sector file steps.</p>
     <h2 class="text-2xl font-bold mb-2">Updating an existing install</h2>
     <p class="mb-6 opacity-90">Close EuroScope and replace <b>only VatsimNAAATS.dll</b> with the one you just downloaded. <b>Keep your existing vnaaats.cfg</b> - do not copy the example file over it, or you will lose your key. Make sure it is the DLL EuroScope actually loads (Other SET &gt; Plug-ins shows its folder).</p>

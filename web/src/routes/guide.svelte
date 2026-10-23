@@ -35,6 +35,8 @@
       <div class="text-sm opacity-80">Always the newest build: the plugin DLL, the vNAAATS.asr screen file, an example config and a short README. The <b>key</b> is not in the zip - get it from the Gander Oceanic website members page.</div>
     </div>
 
+    <p class="mb-6 p-3 border-2 border-blue-10 bg-blue-3">After installing, read the <a class="underline font-bold" href="https://vnaaats.com/manual">user manual</a> to see how everything works.</p>
+
     <h2 class="text-2xl font-bold mb-2">Before you start</h2>
     <ul class="list-disc ml-6 space-y-1 mb-6">
       <li>EuroScope installed and working, and a VATSIM controller rating.</li>

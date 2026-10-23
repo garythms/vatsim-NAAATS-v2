@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.13.0 - 2026-10-23
+- New user manual at /manual: every feature of the display and the plugin, with a contents list and a step-by-step shift. Linked from the install guide and the download page.
+
 ## 0.12.0 - 2026-10-23
 - Note (scratchpad): a "Note" box on the flight plan panel (up to 15 characters). It is the EuroScope scratchpad, so it shows under the tag in EuroScope and goes with the aircraft to the next controller. Notes typed in EuroScope show here too.
 - CPDLC: when a pilot logs on, the alert sound plays once, their callsign flashes in the CPDLC window and on the strip, and the CPDLC button flashes ("new logon") until you look at that aircraft.
