@@ -59,6 +59,7 @@ jobs:
         shell: pwsh
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_ROLE_ID: ${{ secrets.DISCORD_ROLE_ID }}
         run: |
           try {
             if (-not $env:DISCORD_WEBHOOK) { Write-Host "No DISCORD_WEBHOOK secret set - skipping."; exit 0 }
@@ -74,10 +75,13 @@ jobs:
               if ($on) { $notes += $l }
             }
             $text = ($notes -join "`n").Trim()
-            $msg = "**vNAAATS plugin $ver is out**`n"
+            $role = ""
+            $mentions = @{ parse = @() }
+            if ($env:DISCORD_ROLE_ID -match '^\d+$') { $role = "<@&$($env:DISCORD_ROLE_ID)> "; $mentions = @{ parse = @(); roles = @($env:DISCORD_ROLE_ID) } }
+            $msg = "$role**vNAAATS plugin $ver is out**`n"
             if ($text) { $msg += "`n$text`n" }
             $msg += "`nUpdating? Close EuroScope and replace only VatsimNAAATS.dll (keep your vnaaats.cfg): https://vnaaats.com/beta`nFirst time? https://vnaaats.com/guide"
             if ($msg.Length -gt 1900) { $msg = $msg.Substring(0, 1900) }
-            Invoke-RestMethod -Uri $env:DISCORD_WEBHOOK -Method Post -ContentType "application/json" -Body (@{ content = $msg } | ConvertTo-Json) | Out-Null
+            Invoke-RestMethod -Uri $env:DISCORD_WEBHOOK -Method Post -ContentType "application/json" -Body (@{ content = $msg; allowed_mentions = $mentions } | ConvertTo-Json -Depth 5) | Out-Null
             Write-Host "Posted to Discord."
           } catch { Write-Host "Discord notice failed (build is fine): $($_.Exception.Message)" }
