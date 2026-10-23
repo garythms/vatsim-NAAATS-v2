@@ -65,9 +65,9 @@
         {/if}
         {#if $session.password}
           <form on:submit|preventDefault={doPassword}>
-            <div class="text-sm mb-1">{$session.vatsim ? "or use the controller password" : "Your name or CID, and the controller password"}</div>
+            <div class="text-sm mb-1">{$session.vatsim ? "or use your password" : "Your name or CID, and your password (from your myCZQO vNAAATS key page)"}</div>
             <input class="w-full mb-2 px-2 py-1 text-black" placeholder="Name or CID" bind:value={name} maxlength="40" autocomplete="name" />
-            <input class="w-full mb-2 px-2 py-1 text-black" type="password" placeholder="Controller password" bind:value={password} autocomplete="current-password" />
+            <input class="w-full mb-2 px-2 py-1 text-black" type="password" placeholder="Password" bind:value={password} autocomplete="current-password" />
             <button class="w-full py-2 font-bold bg-blue-10 text-black" disabled={busy || !name || !password}>Sign in</button>
           </form>
         {/if}

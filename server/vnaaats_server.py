@@ -53,12 +53,13 @@ sys.path.insert(0, HERE)
 import cpdlc as cpdlc_mod
 import commands as commands_mod
 import rcl_auto as rcl_auto_mod
+import members as members_mod
 log = logging.getLogger("vnaaats")
 
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.14.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.15.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1012,7 +1013,7 @@ MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css
         ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
 
 
-def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None):
+def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret=""):
     queue = queue if queue is not None else commands_mod.CommandQueue()
     auth = auth or Auth({})
 
@@ -1031,6 +1032,21 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             rec["posReports"] = store.pos_get(rec.get("callsign", ""))
         return rec
     secure_cookie = auth.public_url.startswith("https://")
+    shared_key_ok = os.environ.get("VNAAATS_SHARED_KEY", "on").lower() != "off"
+
+    def key_problem(code):
+        """"" when the plugin key is good, else why not: "unknown", "expired" or "revoked"."""
+        code = code or ""
+        if api_key and shared_key_ok and hmac.compare_digest(code.encode(), api_key.encode()):
+            return ""
+        if members:
+            cid, why = members.check_key(code)
+            return "" if cid else why
+        return "unknown"
+
+    def issuer_ok(handler):
+        sec = handler.headers.get("X-Issuer-Secret", "")
+        return bool(issuer_secret) and len(issuer_secret) >= 24 and hmac.compare_digest(sec.encode(), issuer_secret.encode())
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "vnaaats-server"
@@ -1088,7 +1104,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             self.end_headers()
 
         def _status(self, session):
-            return {"editing": auth.enabled, "password": bool(auth.password), "vatsim": auth.connect_enabled,
+            return {"editing": auth.enabled, "password": bool(auth.password) or bool(members and members.any()), "vatsim": auth.connect_enabled,
                     "loggedIn": bool(session), "name": session["name"] if session else "", "cid": session["cid"] if session else "",
                     "position": session["position"] if session else "", "positions": auth.positions}
 
@@ -1106,16 +1122,47 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         raise ValueError
                 except ValueError:
                     return self._send(400, {"error": "bad JSON"})
+                if p.startswith("/admin/member/"):               # called by the Gander Oceanic website, not by browsers
+                    if not issuer_ok(self):
+                        return self._send(403, {"error": "not allowed"})
+                    if not members:
+                        return self._send(404, {"error": "member keys are not switched on"})
+                    what = p[len("/admin/member/"):]
+                    try:
+                        if what == "issue":
+                            out = members.issue(body.get("cid", ""), body.get("name", ""))
+                            log.info("Issued a personal key for CID %s", out["cid"])
+                            return self._send(200, out)
+                        if what == "info":
+                            return self._send(200, members.info(body.get("cid", "")))
+                        if what == "revoke":
+                            return self._send(200, {"revoked": members.revoke(body.get("cid", ""))})
+                        if what == "sync":
+                            cids = body.get("cids", [])
+                            if not isinstance(cids, list) or not cids:
+                                return self._send(400, {"error": "send the list of active, certified CIDs (not empty)"})
+                            gone = members.sync(cids)
+                            log.info("Roster sync revoked %d member key(s)", len(gone))
+                            return self._send(200, {"revoked": gone})
+                        if what == "list":
+                            return self._send(200, members.listing())
+                    except ValueError as e:
+                        return self._send(400, {"error": str(e)})
+                    return self._send(404, {"error": "unknown"})
                 if p == "/auth/password":
                     ip = self._client_ip()
-                    if not auth.password:
+                    if not auth.password and not (members and members.any()):
                         return self._send(404, {"error": "password login is not set up"})
                     if auth.throttled(ip):
                         return self._send(429, {"error": "too many wrong passwords - wait 5 minutes"})
                     name = str(body.get("name", "")).strip()[:40]
                     if not name:
                         return self._send(400, {"error": "enter your name or CID"})
-                    if not auth.check_password(str(body.get("password", ""))):
+                    who = members.check_login(name, str(body.get("password", ""))) if members else None
+                    if who:
+                        token = auth.create_session(who["cid"], who["name"], "member")
+                        return self._send_cookie(200, self._status(auth.get(token)), token)
+                    if not auth.password or not auth.check_password(str(body.get("password", ""))):
                         auth.record_failure(ip)
                         return self._send(401, {"error": "wrong password"})
                     token = auth.create_session(re.sub(r"\D", "", name)[:8], name, "password")
@@ -1312,20 +1359,23 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     with network.lock:
                         return self._send(200, [c for c in network.controllers if cpdlc_mod.station_listed(c["callsign"])])
                 if p == "/PluginScratch":                     # the plugin reports a scratchpad note typed in EuroScope
-                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
-                        return self._send(401, {"error": "bad key"})
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
                     text = " ".join(q.get("text", "").upper().split())[:SCRATCH_MAX]
                     text = "".join(ch for ch in text if SCRATCH_OK.fullmatch(ch) or ch == " ")
                     return self._send(200, {"ok": store.set_scratch(q.get("callsign", ""), text, "Plugin")})
                 if p == "/PluginCommands":                    # polled by the plugin
-                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
-                        return self._send(401, {"error": "bad key"})
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
                     if rcl:
                         rcl.note_poll(q.get("me", ""))
                     return self._send(200, queue.pending_for(q.get("me", "")))
                 if p == "/PluginCommandDone":
-                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
-                        return self._send(401, {"error": "bad key"})
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
                     ok = q.get("ok", "0") == "1"
                     c = queue.done(to_int(q.get("id"), 0), ok, q.get("msg", ""))
                     if c and rcl and c.get("by") == "AUTO":                  # the automatic RCL REQ reminder
@@ -1341,8 +1391,9 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 if p == "/cpdlc/templates":
                     return self._send(200, cpdlc_mod.FREETEXTS)
                 if p == "/CpdlcHandoff":                       # called by the plugin when a handoff is started in EuroScope
-                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
-                        return self._send(401, {"error": "bad key"})
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
                     if not cpdlc:
                         return self._send(200, {"ok": False, "error": "CPDLC is off"})
                     try:
@@ -1387,8 +1438,9 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         store.ack_web_edit(q.get("callsign", ""))        # the plugin has now seen any web edit
                     return self._send(200, [with_cpdlc(rec)]) if rec else self._send(404, {"error": "not found"})
                 if p in ("/PostFlightData", "/UpdateFlightData"):
-                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
-                        return self._send(401, {"error": "bad key"})
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
                     rec = store.upsert(q)
                     return self._send(200, rec) if rec else self._send(400, {"error": "callsign required"})
                 if p == "/GetAllFlightData":
@@ -1400,8 +1452,9 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 if p == "/GetNatTrakData":
                     return self._send(200, natrak.all() if natrak else [])
                 if p == "/PostNamedFix":
-                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
-                        return self._send(401, {"error": "bad key"})
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
                     name = q.get("name", "").strip().upper()
                     try:
                         lat, lon = float(q.get("lat", "")), float(q.get("lon", ""))
@@ -1474,11 +1527,14 @@ def main():
         log.info("CPDLC is OFF (VNAAATS_CPDLC=off)")
     log.info("Web editing: %s", "VATSIM Connect + password" if auth.connect_enabled and auth.password else "VATSIM Connect" if auth.connect_enabled else "password" if auth.password else "OFF (set VNAAATS_FDD_PASSWORD)")
     queue = commands_mod.CommandQueue()
+    members = members_mod.MemberKeys(store)
+    issuer_secret = os.environ.get("VNAAATS_ISSUER_SECRET", "")
+    log.info("Personal member keys: %s", "website can issue them" if len(issuer_secret) >= 24 else "off (set VNAAATS_ISSUER_SECRET, 24+ characters)")
     rcl = None
     if os.environ.get("VNAAATS_RCL_AUTO", "on").lower() != "off" and network:
         rcl = rcl_auto_mod.RclAuto(store, queue, network, natrak, lambda route, pos: route_distance_nm(route, pos, cache.fixes), OCEANIC_PREFIXES)
         log.info("Automatic RCL REQ reminders are available (%s)", "ON" if rcl.enabled else "switched off on the display")
-    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl)).serve_forever()
+    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl, members, issuer_secret)).serve_forever()
 
 
 if __name__ == "__main__":

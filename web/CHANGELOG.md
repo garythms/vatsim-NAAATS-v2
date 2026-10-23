@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.14.1 - 2026-10-23
+- Personal keys and passwords (server 0.15.0): each certified, active controller requests their own plugin key and FDD password from their myCZQO page on ganderoceanic.ca ("vNAAATS key"). Keys last 90 days and stop working if the controller leaves the roster. Sign in on the FDD with your name or CID and that password. The shared key and password still work for now.
+
 ## 0.14.0 - 2026-10-23
 - Automatic RCL REQ reminder (server 0.14.0, on by default): a flight with no natTrak request, within 45 minutes of its oceanic entry estimate or within 200 nm of a fix on its route, is sent the RCL REQ message automatically, typed in by an online oceanic controller's EuroScope (needs plugin 1.5b13+ and autotype=1). Retries after 5 minutes (3 tries). "Auto RCL: ON/OFF" in the controls bar switches it for everyone.
 - New "Note" tab in the aircraft menu to set the scratchpad note. The flight plan panel scrolls when the window is short, and its Note box is labelled plainly "Note".

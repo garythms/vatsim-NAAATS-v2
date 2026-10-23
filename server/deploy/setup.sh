@@ -15,7 +15,7 @@ apt-get install -y python3 ufw caddy openssl
 echo "== Creating service user and copying files"
 id vnaaats >/dev/null 2>&1 || useradd --system --home "$APP" --shell /usr/sbin/nologin vnaaats
 mkdir -p "$APP" /var/lib/vnaaats
-cp "$SRC/vnaaats_server.py" "$SRC/cpdlc.py" "$SRC/commands.py" "$SRC/rcl_auto.py" "$SRC/topsky_cpdlc.txt" "$SRC/fixes.json" "$APP/"
+cp "$SRC/vnaaats_server.py" "$SRC/cpdlc.py" "$SRC/commands.py" "$SRC/rcl_auto.py" "$SRC/members.py" "$SRC/topsky_cpdlc.txt" "$SRC/fixes.json" "$APP/"
 [ -f "$APP/extra_fixes.json" ] || cp "$SRC/extra_fixes.json" "$APP/"      # never overwrite your own additions
 if [ -d "$SRC/web" ]; then rm -rf "$APP/web"; cp -r "$SRC/web" "$APP/web"; fi   # built flight data display
 chown -R vnaaats:vnaaats "$APP" /var/lib/vnaaats
@@ -33,6 +33,12 @@ ENV
   NEWKEY="$KEY"
 else
   NEWKEY=""
+fi
+
+# Secret the Gander Oceanic website uses to ask for personal member keys - created once
+if ! grep -q '^VNAAATS_ISSUER_SECRET=' /etc/vnaaats.env; then
+  echo "VNAAATS_ISSUER_SECRET=$(openssl rand -hex 24)" >> /etc/vnaaats.env
+  echo "Created VNAAATS_ISSUER_SECRET in /etc/vnaaats.env (the website needs the same value; it is not shown here)."
 fi
 
 # Web editing password (the FDD login) - created once, change it in /etc/vnaaats.env any time
