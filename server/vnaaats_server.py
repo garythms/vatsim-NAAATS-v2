@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.18.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.19.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1097,6 +1097,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
     shared_key_ok = os.environ.get("VNAAATS_SHARED_KEY", "on").lower() != "off"
     es_pick = {}                      # controller callsign -> {"callsign", "seq", "ts"}: the aircraft last clicked in that EuroScope
     es_pick_lock = threading.Lock()
+    tracked_now = {}                  # controller callsign -> {"list": [callsigns], "ts"}: what that EuroScope was tracking last time it told us
+    RETRACK_WINDOW = 900              # seconds: after a crash the controller gets the aircraft back if they return within this time
 
     def key_problem(code):
         """"" when the plugin key is good, else why not: "unknown", "expired" or "revoked"."""
@@ -1443,6 +1445,25 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                             if old.get("callsign") != cs:
                                 es_pick[me] = {"callsign": cs, "seq": old["seq"] + 1, "ts": time.time()}
                     return self._send(200, {"ok": True})
+                if p == "/PluginTracked":                     # the plugin reports which aircraft this controller is tracking
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
+                    me = re.sub(r"[^A-Z0-9_\-]", "", q.get("me", "").upper())[:16]
+                    lst = [c for c in (re.sub(r"[^A-Z0-9]", "", x.upper())[:8] for x in q.get("list", "").split(",")) if c][:100]
+                    if me:
+                        with es_pick_lock:
+                            tracked_now[me] = {"list": lst, "ts": time.time()}
+                    return self._send(200, {"ok": True})
+                if p == "/PluginRetrack":                     # after a crash / reconnect: which aircraft did this controller have?
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
+                    me = re.sub(r"[^A-Z0-9_\-]", "", q.get("me", "").upper())[:16]
+                    with es_pick_lock:
+                        cur = tracked_now.get(me)
+                    ok = bool(cur) and time.time() - cur["ts"] <= RETRACK_WINDOW
+                    return self._send(200, {"callsigns": cur["list"] if ok else []})
                 if p == "/asel":                              # the FDD asks which aircraft its controller clicked in EuroScope
                     sess = self._session()
                     pos = (sess["position"] if sess else "").upper()

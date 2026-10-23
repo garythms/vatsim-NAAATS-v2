@@ -389,3 +389,26 @@ class ContactMeTest(unittest.TestCase):
         self.assertEqual(rec["cmAt"], 1000.0)
         self.assertEqual(store.get("BAW1")["cmAt"], 1000.0)
         self.assertEqual(store.mark_cm("BAW1", now=2000.0)["cmAt"], 2000.0)       # existing record: later send replaces the time
+
+
+class RetrackTest(unittest.TestCase):
+    def test_journal(self):
+        tmp = tempfile.mkdtemp()
+        store = s.FlightStore(os.path.join(tmp, "r.db"))
+        srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(s.TrackCache(s.load_fixes()), store, KEY))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:%d" % srv.server_port
+        def get(p):
+            try:
+                with urllib.request.urlopen(base + p) as r:
+                    return r.status, json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+                return e.code, {}
+        try:
+            self.assertEqual(get("/PluginRetrack?code=%s&me=CZQO_CTR" % KEY), (200, {"callsigns": []}))
+            self.assertEqual(get("/PluginTracked?code=bad&me=CZQO_CTR&list=BAW1")[0], 401)
+            self.assertEqual(get("/PluginTracked?code=%s&me=czqo_ctr&list=baw1,DLH2,,x%%20y" % KEY)[0], 200)
+            self.assertEqual(get("/PluginRetrack?code=%s&me=CZQO_CTR" % KEY)[1], {"callsigns": ["BAW1", "DLH2", "XY"]})
+            self.assertEqual(get("/PluginRetrack?code=%s&me=EGGX_CTR" % KEY)[1], {"callsigns": []})
+        finally:
+            srv.shutdown()

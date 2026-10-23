@@ -202,11 +202,57 @@ static void TypeThread(void* arg) {
 	delete job;
 }
 
+static int RetrackPhase = 0; // see RunRemoteCommands: 0 = not connected
+
 void CRadarDisplay::RunRemoteCommands()
 {
 	CPlugIn* plugin = GetPlugIn();
-	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) return;
+	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) { RetrackPhase = 0; return; }   // disconnected: start the recovery again next time
 	CDataHandler::ControllerCallsign = plugin->ControllerMyself().GetCallsign();
+
+	// Crash / disconnection recovery: when I (re)connect as a controller, track again the aircraft I had before.
+	//  phase 0 = not connected, 1 = settling (EuroScope needs time to load the flight plans), 2 = fetching, 3 = re-tracking, 4 = normal
+	{
+		int& phase = RetrackPhase;
+		static clock_t phaseAt = 0, lastTrack = 0;
+		static vector<string> todo;
+		static string lastReported = "";
+		static clock_t lastReport = 0;
+		if (!CDataHandler::Retrack) phase = 4;
+		else if (phase == 0) { phase = 1; phaseAt = clock(); }
+		double sinceAt = (double)(clock() - phaseAt) / (double)CLOCKS_PER_SEC;
+		if (phase == 1 && sinceAt >= 20.0) {
+			InterlockedExchange(&CDataHandler::RetrackFetched, 0);
+			phase = 2; phaseAt = clock();
+			_beginthread(CDataHandler::FetchRetrack, 0, nullptr);
+		}
+		else if (phase == 2 && CDataHandler::RetrackFetched) { todo = CDataHandler::TakeRetrack(); phase = todo.empty() ? 4 : 3; phaseAt = clock(); }
+		else if (phase == 2 && sinceAt > 30.0) phase = 4;                                     // server did not answer: carry on
+		else if (phase == 3 && (double)(clock() - lastTrack) / (double)CLOCKS_PER_SEC >= 1.0) {
+			lastTrack = clock();
+			if (todo.empty() || sinceAt > 120.0) { phase = 4; lastReported = "\x01"; }
+			else {
+				string cs = todo.back(); todo.pop_back();
+				CFlightPlan es = plugin->FlightPlanSelect(cs.c_str());
+				// only aircraft nobody is tracking: never take one from another controller
+				if (es.IsValid() && !es.GetTrackingControllerIsMe() && string(es.GetTrackingControllerCallsign()).empty()) {
+					if (es.StartTracking()) CLogger::Log(CLogType::NORM, "Tracking " + cs + " again after reconnecting.", "CRadarDisplay::RunRemoteCommands");
+				}
+			}
+		}
+		// Tell the server what I am tracking (when it changes, checked every 10 s) - only once recovery is finished
+		if (phase == 4 && CDataHandler::Retrack && (double)(clock() - lastReport) / (double)CLOCKS_PER_SEC >= 10.0) {
+			lastReport = clock();
+			string list;
+			for (CFlightPlan f = plugin->FlightPlanSelectFirst(); f.IsValid(); f = plugin->FlightPlanSelectNext(f)) {
+				if (f.GetTrackingControllerIsMe()) list += (list.empty() ? "" : ",") + string(f.GetCallsign());
+			}
+			if (list != lastReported) {
+				lastReported = list;
+				_beginthread(CDataHandler::ReportTracked, 0, (void*)new CTrackedPush{ CDataHandler::ControllerCallsign, list });
+			}
+		}
+	}
 
 	// Ask the server for new commands about every 2 seconds
 	if (!CDataHandler::RemotePollBusy && (double)(clock() - CDataHandler::RemoteLastPoll) / (double)CLOCKS_PER_SEC >= 2.0) {

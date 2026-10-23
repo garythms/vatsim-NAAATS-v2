@@ -12,6 +12,7 @@
 using namespace std;
 using namespace EuroScopePlugIn;
 
+struct CTrackedPush { string Me, List; }; // the aircraft I am tracking, reported to the server
 struct CAselPush { string Me, Callsign; }; // reported to the server when the selected aircraft changes
 
 class CDataHandler
@@ -62,6 +63,13 @@ class CDataHandler
 	static string ScratchUrl; // server + /PluginScratch?code=KEY
 	static string SyncScratch(CFlightPlan& esFp); // two-way sync of the scratchpad note between EuroScope and the server; returns the note
 	static void PushScratch(void* args);
+	static bool Retrack; // retrack=1 (default): after a crash / reconnect, track the aircraft I had again
+	static string TrackedUrl; // server + /PluginTracked?code=KEY
+	static string RetrackUrl; // server + /PluginRetrack?code=KEY
+	static void ReportTracked(void* args); // tells the server which aircraft I am tracking
+	static void FetchRetrack(void* args); // asks the server which aircraft I had before the disconnection
+	static vector<string> TakeRetrack(); // callsigns fetched by FetchRetrack
+	static volatile long RetrackFetched; // 1 when FetchRetrack has finished
 	static string AselUrl; // server + /PluginAsel?code=KEY
 	static void ReportAsel(void* args); // tells the server which aircraft was clicked in EuroScope
 	static string UrlEncode(const string& value); // percent-encode a query value

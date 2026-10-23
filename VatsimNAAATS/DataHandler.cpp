@@ -16,6 +16,12 @@ string CDataHandler::ControllerCallsign = "";
 string CDataHandler::BetaUrl = DEFAULT_SERVER + "/beta";
 string CDataHandler::ScratchUrl = "";
 string CDataHandler::AselUrl = "";
+bool CDataHandler::Retrack = true;
+string CDataHandler::TrackedUrl = "";
+string CDataHandler::RetrackUrl = "";
+volatile long CDataHandler::RetrackFetched = 0;
+static vector<string> retrackList;
+static std::mutex retrackLock;
 string CDataHandler::FddUrl = DEFAULT_SERVER + "/fdd";
 string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";
 map<string, CAircraftFlightPlan> CDataHandler::flights;
@@ -64,6 +70,7 @@ void CDataHandler::LoadSettings() {
 		else if (k == "key") key = v;
 		else if (k == "squawk") SquawkOnClearance = (v != "0");
 		else if (k == "autotype") AutoType = (v == "1");
+		else if (k == "retrack") Retrack = (v != "0");
 	}
 	while (!server.empty() && server.back() == '/') server.pop_back();
 	FddUrl = server + "/fdd";
@@ -77,6 +84,8 @@ void CDataHandler::LoadSettings() {
 	CommandsUrl = server + "/PluginCommands?code=" + UrlEncode(key);
 	ScratchUrl = server + "/PluginScratch?code=" + UrlEncode(key);
 	AselUrl = server + "/PluginAsel?code=" + UrlEncode(key);
+	TrackedUrl = server + "/PluginTracked?code=" + UrlEncode(key);
+	RetrackUrl = server + "/PluginRetrack?code=" + UrlEncode(key);
 	CommandDoneUrl = server + "/PluginCommandDone?code=" + UrlEncode(key);
 	if (key.empty()) CLogger::Log(CLogType::WARN, "No API key in vnaaats.cfg - flight data cannot be saved to the server.", "CDataHandler::LoadSettings");
 }
@@ -903,6 +912,54 @@ void CDataHandler::UpdateNetworkAircraft(void* args) {
 //  - changed on the FDD     -> write it into EuroScope (only if EuroScope allows it)
 // Runs on the draw thread.
 struct CScratchPush { string Callsign, Text; };
+
+void CDataHandler::ReportTracked(void* args) {
+	CTrackedPush* p = (CTrackedPush*)args;
+	try {
+		if (!TrackedUrl.empty() && !p->Me.empty()) {
+			string reqUrl = TrackedUrl + "&me=" + UrlEncode(p->Me) + "&list=" + UrlEncode(p->List);
+			DeleteUrlCacheEntry(reqUrl.c_str());
+			CComPtr<IStream> pStream;
+			URLOpenBlockingStream(NULL, reqUrl.c_str(), &pStream, 0, NULL);
+		}
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Could not report tracked aircraft: " + string(e.what()), "CDataHandler::ReportTracked");
+	}
+	delete p;
+}
+
+void CDataHandler::FetchRetrack(void* args) {
+	try {
+		if (!RetrackUrl.empty() && !ControllerCallsign.empty()) {
+			string reqUrl = RetrackUrl + "&me=" + UrlEncode(ControllerCallsign);
+			DeleteUrlCacheEntry(reqUrl.c_str());
+			CComPtr<IStream> pStream;
+			if (SUCCEEDED(URLOpenBlockingStream(NULL, reqUrl.c_str(), &pStream, 0, NULL))) {
+				string body;
+				char buf[4096];
+				DWORD got = 0;
+				while (SUCCEEDED(pStream->Read(buf, sizeof(buf), &got)) && got > 0) body.append(buf, got);
+				auto j = json::parse(body);
+				std::lock_guard<std::mutex> lock(retrackLock);
+				retrackList.clear();
+				if (j.contains("callsigns") && j["callsigns"].is_array())
+					for (auto& c : j["callsigns"]) if (c.is_string()) retrackList.push_back(c.get<string>());
+			}
+		}
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Could not fetch the aircraft to re-track: " + string(e.what()), "CDataHandler::FetchRetrack");
+	}
+	InterlockedExchange(&RetrackFetched, 1);
+}
+
+vector<string> CDataHandler::TakeRetrack() {
+	std::lock_guard<std::mutex> lock(retrackLock);
+	vector<string> out;
+	out.swap(retrackList);
+	return out;
+}
 
 void CDataHandler::ReportAsel(void* args) {
 	CAselPush* p = (CAselPush*)args;
