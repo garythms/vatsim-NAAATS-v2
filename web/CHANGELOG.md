@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.17.5 - 2026-10-23
+- Privacy page: contact email info@vnaaats.com, why data is used, how long it is kept, where the server is, and your rights (GDPR-style, for everyone).
+
 ## 0.17.4 - 2026-10-23
 - Privacy page: says the roster check covers the oceanic controllers of Gander Oceanic, VATSIM UK and Virtual New York ARTCC (all listed on the Gander roster).
 

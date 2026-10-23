@@ -16,7 +16,7 @@
     <p class="p-4 mb-6 border-2 border-blue-10 bg-blue-3"><b>vNAAATS is an independent, community project. It is not run, owned or endorsed by VATSIM.</b> It is for flight simulation only and must never be used for real-world navigation or air traffic control.</p>
 
     <h2 class="text-2xl font-bold mb-2">Who runs it</h2>
-    <p class="mb-6 opacity-90">vNAAATS Version 2 is maintained by Gary Thomas (original vNAAATS by Andrew Ogden). Questions, corrections and requests about your data: <a class="underline" href="https://github.com/garythms/vatsim-naaats-v2/issues">github.com/garythms/vatsim-naaats-v2/issues</a>.</p>
+    <p class="mb-6 opacity-90">vNAAATS Version 2 is maintained by Gary Thomas (original vNAAATS by Andrew Ogden). Gary Thomas is the person responsible for the personal data described on this page. Questions, corrections and requests about your data: <a class="underline" href="mailto:info@vnaaats.com">info@vnaaats.com</a> (or <a class="underline" href="https://github.com/garythms/vatsim-naaats-v2/issues">GitHub issues</a>).</p>
 
     <h2 class="text-2xl font-bold mb-2">What this site and server handle</h2>
     <ul class="list-disc pl-6 mb-6 space-y-2 opacity-90">
@@ -41,8 +41,16 @@
       <li>We do not collect your VATSIM password or any other service's password. VATSIM sign-in takes place on VATSIM's own site.</li>
     </ul>
 
-    <h2 class="text-2xl font-bold mb-2">Your choices</h2>
-    <p class="mb-6 opacity-90">You can sign out at any time. To ask what is held about you, or to have your details removed (including your personal key), contact us using the link above and quote your VATSIM ID.</p>
+    <h2 class="text-2xl font-bold mb-2">Why the data is used, and how long it is kept</h2>
+    <ul class="list-disc pl-6 mb-6 space-y-2 opacity-90">
+      <li><b>Why:</b> only to run the tool: to show flight data, to let controllers make and share changes, and to make sure only the right people can. The basis is our legitimate interest in running a community flight simulation service, and your agreement when you sign in or ask for a key.</li>
+      <li><b>Flights</b> are removed some time after they stop being updated. <b>Sign-in sessions</b> end after 12 hours. <b>Concorde times</b> are kept for 24 hours. <b>Personal keys</b> last 90 days and are withdrawn if you leave the roster; the record is kept until you ask for it to be removed. <b>CPDLC messages</b> are kept on the server until they are removed.</li>
+      <li><b>Where:</b> the server is hosted in Germany (Hetzner). Because VATSIM is a worldwide network, your name and CID can be seen by other controllers using the display. Data is not otherwise sent outside the services listed above.</li>
+    </ul>
+
+    <h2 class="text-2xl font-bold mb-2">Your rights and choices</h2>
+    <p class="mb-3 opacity-90">Whatever country you are in, you can ask us to tell you what is held about you, correct it, delete it, limit how it is used, or give you a copy, and you can object to how it is used. In the UK and the EU these rights come from the UK GDPR and the EU GDPR; we apply them to everyone. Email <a class="underline" href="mailto:info@vnaaats.com">info@vnaaats.com</a> and quote your VATSIM ID. We aim to reply within one month.</p>
+    <p class="mb-6 opacity-90">You can sign out at any time. If you are not happy with how we handle your data you can also complain to your local data protection authority (in the UK, the Information Commissioner's Office, ico.org.uk).</p>
 
     <p class="text-sm opacity-80"><a class="underline" href="/">Back to vNAAATS</a></p>
   </div>
