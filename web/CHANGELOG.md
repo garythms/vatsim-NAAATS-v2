@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.14.2 - 2026-10-23
+- Server 0.15.1: the server now reads the Gander Oceanic roster feed (ganderoceanic.ca/api/roster) itself. A personal key is only issued to a CID that is certified and active, and every 6 hours keys of members who have dropped off are withdrawn. A broken or empty feed never withdraws anything.
+
 ## 0.14.1 - 2026-10-23
 - Personal keys and passwords (server 0.15.0): each certified, active controller requests their own plugin key and FDD password from their myCZQO page on ganderoceanic.ca ("vNAAATS key"). Keys last 90 days and stop working if the controller leaves the roster. Sign in on the FDD with your name or CID and that password. The shared key and password still work for now.
 

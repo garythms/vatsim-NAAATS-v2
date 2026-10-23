@@ -139,3 +139,84 @@ class MemberKeys:
             rows = self.store.db.execute("SELECT cid, name, created, expires, revoked, last_used FROM members ORDER BY name").fetchall()
         t = self.now()
         return [{"cid": c, "name": n, "created": cr, "expires": ex, "revoked": bool(rv), "expired": ex < t, "lastUsed": lu} for c, n, cr, ex, rv, lu in rows]
+
+
+class RosterWatch:
+    """Reads the Gander Oceanic roster feed (public JSON: [{"cid":..,"certification":"certified","active":1,..}, ...])
+    and keeps the set of CIDs that are certified AND active. Used to refuse a key to anyone else and, every few hours,
+    to withdraw the keys of members who have dropped off. A bad or tiny answer never revokes anything."""
+    MIN_ENTRIES = 5            # a roster smaller than this is treated as a broken answer
+    MAX_REVOKE_FRACTION = 0.5  # never withdraw more than half of the keys in one go
+
+    def __init__(self, members, url, fetch=None, now=time.time):
+        self.members, self.url, self.now = members, url, now
+        self.fetch = fetch or self._http
+        self.lock = threading.Lock()
+        self.ok_cids, self.updated, self.error = None, None, ""
+
+    @staticmethod
+    def _http_get(url):
+        import json
+        import urllib.request
+        req = urllib.request.Request(url, headers={"User-Agent": "vnaaats-server"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode("utf-8"))
+
+    def _http(self):
+        return self._http_get(self.url)
+
+    def refresh(self):
+        """Fetch the roster. Returns True when we now hold a good copy."""
+        try:
+            data = self.fetch()
+            if not isinstance(data, list) or len(data) < self.MIN_ENTRIES:
+                raise ValueError("roster answer looks wrong (%s entries)" % (len(data) if isinstance(data, list) else "no"))
+            ok = {str(e["cid"]) for e in data if isinstance(e, dict) and e.get("certification") == "certified" and int(e.get("active", 0)) == 1}
+        except Exception as e:
+            with self.lock:
+                self.error = str(e)
+            return False
+        with self.lock:
+            self.ok_cids, self.updated, self.error = ok, self.now(), ""
+        return True
+
+    def eligible(self, cid):
+        """True/False from the roster; None when we cannot tell (no good copy and the fetch failed)."""
+        with self.lock:
+            stale = self.ok_cids is None or self.now() - (self.updated or 0) > 3600
+        if stale:
+            self.refresh()
+        with self.lock:
+            if self.ok_cids is None:
+                return None
+            return re.sub(r"\D", "", str(cid)) in self.ok_cids
+
+    def revoke_dropped(self):
+        """Withdraw keys of members no longer certified and active. Returns the CIDs revoked."""
+        if not self.refresh():
+            return []
+        with self.lock:
+            ok = set(self.ok_cids)
+        live = [m["cid"] for m in self.members.listing() if not m["revoked"]]
+        gone = [c for c in live if c not in ok]
+        if live and len(gone) > len(live) * self.MAX_REVOKE_FRACTION and len(gone) > 2:
+            with self.lock:
+                self.error = "refused to revoke %d of %d keys in one go - check the roster feed" % (len(gone), len(live))
+            return []
+        for c in gone:
+            self.members.revoke(c)
+        return gone
+
+    def loop(self, every=6 * 3600):
+        import logging
+        log = logging.getLogger("vnaaats")
+        while True:
+            try:
+                gone = self.revoke_dropped()
+                if gone:
+                    log.info("Roster check withdrew %d member key(s)", len(gone))
+                if self.error:
+                    log.warning("Roster check: %s", self.error)
+            except Exception:
+                log.exception("roster check failed")
+            time.sleep(every)

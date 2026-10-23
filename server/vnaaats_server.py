@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.15.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.15.1"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1013,7 +1013,7 @@ MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css
         ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
 
 
-def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret=""):
+def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None):
     queue = queue if queue is not None else commands_mod.CommandQueue()
     auth = auth or Auth({})
 
@@ -1130,6 +1130,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     what = p[len("/admin/member/"):]
                     try:
                         if what == "issue":
+                            if roster and roster.eligible(body.get("cid", "")) is False:
+                                return self._send(403, {"error": "this CID is not active and certified on the roster"})
                             out = members.issue(body.get("cid", ""), body.get("name", ""))
                             log.info("Issued a personal key for CID %s", out["cid"])
                             return self._send(200, out)
@@ -1529,12 +1531,17 @@ def main():
     queue = commands_mod.CommandQueue()
     members = members_mod.MemberKeys(store)
     issuer_secret = os.environ.get("VNAAATS_ISSUER_SECRET", "")
+    roster = None
+    roster_url = os.environ.get("VNAAATS_ROSTER_URL", "https://ganderoceanic.ca/api/roster")
+    if roster_url.lower() != "off":
+        roster = members_mod.RosterWatch(members, roster_url)
+        threading.Thread(target=roster.loop, daemon=True).start()
     log.info("Personal member keys: %s", "website can issue them" if len(issuer_secret) >= 24 else "off (set VNAAATS_ISSUER_SECRET, 24+ characters)")
     rcl = None
     if os.environ.get("VNAAATS_RCL_AUTO", "on").lower() != "off" and network:
         rcl = rcl_auto_mod.RclAuto(store, queue, network, natrak, lambda route, pos: route_distance_nm(route, pos, cache.fixes), OCEANIC_PREFIXES)
         log.info("Automatic RCL REQ reminders are available (%s)", "ON" if rcl.enabled else "switched off on the display")
-    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl, members, issuer_secret)).serve_forever()
+    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl, members, issuer_secret, roster)).serve_forever()
 
 
 if __name__ == "__main__":

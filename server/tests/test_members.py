@@ -103,3 +103,50 @@ class HttpTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RosterTests(unittest.TestCase):
+    def setUp(self):
+        self.store = s.FlightStore(os.path.join(tempfile.mkdtemp(), "r.db"))
+        self.m = mb.MemberKeys(self.store)
+        self.data = [{"cid": i, "certification": "certified", "active": 1, "currency": 1} for i in range(1, 9)]
+        self.data += [{"cid": 100, "certification": "not_certified", "active": 1}, {"cid": 101, "certification": "certified", "active": 0}]
+        self.r = mb.RosterWatch(self.m, "x", fetch=lambda: self.data)
+
+    def test_eligibility(self):
+        self.assertTrue(self.r.eligible("3"))
+        self.assertFalse(self.r.eligible("100"))          # not certified
+        self.assertFalse(self.r.eligible("101"))          # inactive
+        self.assertFalse(self.r.eligible("999"))          # not on the roster
+
+    def test_unreachable_roster_is_unknown(self):
+        def boom(): raise OSError("down")
+        r = mb.RosterWatch(self.m, "x", fetch=boom)
+        self.assertIsNone(r.eligible("3"))
+
+    def test_revoke_dropped(self):
+        for c in ("1", "2", "3", "4"):
+            self.m.issue(c, "M" + c)
+        self.data = [e for e in self.data if e["cid"] != 4]
+        self.assertEqual(self.r.revoke_dropped(), ["4"])
+        self.assertEqual(self.m.check_key("x" * 3)[1], "unknown")
+        self.assertTrue(self.m.info("3")["exists"] and not self.m.info("3")["revoked"])
+
+    def test_broken_feed_revokes_nothing(self):
+        for c in ("1", "2"):
+            self.m.issue(c, "M")
+        self.data = []
+        self.assertEqual(self.r.revoke_dropped(), [])
+        self.data = [{"cid": 1, "certification": "certified", "active": 1}]          # tiny answer
+        self.assertEqual(self.r.revoke_dropped(), [])
+        self.assertFalse(self.m.info("2")["revoked"])
+
+    def test_mass_revoke_guard(self):
+        for c in ("1", "2", "3", "4", "5", "6"):
+            self.m.issue(c, "M")
+        self.data = [e for e in self.data if e["cid"] in (1, 2, 100, 101, 7, 8, 5)]        # 3 of 6 members stay -> would drop 3 (50%)
+        self.data += [{"cid": 90 + i, "certification": "certified", "active": 1} for i in range(5)]
+        self.assertEqual(len(self.r.revoke_dropped()), 3)                                  # exactly half is allowed
+        self.m.issue("11", "N"); self.m.issue("12", "N")
+        self.data = [{"cid": 90 + i, "certification": "certified", "active": 1} for i in range(8)]
+        self.assertEqual(self.r.revoke_dropped(), [])                                      # everyone dropped -> refused
