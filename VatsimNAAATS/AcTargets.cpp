@@ -337,6 +337,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 	CFlightPlan acFP = screen->GetPlugIn()->FlightPlanSelect(target->GetCallsign());
 	CAircraftFlightPlan fp;
 	CDataHandler::GetFlightData(acFP.GetCallsign(), fp);
+	string scratchNote = CDataHandler::SyncScratch(acFP); // scratchpad note (kept in step with the FDD)
 
 	// Callsign as shown on the tag: [BAW123] when the aircraft is connected to CPDLC
 	string csText = string(acFP.GetCallsign());
@@ -521,6 +522,12 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 			dc->TextOutA(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
 
 			tagRect.bottom += 25;
+		}
+
+		// Scratchpad note under the tag
+		if (!scratchNote.empty()) {
+			dc->SetTextColor(textColour);
+			dc->TextOutA(tagRect.left + 2, tagRect.bottom + 1, scratchNote.c_str());
 		}
 
 		// Draw box if they are the asel

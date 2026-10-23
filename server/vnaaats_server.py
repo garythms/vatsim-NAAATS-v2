@@ -8,6 +8,7 @@ Endpoints used by the plugin (same names as the old backend):
   GET /GetSingleFlightData?callsign=XXX    -> [ {flight data} ]   (404 if unknown)
   GET /PostFlightData?code=KEY&callsign=.. -> store a flight           (needs the API key)
   GET /UpdateFlightData?code=KEY&callsign=..-> update a flight         (needs the API key)
+  GET /PluginScratch?code=KEY&callsign=..&text=.. -> scratchpad note typed in EuroScope (needs the API key)
 Extra:
   GET /GetAllFlightData[?sort=0|1]         -> every stored flight (flight data display)
   GET /GetNetworkTraffic                   -> oceanic-bound flights found in the public VATSIM data feed (not from the plugin)
@@ -56,7 +57,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.12.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.13.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -66,6 +67,8 @@ SESSION_SECONDS = 12 * 3600
 DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS,OBSERVER"
 EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
 SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
+SCRATCH_MAX = 15                                  # characters in the scratchpad note (EuroScope itself documents no limit)
+SCRATCH_OK = re.compile(r"[A-Z0-9 /.,+*-]{0,%d}" % SCRATCH_MAX)
 
 
 # ----------------------------------------------------------------------------- fixes
@@ -350,6 +353,8 @@ class FlightStore:
                 rec["ntSent"] = old["ntSent"]                 # natTrak reminder sent: survives plugin updates
             if old and old.get("manual"):
                 rec["manual"] = old["manual"]                 # added by hand on the display: stays so
+            if old and "scratch" in old:
+                rec["scratch"] = old["scratch"]               # scratchpad note: changed only by set_scratch / web edit
             if old and old.get("etaWeb") and not old.get("routeWeb"):
                 rec["routeEtas"], rec["etaWeb"] = old.get("routeEtas", rec["routeEtas"]), True   # entry time set on the web
             if old and old.get("routeWeb"):
@@ -405,6 +410,20 @@ class FlightStore:
             self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(rec), time.time()))
             self.db.commit()
         return rec
+
+    def set_scratch(self, callsign, text, by):
+        """Scratchpad note typed in EuroScope (plugin) - kept on the flight so the FDD shows it. Returns True if the flight is known."""
+        cs = callsign.strip().upper()
+        with self.lock:
+            row = self.db.execute("SELECT data FROM flights WHERE callsign=?", (cs,)).fetchone()
+            if not row:
+                return False
+            rec = json.loads(row[0])
+            if rec.get("scratch", "") != text:
+                rec["scratch"] = text
+                self.db.execute("UPDATE flights SET data=? WHERE callsign=?", (json.dumps(rec), cs))
+                self.db.commit()
+        return True
 
     def mark_nt(self, callsign, by, sent=True, base=None):
         """Remember (or forget) that the natTrak reminder was sent to this pilot. Returns the record or None."""
@@ -976,6 +995,11 @@ def validate_edit(body):
         if sc and not SELCAL_OK.fullmatch(sc):
             return None, "SELCAL must be 4 letters from A-H, J-M, P-S (no I, N, O, T-Z), like ABCD"
         changes["selcal"] = sc
+    if "scratch" in body:
+        sp = str(body["scratch"]).strip().upper()
+        if not SCRATCH_OK.fullmatch(sp):
+            return None, "the note can be up to %d letters, numbers, spaces and / . , + - *" % SCRATCH_MAX
+        changes["scratch"] = sp
     if not changes:
         return None, "nothing to change"
     return changes, None
@@ -1275,6 +1299,12 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(200, [])
                     with network.lock:
                         return self._send(200, [c for c in network.controllers if cpdlc_mod.station_listed(c["callsign"])])
+                if p == "/PluginScratch":                     # the plugin reports a scratchpad note typed in EuroScope
+                    if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
+                        return self._send(401, {"error": "bad key"})
+                    text = " ".join(q.get("text", "").upper().split())[:SCRATCH_MAX]
+                    text = "".join(ch for ch in text if SCRATCH_OK.fullmatch(ch) or ch == " ")
+                    return self._send(200, {"ok": store.set_scratch(q.get("callsign", ""), text, "Plugin")})
                 if p == "/PluginCommands":                    # polled by the plugin
                     if not api_key or not hmac.compare_digest(q.get("code", ""), api_key):
                         return self._send(401, {"error": "bad key"})

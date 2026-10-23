@@ -231,7 +231,9 @@ void CRadarDisplay::RunRemoteCommands()
 			string trackedBy = es.GetTrackingControllerCallsign();
 
 			if (cmd.Type == "track") {
-				if (!mine && !trackedBy.empty()) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is already tracked by " + trackedBy); continue; }
+				// Another controller has offered it to me (a handoff): tracking it accepts the handoff
+				bool handoffToMe = !mine && string(es.GetHandoffTargetControllerCallsign()) == string(plugin->ControllerMyself().GetCallsign());
+				if (!mine && !trackedBy.empty() && !handoffToMe) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is already tracked by " + trackedBy); continue; }
 				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(cmd.Callsign);
 				if (!fp->IsValid) { CDataHandler::ReportRemoteResult(cmd.Id, false, "vNAAATS has not loaded " + cmd.Callsign + " yet - try again in a few seconds"); continue; }
 				if (!mine && !es.StartTracking()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not let you track " + cmd.Callsign); continue; }
@@ -273,7 +275,7 @@ void CRadarDisplay::RunRemoteCommands()
 				data->Callsign = fp->Callsign;
 				data->FP = netFP;
 				_beginthread(CDataHandler::PostNetworkAircraft, 0, (void*)data);
-				CDataHandler::ReportRemoteResult(cmd.Id, true, "Tracking " + cmd.Callsign);
+				CDataHandler::ReportRemoteResult(cmd.Id, true, handoffToMe ? "Accepted the handoff and tracking " + cmd.Callsign : "Tracking " + cmd.Callsign);
 			}
 			else if (cmd.Type == "untrack") {
 				if (!mine) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is not tracked by you"); continue; }
@@ -291,7 +293,9 @@ void CRadarDisplay::RunRemoteCommands()
 			}
 			else if (cmd.Type == "selcal" || cmd.Type == "contactme" || cmd.Type == "natmsg") {
 				if (!CDataHandler::AutoType) { CDataHandler::ReportRemoteResult(cmd.Id, false, "auto-typing is off (add autotype=1 to vnaaats.cfg) - use Copy and paste instead"); continue; }
-				if (!(cmd.Text.rfind(".selcal ", 0) == 0 || cmd.Text.rfind(".contactme ", 0) == 0 || cmd.Text.rfind(".msg ", 0) == 0)) { CDataHandler::ReportRemoteResult(cmd.Id, false, "refused: not an allowed command"); continue; }
+				if (!(cmd.Text.rfind(".selcal ", 0) == 0 || cmd.Text == ".contactme" || cmd.Text.rfind(".contactme ", 0) == 0 || cmd.Text.rfind(".msg ", 0) == 0)) { CDataHandler::ReportRemoteResult(cmd.Id, false, "refused: not an allowed command"); continue; }
+				// .selcal and .contactme act on the selected aircraft (they take no callsign), so select it first
+				if (cmd.Type == "selcal" || cmd.Type == "contactme") plugin->SetASELAircraft(es);
 				InterlockedExchange(&TypingBusy, 1);
 				_beginthread(TypeThread, 0, (void*)new CTypeJob{ cmd.Text, cmd.Id });   // the thread reports the result
 			}

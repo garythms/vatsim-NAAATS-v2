@@ -4,7 +4,7 @@
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
 
-  const { cpdlcStatus, cpdlcOpen, cpdlcPick, cpdlcFreetexts } = cp;
+  const { cpdlcStatus, cpdlcOpen, cpdlcPick, cpdlcFreetexts, cpdlcAttention } = cp;
   const { session } = sess;
 
   let messages: cp.CpdlcMessage[] = [];
@@ -49,6 +49,7 @@
 
   $: connected = $cpdlcStatus.connected;
   $: canUse = sess.canEdit($session);
+  $: if ($cpdlcOpen && shown) cp.clearAttention(shown);   // looking at it counts as seen
   // Which aircraft is shown: the one picked, else the one selected on the FDD if it is connected, else the first connected
   $: shown = $cpdlcPick && connected.some((c) => c.callsign === $cpdlcPick)
     ? $cpdlcPick
@@ -72,7 +73,7 @@
   onDestroy(() => clearInterval(timer));
   $: if ($cpdlcOpen && shown) { messages = []; replyTo = null; refresh(); }
 
-  function pick(callsign: string): void { cpdlcPick.set(callsign); }
+  function pick(callsign: string): void { cpdlcPick.set(callsign); cp.clearAttention(callsign); }
   function useTemplate(t: { text: string; ra: string }): void { text = t.text; ra = t.ra; }
   function answer(m: cp.CpdlcMessage, t: { text: string; ra: string }): void { replyTo = m; text = t.text; ra = t.ra; }
   function hhmm(ts: number): string {
@@ -131,7 +132,7 @@
       <div class="px-3 py-1 text-xs opacity-70 select-none">Connected aircraft ({connected.length}){$cpdlcStatus.autoAccept ? " - logons accepted automatically" : ""}</div>
       <div class="flex flex-row flex-wrap gap-1 px-2 pb-2 border-b border-blue-4" style="max-height: 7rem; overflow-y: auto;">
         {#each connected as c}
-          <button class="px-2 py-0.5 text-sm border border-blue-6 {c.callsign === shown ? 'bg-blue-10 text-black' : 'bg-blue-3'} {c.unread > 0 && !($cpdlcOpen && c.callsign === shown) ? 'nt-flash text-black' : ''}"
+          <button class="px-2 py-0.5 text-sm border border-blue-6 {c.callsign === shown ? 'bg-blue-10 text-black' : 'bg-blue-3'} {(c.unread > 0 || $cpdlcAttention.has(c.callsign)) && !($cpdlcOpen && c.callsign === shown) ? 'nt-flash text-black' : ''}"
             on:click={() => pick(c.callsign)}>[{c.callsign}]{c.unread > 0 ? " (" + c.unread + ")" : ""}</button>
         {/each}
         {#if connected.length === 0}

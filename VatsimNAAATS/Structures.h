@@ -376,6 +376,14 @@ struct CAircraftFlightPlan {
 	bool ReleaseRequested = false; // release the tag on the next draw (set after UNICOM)
 	bool ReleaseHandled = false;   // the current server release request has been acted on
 	bool WindowRefresh = false; // server changed level/speed/track/SELCAL: refresh the open flight plan window
+	// Scratchpad note shared with the FDD. NetScratch comes from the server (set on the download thread); the rest is used on the draw thread.
+	string Scratch;             // the note shown under the tag
+	string NetScratch;
+	bool NetScratchKnown = false;
+	string LastNetScratch;      // the server value the last time it was looked at
+	string ScratchSynced;       // what EuroScope and the server last agreed on
+	bool ScratchInit = false;
+	clock_t ScratchRetryAt = 0; // EuroScope refused a write: try again later
 	bool SelcalManual = false; // SELCAL typed in by the controller: do not overwrite from remarks
 	bool IsFirstUpdate = false; // So that we can disable flight plan window until the plan has been fetched from server at least once
 	CRadarTargetMode TargetMode = CRadarTargetMode::ADS_B;

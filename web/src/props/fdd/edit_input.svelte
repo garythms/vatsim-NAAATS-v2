@@ -6,6 +6,7 @@
   export let editable: boolean = false;
   export let upper: boolean = true;
   export let maxlength: number = 6;
+  export let allowEmpty: boolean = false;   // an empty box is a real value (clears it)
   export let onCommit: (text: string) => void = () => {};
 
   let draft: string = value;
@@ -15,7 +16,7 @@
   function commit(): void {
     focused = false;
     const t = draft.trim();
-    if (t !== "" && t !== value) onCommit(t);
+    if ((t !== "" || allowEmpty) && t !== value) onCommit(t);
     else draft = value;
   }
   function key(e: KeyboardEvent): void {

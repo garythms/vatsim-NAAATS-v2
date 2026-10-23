@@ -24,6 +24,7 @@ export type Aircraft = {
   TargetMode: number;
   LastUpdated: number;
   Comm: { kind: string; by: string; freq: string } | null; // who the pilot is tuned to on VATSIM: oceanic / domestic controller or UNICOM
+  Scratch: string; // scratchpad note (same as the EuroScope scratchpad)
   Manual: boolean; // added by hand on the FDD (stays on the display)
   NtSent: boolean; // natTrak reminder sent to the pilot (red star) - false once they request or an oceanic controller tracks
   Cpdlc: boolean; // connected to the CPDLC station

@@ -66,6 +66,13 @@ export async function sendUnicom(callsign: string): Promise<string> {
   return r.data.error ?? "UNICOM message failed";
 }
 
+// Aircraft that have just logged on to CPDLC and have not been looked at yet: their button flashes and a sound plays once.
+export const cpdlcAttention = writable<Set<string>>(new Set());
+let knownConnected: Set<string> | null = null;      // null until the first answer, so aircraft already connected do not ping on page load
+export function clearAttention(callsign: string): void {
+  cpdlcAttention.update((a) => { if (!a.has(callsign)) return a; const n = new Set(a); n.delete(callsign); return n; });
+}
+
 let prevUnread: number = -1;     // -1 until the first answer, so old messages do not ping on page load
 let timer: any = null;
 
@@ -82,6 +89,14 @@ export async function refreshCpdlc(): Promise<void> {
     const total = unreadTotal(s);
     if (prevUnread >= 0 && total > prevUnread) playCpdlcSound();
     prevUnread = total;
+    // A new aircraft in the connected list = a pilot has just logged on
+    const nowConnected = new Set(s.connected.map((c) => c.callsign));
+    if (knownConnected !== null) {
+      const fresh = [...nowConnected].filter((c) => !knownConnected!.has(c));
+      if (fresh.length > 0) { cpdlcAttention.update((a) => new Set([...a, ...fresh])); playCpdlcSound(); }
+    }
+    cpdlcAttention.update((a) => { const n = new Set([...a].filter((c) => nowConnected.has(c))); return n.size === a.size ? a : n; });
+    knownConnected = nowConnected;
   } catch (e) { /* offline: keep what we have */ }
 }
 
@@ -134,7 +149,7 @@ export async function sendUplink(callsign: string, text: string, ra: string, mrn
 // Sign in to the station for your position with your own Hoppie code. Returns an error message, or "" on success.
 export async function logonCpdlc(code: string): Promise<string> {
   const r = await post("/cpdlc/logon", { code });
-  if (r.ok) { prevUnread = -1; refreshCpdlc(); return ""; }
+  if (r.ok) { prevUnread = -1; knownConnected = null; refreshCpdlc(); return ""; }
   return r.data.error ?? "could not sign in to CPDLC";
 }
 

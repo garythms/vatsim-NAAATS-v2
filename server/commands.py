@@ -6,7 +6,7 @@ position callsign, e.g. CZQO_CTR) and that controller's plugin collects it with 
 carries it out, and reports the result with /PluginCommandDone.  The FDD watches the result with /cmd/status.
 
 Commands: track (start tracking + clearance, with level / Mach / SELCAL), untrack, transfer (handoff to a controller).
-(EuroScope's own dot commands .selcal / .contactme / .wallop cannot be run by a plugin; the FDD copies them instead.)
+(EuroScope's own dot commands .selcal / .contactme / .wallop cannot be run by a plugin; the FDD copies them instead. .selcal and .contactme act on the selected aircraft, so the plugin selects it first.)
 """
 import re
 import threading
@@ -58,7 +58,7 @@ def clean_command(body):
             return None, None, None, "SELCAL must be 4 letters from A-H, J-M, P-S (no I, N, O, T-Z), like ABCD"
         args = {"text": ".selcal " + sel}
     elif typ == "contactme":
-        args = {"text": ".contactme " + cs}
+        args = {"text": ".contactme"}        # EuroScope's .contactme takes no callsign: it acts on the selected aircraft (the plugin selects it first)
     elif typ == "natmsg":
         args = {"text": ".msg " + cs + " " + NATMSG}
     return typ, cs, args, None

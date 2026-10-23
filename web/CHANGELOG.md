@@ -2,6 +2,12 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.12.0 - 2026-10-23
+- Note (scratchpad): a "Note" box on the flight plan panel (up to 15 characters). It is the EuroScope scratchpad, so it shows under the tag in EuroScope and goes with the aircraft to the next controller. Notes typed in EuroScope show here too.
+- CPDLC: when a pilot logs on, the alert sound plays once, their callsign flashes in the CPDLC window and on the strip, and the CPDLC button flashes ("new logon") until you look at that aircraft.
+- Contact Me: EuroScope's .contactme takes no callsign (it works on the aircraft you click), so Send now selects the aircraft in EuroScope first. Copy gives plain ".contactme".
+- Track now also accepts a handoff that is being offered to you (needs plugin 1.5b14).
+
 ## 0.11.4 - 2026-10-22
 - Two downloads: the download page now gives just the plugin DLL for people updating; the install guide has the full first-time pack (zip).
 

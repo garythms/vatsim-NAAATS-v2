@@ -53,7 +53,7 @@
     } else changes[field] = text;
     const err = await sess.editFlight(asel.Callsign, changes);
     messageOk = err === "";
-    message = err === "" ? (field === "route" ? "Route saved on the display. EuroScope's own flight plan is not changed." : field === "entryEta" ? "Entry time changed - the other fix times have moved with it. EuroScope is not changed." : "Saved - the plugin picks it up within a few seconds") : err;
+    message = err === "" ? (field === "route" ? "Route saved on the display. EuroScope's own flight plan is not changed." : field === "scratch" ? "Note saved - it shows under the tag in EuroScope and goes with the aircraft to the next controller" : field === "entryEta" ? "Entry time changed - the other fix times have moved with it. EuroScope is not changed." : "Saved - the plugin picks it up within a few seconds") : err;
     clearTimeout(messageTimer);
     messageTimer = setTimeout(() => (message = ""), 6000);
   }
@@ -63,7 +63,7 @@
     const d = new Date(ms);
     return String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "z";
   }
-  const names: Record<string, string> = { assignedLevel: "FL", assignedMach: "Mach", track: "Track", selcal: "SELCAL", route: "Route", state: "State" };
+  const names: Record<string, string> = { assignedLevel: "FL", assignedMach: "Mach", track: "Track", selcal: "SELCAL", scratch: "Note", route: "Route", state: "State" };
   function lastChange(ac: Aircraft): string {
     const h = ac.History?.length ? ac.History[ac.History.length - 1] : null;
     if (!h) return "";
@@ -180,6 +180,15 @@
           on:keydown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { routeFocus = false; routeDraft = asel.Route.join(" "); e.currentTarget.blur(); } }} />
         {#if routeWarn}<div class="absolute z-30 top-full left-2 mt-0.5 p-1 w-72 font-regular text-xs text-white bg-red-700 border border-red-300">{routeWarn}</div>{/if}
       </div>
+      <EditInput
+        label={"\u{1F4DD} Note"}
+        width={"w-32"}
+        value={asel.Scratch ?? ""}
+        maxlength={15}
+        allowEmpty={true}
+        {editable}
+        onCommit={(t) => save("scratch", t)}
+      />
       <EditInput
         label={"SELCAL"}
         width={"w-16"}

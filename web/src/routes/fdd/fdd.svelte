@@ -11,7 +11,7 @@
   import * as cp from "../../typescript/fdd/cpdlc";
 
   const { session } = sess;
-  const { cpdlcStatus, cpdlcOpen } = cp;
+  const { cpdlcStatus, cpdlcOpen, cpdlcAttention } = cp;
   $: cpdlcUnread = cp.unreadTotal($cpdlcStatus);
 
   // Initialisation of data
@@ -324,9 +324,9 @@
       </select>
     </label>
     {#if $cpdlcStatus.enabled}
-      <button class="px-2 py-0.5 font-bold border border-blue-6 {cpdlcUnread > 0 && visualOn && tickN >= 0 ? 'nt-flash text-black' : 'bg-blue-3'}"
+      <button class="px-2 py-0.5 font-bold border border-blue-6 {(cpdlcUnread > 0 || $cpdlcAttention.size > 0) && visualOn && tickN >= 0 ? 'nt-flash text-black' : 'bg-blue-3'}"
         title="Open the CPDLC panel" on:click={() => cpdlcOpen.set(!$cpdlcOpen)}>
-        CPDLC{$cpdlcStatus.connected.length > 0 ? " [" + $cpdlcStatus.connected.length + "]" : ""}{cpdlcUnread > 0 ? " \u2709 " + cpdlcUnread : ""}
+        CPDLC{$cpdlcStatus.connected.length > 0 ? " [" + $cpdlcStatus.connected.length + "]" : ""}{cpdlcUnread > 0 ? " \u2709 " + cpdlcUnread : ""}{$cpdlcAttention.size > 0 ? " new logon" : ""}
       </button>
     {/if}
     <span class="opacity-70">{shownCount} shown</span>
@@ -430,7 +430,7 @@
             ntSent={ac.NtSent}
             comm={ac.Comm}
             cpdlc={ac.Cpdlc}
-            cpdlcAlert={visualOn && ($cpdlcStatus.unread?.[ac.Callsign] ?? 0) > 0 && tickN >= 0}
+            cpdlcAlert={visualOn && (($cpdlcStatus.unread?.[ac.Callsign] ?? 0) > 0 || $cpdlcAttention.has(ac.Callsign)) && tickN >= 0}
             concOverdue={visualOn && tickN >= 0 && dataHandler.concOverdueFix(ac) !== ""}
             warning={(dataHandler.conflicts.get(ac.Callsign) ?? []).join("; ")}
             updatedBy={ac.UpdatedBy}

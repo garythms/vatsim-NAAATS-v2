@@ -49,6 +49,11 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 1.5b14:
+- Note / scratchpad: the note box on the FDD flight plan is the EuroScope scratchpad. It shows under the tag and goes with the aircraft to the next controller; notes typed in EuroScope show on the FDD.
+- Track on the FDD now accepts a handoff that is being offered to you.
+- Contact Me / SELCAL from the FDD: EuroScope's .contactme and .selcal act on the SELECTED aircraft and take no callsign. The plugin now selects the aircraft in EuroScope first.
+
 NEW IN 1.5b13: typing into EuroScope (SELCAL / contact me / RCL REQ message) now works step by step on its own thread, clearing the command line first, so old text no longer gets mixed into the new command.
 
 NEW IN 1.5b12: the "not equipped" * is now worked out again from the EuroScope flight plan each time, so an aircraft whose PBN/ remarks include B1 or B2 no longer keeps a stale star.

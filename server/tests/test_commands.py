@@ -251,8 +251,32 @@ class NatTrakReminderTests(unittest.TestCase):
 class TypedCommandTests(unittest.TestCase):
     def test_typed(self):
         import commands as c
-        self.assertEqual(c.clean_command({"type": "contactme", "callsign": "baw1"})[2], {"text": ".contactme BAW1"})
+        self.assertEqual(c.clean_command({"type": "contactme", "callsign": "baw1"})[2], {"text": ".contactme"})
         self.assertEqual(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "ab-cd"})[2], {"text": ".selcal ABCD"})
         self.assertIsNotNone(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "APPW"})[3])
         t = c.clean_command({"type": "natmsg", "callsign": "BAW1"})[2]["text"]
         self.assertTrue(t.startswith(".msg BAW1 Hello, you will soon be entering oceanic airspace."))
+
+
+class ScratchTests(unittest.TestCase):
+    def setUp(self):
+        self.store = s.FlightStore(":memory:")
+        self.store.upsert({"callsign": "BAW1", "type": "A333", "level": "350", "mach": "84", "track": "RR", "route": "52/50 52/40",
+                           "routeEtas": "1200 1215", "departure": "EGLL", "arrival": "KJFK", "direction": "1", "relevant": "1"})
+
+    def test_validate(self):
+        self.assertEqual(s.validate_edit({"scratch": "ab 12"})[0], {"scratch": "AB 12"})
+        self.assertEqual(s.validate_edit({"scratch": ""})[0], {"scratch": ""})
+        self.assertIsNotNone(s.validate_edit({"scratch": "x" * 40})[1])
+        self.assertIsNotNone(s.validate_edit({"scratch": "bad;chars"})[1])
+
+    def test_web_edit_then_plugin_post_keeps_it(self):
+        self.store.edit("BAW1", {"scratch": "SLOW"}, "me")
+        self.store.upsert({"callsign": "BAW1", "type": "A333", "level": "350", "mach": "84", "track": "RR", "route": "52/50 52/40",
+                           "routeEtas": "1200 1215", "departure": "EGLL", "arrival": "KJFK", "direction": "1", "relevant": "1"})
+        self.assertEqual(self.store.get("BAW1")["scratch"], "SLOW")
+
+    def test_plugin_scratch(self):
+        self.assertTrue(self.store.set_scratch("baw1", "HI", "Plugin"))
+        self.assertEqual(self.store.get("BAW1")["scratch"], "HI")
+        self.assertFalse(self.store.set_scratch("NOPE1", "HI", "Plugin"))

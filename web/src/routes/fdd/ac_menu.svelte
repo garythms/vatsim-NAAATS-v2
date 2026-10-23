@@ -168,6 +168,7 @@
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
         {:else if tab === "contact"}
+          <div class="text-sm mb-2 opacity-90">"Send" selects {$menuCallsign} in EuroScope and runs .contactme for you. If you copy it instead, click the aircraft in EuroScope first, then paste the command.</div>
           <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "contactme" }, m.contactMeCommand($menuCallsign))}>Send</button>
           <button class="px-2 py-1 {BTN}" on:click={() => copy(m.contactMeCommand($menuCallsign))}>Copy .contactme</button>
         {:else if tab === "sup"}

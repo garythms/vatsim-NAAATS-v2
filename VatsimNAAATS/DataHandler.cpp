@@ -14,6 +14,7 @@ using json = nlohmann::json;
 static const string DEFAULT_SERVER = "https://vnaaats.com";
 string CDataHandler::ControllerCallsign = "";
 string CDataHandler::BetaUrl = DEFAULT_SERVER + "/beta";
+string CDataHandler::ScratchUrl = "";
 string CDataHandler::FddUrl = DEFAULT_SERVER + "/fdd";
 string CDataHandler::TrackURL = DEFAULT_SERVER + "/GetAllNatTracks";
 map<string, CAircraftFlightPlan> CDataHandler::flights;
@@ -73,6 +74,7 @@ void CDataHandler::LoadSettings() {
 	FlightDataUpdate = server + "/UpdateFlightData?code=" + UrlEncode(key);
 	CpdlcHandoffUrl = server + "/CpdlcHandoff?code=" + UrlEncode(key);
 	CommandsUrl = server + "/PluginCommands?code=" + UrlEncode(key);
+	ScratchUrl = server + "/PluginScratch?code=" + UrlEncode(key);
 	CommandDoneUrl = server + "/PluginCommandDone?code=" + UrlEncode(key);
 	if (key.empty()) CLogger::Log(CLogType::WARN, "No API key in vnaaats.cfg - flight data cannot be saved to the server.", "CDataHandler::LoadSettings");
 }
@@ -553,6 +555,11 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 				if (valuesChanged) fp->WindowRefresh = true;
 				fp->CpdlcConnected = netFP.Cpdlc;
 				fp->NtSent = netFP.NtSent;
+				{
+					string netScratch = jsonArray[i].value("scratch", "");
+					if (!fp->NetScratchKnown || fp->NetScratch != netScratch) fp->NetScratch = netScratch;
+					fp->NetScratchKnown = true;
+				}
 				// After UNICOM the server asks for the tag to be released (done on the draw thread, once per request)
 				if (netFP.CpdlcRelease && !fp->ReleaseHandled) {
 					fp->ReleaseRequested = true;
@@ -886,4 +893,66 @@ void CDataHandler::UpdateNetworkAircraft(void* args) {
 		delete args;
 		return;
 	}
+}
+
+// Scratchpad note. EuroScope's scratchpad is shared with other controllers by the network, so a note typed here goes with the
+// aircraft to the next controller. We keep it in step with the server (so the FDD can show and edit it):
+//  - changed in EuroScope  -> send it to the server
+//  - changed on the FDD     -> write it into EuroScope (only if EuroScope allows it)
+// Runs on the draw thread.
+struct CScratchPush { string Callsign, Text; };
+
+void CDataHandler::PushScratch(void* args) {
+	CScratchPush* p = (CScratchPush*)args;
+	try {
+		if (!ScratchUrl.empty()) {
+			string reqUrl = ScratchUrl + "&callsign=" + UrlEncode(p->Callsign) + "&text=" + UrlEncode(p->Text);
+			DeleteUrlCacheEntry(reqUrl.c_str());
+			CComPtr<IStream> pStream;
+			URLOpenBlockingStream(NULL, reqUrl.c_str(), &pStream, 0, NULL);
+		}
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Could not send the scratchpad note: " + string(e.what()), "CDataHandler::PushScratch");
+	}
+	delete p;
+}
+
+string CDataHandler::SyncScratch(CFlightPlan& esFp) {
+	if (!esFp.IsValid()) return "";
+	string cs = esFp.GetCallsign();
+	CAircraftFlightPlan* fp = GetFlightData(cs);
+	string es = esFp.GetControllerAssignedData().GetScratchPadString();
+	if (!fp->IsValid || !fp->NetScratchKnown) return es;   // not on the server yet: just show what EuroScope has
+	string net = fp->NetScratch;
+
+	auto push = [&](const string& text) { _beginthread(PushScratch, 0, (void*)new CScratchPush{ cs, text }); };
+	auto write = [&](const string& text) {
+		esFp.GetControllerAssignedData().SetScratchPadString(text.c_str());
+		string back = esFp.GetControllerAssignedData().GetScratchPadString();
+		fp->ScratchSynced = (back == text) ? text : back;   // if EuroScope refused, stay with what it still has
+		if (back != text) fp->ScratchRetryAt = clock() + 5 * CLOCKS_PER_SEC;
+	};
+
+	if (!fp->ScratchInit) {
+		fp->ScratchInit = true;
+		fp->LastNetScratch = net;
+		if (!es.empty() && es != net) { fp->ScratchSynced = es; push(es); }
+		else if (es.empty() && !net.empty()) write(net);
+		else fp->ScratchSynced = es;
+	}
+	else if (es != fp->ScratchSynced && clock() >= fp->ScratchRetryAt) {      // changed in EuroScope
+		fp->ScratchSynced = es;
+		push(es);
+	}
+	else if (net != fp->LastNetScratch) {                                       // changed on the FDD
+		fp->LastNetScratch = net;
+		if (net != es) write(net);
+		else fp->ScratchSynced = es;
+	}
+	else if (net != fp->ScratchSynced && es == fp->ScratchSynced && clock() >= fp->ScratchRetryAt && fp->ScratchRetryAt != 0) {
+		write(net);                                                             // EuroScope refused earlier: try again
+	}
+	fp->Scratch = fp->ScratchSynced;
+	return fp->Scratch;
 }

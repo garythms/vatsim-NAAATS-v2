@@ -57,6 +57,9 @@ class CDataHandler
 	static string ControllerCallsign; // my EuroScope callsign, sent with changes
 	static string BetaUrl; // download page (server + /beta)
 	static string FddUrl; // flight data display address (server + /fdd)
+	static string ScratchUrl; // server + /PluginScratch?code=KEY
+	static string SyncScratch(CFlightPlan& esFp); // two-way sync of the scratchpad note between EuroScope and the server; returns the note
+	static void PushScratch(void* args);
 	static string UrlEncode(const string& value); // percent-encode a query value
 	// Commands sent from the web flight data display (track / untrack / transfer)
 	struct CRemoteCommand {

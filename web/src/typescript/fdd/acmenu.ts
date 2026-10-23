@@ -39,7 +39,8 @@ export async function copyText(text: string): Promise<boolean> {
 export const NO_CONTACT_TEXT = "This aircraft is within my controlling area but has not responded to contact me requests";
 
 export function selcalCommand(code: string): string { return ".selcal " + code.toUpperCase().replace(/[^A-Z]/g, ""); }
-export function contactMeCommand(callsign: string): string { return ".contactme " + callsign; }
+// EuroScope's .contactme takes no callsign: it acts on the aircraft you click or have selected
+export function contactMeCommand(_callsign: string): string { return ".contactme"; }
 export function wallopCommand(callsign: string, text: string): string {
   const t = text.trim().replace(/"/g, "'");
   return ".wallop " + callsign + " " + (t.indexOf(" ") >= 0 ? '"' + t + '"' : t);
