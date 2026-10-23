@@ -451,6 +451,7 @@
             isEquipped={ac.IsEquipped}
             alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
             ntSent={ac.NtSent}
+            cmState={tickN >= 0 ? dataHandler.contactMeState(ac) : ""}
             comm={ac.Comm}
             cpdlc={ac.Cpdlc}
             cpdlcAlert={visualOn && (($cpdlcStatus.unread?.[ac.Callsign] ?? 0) > 0 || $cpdlcAttention.has(ac.Callsign)) && tickN >= 0}

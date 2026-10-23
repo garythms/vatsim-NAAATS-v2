@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.17.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.18.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -353,6 +353,8 @@ class FlightStore:
                 rec["webEditPending"] = True
             if old and old.get("ntSent"):
                 rec["ntSent"] = old["ntSent"]                 # natTrak reminder sent: survives plugin updates
+            if old and old.get("cmAt"):
+                rec["cmAt"] = old["cmAt"]                     # contact-me sent: survives plugin updates
             if old and old.get("manual"):
                 rec["manual"] = old["manual"]                 # added by hand on the display: stays so
             if old and "scratch" in old:
@@ -445,6 +447,25 @@ class FlightStore:
                 rec["ntSent"] = {"by": by, "at": now}
             else:
                 rec.pop("ntSent", None)
+            self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(rec), time.time()))
+            self.db.commit()
+        return rec
+
+    def mark_cm(self, callsign, base=None, now=None):
+        """Remember that a .contactme was sent to this pilot (the strip turns yellow, then red). Returns the record or None."""
+        cs = callsign.strip().upper()
+        now = now or time.time()
+        with self.lock:
+            row = self.db.execute("SELECT data FROM flights WHERE callsign=?", (cs,)).fetchone()
+            if row:
+                rec = json.loads(row[0])
+            elif base is not None:
+                rec = dict(base, history=[])
+                rec["callsign"] = cs
+                rec["lastUpdated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                return None
+            rec["cmAt"] = now
             self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(rec), time.time()))
             self.db.commit()
         return rec
@@ -1441,6 +1462,11 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(401, {"error": "bad key", "reason": bad})
                     ok = q.get("ok", "0") == "1"
                     c = queue.done(to_int(q.get("id"), 0), ok, q.get("msg", ""))
+                    if c and ok and c["type"] == "contactme":                 # remember it: the strip turns yellow, then red
+                        base = None
+                        if network and not store.get(c["callsign"]):
+                            base = next((f for f in network.all() if f.get("callsign") == c["callsign"]), None)
+                        store.mark_cm(c["callsign"], base)
                     if c and rcl and c.get("by") == "AUTO":                  # the automatic RCL REQ reminder
                         rcl.done(c, ok, q.get("msg", ""))
                     if c and ok and c["type"] == "transfer" and cpdlc:        # handoff started: tell the pilot (if on CPDLC)

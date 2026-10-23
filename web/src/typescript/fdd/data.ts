@@ -39,6 +39,7 @@ interface JsonAcObj {
   cpdlc?: boolean;
   distNm?: number | null;
   ntSent?: boolean;
+  cmAt?: number;
   manual?: any;
   scratch?: string;
   comm?: { kind: string; by: string; freq: string } | null;
@@ -336,6 +337,7 @@ export async function populateAllAircraft() : Promise<void> {
             Cpdlc: objArr[i]?.cpdlc ?? false,
             DistNm: objArr[i]?.distNm ?? null,
             NtSent: objArr[i]?.ntSent ?? false,
+            ContactMeAt: objArr[i]?.cmAt ? objArr[i].cmAt * 1000 : 0,
             Manual: !!objArr[i]?.manual,
             Scratch: objArr[i]?.scratch ?? "",
             Comm: objArr[i]?.comm ?? null,
@@ -642,4 +644,21 @@ export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): bo
   // No times at all: use how far the pilot is from the route (VATSIM feed). Unknown position = show.
   if (!sp) return ac.DistNm == null || ac.DistNm <= NO_TIME_RANGE_NM;
   return sp.entry <= ahead && sp.exit >= -behind;
+}
+
+
+// Contact me was sent from the FDD: "" (nothing), "yellow" (sent, give the pilot time) or "red" (20 minutes on, still nobody
+// tracking and the flight is still in oceanic airspace). Goes away once an oceanic controller tracks the flight.
+export const CONTACT_ME_RED_MIN = 20;
+export function contactMeState(ac: Aircraft): string {
+  const at: number = ac.ContactMeAt ?? 0;
+  if (!at) return "";
+  const ageMin: number = (Date.now() - at) / 60000;
+  if (ageMin < 0 || ageMin > 240) return "";
+  const tb: string = ac.TrackedBy ?? "";
+  if (ac.Comm?.kind === "oceanic" || (tb && tb !== "NATTRAK" && OCEANIC_PREFIX.test(tb))) return "";
+  if (ageMin < CONTACT_ME_RED_MIN) return "yellow";
+  const sp = etaSpan(ac);
+  if (sp && (sp.entry > 0 || sp.exit < 0)) return "yellow";   // not in oceanic yet, or already out of it
+  return "red";
 }

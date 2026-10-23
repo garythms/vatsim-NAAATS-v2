@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.17.0 - 2026-10-23
+- Contact me sent from the FDD (server 0.18.0): the aircraft's callsign cell turns yellow. If 20 minutes later no oceanic controller is tracking it and it is still in oceanic airspace (by its route times), it turns red. It clears as soon as an oceanic controller tracks the flight (or after 4 hours).
+
 ## 0.16.0 - 2026-10-23
 - Click an aircraft in EuroScope and the FDD follows: its strip is outlined in yellow, shown on the list even if the time window, a filter, the search box or Hide would have kept it off, scrolled to the middle and becomes the selected aircraft (Flight Plan panel). Needs plugin 1.5b18 and server 0.17.0, and you must be signed in to the FDD with the same position callsign as your EuroScope.
 

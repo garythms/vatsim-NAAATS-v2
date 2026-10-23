@@ -379,3 +379,13 @@ class AselTest(unittest.TestCase):
             self.assertEqual(get("/asel"), (200, {"callsign": "", "seq": 0}))      # no sign-in: nothing
         finally:
             srv.shutdown()
+
+
+class ContactMeTest(unittest.TestCase):
+    def test_mark_cm(self):
+        store = s.FlightStore(os.path.join(tempfile.mkdtemp(), "c.db"))
+        self.assertIsNone(store.mark_cm("BAW1"))                                  # unknown flight, no base
+        rec = store.mark_cm("baw1", {"callsign": "BAW1", "route": ""}, now=1000.0)
+        self.assertEqual(rec["cmAt"], 1000.0)
+        self.assertEqual(store.get("BAW1")["cmAt"], 1000.0)
+        self.assertEqual(store.mark_cm("BAW1", now=2000.0)["cmAt"], 2000.0)       # existing record: later send replaces the time

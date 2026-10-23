@@ -40,6 +40,7 @@
     if (c?.kind === "none") return { tip: "Not tracked by any controller (not on UNICOM either)", color: "#dc2626", opacity: 1, bold: 0, none: true };
     return null;
   }
+  export let cmState: string = "";       // contact me sent: "yellow", or "red" after 20 minutes with nobody tracking
   export let ntSent: boolean = false;    // natTrak reminder sent: red star
   export let cpdlc: boolean = false;      // connected to CPDLC: callsign shown as [BAW123]
   export let cpdlcAlert: boolean = false; // unread CPDLC message: flash
@@ -98,7 +99,7 @@
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
-    <div class="flex flex-row items-center whitespace-nowrap overflow-hidden pl-2 hover:cursor-pointer select-none" title="Click for the aircraft menu" on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); menuCallsign.set(callsign); }}>
+    <div class="flex flex-row items-center whitespace-nowrap overflow-hidden pl-2 hover:cursor-pointer select-none {cmState === 'yellow' ? 'bg-yellow-300' : cmState === 'red' ? 'bg-red-600 text-white' : ''}" title={cmState === "yellow" ? "Contact me sent - waiting for the pilot" : cmState === "red" ? "Contact me sent over 20 minutes ago and nobody is tracking this flight" : "Click for the aircraft menu"} on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); menuCallsign.set(callsign); }}>
       {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if ntSent}<span class="text-red-600 font-bold pl-0.5" style="font-size: 1.5em; line-height: 0.6;" title="natTrak reminder sent to the pilot">*</span>{/if}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="whitespace-nowrap overflow-hidden select-none" style="font-size: 0.88em;">{departure}/{arrival}</div>
