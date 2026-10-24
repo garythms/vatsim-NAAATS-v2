@@ -53,6 +53,19 @@ class RclTests(unittest.TestCase):
         self.rec["routeEtas"] = "1140 1300"
         self.dist[0] = 100
         self.assertFalse(self.rcl.due(self.rec))                        # entry passed 20 min ago
+        self.rec["routeEtas"] = "1158 1300"
+        self.assertFalse(self.rcl.due(self.rec))                        # entry passed 2 min ago: already in oceanic
+        self.rec["routeEtas"] = "1215 1300"
+        self.assertFalse(self.rcl.due(self.rec))                        # 15 min to entry: natTrak would refuse the request
+        self.rec["routeEtas"] = "1220 1300"
+        self.assertTrue(self.rcl.due(self.rec))                         # exactly 20 min: still allowed
+        self.rec["routeEtas"] = "-- --"
+        self.dist[0] = 100
+        self.net.pilots["BAW1"] = {"groundspeed": 450}
+        self.assertFalse(self.rcl.due(self.rec))                        # no times: 100 nm at 450 kt is 13 min, too late
+        self.dist[0] = 190
+        self.assertTrue(self.rcl.due(self.rec))                         # 190 nm at 450 kt is 25 min
+        self.rec["routeEtas"] = "1230 1300"
         self.rec["routeEtas"] = "1230 1300"
         self.net.pilots["BAW1"] = {"groundspeed": 5}
         self.assertFalse(self.rcl.due(self.rec))                        # parked

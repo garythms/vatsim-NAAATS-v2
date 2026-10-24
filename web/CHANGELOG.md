@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.18.2 - 2026-10-24
+- Automatic RCL REQ reminder (server 0.19.4): only sent while the flight is 20 to 45 minutes from its oceanic entry point. Natrak refuses a new request closer than 20 minutes, and a flight already past its entry point (or through oceanic airspace) needs none. With no times on the flight, the distance and speed are used for the same 20-minute rule.
+
 ## 0.18.1 - 2026-10-23
 - Contact me: the time it was sent is shown in the Flight Plan panel ("Contact me sent at 1854z (12 min ago)", red once 20 minutes pass with no track) and in the strip's tooltip.
 

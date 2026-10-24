@@ -348,7 +348,7 @@
     {/if}
     {#if $rclAuto.sender !== "" || $rclAuto.on}
       <button class="px-2 py-0.5 border border-blue-6 {$rclAuto.on ? 'bg-blue-3' : 'bg-red-700'}" disabled={!sess.canEdit($session)}
-        title={($rclAuto.on ? "Automatic RCL REQ is ON: flights within 45 minutes (or 200 nm) of oceanic entry that have not asked for clearance on natTrak are sent the reminder from " + ($rclAuto.sender || "an oceanic controller's EuroScope (none online right now)") + ". Click to switch off." : "Automatic RCL REQ is OFF. Click to switch on.") + ($rclAuto.error ? " Last problem: " + $rclAuto.error : "")}
+        title={($rclAuto.on ? "Automatic RCL REQ is ON: flights 20 to 45 minutes from oceanic entry (or within 200 nm if they have no times) that have not asked for clearance on natTrak are sent the reminder from " + ($rclAuto.sender || "an oceanic controller's EuroScope (none online right now)") + ". Click to switch off." : "Automatic RCL REQ is OFF. Click to switch on.") + ($rclAuto.error ? " Last problem: " + $rclAuto.error : "")}
         on:click={toggleRcl}>Auto RCL: {$rclAuto.on ? "ON" : "OFF"}{$rclAuto.on && $rclAuto.sender === "" ? " (no sender)" : ""}</button>
       {#if rclMsg}<span class="text-yellow-300">{rclMsg}</span>{/if}
     {/if}

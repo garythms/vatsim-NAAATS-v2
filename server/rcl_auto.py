@@ -9,8 +9,10 @@ A flight that is about to enter oceanic airspace and has not asked for clearance
 A flight is due when ALL of these hold:
   * it is on VATSIM, moving (not parked), and not already handled by natTrak or tracked by an oceanic controller
   * no reminder has been sent to it yet (by hand or automatically)
-  * and either its oceanic entry estimate is within DUE_MINUTES (and not more than LATE_MINUTES ago),
-    or it is within DUE_NM of a fix on its route (and not already past its entry time)
+  * and either its oceanic entry estimate is between MIN_LEAD_MINUTES and DUE_MINUTES away,
+    or (no usable times) it is within DUE_NM of a fix on its route
+  and it is NOT already inside, or through, oceanic airspace, and NOT closer than MIN_LEAD_MINUTES to its entry point: natTrak
+  refuses a new request that late, and a flight past its entry point does not need one.
 """
 import logging
 import re
@@ -23,7 +25,7 @@ import commands as commands_mod
 log = logging.getLogger("vnaaats")
 
 DUE_MINUTES = 45
-LATE_MINUTES = 5
+MIN_LEAD_MINUTES = 20          # natTrak will not accept a new request closer than this to the oceanic entry point
 DUE_NM = 200
 MIN_GROUNDSPEED = 100          # knots: a parked or taxiing aircraft is not due
 TICK_SECONDS = 10
@@ -133,12 +135,17 @@ class RclAuto:
             return False
         now_dt = now_dt or datetime.fromtimestamp(self.now(), timezone.utc)
         m = entry_minutes_from_now(rec.get("routeEtas", ""), now_dt.hour * 60 + now_dt.minute)
-        if m is not None and m < -LATE_MINUTES:
-            return False                                    # already past the entry point
-        if m is not None and m <= DUE_MINUTES:
-            return True
+        if m is not None:
+            if m < MIN_LEAD_MINUTES:
+                return False        # natTrak takes no new request inside 20 minutes of entry (and one already past entry, or through, needs none)
+            if m <= DUE_MINUTES:
+                return True
         d = self.distance_fn(rec.get("route", ""), pos)
-        return d is not None and d <= DUE_NM
+        if d is None or d > DUE_NM:
+            return False
+        if m is None and isinstance(gs, (int, float)) and gs > 0 and d / gs * 60 < MIN_LEAD_MINUTES:
+            return False            # no times on the flight: judge the 20 minutes from the distance and speed instead
+        return True
 
     # --- the loop
     def candidates(self):
