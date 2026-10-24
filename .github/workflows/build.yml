@@ -80,7 +80,7 @@ jobs:
             if ($env:DISCORD_ROLE_ID -match '^\d+$') { $role = "<@&$($env:DISCORD_ROLE_ID)> "; $mentions = @{ parse = @(); roles = @($env:DISCORD_ROLE_ID) } }
             $msg = "$role**vNAAATS plugin $ver is out**`n"
             if ($text) { $msg += "`n$text`n" }
-            $msg += "`nUpdating? Close EuroScope and replace only VatsimNAAATS.dll (keep your vnaaats.cfg): https://vnaaats.com/beta`nFirst time? https://vnaaats.com/guide"
+            $msg += "`nUpdating? Close EuroScope and replace only VatsimNAAATS.dll (keep your vnaaats.cfg): https://vnaaats.com/download`nFirst time? https://vnaaats.com/guide"
             if ($msg.Length -gt 1900) { $msg = $msg.Substring(0, 1900) }
             Invoke-RestMethod -Uri $env:DISCORD_WEBHOOK -Method Post -ContentType "application/json" -Body (@{ content = $msg; allowed_mentions = $mentions } | ConvertTo-Json -Depth 5) | Out-Null
             Write-Host "Posted to Discord."

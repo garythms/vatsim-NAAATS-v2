@@ -26,7 +26,7 @@ ALSO IN 1.4b1
 - SELCAL box in the flight plan window is editable (4 letters, A-H J-M P-S, e.g. ASCM or AS-CM).
   Clear the box to go back to the SEL/ code in the remarks.
 - FDD button opens your own server's flight data display (<server>/fdd).
-- Beta/update links point to the GitHub project.
+- Download/update links point to https://vnaaats.com/download.
 - Your callsign is sent with every change, so the FDD shows who last changed a flight.
 - If a controller changes level, Mach, track or SELCAL on the web FDD, your flight plan window updates by itself within a few seconds.
 

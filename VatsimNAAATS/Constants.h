@@ -112,7 +112,7 @@ const string PLUGIN_NAME = "vNAAATS";
 const string PLUGIN_VERSION = "1.5b20";
 const string PLUGIN_AUTHOR = "Gary Thomas";
 const string PLUGIN_COPYRIGHT = "(C) 2026 Gary Thomas vNAAATS";
-const bool IS_ALPHA = true;
+const bool IS_ALPHA = false;
 const bool DEBUG_MODE = true;
 
 // Sector file & geo constants

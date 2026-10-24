@@ -13,7 +13,7 @@ using json = nlohmann::json;
 // Server settings. Defaults are replaced by vnaaats.cfg (next to the DLL) in LoadSettings().
 static const string DEFAULT_SERVER = "https://vnaaats.com";
 string CDataHandler::ControllerCallsign = "";
-string CDataHandler::BetaUrl = DEFAULT_SERVER + "/beta";
+string CDataHandler::DownloadUrl = DEFAULT_SERVER + "/download";
 string CDataHandler::ScratchUrl = "";
 string CDataHandler::AselUrl = "";
 bool CDataHandler::Retrack = true;
@@ -74,7 +74,7 @@ void CDataHandler::LoadSettings() {
 	}
 	while (!server.empty() && server.back() == '/') server.pop_back();
 	FddUrl = server + "/fdd";
-	BetaUrl = server + "/beta";
+	DownloadUrl = server + "/download";
 	TrackURL = server + "/GetAllNatTracks";
 	TrackSource = server + "/GetTrackSource";
 	GetSingleAircraft = server + "/GetSingleFlightData?callsign=";
@@ -139,7 +139,7 @@ int CDataHandler::CheckPluginVersion(CPlugIn* plugin)
 
 		if (msgBox == IDOK) {
 			// Open the download page on our own server
-			ShellExecute(NULL, "open", BetaUrl.c_str(), NULL, NULL, SW_SHOWNORMAL);
+			ShellExecute(NULL, "open", DownloadUrl.c_str(), NULL, NULL, SW_SHOWNORMAL);
 		}
 		return msgBox;
 	}

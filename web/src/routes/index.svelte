@@ -40,9 +40,9 @@ onMount(async () => {
                 hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
                     Access FDD
                 </a>
-                <a href="/beta" class="border-2 rounded px-4 py-2 ml-4 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
+                <a href="/download" class="border-2 rounded px-4 py-2 ml-4 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
                 hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
-                    Download plugin beta
+                    Download plugin
                 </a>
             </div>
         </div>
@@ -145,7 +145,7 @@ onMount(async () => {
                     width="130" height="130" viewBox="0 0 24 24" class="py-8 fill-current text-white">
                         <path d="M20,2H4A2,2 0 0,0 2,4V22L6,18H20A2,2 0 0,0 22,16V4A2,2 0 0,0 20,2M6,9H18V11H6M14,14H6V12H14M18,8H6V6H18" />
                     </svg>
-                    <span class="text-base font-normal opacity-80">In beta</span>
+                    
                 </div>
             </a>
         </div>

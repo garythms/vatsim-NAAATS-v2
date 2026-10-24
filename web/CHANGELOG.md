@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.18.7 - 2026-10-24
+- "Beta" wording removed ahead of v2.0: the header says "Version", the plugin download page is now /download (the old /beta address redirects there so older plugins still work), and the homepage button and CPDLC tile no longer say beta.
+
 ## 0.18.6 - 2026-10-24
 - Aircraft menu: buttons reordered (Track, Transfer, Release Tag, SELCAL, CPDLC, Note, Contact Me, RCL REQ, Hide, then Supervisor). "Untrack" is now "Release Tag". The track ID the aircraft is on shows in the menu heading. On the Track tab the Track aircraft button is on the left and the SELCAL test button sits under the SELCAL box.
 

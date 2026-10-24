@@ -34,7 +34,7 @@
     <div class="flex justify-between items-center w-screen h-1/25 bg-blue-0 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-10 border-b-blue-0">
       <div class="flex w-2/5">
         <button class="px-3 font-black hover:text-grey-300 select-none hover:cursor-default" title="Built {buildInfo.built}">
-          {config.isBeta ? "Beta" : "Version"}
+          Version
           {config.version}{serverVersion ? " \u00b7 server " + serverVersion : ""}
         </button>
         <div class="px-1/2 select-none hover:cursor-default">|</div>
