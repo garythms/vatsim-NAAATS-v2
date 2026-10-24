@@ -81,7 +81,7 @@
     send({ type: "track", level, mach, selcal: selcal.toUpperCase() });
   }
   function untrack(): void {
-    if (!confirm("Release " + $menuCallsign + "?")) return;
+    if (!confirm("Release tag for " + $menuCallsign + "?")) return;
     send({ type: "untrack" });
   }
   function transfer(): void {
@@ -116,7 +116,8 @@
 
   $: isConc = !!ac && (ac.IsConc || ac.Type === "CONC");
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
-  const tabs: [string, string][] = [["track", "Track"], ["untrack", "Untrack"], ["transfer", "Transfer"], ["selcal", "SELCAL"], ["scratch", "Note"], ["cpdlc", "CPDLC"], ["nt", "RCL REQ"], ["remove", "Hide"]];
+  const tabs: [string, string][] = [["track", "Track"], ["transfer", "Transfer"], ["untrack", "Release Tag"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["scratch", "Note"], ["contact", "Contact Me"], ["nt", "RCL REQ"], ["remove", "Hide"]];
+  $: trackId = ac && ac.Track ? String(ac.Track) : "";
   const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
@@ -124,7 +125,7 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
     <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 52rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
-        <span>Aircraft menu - {$menuCallsign}</span>
+        <span>Aircraft menu - {$menuCallsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}</span></span>
         <span class="underline hover:cursor-pointer text-sm" on:click={close}>close</span>
       </div>
       <div class="p-3">
@@ -136,26 +137,25 @@
             <span class="px-2 py-0.5 mr-1 mb-1 {BTN}" on:click={openPos}>Position reports</span>
           {/if}
           <span class="ml-auto" />
-          <span class="px-2 py-0.5 mr-1 mb-1 {BTN} {tab === 'contact' ? 'bg-blue-1 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6' : ''}" on:click={() => pickTab("contact")}>Contact</span>
           <span class="px-2 py-0.5 mb-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer {tab === 'sup' ? 'bg-red-900' : ''}" on:click={() => pickTab("sup")}>Supervisor</span>
         </div>
 
         {#if tab === "track"}
-          <div class="flex flex-row mb-3">
-            <label class="mr-3 text-sm">FL <input class="w-16 px-1 text-black" bind:value={level} /></label>
-            <label class="mr-3 text-sm">Mach <input class="w-16 px-1 text-black" bind:value={mach} placeholder="084" /></label>
-            <label class="text-sm">SELCAL <input class="w-20 px-1 text-black uppercase" maxlength="4" bind:value={selcal} /></label>
-          </div>
-          <div class="flex flex-row">
-            <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>SELCAL test (copy)</button>
-            <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={track}>Track aircraft</button>
+          <div class="flex flex-row flex-wrap items-start">
+            <button class="px-2 py-1 mr-4 mb-2 {BTN}" disabled={busy || !canEdit} on:click={track}>Track aircraft</button>
+            <label class="mr-3 mb-2 text-sm">FL <input class="w-16 px-1 text-black" bind:value={level} /></label>
+            <label class="mr-3 mb-2 text-sm">Mach <input class="w-16 px-1 text-black" bind:value={mach} placeholder="084" /></label>
+            <div class="flex flex-col items-start mb-2">
+              <label class="text-sm">SELCAL <input class="w-20 px-1 text-black uppercase" maxlength="4" bind:value={selcal} /></label>
+              <button class="px-2 py-1 mt-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>SELCAL test (copy)</button>
+            </div>
           </div>
         {:else if tab === "remove"}
           <div class="text-sm mb-2 text-yellow-300">Hide {$menuCallsign} from your display? Only you stop seeing it, and only for 12 hours. Nobody else is affected and EuroScope and VATSIM are not touched. To bring it back, use the Hidden list or type the callsign in Add callsign.</div>
           <button class="px-2 py-1 bg-red-700 border-2 border-red-300 font-bold" on:click={hideThis}>Yes, hide {$menuCallsign}</button>
           <button class="px-2 py-1 ml-2 {BTN}" on:click={() => pickTab("track")}>Cancel</button>
         {:else if tab === "untrack"}
-          <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={untrack}>Untrack aircraft</button>
+          <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={untrack}>Release tag</button>
         {:else if tab === "transfer"}
           {#if controllers.length === 0}
             <div class="text-sm opacity-80">No adjacent ATC - Send to UNICOM</div>

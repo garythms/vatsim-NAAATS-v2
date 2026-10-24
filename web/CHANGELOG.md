@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.18.6 - 2026-10-24
+- Aircraft menu: buttons reordered (Track, Transfer, Release Tag, SELCAL, CPDLC, Note, Contact Me, RCL REQ, Hide, then Supervisor). "Untrack" is now "Release Tag". The track ID the aircraft is on shows in the menu heading. On the Track tab the Track aircraft button is on the left and the SELCAL test button sits under the SELCAL box.
+
 ## 0.18.5 - 2026-10-24
 - iPhone and iPad: "Add to Home Screen" now gives the vNAAATS icon and name and opens full screen like an app (Safari: Share, then Add to Home Screen).
 
