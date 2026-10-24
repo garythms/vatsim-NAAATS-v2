@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.18.5 - 2026-10-24
+- iPhone and iPad: "Add to Home Screen" now gives the vNAAATS icon and name and opens full screen like an app (Safari: Share, then Add to Home Screen).
+
 ## 0.18.4 - 2026-10-24
 - Server 0.19.6: the shared beta key and the shared FDD password can now be switched off (VNAAATS_SHARED_KEY=off, VNAAATS_SHARED_PASSWORD=off in the server settings). Personal keys and passwords keep working, and the sign-in screen is still shown when only personal passwords exist.
 
