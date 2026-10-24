@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.19.4"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.19.5"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1205,7 +1205,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     try:
                         if what == "issue":
                             if roster and roster.eligible(body.get("cid", "")) is False:
-                                return self._send(403, {"error": "this CID is not active and certified on the roster"})
+                                return self._send(403, {"error": "this CID is not certified on the roster"})
                             out = members.issue(body.get("cid", ""), body.get("name", ""))
                             log.info("Issued a personal key for CID %s", out["cid"])
                             return self._send(200, out)
@@ -1216,7 +1216,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         if what == "sync":
                             cids = body.get("cids", [])
                             if not isinstance(cids, list) or not cids:
-                                return self._send(400, {"error": "send the list of active, certified CIDs (not empty)"})
+                                return self._send(400, {"error": "send the list of certified CIDs (not empty)"})
                             gone = members.sync(cids)
                             log.info("Roster sync revoked %d member key(s)", len(gone))
                             return self._send(200, {"revoked": gone})

@@ -116,7 +116,7 @@ class RosterTests(unittest.TestCase):
     def test_eligibility(self):
         self.assertTrue(self.r.eligible("3"))
         self.assertFalse(self.r.eligible("100"))          # not certified
-        self.assertFalse(self.r.eligible("101"))          # inactive
+        self.assertTrue(self.r.eligible("101"))           # certified but not active: still allowed
         self.assertFalse(self.r.eligible("999"))          # not on the roster
 
     def test_unreachable_roster_is_unknown(self):

@@ -13,7 +13,7 @@ index 0000000..d35d803
 +use Illuminate\Support\Facades\Log;
 +
 +/**
-+ * Personal vNAAATS V2 plugin key + Flight Data Display password for certified, active roster members.
++ * Personal vNAAATS V2 plugin key + Flight Data Display password for certified roster members.
 + * The key and password are created and stored (hashed) on the vNAAATS server; nothing secret is stored here.
 + */
 +class VnaaatsKeyController extends Controller
@@ -22,7 +22,7 @@ index 0000000..d35d803
 +    {
 +        $roster = $user->rosterProfile;
 +
-+        return $roster && $roster->certification === 'certified' && (int) $roster->active === 1;
++        return $roster && $roster->certification === 'certified';
 +    }
 +
 +    private function call(string $what, array $body)
@@ -53,7 +53,7 @@ index 0000000..d35d803
 +    {
 +        $user = auth()->user();
 +        if (! $this->eligible($user)) {
-+            return redirect()->route('my.vnaaats')->with('error', 'You need to be an active, certified Gander Oceanic controller to request a vNAAATS key.');
++            return redirect()->route('my.vnaaats')->with('error', 'You need to be a certified Gander Oceanic controller to request a vNAAATS key.');
 +        }
 +        if (! config('vnaaats.issuer_secret')) {
 +            return redirect()->route('my.vnaaats')->with('error', 'vNAAATS keys are not set up on this website yet.');
@@ -141,7 +141,7 @@ index 0000000..ac71868
 +        <pre class="p-3 border rounded" style="user-select: all;">{{ $n['password'] }}</pre>
 +        <p>Valid until <strong>{{ \Carbon\Carbon::createFromTimestamp($n['expires'])->format('j F Y') }}</strong> (90 days). Come back to this page to get a new one. Do not share them: they are yours.</p>
 +    @elseif(!$eligible)
-+        <div class="alert alert-info">vNAAATS keys are for active, certified Gander Oceanic controllers. Your roster status does not currently qualify. If you think this is wrong, contact the Gander Oceanic staff.</div>
++        <div class="alert alert-info">vNAAATS keys are for certified Gander Oceanic controllers. Your roster status does not currently qualify. If you think this is wrong, contact the Gander Oceanic staff.</div>
 +    @elseif(!$configured)
 +        <div class="alert alert-info">vNAAATS keys are not set up on this website yet.</div>
 +    @else
@@ -157,7 +157,7 @@ index 0000000..ac71868
 +            @csrf
 +            <button type="submit" class="btn btn-primary">Request a new vNAAATS key</button>
 +        </form>
-+        <p class="mt-3 text-muted">Keys last 90 days and stop working if you are no longer active and certified. The key and password are created on the vNAAATS server and are only shown to you once.</p>
++        <p class="mt-3 text-muted">Keys last 90 days and stop working if you are no longer certified. The key and password are created on the vNAAATS server and are only shown to you once.</p>
 +    @endif
 +</div>
 +@endsection

@@ -6,7 +6,7 @@ asks this server to issue a member a key and a password:   POST /admin/member/is
   * the KEY goes in the member's vnaaats.cfg (key=...). It looks like  <cid>.<secret>  and is only valid for DAYS days.
   * the PASSWORD is typed on the FDD sign-in page together with the member's name or CID.
 Only hashes are stored here, so a copy of the database does not leak working keys or passwords.
-A nightly call to /admin/member/sync with the CIDs that are still active and certified revokes everyone else.
+A nightly call to /admin/member/sync with the CIDs that are still certified revokes everyone else.
 """
 import hashlib
 import hmac
@@ -125,7 +125,7 @@ class MemberKeys:
         return cur.rowcount > 0
 
     def sync(self, active_cids):
-        """Revoke every member whose CID is not in the list of members who are still active and certified."""
+        """Revoke every member whose CID is not in the list of members who are still certified."""
         keep = {re.sub(r"\D", "", str(c)) for c in active_cids}
         with self.store.lock:
             rows = [r[0] for r in self.store.db.execute("SELECT cid FROM members WHERE revoked=0")]
@@ -143,7 +143,7 @@ class MemberKeys:
 
 class RosterWatch:
     """Reads the Gander Oceanic roster feed (public JSON: [{"cid":..,"certification":"certified","active":1,..}, ...])
-    and keeps the set of CIDs that are certified AND active. Used to refuse a key to anyone else and, every few hours,
+    and keeps the set of CIDs that are certified (endorsed on the roster; active or not). Used to refuse a key to anyone else and, every few hours,
     to withdraw the keys of members who have dropped off. A bad or tiny answer never revokes anything."""
     MIN_ENTRIES = 5            # a roster smaller than this is treated as a broken answer
     MAX_REVOKE_FRACTION = 0.5  # never withdraw more than half of the keys in one go
@@ -171,7 +171,7 @@ class RosterWatch:
             data = self.fetch()
             if not isinstance(data, list) or len(data) < self.MIN_ENTRIES:
                 raise ValueError("roster answer looks wrong (%s entries)" % (len(data) if isinstance(data, list) else "no"))
-            ok = {str(e["cid"]) for e in data if isinstance(e, dict) and e.get("certification") == "certified" and int(e.get("active", 0)) == 1}
+            ok = {str(e["cid"]) for e in data if isinstance(e, dict) and e.get("certification") == "certified"}      # certified is enough: active status does not matter
         except Exception as e:
             with self.lock:
                 self.error = str(e)
@@ -192,7 +192,7 @@ class RosterWatch:
             return re.sub(r"\D", "", str(cid)) in self.ok_cids
 
     def revoke_dropped(self):
-        """Withdraw keys of members no longer certified and active. Returns the CIDs revoked."""
+        """Withdraw keys of members no longer certified. Returns the CIDs revoked."""
         if not self.refresh():
             return []
         with self.lock:
