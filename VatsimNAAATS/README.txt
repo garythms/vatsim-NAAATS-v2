@@ -1,4 +1,4 @@
-vNAAATS V2 plugin - BETA 1.4b3 (testers)
+vNAAATS V2 plugin - install guide and release notes
 =========================================
 
 INSTALL

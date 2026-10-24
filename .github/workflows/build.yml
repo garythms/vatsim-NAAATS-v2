@@ -42,7 +42,7 @@ jobs:
           New-Item -ItemType Directory -Force pkg | Out-Null
           Copy-Item (Get-ChildItem -Recurse -Filter VatsimNAAATS.dll | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1).FullName pkg/
           Copy-Item VatsimNAAATS/vnaaats.example.cfg pkg/
-          Copy-Item VatsimNAAATS/BETA-README.txt pkg/
+          Copy-Item VatsimNAAATS/README.txt pkg/
           Copy-Item VatsimNAAATS/vNAAATS.asr pkg/
           Compress-Archive -Path pkg/* -DestinationPath VatsimNAAATS-plugin.zip -Force
       - name: Publish release
@@ -67,7 +67,7 @@ jobs:
             $prev = ""
             try { $prev = ((git show HEAD~1:pluginversion.txt) -join "").Trim() } catch { }
             if ($ver -eq $prev) { Write-Host "Version unchanged ($ver) - skipping."; exit 0 }
-            $lines = Get-Content VatsimNAAATS/BETA-README.txt
+            $lines = Get-Content VatsimNAAATS/README.txt
             $notes = @(); $on = $false
             foreach ($l in $lines) {
               if ($l -match "^NEW IN $([regex]::Escape($ver))") { $on = $true; $notes += ($l -replace "^NEW IN [^:]*:?\s*", ""); continue }
