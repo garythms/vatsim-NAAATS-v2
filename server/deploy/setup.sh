@@ -42,7 +42,9 @@ if ! grep -q '^VNAAATS_ISSUER_SECRET=' /etc/vnaaats.env; then
 fi
 
 # Web editing password (the FDD login) - created once, change it in /etc/vnaaats.env any time
-if ! grep -q '^VNAAATS_FDD_PASSWORD=' /etc/vnaaats.env; then
+if grep -q '^VNAAATS_SHARED_PASSWORD=off' /etc/vnaaats.env; then
+  NEWPASS=""                                              # shared password switched off on purpose: do not make a new one
+elif ! grep -q '^VNAAATS_FDD_PASSWORD=' /etc/vnaaats.env; then
   NEWPASS="$(openssl rand -hex 5)"
   echo "VNAAATS_FDD_PASSWORD=$NEWPASS" >> /etc/vnaaats.env
 else

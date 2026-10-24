@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.18.4 - 2026-10-24
+- Server 0.19.6: the shared beta key and the shared FDD password can now be switched off (VNAAATS_SHARED_KEY=off, VNAAATS_SHARED_PASSWORD=off in the server settings). Personal keys and passwords keep working, and the sign-in screen is still shown when only personal passwords exist.
+
 ## 0.18.3 - 2026-10-24
 - Personal keys (server 0.19.5): a key is available to anyone who is certified (endorsed) on the Gander Oceanic roster. Active status no longer matters.
 

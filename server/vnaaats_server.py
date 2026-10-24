@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.19.5"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.19.6"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -853,6 +853,8 @@ class Auth:
 
     def __init__(self, env=os.environ):
         self.password = env.get("VNAAATS_FDD_PASSWORD", "")
+        if env.get("VNAAATS_SHARED_PASSWORD", "on").lower() == "off":
+            self.password = ""            # shared password switched off: only personal passwords (and VATSIM Connect) work
         self.client_id = env.get("VNAAATS_CONNECT_CLIENT_ID", "")
         self.client_secret = env.get("VNAAATS_CONNECT_CLIENT_SECRET", "")
         self.public_url = env.get("VNAAATS_PUBLIC_URL", "").rstrip("/")
@@ -1178,7 +1180,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             self.end_headers()
 
         def _status(self, session):
-            return {"editing": auth.enabled, "password": bool(auth.password) or bool(members and members.any()), "vatsim": auth.connect_enabled,
+            return {"editing": auth.enabled or bool(members and members.any()), "password": bool(auth.password) or bool(members and members.any()), "vatsim": auth.connect_enabled,
                     "loggedIn": bool(session), "name": session["name"] if session else "", "cid": session["cid"] if session else "",
                     "position": session["position"] if session else "", "positions": auth.positions}
 

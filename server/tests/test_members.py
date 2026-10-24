@@ -150,3 +150,47 @@ class RosterTests(unittest.TestCase):
         self.m.issue("11", "N"); self.m.issue("12", "N")
         self.data = [{"cid": 90 + i, "certification": "certified", "active": 1} for i in range(8)]
         self.assertEqual(self.r.revoke_dropped(), [])                                      # everyone dropped -> refused
+
+
+class SharedSecretsOff(unittest.TestCase):
+    def test_shared_password_off(self):
+        a = s.Auth({"VNAAATS_FDD_PASSWORD": "abc", "VNAAATS_SHARED_PASSWORD": "off"})
+        self.assertEqual(a.password, "")
+        self.assertFalse(a.enabled)
+        self.assertEqual(s.Auth({"VNAAATS_FDD_PASSWORD": "abc"}).password, "abc")
+
+
+class PersonalOnly(unittest.TestCase):
+    """Shared key and shared password switched off: personal ones still work and the FDD still offers a sign-in."""
+    @classmethod
+    def setUpClass(cls):
+        store = s.FlightStore(os.path.join(tempfile.mkdtemp(), "p.db"))
+        cls.members = mb.MemberKeys(store)
+        auth = s.Auth({"VNAAATS_SHARED_PASSWORD": "off", "VNAAATS_FDD_PASSWORD": "sharedpw"})
+        os.environ["VNAAATS_SHARED_KEY"] = "off"
+        try:
+            cls.srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(s.TrackCache(s.load_fixes()), store, SHARED, None, None, None, auth, None, None, None, cls.members, SECRET))
+        finally:
+            os.environ.pop("VNAAATS_SHARED_KEY", None)
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.url = "http://127.0.0.1:%d" % cls.srv.server_address[1]
+        cls.issued = cls.members.issue("1234567", "Gary Thomas")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def call(self, path, body=None):
+        req = urllib.request.Request(self.url + path, data=json.dumps(body).encode() if body is not None else None, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.loads(r.read() or b"{}")
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read() or b"{}")
+
+    def test_everything(self):
+        self.assertTrue(self.call("/auth/status")[1]["editing"])                                       # sign-in screen still offered
+        self.assertEqual(self.call("/auth/password", {"name": "Gary", "password": "sharedpw"})[0], 401)  # shared password refused
+        self.assertEqual(self.call("/auth/password", {"name": "1234567", "password": self.issued["password"]})[0], 200)
+        self.assertEqual(self.call("/PluginCommands?code=%s&me=CZQO_CTR" % SHARED)[0], 401)           # shared key refused
+        self.assertEqual(self.call("/PluginCommands?code=%s&me=CZQO_CTR" % self.issued["key"])[0], 200)  # personal key accepted
