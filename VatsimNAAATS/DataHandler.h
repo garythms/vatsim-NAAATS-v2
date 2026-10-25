@@ -43,6 +43,7 @@ class CDataHandler
 	/// vNAAATS network methods
 	// Download aircraft data (single)
 	static void DownloadNetworkAircraft(void* args);
+	static void ApplyPendingNetwork(CRadarScreen* screen); // draw thread: applies the downloaded data
 
 	// Download all aircraft data
 	static void GetAllNetworkAircraft();
