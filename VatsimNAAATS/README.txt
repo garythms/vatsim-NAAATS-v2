@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 1.5b22: fixes a second EuroScope crash that could happen when an aircraft you had selected (with its route drawn) left your area and its data was removed. Removal now happens on the drawing thread, after the selection and route are cleared.
+
 NEW IN 1.5b21: fixes a EuroScope crash that could happen while the flight plan window was open and the flight was edited on the web FDD (a route or level change). Changes from the server are now applied on the same thread that draws them. The log now notes "Web/server change applied to CALLSIGN".
 
 NEW IN 1.5b20: the re-track after a crash now only happens if you are back within 5 minutes, and not if someone else has signed in on the FDD at your position (a different name). Needs server 0.19.2.

@@ -35,6 +35,8 @@ string CDataHandler::CpdlcHandoffUrl = DEFAULT_SERVER + "/CpdlcHandoff?code=";
 string CDataHandler::CommandsUrl = DEFAULT_SERVER + "/PluginCommands?code=";
 string CDataHandler::CommandDoneUrl = DEFAULT_SERVER + "/PluginCommandDone?code=";
 std::mutex CDataHandler::remoteLock;
+std::mutex CDataHandler::deleteLock;
+std::vector<string> CDataHandler::deleteQueue;
 std::mutex CDataHandler::pendingLock;
 std::map<string, CDataHandler::CPendingNet> CDataHandler::pending;
 vector<CDataHandler::CRemoteCommand> CDataHandler::remoteQueue;
@@ -574,6 +576,19 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 
 // Runs on the EuroScope (draw) thread: applies what DownloadNetworkAircraft fetched, so the flight plans are only ever changed
 // by the thread that reads them.
+void CDataHandler::QueueDelete(const string& callsign) {
+	std::lock_guard<std::mutex> lk(deleteLock);
+	for (auto& s : deleteQueue) if (s == callsign) return;
+	deleteQueue.push_back(callsign);
+}
+
+std::vector<string> CDataHandler::TakeQueuedDeletes() {
+	std::lock_guard<std::mutex> lk(deleteLock);
+	std::vector<string> out;
+	out.swap(deleteQueue);
+	return out;
+}
+
 void CDataHandler::ApplyPendingNetwork(CRadarScreen* screen) {
 	std::map<string, CDataHandler::CPendingNet> local;
 	{

@@ -207,6 +207,17 @@ static int RetrackPhase = 0; // see RunRemoteCommands: 0 = not connected
 void CRadarDisplay::RunRemoteCommands()
 {
 	CPlugIn* plugin = GetPlugIn();
+	// Flight data that EuroScope reported as out of scope is erased here, on the draw thread, after anything pointing at it is cleared
+	for (const string& cs : CDataHandler::TakeQueuedDeletes()) {
+		if (cs == asel) {
+			asel = "";
+			menuBar->SetButtonState(CMenuBar::BTN_FLIGHTPLAN, CInputState::INACTIVE);
+		}
+		for (auto it = CRoutesHelper::ActiveRoutes.begin(); it != CRoutesHelper::ActiveRoutes.end();) {
+			if (*it == cs) it = CRoutesHelper::ActiveRoutes.erase(it); else ++it;
+		}
+		CDataHandler::DeleteFlightData(cs);
+	}
 	CDataHandler::ApplyPendingNetwork(this); // changes fetched from the server (e.g. edits made on the web FDD), applied on this thread
 	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) { RetrackPhase = 0; return; }   // disconnected: start the recovery again next time
 	CDataHandler::ControllerCallsign = plugin->ControllerMyself().GetCallsign();
@@ -1038,8 +1049,8 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 		CAircraftFlightPlan* fp = CDataHandler::GetFlightData(RadarTarget.GetCallsign());
 		if (fp->IsValid) {
 			std::async(CLogger::Log, CLogType::WARN, "Aircraft " + string(fp->Callsign) + " outside relevant scope and will be erased. SectorExitMinutes: " + to_string(fp->ExitTime) + ".", "CRadarDisplay::OnRadarTargetPositionUpdate");
-			// Delete the flight data object
-			CDataHandler::DeleteFlightData(RadarTarget.GetCallsign());
+			// Ask the draw thread to delete it (deleting here could pull it out from under the screen while it is drawing)
+			CDataHandler::QueueDelete(RadarTarget.GetCallsign());
 		}
 	}
 }

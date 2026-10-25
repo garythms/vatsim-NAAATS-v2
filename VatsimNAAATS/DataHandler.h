@@ -43,6 +43,8 @@ class CDataHandler
 	/// vNAAATS network methods
 	// Download aircraft data (single)
 	static void DownloadNetworkAircraft(void* args);
+	static void QueueDelete(const string& callsign); // any thread: ask for flight data to be erased
+	static std::vector<string> TakeQueuedDeletes(); // draw thread only
 	static void ApplyPendingNetwork(CRadarScreen* screen); // draw thread: applies the downloaded data
 
 	// Download all aircraft data
@@ -108,6 +110,8 @@ class CDataHandler
 		static string CommandDoneUrl;
 		static std::mutex remoteLock;
 		struct CPendingNet { CNetworkFlightPlan net; string scratch; };
+		static std::mutex deleteLock;
+		static std::vector<string> deleteQueue;
 		static std::mutex pendingLock;
 		static std::map<string, CPendingNet> pending;
 		static vector<CRemoteCommand> remoteQueue;
