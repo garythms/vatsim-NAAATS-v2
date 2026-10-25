@@ -35,6 +35,8 @@ string CDataHandler::CpdlcHandoffUrl = DEFAULT_SERVER + "/CpdlcHandoff?code=";
 string CDataHandler::CommandsUrl = DEFAULT_SERVER + "/PluginCommands?code=";
 string CDataHandler::CommandDoneUrl = DEFAULT_SERVER + "/PluginCommandDone?code=";
 std::mutex CDataHandler::remoteLock;
+std::mutex CDataHandler::pendingLock;
+std::map<string, CDataHandler::CPendingNet> CDataHandler::pending;
 vector<CDataHandler::CRemoteCommand> CDataHandler::remoteQueue;
 std::atomic<bool> CDataHandler::RemotePollBusy(false);
 clock_t CDataHandler::RemoteLastPoll = 0;
@@ -549,6 +551,41 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 			netFP.CpdlcRelease = jsonArray[i].value("cpdlcRelease", false);
 			netFP.NtSent = jsonArray[i].value("ntSent", false);
 
+			// Hand the data to the draw thread. Writing into the live flight plan from this background thread raced with drawing
+			// (an open flight plan window reading the route while the server's route replaced it) and could crash EuroScope.
+			{
+				std::lock_guard<std::mutex> lk(pendingLock);
+				CPendingNet pn; pn.net = netFP; pn.scratch = jsonArray[i].value("scratch", "");
+				pending[callsign] = pn;
+			}
+		}
+	}
+	catch (exception & e) {
+		data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to parse aircraft data for " + callsign +". Error: " + string(e.what())).c_str(), true, true, true, true, true);
+		CLogger::Log(CLogType::EXC, "Could not parse downloaded JSON for network aircraft " + callsign + ": " + string(e.what()) + "\nRequest URL: \n" + reqUrl, "CDataHandler::DownloadNetworkAircraft");
+		// Cleanup
+		delete args;
+		return;
+	}
+
+	// Cleanup
+	delete args;
+}
+
+// Runs on the EuroScope (draw) thread: applies what DownloadNetworkAircraft fetched, so the flight plans are only ever changed
+// by the thread that reads them.
+void CDataHandler::ApplyPendingNetwork(CRadarScreen* screen) {
+	std::map<string, CDataHandler::CPendingNet> local;
+	{
+		std::lock_guard<std::mutex> lk(pendingLock);
+		if (pending.empty()) return;
+		local.swap(pending);
+	}
+	for (auto& kv : local) {
+		string callsign = kv.first;
+		CNetworkFlightPlan& netFP = kv.second.net;
+		CPendingNet& pn = kv.second;
+		try {
 			// Get flight plan
 			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
 
@@ -563,11 +600,11 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 					fp->SelcalManual = true; // keep it, do not overwrite from the remarks
 					valuesChanged = true;
 				}
-				if (valuesChanged) fp->WindowRefresh = true;
+				if (valuesChanged) { fp->WindowRefresh = true; CLogger::Log(CLogType::NORM, "Web/server change applied to " + callsign + " (level, speed, track or SELCAL).", "CDataHandler::ApplyPendingNetwork"); }
 				fp->CpdlcConnected = netFP.Cpdlc;
 				fp->NtSent = netFP.NtSent;
 				{
-					string netScratch = jsonArray[i].value("scratch", "");
+					string netScratch = pn.scratch;
 					if (!fp->NetScratchKnown || fp->NetScratch != netScratch) fp->NetScratch = netScratch;
 					fp->NetScratchKnown = true;
 				}
@@ -624,17 +661,10 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 				if (isUpdated) UpdateFlightData(screen, callsign, true);
 			}
 		}
+		catch (exception & e) {
+			CLogger::Log(CLogType::EXC, "Could not apply network data for " + callsign + ": " + string(e.what()), "CDataHandler::ApplyPendingNetwork");
+		}
 	}
-	catch (exception & e) {
-		data->plugin->DisplayUserMessage("vNAAATS", "Error", string("Failed to parse aircraft data for " + callsign +". Error: " + string(e.what())).c_str(), true, true, true, true, true);
-		CLogger::Log(CLogType::EXC, "Could not parse downloaded JSON for network aircraft " + callsign + ": " + string(e.what()) + "\nRequest URL: \n" + reqUrl, "CDataHandler::DownloadNetworkAircraft");
-		// Cleanup
-		delete args;
-		return;
-	}
-
-	// Cleanup
-	delete args;
 }
 
 void CDataHandler::GetAllNetworkAircraft() {

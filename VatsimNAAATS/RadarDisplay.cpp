@@ -207,6 +207,7 @@ static int RetrackPhase = 0; // see RunRemoteCommands: 0 = not connected
 void CRadarDisplay::RunRemoteCommands()
 {
 	CPlugIn* plugin = GetPlugIn();
+	CDataHandler::ApplyPendingNetwork(this); // changes fetched from the server (e.g. edits made on the web FDD), applied on this thread
 	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) { RetrackPhase = 0; return; }   // disconnected: start the recovery again next time
 	CDataHandler::ControllerCallsign = plugin->ControllerMyself().GetCallsign();
 

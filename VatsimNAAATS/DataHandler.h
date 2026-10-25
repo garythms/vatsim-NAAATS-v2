@@ -106,5 +106,8 @@ class CDataHandler
 		static string CommandsUrl;
 		static string CommandDoneUrl;
 		static std::mutex remoteLock;
+		struct CPendingNet { CNetworkFlightPlan net; string scratch; };
+		static std::mutex pendingLock;
+		static std::map<string, CPendingNet> pending;
 		static vector<CRemoteCommand> remoteQueue;
 };
