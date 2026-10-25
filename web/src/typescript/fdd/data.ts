@@ -244,6 +244,15 @@ function computeConflicts(): void {
   conflicts = next;
 }
 
+// Forget everything on screen (signed out, no position, or the server said the data is not for this browser)
+export function clearData(): void {
+  networkAircraft = new Map();
+  natTrakData = new Map();
+  aircraftCount = 0;
+  relevantAircraftCount = 0;
+  asel = null!;
+}
+
 export async function populateAllAircraft() : Promise<void> {
   // Dynamic data variable
   let res: string = "";
@@ -251,13 +260,16 @@ export async function populateAllAircraft() : Promise<void> {
   // Oceanic-bound traffic from the public VATSIM feed (filed flight plans). Failure here must never block the rest.
   let networkTraffic: JsonAcObj[] = [];
   try {
-    networkTraffic = await (await fetch(networkTrafficGet)).json();
+    const nr: Response = await fetch(networkTrafficGet);
+    if (nr.status === 401) { clearData(); return; }   // signed out: the server sends nothing
+    networkTraffic = await nr.json();
   } catch (e) {
     networkTraffic = [];
   }
 
   await fetch(allAircraftGet + (sortDescending ? "?sort=1" : "?sort=0")).then(
     function (response: Response) {
+      if (response.status === 401) { clearData(); return; }   // not signed in with a position: no data
       response.text().then(function (text: string) {
         // Parse json
         res = text;
@@ -503,6 +515,7 @@ export function isNatTrakAlert(callsign: string): boolean {
 export async function natTrakFetch() : Promise<void> {
   try {
     const response: Response = await fetch(allNatTrakGet);
+    if (response.status === 401) { natTrakData = new Map(); return; }
     const objArr: any[] = await response.json();
     if (!Array.isArray(objArr)) return;
 

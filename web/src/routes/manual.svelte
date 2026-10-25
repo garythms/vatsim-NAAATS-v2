@@ -53,7 +53,7 @@
       <li>Sign in with the login you were given and choose your <b>position</b> (CZQO_CTR, EGGX_CTR and so on). The position is what other controllers see on "last changed" and "tracked by".</li>
     </ol>
     <p class="mb-3 opacity-90"><b>Use it as an app:</b> in Chrome or Edge, open the FDD and click the <i>install</i> icon at the right end of the address bar (or the three-dot menu, then <i>Install vNAAATS FDD</i> / <i>Apps</i>). It then opens in its own window with its own icon, which suits a second monitor. It is still the same website, so updates arrive automatically.</p>
-    <p class="mb-3 opacity-90"><b>Just watch</b> lets you look without signing in. A viewer cannot edit anything. The top bar then says <i>View only</i>; choose <i>sign in to edit</i> there to change your mind. Use <i>change</i> to pick another position and <i>sign out</i> when you finish.</p>
+    <p class="mb-3 opacity-90"><b>Nothing is shown until you have signed in and chosen a position.</b> This protects the data of pilots and controllers: the page stays covered, and the server sends no flight data, until a position has been chosen. There is no view-only mode. Use <i>change</i> to pick another position (the page is covered again until you do) and <i>sign out</i> when you finish. If your sign-in runs out while you work, the sign-in screen returns.</p>
     <p class="mb-6 opacity-90">Keep EuroScope connected while you work: the plugin asks the server every 2 seconds whether you have asked for something (track, transfer, SELCAL and so on), and does nothing if EuroScope is offline.</p>
 
     <h2 id="layout" class="text-2xl font-bold mb-2">3. The Flight Data Display screen</h2>
@@ -111,18 +111,18 @@
     <p class="mb-6 opacity-90">Strips for flights tracked by an oceanic controller (CZQO, EGGX, NAT_FSS and so on) never disappear until the flight has been untracked for 5 minutes. Flights whose pilot has left VATSIM are hidden unless they are selected, on CPDLC, or have a request pending. A filed <b>NAT track</b> such as <i>HOIST NATF GOMUP</i> is checked against today's tracks and replaced by that track's fixes between the filed entry and exit fix, so the strip sits under the right track. After you send <b>Contact me</b> the callsign cell turns <b>yellow</b>; if 20 minutes later nobody is tracking the flight and it is still in oceanic airspace it turns <b>red</b>, and it clears once an oceanic controller tracks it. <b>If EuroScope crashes</b> or you lose your connection, the plugin tracks your aircraft again about 20 seconds after you are back (within 5 minutes, never an aircraft another controller has taken, and not if someone with a different name has signed in on the FDD at your position). Put <i>retrack=0</i> in vnaaats.cfg to turn this off. Waypoints are always shown as four digits (for example 52/50), whatever format the flight plan used.</p>
 
     <h2 id="menu" class="text-2xl font-bold mb-2">6. The aircraft menu</h2>
-    <p class="mb-3 opacity-90">Click a callsign. The tabs along the top are:</p>
+    <p class="mb-3 opacity-90">Click a callsign. The heading shows the aircraft and the <b>track</b> it is on. The tabs along the top are, in order:</p>
     <ul class="list-disc ml-6 space-y-2 mb-3">
-      <li><b>Track</b> - check or change the <b>level</b>, <b>Mach</b> and <b>SELCAL</b>, then <b>Track aircraft</b>. The plugin starts tracking the aircraft in EuroScope and the menu shows the result. If another controller is handing the aircraft to you, <b>Track also accepts that handoff</b>.</li>
-      <li><b>Untrack</b> - releases the aircraft in EuroScope.</li>
+      <li><b>Track</b> - check or change the <b>level</b>, <b>Mach</b> and <b>SELCAL</b>, then <b>Track aircraft</b> (the button is on the left; the <b>SELCAL test</b> button sits under the SELCAL box). The plugin starts tracking the aircraft in EuroScope and the menu shows the result. If another controller is handing the aircraft to you, <b>Track also accepts that handoff</b>.</li>
       <li><b>Transfer</b> - pick the controller to hand the aircraft to and press Transfer. Only stations from the CPDLC station list are offered. If none are online it says <i>No adjacent ATC - Send to UNICOM</i> (use the UNICOM button in the CPDLC drawer).</li>
+      <li><b>Release Tag</b> - releases the aircraft in EuroScope (you are asked to confirm).</li>
       <li><b>SELCAL</b> - enter or change the 4-letter code and use <b>Send</b> to run a SELCAL check in EuroScope, <b>Copy .selcal</b> to paste it yourself, or <b>Save code</b> to store it on the flight. Letters allowed: A-H, J-M, P-S (a red warning names any that are not).</li>
       <li><b>CPDLC</b> - opens the CPDLC drawer for this aircraft if the pilot is connected.</li>
       <li><b>Note</b> - type a short note (up to 15 characters) and press Save note: the EuroScope scratchpad (also in the flight plan panel).</li>
+      <li><b>Contact Me</b> - <b>Send</b> runs EuroScope's contact-me command for the aircraft. <b>Copy .contactme</b> copies it.</li>
       <li><b>RCL REQ</b> - the reminder asking the pilot to request oceanic clearance on natTrak (CPDLC clearance is not available). <b>Send</b> types the message into EuroScope for you, <b>Copy</b> copies it, <b>I have sent it - mark with red *</b> puts the red * on the strip and the radar tag, and <b>Remove mark</b> clears it.</li>
       <li><b>Hide</b> - hides the strip <b>for you only</b>, in this browser, for 12 hours. Nobody else is affected and EuroScope and VATSIM are not touched. Bring it back from the <i>Hidden</i> list or with <i>Add callsign</i>.</li>
       <li><b>Position reports</b> - Concorde only. See section 11.</li>
-      <li><b>Contact</b> (right side) - <b>Send</b> runs EuroScope's contact-me command for the aircraft. <b>Copy .contactme</b> copies it.</li>
       <li><b>Supervisor</b> (red) - write a message to the supervisors, or press <b>No Contact</b> for the standard text, then <b>Copy .wallop</b> and paste it in EuroScope.</li>
     </ul>
     <p class="mb-6 opacity-90">Track, untrack, transfer, SELCAL and contact me need you to be signed in with a position and EuroScope connected. <b>Send</b> buttons need <b>autotype=1</b> in vnaaats.cfg (section 13); without it use the <b>Copy</b> buttons and paste the command into EuroScope's command line (click in it, Ctrl+V, Enter). EuroScope's contact-me and SELCAL commands work on the <i>selected</i> aircraft and take no callsign, so the plugin selects the aircraft for you before it types them.</p>
@@ -141,7 +141,7 @@
       <li><b>Position reports</b> button - Concorde only.</li>
       <li><b>Last change HHMMz by POSITION</b> - who last changed level, Mach, track, SELCAL or the route.</li>
     </ul>
-    <p class="mb-6 opacity-90">If the panel says <i>View only - sign in and pick a position to edit</i>, nothing can be changed yet.</p>
+    <p class="mb-6 opacity-90">If the panel says <i>View only - sign in and pick a position to edit</i>, nothing can be changed yet: sign in and choose a position.</p>
 
     <h2 id="nattrak" class="text-2xl font-bold mb-2">8. natTrak requests and alerts</h2>
     <p class="mb-3 opacity-90">Pilots request their oceanic clearance on natTrak. The FDD shows the requests in two boxes under the controls bar:</p>
@@ -227,7 +227,7 @@
       <li><b>Send buttons only copy:</b> <b>autotype=1</b> is missing from vnaaats.cfg or Windows refused to let the plugin type. Use the Copy buttons.</li>
       <li><b>A flight is missing:</b> it may be outside the time window (see <b>Show</b>), hidden by you (see <b>Hidden</b>), or filtered. Use <b>Add callsign</b> to bring it in.</li>
       <li><b>No sound:</b> browsers only play sound after you have clicked somewhere on the page. Click once, and check <b>Audio</b> is ON in the natTrak box.</li>
-      <li><b>Changes not saving:</b> you are in view-only mode, or the key in vnaaats.cfg is missing or wrong.</li>
+      <li><b>Changes not saving:</b> you have not chosen a position, or the key in vnaaats.cfg is missing or wrong.</li>
       <li><b>Reporting a bug:</b> include the callsign, what you clicked, what you expected, what happened, the plugin version (first line of vNAAATS.log) and the log file. Report at <a class="underline" href="https://github.com/garythms/vatsim-naaats-v2/issues">GitHub issues</a> or to the Gander Oceanic team.</li>
     </ul>
 

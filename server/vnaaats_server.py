@@ -59,14 +59,14 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.19.6"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.20.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
 SESSION_COOKIE = "vnaaats_session"
 SESSION_SECONDS = 12 * 3600
-DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS,OBSERVER"
+DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS"
 EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
 SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
 SCRATCH_MAX = 15                                  # characters in the scratchpad note (EuroScope itself documents no limit)
@@ -1081,7 +1081,7 @@ def validate_edit(body):
 # ----------------------------------------------------------------------------- http
 MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".json": "application/json",
         ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon",
-        ".webmanifest": "application/manifest+json", ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json"}
+        ".webmanifest": "application/manifest+json", ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json", ".mp4": "video/mp4", ".pdf": "application/pdf"}
 
 
 def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None):
@@ -1179,10 +1179,21 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 self.send_header("Set-Cookie", self._set_cookie(token))
             self.end_headers()
 
+        def _read_ok(self, q):
+            """Flight data is only for signed-in controllers (data protection). Open only on a server where nobody can sign in at all.
+            The plugin may also read it with its key."""
+            if not (auth.enabled or (members and members.any())):
+                return True
+            sess = self._session()
+            if sess and sess["position"] and sess["position"] != "OBSERVER":
+                return True
+            code = q.get("code", "")
+            return bool(code) and key_problem(code) == ""
+
         def _status(self, session):
             return {"editing": auth.enabled or bool(members and members.any()), "password": bool(auth.password) or bool(members and members.any()), "vatsim": auth.connect_enabled,
                     "loggedIn": bool(session), "name": session["name"] if session else "", "cid": session["cid"] if session else "",
-                    "position": session["position"] if session else "", "positions": auth.positions}
+                    "position": session["position"] if session else "", "positions": [x for x in auth.positions if x != "OBSERVER"]}
 
         def do_POST(self):
             p = urlparse(self.path).path.rstrip("/") or "/"
@@ -1251,6 +1262,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     auth.logout(self._token())
                     return self._send_cookie(200, self._status(None), "", 0)
                 if p == "/auth/position":
+                    if str(body.get("position", "")).strip().upper() == "OBSERVER":
+                        return self._send(400, {"error": "view-only mode has been removed: choose a controlling position"})
                     if not self._session() or not auth.set_position(self._token(), str(body.get("position", ""))):
                         return self._send(400, {"error": "log in first and give a position like CZQO_CTR"})
                     if cpdlc:
@@ -1413,7 +1426,39 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     return False
             with open(full, "rb") as f:
                 body = f.read()
-            self._send(200, body, MIME.get(os.path.splitext(full)[1].lower(), "application/octet-stream"))
+            ext = os.path.splitext(full)[1].lower()
+            if ext in (".mp4", ".pdf"):                                 # media: phones ask for byte ranges before they will play a video
+                return self._send_media(body, MIME[ext])
+            self._send(200, body, MIME.get(ext, "application/octet-stream"))
+            return True
+
+        def _send_media(self, body, ctype):
+            size = len(body)
+            m = re.fullmatch(r"bytes=(\d*)-(\d*)", self.headers.get("Range", "").strip())
+            start, end, code = 0, size - 1, 200
+            if m and (m.group(1) or m.group(2)):
+                if m.group(1):
+                    start = int(m.group(1))
+                    end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+                else:
+                    start, end = max(0, size - int(m.group(2))), size - 1
+                if start > end or start >= size:
+                    self.send_response(416)
+                    self.send_header("Content-Range", "bytes */%d" % size)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return True
+                code = 206
+            part = body[start:end + 1]
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(part)))
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Cache-Control", "public, max-age=3600")
+            if code == 206:
+                self.send_header("Content-Range", "bytes %d-%d/%d" % (start, end, size))
+            self.end_headers()
+            self.wfile.write(part)
             return True
 
         def do_GET(self):
@@ -1587,6 +1632,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                                 q["routeEtas"] = " ".join(["--"] * len(new))
                     rec = store.upsert(q)
                     return self._send(200, rec) if rec else self._send(400, {"error": "callsign required"})
+                if p in ("/GetAllFlightData", "/GetNetworkTraffic", "/GetNatTrakData") and not self._read_ok(q):
+                    return self._send(401, {"error": "log in first and choose a position"})
                 if p == "/GetAllFlightData":
                     hidden = store.dismissed_set()
                     return self._send(200, [with_cpdlc(f) for f in store.all_flights(newest_first=q.get("sort", "1") != "0") if f.get("callsign") not in hidden])

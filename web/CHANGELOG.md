@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.19.0 - 2026-10-25
+- Data protection (server 0.20.0): view-only mode ("Just watch" and the Observer position) is gone. The whole page is covered until you have signed in and chosen a position, and the server sends no flight, natTrak or network traffic data to anyone who has not. Signing out or choosing "change" clears the screen. If a sign-in runs out the sign-in screen comes back.
+- The download page now has the intro video and the user guide as a PDF. Guide and manual updated: key and sign-in come from ganderoceanic.ca/my/vnaaats, new aircraft menu order.
+- Server: video and PDF files are served with byte ranges so they play on phones.
+
 ## 0.18.7 - 2026-10-24
 - "Beta" wording removed ahead of v2.0: the header says "Version", the plugin download page is now /download (the old /beta address redirects there so older plugins still work), and the homepage button and CPDLC tile no longer say beta.
 

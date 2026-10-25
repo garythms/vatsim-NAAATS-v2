@@ -299,10 +299,10 @@
         <span class="underline hover:cursor-pointer ml-1" on:click={() => sess.choosePosition("")} title="Choose another position">change</span>
         <span class="underline hover:cursor-pointer ml-1" on:click={sess.logout}>sign out</span>
       {:else if $session.editing}
-        <span class="opacity-70">View only</span>
-        <span class="underline hover:cursor-pointer ml-1" on:click={() => { try { sessionStorage.removeItem("vnaaats.viewonly"); } catch (e) {} location.reload(); }}>sign in to edit</span>
+        <span class="opacity-70">Signed out</span>
+        <span class="underline hover:cursor-pointer ml-1" on:click={() => location.reload()}>sign in</span>
       {:else}
-        <span class="opacity-70">View only (editing is not switched on)</span>
+        <span class="opacity-70">Sign-in is not switched on for this server</span>
       {/if}
     </div>
     {#if sess.canEdit($session)}

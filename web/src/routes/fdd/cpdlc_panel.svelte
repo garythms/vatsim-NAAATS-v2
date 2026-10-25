@@ -140,7 +140,7 @@
         {/if}
       </div>
       {#if !canUse}
-        <div class="p-3 text-sm opacity-80">Sign in and choose a position (not Observer) to read and send CPDLC messages.</div>
+        <div class="p-3 text-sm opacity-80">Sign in and choose a position to read and send CPDLC messages.</div>
       {:else if !$cpdlcStatus.active}
         <!-- sign-in form is shown above -->
       {:else if shown}

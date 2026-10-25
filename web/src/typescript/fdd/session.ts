@@ -21,7 +21,7 @@ export const emptySession: Session = { editing: false, password: false, vatsim: 
 export const session = writable<Session>(emptySession);
 
 export function canEdit(s: Session): boolean {
-  return s.loggedIn && s.position !== "" && s.position !== "OBSERVER";
+  return s.loggedIn && s.position !== "";
 }
 
 async function post(path: string, body: any): Promise<{ ok: boolean; data: any }> {
@@ -49,12 +49,13 @@ export async function loginPassword(name: string, password: string): Promise<str
 
 export async function choosePosition(position: string): Promise<string> {
   const r = await post("/auth/position", { position });
-  if (r.ok) { session.set(r.data); return ""; }
+  if (r.ok) { session.set(r.data); if (position === "") dataHandler.clearData(); else dataHandler.populateAllAircraft(); return ""; }
   return r.data.error ?? "could not set the position";
 }
 
 export async function logout(): Promise<void> {
   await post("/auth/logout", {});
+  dataHandler.clearData();                          // nothing stays on the screen once you sign out
   await refreshSession();
 }
 

@@ -32,7 +32,7 @@
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold">Plugin pack{version ? " - " + version : ""}</div>
       <a href={zipUrl} class="inline-block my-2 px-5 py-2 font-bold bg-blue-10 text-black">{direct ? "Download VatsimNAAATS-plugin.zip" : "Open the download page"}</a>
-      <div class="text-sm opacity-80">Always the newest build: the plugin DLL, the vNAAATS.asr screen file, an example config and a short README. The <b>key</b> is not in the zip - get it from the Gander Oceanic website members page.</div>
+      <div class="text-sm opacity-80">Always the newest build: the plugin DLL, the vNAAATS.asr screen file, an example config and a short README. Your <b>key</b> is not in the zip: get it from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a> (certified controllers).</div>
     </div>
 
     <p class="mb-6 p-3 border-2 border-blue-10 bg-blue-3">After installing, read the <a class="underline font-bold" href="https://vnaaats.com/manual">user manual</a> to see how everything works.</p>
@@ -41,7 +41,7 @@
     <ul class="list-disc ml-6 space-y-1 mb-6">
       <li>EuroScope installed and working, and a VATSIM controller rating.</li>
       <li>The official <b>Gander Oceanic sector package from AeroNav</b> (it also keeps your AIRAC up to date).</li>
-      <li>The plugin pack (the download box above) and the <b>key</b> from the Gander Oceanic website members page. Do not share the key.</li>
+      <li>The plugin pack (the download box above) and your <b>key</b> from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>. Do not share the key.</li>
     </ul>
 
     <h2 class="text-2xl font-bold mb-2">1. Get the Gander package</h2>
@@ -76,7 +76,7 @@
     <ul class="list-disc ml-6 space-y-1 mb-6">
       <li>A pop-up shows the plugin version if there is a newer one.</li>
       <li>Open <b>vNAAATS.log</b> (next to the DLL). The first line shows the version.</li>
-      <li>Open the <a class="underline" href="https://vnaaats.com/fdd">Flight Data Display</a> in your browser, sign in and pick your position.</li>
+      <li>Open the <a class="underline" href="https://vnaaats.com/fdd">Flight Data Display</a> in your browser, sign in (name or CID and the password from the same Gander page) and pick your position. Nothing is shown until you have done both.</li>
     </ul>
 
     <h2 class="text-2xl font-bold mb-2">Updating</h2>
@@ -90,7 +90,7 @@
       <li><b>EuroScope closes when it starts:</b> check <b>server=https://vnaaats.com</b> (with https) in <b>vnaaats.cfg</b>. Install the Microsoft Visual C++ 2015-2022 Redistributable (x86) if the plugin will not load at all.</li>
       <li><b>Wrong version in the log:</b> EuroScope is loading a different copy of the DLL. Other SET &gt; Plug-ins shows which folder it is using.</li>
       <li><b>The map is wrong or not oceanic:</b> you have another sector file loaded. Use the Gander package from AeroNav.</li>
-      <li><b>No flights appear or changes do not save:</b> the key is missing or wrong in <b>vnaaats.cfg</b>. Ask for the current key.</li>
+      <li><b>No flights appear or changes do not save:</b> the key is missing, wrong or out of date (keys last 90 days) in <b>vnaaats.cfg</b>. Get a new one from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>.</li>
       <li><b>Still stuck:</b> send <b>vNAAATS.log</b> to the Gander Oceanic team.</li>
     </ul>
 

@@ -72,7 +72,8 @@ class HttpTests(unittest.TestCase):
 
     def login(self, position="CZQO_CTR"):
         ck = self.call("/auth/password", {"name": "Gary", "password": "pw"})[2].split(";")[0]
-        self.call("/auth/position", {"position": position}, ck)
+        if position:
+            self.call("/auth/position", {"position": position}, ck)
         return ck
 
     def test_controllers_list(self):
@@ -82,7 +83,7 @@ class HttpTests(unittest.TestCase):
     def test_full_flow(self):
         K = "k" * 20
         self.assertEqual(self.call("/cmd/queue", {"type": "untrack", "callsign": "BAW1"})[0], 401)
-        self.assertEqual(self.call("/cmd/queue", {"type": "untrack", "callsign": "BAW1"}, self.login("OBSERVER"))[0], 403)
+        self.assertEqual(self.call("/cmd/queue", {"type": "untrack", "callsign": "BAW1"}, self.login(None))[0], 403)
         ck = self.login("CZQO_CTR")
         self.assertEqual(self.call("/cmd/queue", {"type": "track", "callsign": "BAW1", "level": "0", "mach": "84"}, ck)[0], 400)
         code, body, _ = self.call("/cmd/queue", {"type": "transfer", "callsign": "BAW1", "target": "EISN_CTR", "freq": "127.500"}, ck)

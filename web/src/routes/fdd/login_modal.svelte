@@ -8,15 +8,16 @@
   let custom: string = "";
   let error: string = "";
   let busy: boolean = false;
-  let viewOnly: boolean = false;
 
-  onMount(async () => {
-    try { viewOnly = sessionStorage.getItem("vnaaats.viewonly") === "1"; } catch (e) { /* ignore */ }
-    await sess.refreshSession();
-    sess.session.subscribe(() => {});
+  onMount(() => {
+    sess.refreshSession();
+    // Ask again now and then, so a session that has run out brings the sign-in screen back
+    const t = setInterval(sess.refreshSession, 30000);
+    return () => clearInterval(t);
   });
 
-  $: show = $session.editing && !viewOnly && (!$session.loggedIn || $session.position === "");
+  // The flight data is only sent to a signed-in controller with a position, so until then the whole page is covered
+  $: show = $session.editing && (!$session.loggedIn || $session.position === "");
 
   async function doPassword(): Promise<void> {
     busy = true; error = "";
@@ -30,7 +31,7 @@
     try { return localStorage.getItem("vnaaats.nattrakSignedIn") === "1"; } catch (e) { return false; }
   }
   async function pick(p: string): Promise<void> {
-    if (p !== "OBSERVER" && !natDone()) { askNat = p; return; }
+    if (!natDone()) { askNat = p; return; }
     error = await sess.choosePosition(p);
   }
   async function natYes(): Promise<void> {
@@ -46,18 +47,14 @@
     askNat = "";
     error = await sess.choosePosition(p);
   }
-  function skip(): void {
-    viewOnly = true;
-    try { sessionStorage.setItem("vnaaats.viewonly", "1"); } catch (e) { /* ignore */ }
-  }
 </script>
 
 {#if show}
-  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.65);">
+  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: #0b1b30;">
     <div class="w-96 max-w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular p-4">
       <div class="text-xl font-bold mb-1">vNAAATS Flight Data Display</div>
       {#if !$session.loggedIn}
-        <div class="mb-3 text-sm opacity-80">Sign in to change flights. You can also just watch.</div>
+        <div class="mb-3 text-sm opacity-80">Sign in with your controller account to use the display.</div>
         {#if $session.vatsim}
           <button class="w-full mb-3 py-2 font-bold bg-blue-10 text-black border-2 border-l-blue-0 border-t-blue-0 border-r-blue-8 border-b-blue-8" on:click={sess.vatsimLogin}>
             Sign in with VATSIM
@@ -81,7 +78,7 @@
         <div class="mb-3 text-sm opacity-80">Hello {$session.name}. Which position are you working?</div>
         <div class="grid grid-cols-2 gap-2 mb-3">
           {#each $session.positions as p}
-            <button class="py-2 font-bold bg-blue-10 text-black" on:click={() => pick(p)}>{p === "OBSERVER" ? "Observer (view only)" : p}</button>
+            <button class="py-2 font-bold bg-blue-10 text-black" on:click={() => pick(p)}>{p}</button>
           {/each}
         </div>
         <form class="flex gap-2" on:submit|preventDefault={() => custom && pick(custom)}>
@@ -91,7 +88,6 @@
         <button class="mt-3 text-sm underline opacity-80" on:click={sess.logout}>Sign out</button>
       {/if}
       {#if error}<div class="mt-2 text-sm text-yellow-300">{error}</div>{/if}
-      <button class="mt-4 text-sm underline opacity-80" on:click={skip}>Just watch (no sign in)</button>
     </div>
   </div>
 {/if}

@@ -241,7 +241,7 @@ class EditTests(unittest.TestCase):
         net = s.NetworkTraffic(cache, natrak=nt)
         net.refresh(fetch=lambda: {"pilots": [{"callsign": "FEED1", "flight_plan": {"aircraft_short": "A333", "departure": "EGLL",
                   "arrival": "KJFK", "altitude": "30000", "deptime": "1200", "route": "52/20 52/30 52/40"}}]})
-        cls.auth = s.Auth({"VNAAATS_FDD_PASSWORD": "secret-pass", "VNAAATS_POSITIONS": "CZQO_CTR,OBSERVER"})
+        cls.auth = s.Auth({"VNAAATS_FDD_PASSWORD": "secret-pass", "VNAAATS_POSITIONS": "CZQO_CTR,CZQO_DEL"})
         cls.srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, cls.store, KEY, None, net, None, cls.auth))
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
         cls.base = "http://127.0.0.1:%d" % cls.srv.server_port
@@ -275,7 +275,22 @@ class EditTests(unittest.TestCase):
     def test_edit_needs_login_and_position(self):
         self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350})[0], 401)
         self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350}, self.login(None))[0], 403)
-        self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350}, self.login("OBSERVER"))[0], 403)
+        self.assertEqual(self.call("/EditFlight", {"callsign": "X", "level": 350}, self.login(None))[0], 403)
+
+    def test_flight_data_needs_a_position(self):
+        for path in ("/GetAllFlightData", "/GetNetworkTraffic", "/GetNatTrakData"):
+            self.assertEqual(self.call(path)[0], 401)                              # not signed in
+            self.assertEqual(self.call(path, None, self.login(None))[0], 401)      # signed in but no position yet
+            self.assertEqual(self.call(path, None, self.login("CZQO_CTR"))[0], 200)
+            self.assertEqual(self.call(path + "?code=" + KEY)[0], 200)             # the plugin key still works
+            self.assertEqual(self.call(path + "?code=wrong")[0], 401)
+
+    def test_no_observer_mode(self):
+        ck = self.login(None)
+        code, body, _ = self.call("/auth/position", {"position": "OBSERVER"}, ck)
+        self.assertEqual(code, 400)
+        self.assertNotIn("OBSERVER", self.call("/auth/status", None, ck)[1]["positions"])
+        self.assertEqual(self.call("/GetAllFlightData", None, ck)[0], 401)
 
     def test_wrong_password_and_throttle(self):
         self.assertEqual(self.call("/auth/password", {"name": "x", "password": "no"})[0], 401)
@@ -350,6 +365,29 @@ class ConnectTests(unittest.TestCase):
     def test_disabled_without_settings(self):
         self.assertFalse(s.Auth({}).connect_enabled)
         self.assertFalse(s.Auth({}).enabled)
+
+
+class MediaRangeTest(unittest.TestCase):
+    def test_range_requests(self):
+        tmp = tempfile.mkdtemp()
+        with open(os.path.join(tmp, "v.mp4"), "wb") as f:
+            f.write(bytes(range(100)))
+        cache = s.TrackCache(s.load_fixes()); cache.refresh(fetch=lambda: SAMPLE)
+        srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, s.FlightStore(os.path.join(tmp, "m.db")), KEY, tmp))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        base = "http://127.0.0.1:%d/v.mp4" % srv.server_port
+        try:
+            with urllib.request.urlopen(base) as r:
+                self.assertEqual((r.status, len(r.read()), r.headers["Accept-Ranges"], r.headers["Content-Type"]), (200, 100, "bytes", "video/mp4"))
+            with urllib.request.urlopen(urllib.request.Request(base, headers={"Range": "bytes=10-19"})) as r:
+                self.assertEqual((r.status, r.headers["Content-Range"], r.read()), (206, "bytes 10-19/100", bytes(range(10, 20))))
+            with urllib.request.urlopen(urllib.request.Request(base, headers={"Range": "bytes=90-"})) as r:
+                self.assertEqual((r.status, len(r.read())), (206, 10))
+            with self.assertRaises(urllib.error.HTTPError) as e:
+                urllib.request.urlopen(urllib.request.Request(base, headers={"Range": "bytes=500-600"}))
+            self.assertEqual(e.exception.code, 416)
+        finally:
+            srv.shutdown()
 
 
 if __name__ == "__main__":

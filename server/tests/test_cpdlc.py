@@ -342,7 +342,7 @@ class HttpTests(unittest.TestCase):
         return self.login_static(position)
 
     def test_flags_and_status(self):
-        flights = {f["callsign"]: f for f in self.call("/GetAllFlightData")[1]}
+        flights = {f["callsign"]: f for f in self.call("/GetAllFlightData", None, self.ck)[1]}
         self.assertTrue(flights["BAW123"]["cpdlc"])
         self.assertFalse(flights["DLH9"]["cpdlc"])
         self.assertTrue(self.call("/GetSingleFlightData?callsign=BAW123")[1][0]["cpdlc"])
@@ -354,8 +354,8 @@ class HttpTests(unittest.TestCase):
     def test_login_needed_for_messages_and_send(self):
         self.assertEqual(self.call("/cpdlc/messages?callsign=BAW123")[0], 401)
         self.assertEqual(self.call("/cpdlc/send", {"callsign": "BAW123", "text": "HELLO"})[0], 401)
-        self.assertEqual(self.call("/cpdlc/send", {"callsign": "BAW123", "text": "HELLO"}, self.login("OBSERVER"))[0], 403)
-        self.assertEqual(self.call("/cpdlc/logon", {"code": "abcdef12"}, self.login("OBSERVER"))[0], 403)
+        self.assertEqual(self.call("/cpdlc/send", {"callsign": "BAW123", "text": "HELLO"}, self.login(None))[0], 403)
+        self.assertEqual(self.call("/cpdlc/logon", {"code": "abcdef12"}, self.login(None))[0], 403)
 
     def test_needs_code_first_and_station_in_use(self):
         ck = self.login("EGGX_DEL")
@@ -395,7 +395,7 @@ class HttpTests(unittest.TestCase):
     def test_concorde_position_reports(self):
         ck = self.ck
         self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "act": "1203"})[0], 401)
-        self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "act": "1203"}, self.login("OBSERVER"))[0], 403)
+        self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "act": "1203"}, self.login(None))[0], 403)
         code, rec, _ = self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "est": "12:00", "act": "1203z"}, ck)
         self.assertEqual(code, 200)
         self.assertEqual(rec["posReports"]["52/50"]["act"], "1203")
@@ -405,7 +405,7 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/40", "est": "9999"}, ck)[0], 400)
         self.assertEqual(self.call("/EditPosReport", {"callsign": "BAW123", "fix": "52/40", "est": "1210"}, ck)[0], 400)   # not Concorde
         self.assertEqual(self.call("/EditPosReport", {"callsign": "NOPE1", "fix": "52/40", "est": "1210"}, ck)[0], 404)
-        flights = {f["callsign"]: f for f in self.call("/GetAllFlightData")[1]}
+        flights = {f["callsign"]: f for f in self.call("/GetAllFlightData", None, ck)[1]}
         self.assertIn("52/50", flights["CONC1"]["posReports"])
         self.assertNotIn("posReports", flights["BAW123"])
         self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "est": "", "act": ""}, ck)       # clearing removes the row
