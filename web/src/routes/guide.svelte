@@ -44,6 +44,8 @@
       <li>The plugin pack (the download box above) and your <b>key</b> from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>. Do not share the key.</li>
     </ul>
 
+    <p class="mb-6 p-3 border-2 border-blue-10 bg-blue-3"><b>Short cut:</b> the <a class="underline font-bold" href="/vNAAATS-sector-pack.zip">ready-made sector pack</a> already has the Gander sector files, the plugin and the vNAAATS radar screen set up. If you use it, read the readme inside the zip, add your key, and you can skip to step 5.</p>
+
     <h2 class="text-2xl font-bold mb-2">1. Get the Gander package</h2>
     <p class="mb-6 opacity-90">Download and run the Gander Oceanic package from <b>AeroNav</b>: <a class="underline" href="https://files.aero-nav.com/EXCXO">files.aero-nav.com/EXCXO</a>. Open EuroScope with that package once, so you can see the oceanic map, then close EuroScope.</p>
 

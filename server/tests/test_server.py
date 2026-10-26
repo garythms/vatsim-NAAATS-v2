@@ -558,3 +558,8 @@ class ConcordeTrackTest(unittest.TestCase):
         rec = s.convert_network_pilot({"callsign": "BAW1", "flight_plan": {"aircraft_short": "CONC", "departure": "EGLL", "arrival": "KJFK",
                                        "altitude": "50000", "deptime": "1200", "route": "DCT " + pts + " DCT"}}, [])
         self.assertEqual(rec["track"], "SM")
+
+
+class ZipServedTest(unittest.TestCase):
+    def test_zip_has_a_type(self):
+        self.assertEqual(s.MIME[".zip"], "application/zip")

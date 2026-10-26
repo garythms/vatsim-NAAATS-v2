@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 2.0.0 - 2026-10-26
+- The ready-made sector pack (Gander sector files, plugin 2.0.0, vNAAATS radar screen and profile) can be downloaded from /download and is mentioned in the guide.
 - First full release of vNAAATS V2 (server 2.0.0, plugin 2.0.0). The display, server and plugin now share the version number 2.0.0; no features changed from 0.20.0 / 0.21.0 / 1.5b23.
 
 ## 0.20.0 - 2026-10-26

@@ -1110,7 +1110,7 @@ def validate_edit(body):
 # ----------------------------------------------------------------------------- http
 MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".json": "application/json",
         ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon",
-        ".webmanifest": "application/manifest+json", ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json", ".mp4": "video/mp4", ".pdf": "application/pdf"}
+        ".webmanifest": "application/manifest+json", ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json", ".mp4": "video/mp4", ".pdf": "application/pdf", ".zip": "application/zip"}
 
 
 def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None):
@@ -1474,7 +1474,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             with open(full, "rb") as f:
                 body = f.read()
             ext = os.path.splitext(full)[1].lower()
-            if ext in (".mp4", ".pdf"):                                 # media: phones ask for byte ranges before they will play a video
+            if ext in (".mp4", ".pdf", ".zip"):                               # media: phones ask for byte ranges before they will play a video
                 return self._send_media(body, MIME[ext])
             self._send(200, body, MIME.get(ext, "application/octet-stream"))
             return True
