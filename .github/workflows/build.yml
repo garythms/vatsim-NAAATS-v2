@@ -53,34 +53,4 @@ jobs:
         run: |
           gh release delete latest-build --yes --cleanup-tag 2>$null
           gh release create latest-build VatsimNAAATS-plugin.zip pkg/VatsimNAAATS.dll --prerelease --target ${{ github.sha }} --title "Latest plugin build" --notes "Automatic build of the server-and-squawk branch (${{ github.sha }})."
-      # Optional Discord notice when the plugin version number changes (needs the repository secret DISCORD_WEBHOOK).
-      - name: Announce on Discord
-        if: github.event_name == 'push' && github.ref_name == 'server-and-squawk'
-        shell: pwsh
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          DISCORD_ROLE_ID: ${{ secrets.DISCORD_ROLE_ID }}
-        run: |
-          try {
-            if (-not $env:DISCORD_WEBHOOK) { Write-Host "No DISCORD_WEBHOOK secret set - skipping."; exit 0 }
-            $ver = (Get-Content pluginversion.txt -Raw).Trim()
-            $prev = ""
-            try { $prev = ((git show HEAD~1:pluginversion.txt) -join "").Trim() } catch { }
-            if ($ver -eq $prev) { Write-Host "Version unchanged ($ver) - skipping."; exit 0 }
-            $lines = Get-Content VatsimNAAATS/README.txt
-            $notes = @(); $on = $false
-            foreach ($l in $lines) {
-              if ($l -match "^NEW IN $([regex]::Escape($ver))") { $on = $true; $notes += ($l -replace "^NEW IN [^:]*:?\s*", ""); continue }
-              if ($on -and $l.Trim() -eq "") { break }
-              if ($on) { $notes += $l }
-            }
-            $text = ($notes -join "`n").Trim()
-            $role = "@here "
-            $mentions = @{ parse = @("everyone") }   # @here needs the "everyone" permission in allowed_mentions
-            $msg = "$role**vNAAATS plugin $ver is out**`n"
-            if ($text) { $msg += "`n$text`n" }
-            $msg += "`nUpdating? Close EuroScope and replace only VatsimNAAATS.dll (keep your vnaaats.cfg): https://vnaaats.com/download`nFirst time? https://vnaaats.com/guide"
-            if ($msg.Length -gt 1900) { $msg = $msg.Substring(0, 1900) }
-            Invoke-RestMethod -Uri $env:DISCORD_WEBHOOK -Method Post -ContentType "application/json" -Body (@{ content = $msg; allowed_mentions = $mentions } | ConvertTo-Json -Depth 5) | Out-Null
-            Write-Host "Posted to Discord."
-          } catch { Write-Host "Discord notice failed (build is fine): $($_.Exception.Message)" }
+      # Plugin release notices to Discord are posted by the server (deploy/plugin_announce.py), not from here.

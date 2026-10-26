@@ -53,8 +53,11 @@ fi
 
 echo "== Service"
 cp "$SRC/deploy/vnaaats.service" /etc/systemd/system/vnaaats.service
+mkdir -p "$APP/deploy" && cp "$SRC/deploy/plugin_announce.py" "$APP/deploy/"
+cp "$SRC/deploy/vnaaats-plugin-notice.service" "$SRC/deploy/vnaaats-plugin-notice.timer" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now vnaaats
+systemctl enable --now vnaaats-plugin-notice.timer
 systemctl restart vnaaats
 
 echo "== Web front (Caddy)"
