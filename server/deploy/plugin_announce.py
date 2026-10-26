@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Post a Discord notice (with @here) when a new plugin build is published on GitHub. Run every few minutes by a systemd timer.
+"""Post a Discord notice when a new plugin build is published on GitHub. Run every few minutes by a systemd timer.
 
 Uses the same VNAAATS_DISCORD_WEBHOOK as announce.py (in /etc/vnaaats.env). Nothing is posted the first time it runs (it just
 remembers the current version), so installing it never causes a surprise ping.  --force posts the current version once (a test).
@@ -73,12 +73,12 @@ def main():
         return
     if last == ver and not force:
         return
-    msg = "@here **vNAAATS plugin %s is out**\n" % ver
+    msg = "**vNAAATS plugin %s is out**\n" % ver
     text = notes_for(readme, ver)
     if text:
         msg += "\n" + text + "\n"
     msg += "\nUpdating? Close EuroScope and replace only VatsimNAAATS.dll (keep your vnaaats.cfg): https://vnaaats.com/download\nFirst time? https://vnaaats.com/guide"
-    req = urllib.request.Request(hook, data=json.dumps({"content": msg[:1900], "allowed_mentions": {"parse": ["everyone"]}}).encode(),
+    req = urllib.request.Request(hook, data=json.dumps({"content": msg[:1900], "allowed_mentions": {"parse": []}}).encode(),
                                  headers={"Content-Type": "application/json", "User-Agent": "vnaaats-plugin-notice"})
     try:
         urllib.request.urlopen(req, timeout=15).read()

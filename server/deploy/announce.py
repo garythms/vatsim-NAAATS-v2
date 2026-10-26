@@ -60,12 +60,12 @@ def main():
             return
     except Exception:
         pass
-    msg = "@here **vNAAATS update installed** - server %s%s\n" % (server_v, (", display " + display_v) if display_v else "")
+    msg = "**vNAAATS update installed** - server %s%s\n" % (server_v, (", display " + display_v) if display_v else "")
     notes = newest_changelog(os.path.join(pkg, "CHANGELOG-display.md"))
     if notes:
         msg += "\n" + notes + "\n"
     msg += "\nHard refresh the page (Ctrl+Shift+R) to pick it up: https://vnaaats.com/fdd"
-    req = urllib.request.Request(hook, data=json.dumps({"content": msg[:1900], "allowed_mentions": {"parse": ["everyone"]}}).encode(),
+    req = urllib.request.Request(hook, data=json.dumps({"content": msg[:1900], "allowed_mentions": {"parse": []}}).encode(),
                                  headers={"Content-Type": "application/json", "User-Agent": "vnaaats-announce"})
     try:
         urllib.request.urlopen(req, timeout=15).read()
