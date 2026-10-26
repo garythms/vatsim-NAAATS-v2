@@ -5,6 +5,7 @@ on:
   push:
     branches: [server-and-squawk]
     paths: ['server/**', 'web/**', '.github/workflows/server-package.yml']
+    tags: ['v*']
   workflow_dispatch:
 permissions:
   contents: write
@@ -37,6 +38,7 @@ jobs:
           find vnaaats-server -name __pycache__ -prune -exec rm -rf {} +
           tar -czf vnaaats-server.tar.gz vnaaats-server
       - name: Publish as the server-latest pre-release
+        if: github.ref_type == 'branch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -45,3 +47,10 @@ jobs:
             --title "Server package (latest)" \
             --notes "Latest server and built flight data display. Install on the server with one command (see the project chat). Contains no keys or passwords." \
             --target "${{ github.sha }}"
+      - name: Attach to the version release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 40); do gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break; sleep 20; done
+          gh release upload "$GITHUB_REF_NAME" vnaaats-server.tar.gz --clobber

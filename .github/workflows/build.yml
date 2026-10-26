@@ -36,7 +36,7 @@ jobs:
             **/Release/VatsimNAAATS.dll
             VatsimNAAATS/vnaaats.example.cfg
       - name: Package
-        if: github.event_name == 'push' && github.ref_name == 'server-and-squawk'
+        if: github.event_name == 'push' && (github.ref_name == 'server-and-squawk' || startsWith(github.ref, 'refs/tags/v'))
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force pkg | Out-Null
@@ -54,3 +54,11 @@ jobs:
           gh release delete latest-build --yes --cleanup-tag 2>$null
           gh release create latest-build VatsimNAAATS-plugin.zip pkg/VatsimNAAATS.dll --prerelease --target ${{ github.sha }} --title "Latest plugin build" --notes "Automatic build of the server-and-squawk branch (${{ github.sha }})."
       # Plugin release notices to Discord are posted by the server (deploy/plugin_announce.py), not from here.
+      # A version tag (for example v2.0.0) makes a normal, non-pre-release GitHub release with the plugin files.
+      - name: Publish version release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" VatsimNAAATS-plugin.zip pkg/VatsimNAAATS.dll --title "vNAAATS ${{ github.ref_name }}" --notes-file RELEASE-NOTES.md --verify-tag

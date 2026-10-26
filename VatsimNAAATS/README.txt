@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 2.0.0: the first full release of vNAAATS V2. It collects everything from the 1.5 builds: the live web Flight Data Display, CPDLC, natTrak clearances, Auto RCL, tracking and handoffs from the web, re-tracking after a crash, Concorde tracks and position reports, personal keys for certified oceanic controllers and the two crash fixes from 1.5b21 and 1.5b22. Replace only VatsimNAAATS.dll and keep your vnaaats.cfg. Needs server 2.0.0.
+
 NEW IN 1.5b23: when EuroScope refuses a track or handoff accept from the web FDD, the message and the log now say who has the aircraft, who the handoff was offered to and who you are.
 
 NEW IN 1.5b22: fixes a second EuroScope crash that could happen when an aircraft you had selected (with its route drawn) left your area and its data was removed. Removal now happens on the drawing thread, after the selection and route are cleared.

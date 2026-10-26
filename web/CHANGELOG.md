@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.0.0 - 2026-10-26
+- First full release of vNAAATS V2 (server 2.0.0, plugin 2.0.0). The display, server and plugin now share the version number 2.0.0; no features changed from 0.20.0 / 0.21.0 / 1.5b23.
+
 ## 0.20.0 - 2026-10-26
 - Concorde tracks (server 0.21.0): SM (westbound), SN (eastbound), SO (overflow) and SP (Caribbean) are listed in a "Supersonic (Concorde)" group in the track panel, from the Gander Oceanic SOPs (Annex B 1.1.2). A Concorde that files their points (SM20W, SN30W ...) or the same coordinates is put on its track and in its own group. They are web display only: EuroScope is not sent them.
 - Block level: flights on a Concorde track show the block level (B470-600) instead of a single level on the strip, and "Block FL470-600" in the aircraft menu and track panel.
