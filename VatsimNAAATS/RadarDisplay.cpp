@@ -305,7 +305,12 @@ void CRadarDisplay::RunRemoteCommands()
 				if (!mine && !trackedBy.empty() && !handoffToMe) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is already tracked by " + trackedBy); continue; }
 				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(cmd.Callsign);
 				if (!fp->IsValid) { CDataHandler::ReportRemoteResult(cmd.Id, false, "vNAAATS has not loaded " + cmd.Callsign + " yet - try again in a few seconds"); continue; }
-				if (!mine && !es.StartTracking()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not let you track " + cmd.Callsign); continue; }
+				if (!mine && !es.StartTracking()) {
+					string why = "tracked by " + (trackedBy.empty() ? string("nobody") : trackedBy) + ", handoff offered to " + (string(es.GetHandoffTargetControllerCallsign()).empty() ? string("nobody") : string(es.GetHandoffTargetControllerCallsign())) + ", you are " + string(plugin->ControllerMyself().GetCallsign());
+					CLogger::Log(CLogType::WARN, "StartTracking refused for " + cmd.Callsign + ": " + why + ".", "CRadarDisplay::RunRemoteCommands");
+					CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not let you track " + cmd.Callsign + " (" + why + ")");
+					continue;
+				}
 				fp->FlightLevel = cmd.Level;
 				fp->Mach = cmd.Mach;
 				if (!cmd.Selcal.empty()) { fp->SELCAL = cmd.Selcal; fp->SelcalManual = true; }
