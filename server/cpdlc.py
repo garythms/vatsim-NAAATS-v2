@@ -493,6 +493,7 @@ class CpdlcStation:
 
 
 # ----------------------------------------------------------------------------- the hub: one station per signed-in controller
+FORCE_LOCKOUT_SECONDS = 180          # after a forced log-out nobody may sign in to that station for this long (Hoppie keeps the old logon "online" for a while)
 DEFAULT_STATIONS = {"CZQO": "CZQX", "EGGX": "EGGX", "NAT": "NATX"}       # position prefix -> CPDLC station callsign
 
 
@@ -519,6 +520,8 @@ class CpdlcHub:
         self.start_threads = start_threads
         self.lock = threading.RLock()
         self.running = {}        # station callsign -> {"token", "obj"}
+        self.locked_until = {}   # station callsign -> time before which nobody may log on (after a forced log-out)
+        self.kicked = {}         # web session token -> station it was removed from
         self.enabled = True
 
     def station_for(self, position):
@@ -549,7 +552,11 @@ class CpdlcHub:
         if not re.fullmatch(r"[A-Za-z0-9]{6,40}", code):
             return None, "that does not look like a Hoppie logon code"
         self.reap()
+        wait = self.lockout_seconds(station)
+        if wait > 0:
+            return None, "%s was force-logged-out. Wait %d:%02d before signing in again" % (station, wait // 60, wait % 60)
         with self.lock:
+            self.kicked.pop(token, None)
             cur = self.running.get(station)
             if cur and cur["token"] != token:
                 return None, "%s is already in use by another controller" % station
@@ -571,6 +578,28 @@ class CpdlcHub:
             threading.Thread(target=obj.loop, daemon=True).start()
         log.info("CPDLC station %s started", station)
         return station, None
+
+    def known_stations(self):
+        return set(self.stations_map.values()) if self.stations_map else set(DEFAULT_STATIONS.values())
+
+    def lockout_seconds(self, station):
+        with self.lock:
+            return max(0, int(self.locked_until.get((station or "").upper(), 0) - self.now() + 0.999))
+
+    def force_logout(self, callsign, by=""):
+        """Remove whoever holds this CPDLC station from this server and block new sign-ins for FORCE_LOCKOUT_SECONDS.
+        Returns (seconds_locked, error). Raises nothing."""
+        cs = (callsign or "").strip().upper()
+        if cs not in self.known_stations():
+            return 0, "%s is not a CPDLC station here (known: %s)" % (cs or "blank", ", ".join(sorted(self.known_stations())))
+        with self.lock:
+            cur = self.running.pop(cs, None)
+            if cur:
+                cur["obj"].stop()                       # polling stops and the Hoppie code is forgotten
+                self.kicked[cur["token"]] = cs
+            self.locked_until[cs] = self.now() + FORCE_LOCKOUT_SECONDS
+        log.warning("CPDLC station %s force-logged-out by %s (%s)", cs, by or "unknown", "was in use" if cur else "was not in use")
+        return FORCE_LOCKOUT_SECONDS, ""
 
     def stop(self, token):
         with self.lock:
@@ -624,7 +653,10 @@ class CpdlcHub:
             taken = bool(station and station in self.running and not mine)
         if mine:
             st = mine.status()
-            st.update({"active": True, "position": position, "stationForPosition": station, "inUse": False})
+            st.update({"active": True, "position": position, "stationForPosition": station, "inUse": False, "lockedSeconds": self.lockout_seconds(station)})
             return st
+        with self.lock:
+            was_kicked = self.kicked.get(token) if token else None
         return {"enabled": True, "active": False, "station": station or "", "stationForPosition": station or "", "inUse": taken,
+                "lockedSeconds": self.lockout_seconds(station), "kickedFrom": was_kicked or "",
                 "connected": [{"callsign": c, "since": 0, "unread": 0} for c in others], "unread": {}, "lastPoll": None, "error": ""}

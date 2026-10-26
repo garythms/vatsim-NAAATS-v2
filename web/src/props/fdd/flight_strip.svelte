@@ -19,6 +19,7 @@
   //export let datalink: boolean;
   export let direction: boolean;
   export let isEquipped: boolean;
+  export let faded: boolean = false;   // handed off / past its exit point: drawn dimmed
   export let alert: boolean = false; // natTrak request waiting for action: flash
   //export let state: string;
   //export let relevant: boolean;
@@ -80,7 +81,7 @@
   }
 </script>
 
-<div id={"strip-" + callsign} style={$espicked === callsign ? "outline: 3px solid #fde047; outline-offset: -3px;" : ""} class="hover:border-green-500 hover:border-2" title={tip}
+<div id={"strip-" + callsign} style={($espicked === callsign ? "outline: 3px solid #fde047; outline-offset: -3px;" : "") + (faded ? " opacity: 0.45;" : "")} class="hover:border-green-500 hover:border-2" title={tip}
   on:click={() => {
     if (dataHandler.isNatTrakAlert(callsign)) dataHandler.openNatTrakFor(callsign); // flashing request: open natTrak
     dataHandler.ackNatTrak(callsign);

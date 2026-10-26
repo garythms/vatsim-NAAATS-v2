@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.0.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.0.1"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1316,7 +1316,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if cpdlc:
                         cpdlc.stop(self._token())                  # a new position means a different CPDLC station
                     return self._send(200, self._status(self._session()))
-                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom"):
+                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom", "/cpdlc/force-logout"):
                     if not cpdlc:
                         return self._send(404, {"error": "CPDLC is not switched on"})
                     sess = self._session()
@@ -1328,6 +1328,15 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if p == "/cpdlc/logoff":
                         cpdlc.stop(token)
                         return self._send(200, {"ok": True})
+                    if p == "/cpdlc/force-logout":
+                        # two deliberate steps: the callsign typed out in full AND the confirm flag the page sets after its warnings
+                        typed = str(body.get("callsign", "")).strip().upper()
+                        if body.get("confirm") is not True or str(body.get("understand", "")).strip().upper() != "LOG OUT":
+                            return self._send(400, {"error": "confirm the warnings first (type LOG OUT)"})
+                        secs, err = cpdlc.force_logout(typed, by="%s (%s)" % (sess["position"], sess["name"]))
+                        if err:
+                            return self._send(400, {"error": err})
+                        return self._send(200, {"ok": True, "callsign": typed, "lockedSeconds": secs})
                     if p == "/cpdlc/logon":
                         station, err = cpdlc.start(token, sess["position"], str(body.get("code", "")))
                         if err:

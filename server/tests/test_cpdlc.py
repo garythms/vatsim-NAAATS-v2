@@ -428,3 +428,23 @@ class HttpTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ForceLogoutTests(unittest.TestCase):
+    def test_force_logout_blocks_signin_for_three_minutes(self):
+        clock = [1000.0]
+        hop = FakeHoppie()
+        hub = c.CpdlcHub(os.path.join(tempfile.mkdtemp(), "f.db"), make_client=lambda code, st: c.HoppieClient("http://x", code, st, http=hop),
+                         start_threads=False, now=lambda: clock[0])
+        self.assertEqual(hub.start("t1", "CZQO_CTR", "abcdef12"), ("CZQX", None))
+        self.assertIn("not a CPDLC station", hub.force_logout("ABCD", by="x")[1])
+        secs, err = hub.force_logout("czqx", by="CZQO_CTR")
+        self.assertEqual((secs, err), (180, ""))
+        self.assertIsNone(hub.get("t1"))
+        self.assertEqual(hub.status("t1", "CZQO_CTR")["kickedFrom"], "CZQX")
+        self.assertIn("Wait 3:00", hub.start("t2", "CZQO_CTR", "zzzzzz99")[1])
+        clock[0] += 100
+        self.assertIn("Wait 1:20", hub.start("t2", "CZQO_CTR", "zzzzzz99")[1])
+        self.assertEqual(hub.status("t2", "CZQO_CTR")["lockedSeconds"], 80)
+        clock[0] += 81
+        self.assertEqual(hub.start("t2", "CZQO_CTR", "zzzzzz99"), ("CZQX", None))

@@ -2,6 +2,12 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.0.2 - 2026-10-26
+- Flights that are handed off (an oceanic controller stopped tracking) or past their exit point now stay on the list for 15 minutes, drawn faded.
+- If you are signed in as a Gander (CZQO_) or Shanwick (EGGX_) position, flights of the other OCA that are 30 minutes or less from 30W are also listed, as normal. Flights that have crossed 30W to the neighbour stay 15 minutes, faded. Other positions (NAT_FSS ...) see everything as before.
+- CPDLC: "Force log out a CPDLC callsign..." in the CPDLC drawer. Two warning steps (type the callsign, then type LOG OUT); the station is cleared and nobody can sign in to it for 3 minutes.
+- Auto RCL (server 2.0.1): never sent to aircraft already inside or through the oceanic area; waits 5 minutes after an oceanic controller comes online; flights already at/in the OCA at that moment are never reminded.
+
 ## 2.0.1 - 2026-10-26
 - New filter boxes replace PST / FaD / WST / TERM: TRKD (flights you are tracking at your position), EB, WB, HL (above FL340) and LL (FL340 and below). Nothing ticked shows everything; the groups (tracked, direction, level) narrow each other and within a group either box counts. The HL / LL buttons are gone (they are now boxes); ALL TK and RR stay.
 

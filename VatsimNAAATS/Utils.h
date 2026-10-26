@@ -66,7 +66,8 @@ class CUtils { // TODO: refactor into namespace
 		static bool IsExitPoint(string pointName, bool direction);
 
 		// Check if the aircraft is to be displayed on the screen
-		static bool IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool filtersDisabled = false);
+		static bool IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool filtersDisabled = false); // includes a 15 minute keep after leaving scope
+		static bool IsAircraftRelevantNow(CRadarScreen* screen, CRadarTarget* target, bool filtersDisabled = false);
 
 		// Check if aircraft is AGCS equipped
 		static bool IsAircraftEquipped(string rawRemarks, string rawAcInfo, char equipCode);

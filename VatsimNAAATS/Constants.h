@@ -109,7 +109,7 @@ const vector<string> pointsShanwick = { "RATSU",
 /// VALUES
 // Plugin info
 const string PLUGIN_NAME = "vNAAATS";
-const string PLUGIN_VERSION = "2.0.0";
+const string PLUGIN_VERSION = "2.0.1";
 const string PLUGIN_AUTHOR = "Gary Thomas";
 const string PLUGIN_COPYRIGHT = "(C) 2026 Gary Thomas vNAAATS";
 const bool IS_ALPHA = false;

@@ -13,6 +13,8 @@ export type CpdlcStatus = {
   active?: boolean;               // this browser's controller is signed in to a CPDLC station
   stationForPosition?: string;    // the station that belongs to the chosen position
   inUse?: boolean;                // that station is being used by someone else
+  lockedSeconds?: number;         // after a forced log-out: seconds before anyone may sign in to the station
+  kickedFrom?: string;            // this browser was force-logged-out of that station
   autoAccept?: boolean;
   connected: { callsign: string; since: number; unread: number }[];
   unread: Record<string, number>;
@@ -151,6 +153,13 @@ export async function logonCpdlc(code: string): Promise<string> {
   const r = await post("/cpdlc/logon", { code });
   if (r.ok) { prevUnread = -1; knownConnected = null; refreshCpdlc(); return ""; }
   return r.data.error ?? "could not sign in to CPDLC";
+}
+
+// Force a CPDLC station callsign off this server. Returns an error message, or "" on success.
+export async function forceLogout(callsign: string, understand: string): Promise<string> {
+  const r = await post("/cpdlc/force-logout", { callsign, confirm: true, understand });
+  refreshCpdlc();
+  return r.ok ? "" : (r.data.error ?? "could not force the log out");
 }
 
 export async function logoffCpdlc(): Promise<void> {

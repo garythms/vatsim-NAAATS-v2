@@ -640,7 +640,7 @@ export const NO_TIME_RANGE_NM: number = 200;
 // Flights with no times, the selected flight, CPDLC-connected flights and pending natTrak requests always show.
 // Flights an oceanic controller (CZQO, EGGX, NAT_FSS ...) is tracking stay on the display until untracked, then for OCEANIC_GRACE_MIN more minutes.
 const OCEANIC_PREFIX = /^(CZQO|CZQX|EGGX|NAT|BIRD|KZWY|LPPO|ENOB)/i;
-const OCEANIC_GRACE_MIN = 5;
+const OCEANIC_GRACE_MIN = 15;   // after handoff / untracked an oceanic flight stays (faded) this long
 const oceanicSeen = new Map<string, number>();   // callsign -> last time (ms) an oceanic controller was tracking it
 function oceanicHold(ac: Aircraft): boolean {
   const cs = ac.Callsign.toUpperCase();
@@ -648,6 +648,57 @@ function oceanicHold(ac: Aircraft): boolean {
   if (tracked) { oceanicSeen.set(cs, Date.now()); return true; }
   const last = oceanicSeen.get(cs);
   return last !== undefined && Date.now() - last < OCEANIC_GRACE_MIN * 60000;
+}
+
+// --- single-position view: a Gander (CZQO_) or Shanwick (EGGX_) controller also sees the neighbour's traffic that is
+// NEIGHBOUR_MIN or less from 30W, the boundary between the two. Anything else (NAT_FSS ...) sees everything.
+export type Scope = "all" | "gander" | "shanwick";
+export const NEIGHBOUR_MIN = 30;
+export const FADE_KEEP_MIN = 15;
+export function scopeForPosition(position: string | undefined | null): Scope {
+  const p = (position ?? "").toUpperCase();
+  if (p.startsWith("CZQO_") || p.startsWith("CZQX_")) return "gander";
+  if (p.startsWith("EGGX_")) return "shanwick";
+  return "all";
+}
+
+// Minutes from now until the flight is estimated at 30W (negative = already across). null = no 30W point or no time for it.
+export function minutesTo30W(ac: Aircraft): number | null {
+  const route: string[] = ac.Route ?? [];
+  const times: string[] = ac.RouteEtas ?? [];
+  const i = route.findIndex((r) => /^\d{2,4}(\.\d)?N?\/30(W)?$/i.test(String(r).trim()));
+  if (i < 0 || i >= times.length) return null;
+  const m: number = timeToMin(times[i]);
+  if (m < 0) return null;
+  const n: Date = new Date();
+  const nowMin: number = n.getUTCHours() * 60 + n.getUTCMinutes();
+  return (((m - nowMin + 720) % 1440) + 1440) % 1440 - 720;
+}
+
+// Where does the flight sit for a single-position controller? "own" = in your OCA, "neighbour" = the other OCA but
+// close to 30W, "gone" = already handed over across 30W (kept faded for FADE_KEEP_MIN), "far" = neighbour's, not yet close.
+function scopeState(ac: Aircraft, scope: Scope): "own" | "neighbour" | "gone" | "far" {
+  if (scope === "all") return "own";
+  const m = minutesTo30W(ac);
+  if (m === null) return "own";
+  const eb: boolean = !!ac.Direction;
+  // Gander owns eastbound flights until 30W and westbound ones after it; Shanwick the other way round.
+  const mineBefore: boolean = scope === "gander" ? eb : !eb;       // my flights are on my side of 30W while m > 0
+  if (mineBefore) return m > 0 ? "own" : (m >= -FADE_KEEP_MIN ? "gone" : "far");
+  return m > NEIGHBOUR_MIN ? "far" : (m > 0 ? "neighbour" : "own");
+}
+
+// What the list does with one flight: show it or not, and whether to draw it faded (handed off / past its exit point).
+export function trafficView(ac: Aircraft, ahead: number, behind: number, scope: Scope): { show: boolean; faded: boolean } {
+  const pinned = (asel != null && asel.Callsign === ac.Callsign) || ac.Cpdlc || ac.Manual;
+  const tracked = (!!ac.TrackedBy && ac.TrackedBy !== "NATTRAK" && OCEANIC_PREFIX.test(ac.TrackedBy)) || (ac.Comm?.kind === "oceanic");
+  const st = scopeState(ac, scope);
+  if (!pinned && !tracked && (st === "far")) return { show: false, faded: false };
+  if (!inTrafficWindow(ac, ahead, behind) && !(st === "gone" || st === "neighbour")) return { show: false, faded: false };
+  const sp = etaSpan(ac);
+  const past: boolean = !!sp && sp.exit < 0;
+  const handedOff: boolean = !tracked && oceanicSeen.has(ac.Callsign.toUpperCase());
+  return { show: true, faded: st === "gone" || past || handedOff };
 }
 
 export function inTrafficWindow(ac: Aircraft, ahead: number, behind: number): boolean {

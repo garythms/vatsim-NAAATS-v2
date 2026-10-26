@@ -5,6 +5,9 @@
 #include "Constants.h"
 #include "RadarDisplay.h"
 #include "Logger.h"
+#include <chrono>
+#include <map>
+#include <mutex>
 
 // Default values
 int CUtils::InboundX = 1400;
@@ -662,7 +665,28 @@ bool CUtils::IsExitPoint(string pointName, bool side) {
 	}
 }
 
+// An aircraft that has left the relevant scope (handed off, through the exit point) stays relevant for this long.
+static const double RELEVANT_KEEP_SECONDS = 15.0 * 60.0;
+static std::mutex relevantLock;
+static std::map<std::string, std::chrono::steady_clock::time_point> lastRelevant;
+
 bool CUtils::IsAircraftRelevant(CRadarScreen* screen, CRadarTarget* target, bool filtersDisabled) {
+	std::string cs = target->GetCallsign();
+	auto now = std::chrono::steady_clock::now();
+	if (IsAircraftRelevantNow(screen, target, filtersDisabled)) {
+		std::lock_guard<std::mutex> lk(relevantLock);
+		lastRelevant[cs] = now;
+		return true;
+	}
+	std::lock_guard<std::mutex> lk(relevantLock);
+	auto it = lastRelevant.find(cs);
+	if (it == lastRelevant.end()) return false;
+	if (std::chrono::duration<double>(now - it->second).count() < RELEVANT_KEEP_SECONDS) return true;
+	lastRelevant.erase(it);
+	return false;
+}
+
+bool CUtils::IsAircraftRelevantNow(CRadarScreen* screen, CRadarTarget* target, bool filtersDisabled) {
 	// Flag
 	bool valid = true;
 

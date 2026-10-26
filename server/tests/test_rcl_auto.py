@@ -30,11 +30,13 @@ class RclTests(unittest.TestCase):
         self.rcl = r.RclAuto(self.store, self.q, self.net, self.nat, lambda route, pos: self.dist[0], ("CZQO", "EGGX"), now=lambda: self.t[0], start=False)
         self.rec = {"callsign": "BAW1", "route": "A B", "routeEtas": "1230 1300", "trackedBy": ""}
         self.net.flights = [self.rec]
-        self.net.pos["BAW1"] = (50.0, -20.0)
+        self.net.pos["BAW1"] = (51.0, -8.0)
         self.net.pilots["BAW1"] = {"groundspeed": 450}
 
-    def poll(self, me="CZQO_CTR"):
+    def poll(self, me="CZQO_CTR", settled=True):
         self.rcl.note_poll(me)
+        if settled and self.rcl.sender_since is None and self.rcl.sender():
+            self.rcl.sender_since = self.t[0] - r.START_DELAY_SECONDS - 1     # pretend the session has already settled
 
     def test_entry_minutes(self):
         self.assertEqual(r.entry_minutes_from_now("1230 1300", 12 * 60), 30)
@@ -123,6 +125,63 @@ class RclTests(unittest.TestCase):
         self.assertIsNone(self.rcl.tick())
         self.rcl.set_enabled(True)
         self.assertEqual(self.rcl.tick(), "BAW1")
+
+    def test_inside_or_through_the_oca_is_never_due(self):
+        self.assertTrue(self.rcl.due(self.rec))
+        self.net.pos["BAW1"] = (55.0, -30.0)                            # mid-Atlantic
+        self.assertFalse(self.rcl.due(self.rec))
+        self.dist[0] = 50
+        self.rec["routeEtas"] = "-- --"
+        self.assertFalse(self.rcl.due(self.rec))                        # no times and close to a route fix, still inside
+        self.net.pos["BAW1"] = (51.0, -5.0)                             # east of Shanwick
+        self.rec["direction"] = True                                    # eastbound = through it
+        self.assertFalse(self.rcl.due(self.rec))
+        self.rec["direction"] = False                                   # westbound = about to enter
+        self.dist[0] = 150
+        self.assertTrue(self.rcl.due(self.rec))
+        self.net.pos["BAW1"] = (48.0, -60.0)                            # west of Gander
+        self.assertFalse(self.rcl.due(self.rec))                        # westbound and past the area
+        self.rec["direction"] = True
+        self.assertTrue(self.rcl.due(self.rec))                         # eastbound and not yet in it
+
+    def test_waits_five_minutes_after_the_session_starts(self):
+        self.poll(settled=False)
+        self.assertIsNone(self.rcl.tick())                              # just came online
+        self.t[0] += r.START_DELAY_SECONDS - 5
+        self.poll(settled=False)
+        self.assertIsNone(self.rcl.tick())
+        self.t[0] += 10
+        self.poll(settled=False)
+        self.assertEqual(self.rcl.tick(), "BAW1")
+
+    def test_baseline_skips_flights_already_in_the_oca(self):
+        inside = {"callsign": "DLH2", "route": "A B", "routeEtas": "-- --", "trackedBy": ""}
+        late = {"callsign": "AAL3", "route": "A B", "routeEtas": "1210 1300", "trackedBy": ""}
+        self.net.flights = [inside, late, self.rec]
+        for cs, pos in (("DLH2", (55.0, -35.0)), ("AAL3", (51.0, -9.0))):
+            self.net.pos[cs] = pos
+            self.net.pilots[cs] = {"groundspeed": 450}
+        self.dist[0] = 100
+        self.poll(settled=False)
+        self.assertIsNone(self.rcl.tick())
+        self.t[0] += r.START_DELAY_SECONDS + 1
+        self.poll(settled=False)
+        self.assertEqual(self.rcl.tick(), "BAW1")                       # only the flight that still has time
+        self.assertEqual(self.rcl.baseline, {"DLH2", "AAL3"})
+        self.net.pos["DLH2"] = (51.0, -9.0)                             # even if it later looks eligible it stays handled
+        self.assertFalse(self.rcl.due(inside))
+
+    def test_new_session_after_a_long_gap(self):
+        self.poll(settled=False)
+        self.rcl.tick()
+        self.t[0] += r.START_DELAY_SECONDS + 1
+        self.poll(settled=False)
+        self.rcl.tick()
+        self.t[0] += r.SENDER_GAP_RESET + 100                           # nobody online for a long while
+        self.assertIsNone(self.rcl.tick())
+        self.assertIsNone(self.rcl.sender_since)
+        self.poll(settled=False)
+        self.assertIsNone(self.rcl.tick())                              # the five minutes start again
 
 
 if __name__ == "__main__":

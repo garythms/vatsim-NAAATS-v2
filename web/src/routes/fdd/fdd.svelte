@@ -76,7 +76,7 @@
   let groupBy: string = "TRACK";   // TRACK | ENTRY
   // Traffic window: only flights within 60 min of the oceanic entry, until 5 min after the exit ("ALL" shows everything)
   const WIN_AHEAD: number = 60;
-  const WIN_BEHIND: number = 5;
+  const WIN_BEHIND: number = 15;   // minutes past the exit point (or the handoff) a flight stays, faded
   let windowMode: string = "WINDOW";
   try { if (localStorage.getItem("vnaaats.window") === "ALL") windowMode = "ALL"; } catch (e) { /* ignore */ }
   function setWindowMode(v: string): void { windowMode = v; try { localStorage.setItem("vnaaats.window", v); } catch (e) { /* ignore */ } }
@@ -130,7 +130,7 @@
     return out;
   }
   $: groups = buildGroups(tickN, windowMode, filter, showMine, showEb, showWb, showHl, showLl, search, groupBy, sortBy, $hidden, $espicked, $session.position);
-  $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) n++; })); return n; })() : 0;
+  $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.trafficView(ac, WIN_AHEAD, WIN_BEHIND, dataHandler.scopeForPosition($session.position)).show) n++; })); return n; })() : 0;
   // Number of fix columns: the longest route among the shown flights and track headers, so every row lines up
   $: cols = Math.min(10, Math.max(5, ...groups.map((g) => Math.max(g.track && g.track !== "RR" ? (dataHandler.currentNatTracks.get(g.track)?.Route.length ?? 0) : 0, ...g.rows.map((r: any) => r.RouteEtas.length)))));
   $: shownCount = groups.reduce((n, g) => n + g.rows.length, 0);
@@ -161,7 +161,7 @@
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
     if ($hidden[ac.Callsign.toUpperCase()]) return false;     // hidden by this person only
     if (!typeMatch(ac, mine, eb, wb, hl, ll)) return false;
-    if (windowMode === "WINDOW" && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) return false;
+    if (windowMode === "WINDOW" && !dataHandler.trafficView(ac, WIN_AHEAD, WIN_BEHIND, dataHandler.scopeForPosition($session.position)).show) return false;
     switch (f) {
       case "RR": return track == "RR";
       default: return true;
@@ -467,6 +467,7 @@
             updatedBy={ac.UpdatedBy}
             updatedAt={ac.UpdatedAt}
             direction={ac.Direction ?? false}
+            faded={tickN >= 0 && windowMode === "WINDOW" && dataHandler.trafficView(ac, WIN_AHEAD, WIN_BEHIND, dataHandler.scopeForPosition($session.position)).faded}
           />
         {/each}
       {/each}

@@ -45,6 +45,20 @@
     if (err === "") refresh();
     setTimeout(() => (sendMsg = ""), 8000);
   }
+  // Force log out: step 0 closed, 1 type the callsign, 2 read the warnings and type LOG OUT
+  let forceStep: number = 0;
+  let forceCs: string = "";
+  let forceConfirm: string = "";
+  let forceErr: string = "";
+  let forceBusy: boolean = false;
+  function forceCancel(): void { forceStep = 0; forceCs = ""; forceConfirm = ""; forceErr = ""; }
+  async function forceGo(): Promise<void> {
+    forceBusy = true;
+    forceErr = await cp.forceLogout(forceCs.trim(), forceConfirm);
+    forceBusy = false;
+    if (forceErr === "") { messages = []; forceCancel(); }
+  }
+  function mmss(n: number): string { return Math.floor(n / 60) + ":" + String(n % 60).padStart(2, "0"); }
   function signOut(): void { messages = []; cp.logoffCpdlc(); }
 
   $: connected = $cpdlcStatus.connected;
@@ -124,6 +138,38 @@
             </form>
             {#if logonErr}<div class="mt-1 text-yellow-300">{logonErr}</div>{/if}
           {/if}
+        </div>
+      {/if}
+      {#if canUse && $cpdlcStatus.kickedFrom}
+        <div class="p-2 border-b border-blue-4 text-sm text-yellow-300">You were force-logged-out of {$cpdlcStatus.kickedFrom} by a controller. Sign in again once the wait below is over.</div>
+      {/if}
+      {#if canUse && ($cpdlcStatus.lockedSeconds ?? 0) > 0}
+        <div class="p-2 border-b border-blue-4 text-sm text-yellow-300">Sign-in to {$cpdlcStatus.stationForPosition} is blocked for {mmss($cpdlcStatus.lockedSeconds ?? 0)} after a forced log out.</div>
+      {/if}
+      {#if canUse}
+        <div class="px-3 py-2 border-b border-blue-4 text-sm">
+          {#if forceStep === 0}
+            <span class="underline hover:cursor-pointer" on:click={() => (forceStep = 1)}>Force log out a CPDLC callsign...</span>
+          {:else if forceStep === 1}
+            <div class="font-bold mb-1">Force log out a CPDLC callsign</div>
+            <div class="opacity-80 mb-2">Type the CPDLC callsign to clear, for example CZQX. Use this only if the callsign is stuck because someone left without signing out.</div>
+            <input class="w-full px-2 py-1 text-black uppercase" placeholder="CPDLC callsign" bind:value={forceCs} />
+            <button class="mt-2 mr-2 px-4 py-1 font-bold bg-blue-10 text-black" disabled={forceCs.trim().length < 3} on:click={() => (forceStep = 2)}>Next</button>
+            <button class="mt-2 px-4 py-1 border border-blue-6" on:click={forceCancel}>Cancel</button>
+          {:else}
+            <div class="font-bold text-yellow-300 mb-1">Warning: force log out of {forceCs.trim().toUpperCase()}</div>
+            <ul class="list-disc ml-5 mb-2 text-yellow-300">
+              <li>Everyone using {forceCs.trim().toUpperCase()} on this server is logged out of the Hoppie callsign straight away, including a controller who is working traffic on it.</li>
+              <li>Aircraft connected through it lose their CPDLC connection and must log on again.</li>
+              <li>Nobody, including you, can sign in to {forceCs.trim().toUpperCase()} for 3 minutes afterwards.</li>
+              <li>This cannot be undone. Check with the other controller first.</li>
+            </ul>
+            <div class="mb-1">Type <b>LOG OUT</b> to confirm:</div>
+            <input class="w-full px-2 py-1 text-black uppercase" placeholder="LOG OUT" bind:value={forceConfirm} />
+            <button class="mt-2 mr-2 px-4 py-1 font-bold bg-red-600 text-white" disabled={forceBusy || forceConfirm.trim().toUpperCase() !== "LOG OUT"} on:click={forceGo}>{forceBusy ? "Working..." : "Force log out now"}</button>
+            <button class="mt-2 px-4 py-1 border border-blue-6" on:click={forceCancel}>Cancel</button>
+          {/if}
+          {#if forceErr}<div class="mt-1 text-yellow-300">{forceErr}</div>{/if}
         </div>
       {/if}
       {#if $cpdlcStatus.error}
