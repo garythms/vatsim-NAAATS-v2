@@ -194,3 +194,17 @@ class PersonalOnly(unittest.TestCase):
         self.assertEqual(self.call("/auth/password", {"name": "1234567", "password": self.issued["password"]})[0], 200)
         self.assertEqual(self.call("/PluginCommands?code=%s&me=CZQO_CTR" % SHARED)[0], 401)           # shared key refused
         self.assertEqual(self.call("/PluginCommands?code=%s&me=CZQO_CTR" % self.issued["key"])[0], 200)  # personal key accepted
+
+
+class ManualKeyTest(unittest.TestCase):
+    def test_manual_key_short_and_not_swept(self):
+        import tempfile, os
+        import members as mm
+        from vnaaats_server import FlightStore
+        d = tempfile.mkdtemp()
+        m = mm.MemberKeys(FlightStore(os.path.join(d, "t.db")))
+        out = m.issue("1017951", "Test Person", days=7, manual=True)
+        self.assertAlmostEqual((out["expires"] - m.now()) / 86400, 7, delta=0.01)
+        self.assertEqual(m.sync(["1"]), [])                      # roster sync leaves it alone
+        self.assertEqual(m.check_key(out["key"])[0], "1017951")
+        self.assertTrue(m.listing()[0]["manual"])

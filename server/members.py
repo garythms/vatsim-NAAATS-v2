@@ -38,6 +38,10 @@ class MemberKeys:
             store.db.execute("""CREATE TABLE IF NOT EXISTS members (cid TEXT PRIMARY KEY, name TEXT NOT NULL,
                 key_hash TEXT NOT NULL, pw_salt TEXT NOT NULL, pw_hash TEXT NOT NULL,
                 created REAL NOT NULL, expires REAL NOT NULL, revoked INTEGER NOT NULL DEFAULT 0, last_used REAL)""")
+            try:
+                store.db.execute("ALTER TABLE members ADD COLUMN manual INTEGER NOT NULL DEFAULT 0")   # 1 = temporary key handed out by the admin by hand
+            except Exception:
+                pass                                                                                  # column already there
             store.db.commit()
 
     def any(self):
@@ -45,7 +49,7 @@ class MemberKeys:
             return self.store.db.execute("SELECT 1 FROM members WHERE revoked=0 LIMIT 1").fetchone() is not None
 
     # --- issuing
-    def issue(self, cid, name):
+    def issue(self, cid, name, days=None, manual=False):
         cid = re.sub(r"\D", "", str(cid))[:9]
         name = " ".join(str(name or "").split())[:60]
         if not cid:
@@ -54,10 +58,10 @@ class MemberKeys:
         password = "".join(secrets.choice(PW_ALPHABET) for _ in range(12))
         salt = secrets.token_hex(16)
         t = self.now()
-        expires = t + DAYS * 86400
+        expires = t + (days if days else DAYS) * 86400
         with self.store.lock:
-            self.store.db.execute("INSERT OR REPLACE INTO members (cid, name, key_hash, pw_salt, pw_hash, created, expires, revoked, last_used) VALUES (?,?,?,?,?,?,?,0,NULL)",
-                                  (cid, name or cid, _hash_key(key.split(".", 1)[1]), salt, _hash_pw(password, salt), t, expires))
+            self.store.db.execute("INSERT OR REPLACE INTO members (cid, name, key_hash, pw_salt, pw_hash, created, expires, revoked, last_used, manual) VALUES (?,?,?,?,?,?,?,0,NULL,?)",
+                                  (cid, name or cid, _hash_key(key.split(".", 1)[1]), salt, _hash_pw(password, salt), t, expires, 1 if manual else 0))
             self.store.db.commit()
         return {"key": key, "password": password, "expires": expires, "cid": cid, "name": name or cid}
 
@@ -128,7 +132,7 @@ class MemberKeys:
         """Revoke every member whose CID is not in the list of members who are still certified."""
         keep = {re.sub(r"\D", "", str(c)) for c in active_cids}
         with self.store.lock:
-            rows = [r[0] for r in self.store.db.execute("SELECT cid FROM members WHERE revoked=0")]
+            rows = [r[0] for r in self.store.db.execute("SELECT cid FROM members WHERE revoked=0 AND manual=0")]
         gone = [c for c in rows if c not in keep]
         for c in gone:
             self.revoke(c)
@@ -136,9 +140,9 @@ class MemberKeys:
 
     def listing(self):
         with self.store.lock:
-            rows = self.store.db.execute("SELECT cid, name, created, expires, revoked, last_used FROM members ORDER BY name").fetchall()
+            rows = self.store.db.execute("SELECT cid, name, created, expires, revoked, last_used, manual FROM members ORDER BY name").fetchall()
         t = self.now()
-        return [{"cid": c, "name": n, "created": cr, "expires": ex, "revoked": bool(rv), "expired": ex < t, "lastUsed": lu} for c, n, cr, ex, rv, lu in rows]
+        return [{"cid": c, "name": n, "created": cr, "expires": ex, "revoked": bool(rv), "expired": ex < t, "lastUsed": lu, "manual": bool(mn)} for c, n, cr, ex, rv, lu, mn in rows]
 
 
 class RosterWatch:
@@ -197,7 +201,7 @@ class RosterWatch:
             return []
         with self.lock:
             ok = set(self.ok_cids)
-        live = [m["cid"] for m in self.members.listing() if not m["revoked"]]
+        live = [m["cid"] for m in self.members.listing() if not m["revoked"] and not m["manual"]]
         gone = [c for c in live if c not in ok]
         if live and len(gone) > len(live) * self.MAX_REVOKE_FRACTION and len(gone) > 2:
             with self.lock:
