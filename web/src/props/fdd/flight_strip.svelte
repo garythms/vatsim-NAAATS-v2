@@ -8,6 +8,7 @@
   export let callsign: string;
   export let type: string;
   export let assignedLevel: number;
+  export let blockLevel: string = ""; // on a Concorde track: the block level (e.g. FL470-600) replaces the single level
   export let assignedMach: number;
   export let track: string;
   export let route: string[];
@@ -106,7 +107,7 @@
       {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if ntSent}<span class="text-red-600 font-bold pl-0.5" style="font-size: 1.5em; line-height: 0.6;" title="natTrak reminder sent to the pilot">*</span>{/if}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="whitespace-nowrap overflow-hidden select-none" style="font-size: 0.88em;">{departure}/{arrival}</div>
-    <div class="select-none">{assignedLevel}</div>
+    <div class="select-none" title={blockLevel ? "Block level " + blockLevel : ""}>{blockLevel ? "BLK" : assignedLevel}</div>
     <div class="select-none">{assignedMach > 0 ? "M" + String(assignedMach).padStart(3, "0") : ""}</div>
     {#each Array(cols) as _, i}
       <div class="select-none">{routeEtas[i] !== undefined && routeEtas[i] != "--" ? routeEtas[i] : ""}</div>

@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 0.20.0 - 2026-10-26
+- Concorde tracks (server 0.21.0): SM (westbound), SN (eastbound), SO (overflow) and SP (Caribbean) are listed in a "Supersonic (Concorde)" group in the track panel, from the Gander Oceanic SOPs (Annex B 1.1.2). A Concorde that files their points (SM20W, SN30W ...) or the same coordinates is put on its track and in its own group. They are web display only: EuroScope is not sent them.
+- Block level: flights on a Concorde track show the block level (B470-600) instead of a single level on the strip, and "Block FL470-600" in the aircraft menu and track panel.
+- Half-degree points are no longer shown as whole degrees: 5230/30 and 5230N03000W stay 5230/30 (52 degrees 30 minutes). ARINC 424 forms N5020 (50 30N 020W) and 5020N (50N 020W) are understood too.
+
 ## 0.19.0 - 2026-10-25
 - Data protection (server 0.20.0): view-only mode ("Just watch" and the Observer position) is gone. The whole page is covered until you have signed in and chosen a position, and the server sends no flight, natTrak or network traffic data to anyone who has not. Signing out or choosing "change" clears the screen. If a sign-in runs out the sign-in screen comes back.
 - The download page now has the intro video and the user guide as a PDF. Guide and manual updated: key and sign-in come from ganderoceanic.ca/my/vnaaats, new aircraft menu order.

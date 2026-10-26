@@ -56,7 +56,7 @@ interface JsonAcObj {
 // Link constants
 // API base: empty = same server that serves this page. Override at build time with VITE_API_BASE=https://host
 const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
-const natTracksApi: string = apiBase + "/GetAllNatTracks";
+const natTracksApi: string = apiBase + "/GetAllNatTracks?fdd=1"; // fdd=1: also the Concorde tracks
 const allAircraftGet: string = apiBase + "/GetAllFlightData";
 const allNatTrakGet: string = apiBase + "/GetNatTrakData";
 const networkTrafficGet: string = apiBase + "/GetNetworkTraffic";
@@ -186,9 +186,12 @@ export async function parseNatTracks(): Promise<void> {
               : objArr[i].direction,
           ValidFrom: parseInt(objArr[i].validFrom),
           ValidTo: parseInt(objArr[i].validTo),
+          Supersonic: !!objArr[i].supersonic,
+          BlockLevel: objArr[i].blockLevel ?? "",
+          Use: objArr[i].use ?? "",
         };
 
-        if (!track.Direction)
+        if (!track.Direction && !track.Supersonic)
           track.Route = track.Route.reverse();
 
         console.log(track.Identifier)

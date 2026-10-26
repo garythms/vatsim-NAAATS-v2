@@ -516,3 +516,45 @@ class TempKeyTest(unittest.TestCase):
             self.assertEqual(self.call({"cid": "12", "passphrase": "correct-horse-battery"})[0], 400)
         finally:
             os.environ.pop("VNAAATS_TEMP_PASSPHRASE", None)
+
+
+class ConcordeTrackTest(unittest.TestCase):
+    def test_four_tracks_with_block_level(self):
+        tr = s.concorde_tracks()
+        self.assertEqual([t["id"] for t in tr], ["SM", "SN", "SO", "SP"])
+        self.assertEqual({t["blockLevel"] for t in tr}, {"FL470-600"})
+        self.assertEqual([t["direction"] for t in tr], [1, 2, 0, 0])
+        sm20 = [r for r in tr[0]["route"] if r["name"] == "SM20W"][0]
+        self.assertAlmostEqual(sm20["latitude"], 50 + 50 / 60.0, places=3)         # 50.50 means 50 deg 50 min
+        sn52 = [r for r in tr[1]["route"] if r["name"] == "SN52W"][0]
+        self.assertAlmostEqual(sn52["longitude"], -52.5, places=3)
+
+    def test_plugin_track_list_has_no_concorde_tracks(self):
+        class C:
+            tracks = []
+            lock = threading.Lock()
+        tmp = tempfile.mkdtemp()
+        cache = s.TrackCache(s.load_fixes())
+        cache.refresh(fetch=lambda: SAMPLE)
+        srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, s.FlightStore(os.path.join(tmp, "c.db")), KEY))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        try:
+            base = "http://127.0.0.1:%d" % srv.server_port
+            plain = json.loads(urllib.request.urlopen(base + "/GetAllNatTracks").read())
+            web = json.loads(urllib.request.urlopen(base + "/GetAllNatTracks?fdd=1").read())
+            self.assertFalse(any(t["id"] in ("SM", "SN", "SO", "SP") for t in plain))
+            self.assertEqual([t["id"] for t in web][-4:], ["SM", "SN", "SO", "SP"])
+        finally:
+            srv.shutdown()
+
+    def test_half_degree_and_concorde_points(self):
+        self.assertEqual(s.oceanic_point("N5020"), ("N5020", 50.5, -20.0))          # ARINC 424 half degree
+        self.assertEqual(s.oceanic_point("5020N"), ("5020N", 50.0, -20.0))          # whole degree
+        self.assertEqual(s.oceanic_point("5030/30")[1:], (50.5, -30.0))
+        self.assertAlmostEqual(s.oceanic_point("SM20W")[1], 50 + 50 / 60.0, places=3)
+
+    def test_flight_on_a_concorde_track_gets_its_name(self):
+        pts = " ".join(n for n, *_ in s.CONCORDE_TRACK_DEFS[0][3])
+        rec = s.convert_network_pilot({"callsign": "BAW1", "flight_plan": {"aircraft_short": "CONC", "departure": "EGLL", "arrival": "KJFK",
+                                       "altitude": "50000", "deptime": "1200", "route": "DCT " + pts + " DCT"}}, [])
+        self.assertEqual(rec["track"], "SM")

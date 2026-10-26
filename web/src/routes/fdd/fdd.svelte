@@ -429,10 +429,14 @@
           {:else if g.track == "RR" || g.track == ""}
             <div class="whitespace-nowrap" style="grid-column: 4 / span 4;">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
           {:else}
+            {#if dataHandler.currentNatTracks.get(g.track).Supersonic}
+              <div class="whitespace-nowrap overflow-hidden" style="grid-column: 2 / -1;">Block {dataHandler.currentNatTracks.get(g.track).BlockLevel} - {dataHandler.currentNatTracks.get(g.track).Route.map((w) => w.name).join(" ")}</div>
+            {:else}
             <div style="grid-column: 2 / span 3;" />
             {#each dataHandler.currentNatTracks.get(g.track).Route as waypoint}
               <div class="whitespace-nowrap overflow-hidden">{waypoint.name}</div>
             {/each}
+            {/if}
           {/if}
         </div>
         {#each g.rows as ac (ac.Callsign)}
@@ -441,6 +445,7 @@
             callsign={ac.Callsign}
             type={ac.Type}
             assignedLevel={ac.AssignedLevel}
+            blockLevel={dataHandler.currentNatTracks.get(ac.Track)?.BlockLevel ?? ""}
             assignedMach={ac.AssignedMach}
             track={ac.Track}
             route={ac.Route}

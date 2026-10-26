@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "0.20.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "0.21.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -498,10 +498,39 @@ class FlightStore:
 _SPEEDLEVEL = re.compile(r"/[NMK]\d{3,4}[FASM]\d{3,4}$")
 
 
+# ----------------------------------------------------------------------------- Concorde (supersonic) tracks
+# From the Gander Oceanic SOPs, Annex B 1.1.2: points are degrees.minutes (50.41 = 50 deg 41 min). Shown on the web display only.
+CONCORDE_TRACK_DEFS = [
+    ("SM", 1, "westbound only", [("SM15W", 50, 41, 15, 0), ("SM20W", 50, 50, 20, 0), ("SM30W", 50, 30, 30, 0), ("SM40W", 49, 16, 40, 0), ("SM50W", 47, 3, 50, 0),
+                                 ("SM53W", 46, 10, 53, 0), ("SM60W", 44, 14, 60, 0), ("SM65W", 42, 46, 65, 0), ("SM67W", 42, 0, 67, 0)]),
+    ("SN", 2, "eastbound only", [("SN67W", 40, 25, 67, 0), ("SN65W", 41, 40, 65, 0), ("SN60W", 43, 7, 60, 0), ("SN52W", 45, 10, 52, 30), ("SN50W", 45, 54, 50, 0),
+                                 ("SN40W", 48, 10, 40, 0), ("SN30W", 49, 26, 30, 0), ("SN20W", 49, 49, 20, 0), ("SN15W", 49, 41, 15, 0)]),
+    ("SO", 0, "overflow, either way (as coordinated)", [("SO15W", 48, 40, 15, 0), ("SO20W", 48, 48, 20, 0), ("SO30W", 48, 22, 30, 0), ("SO40W", 47, 4, 40, 0),
+                                                        ("SO50W", 44, 45, 50, 0), ("SO52W", 44, 10, 52, 0), ("SO60W", 42, 0, 60, 0)]),
+    ("SP", 0, "to the Caribbean, either way", [("SP15W", 48, 49, 14, 43), ("SP20W", 46, 49, 20, 0), ("SP45N", 45, 0, 23, 53), ("SP30W", 41, 36, 30, 0), ("SP40W", 34, 22, 40, 0)]),
+]
+CONC_FIXES = {n: (a + b / 60.0, -(c + d / 60.0)) for _, _, _, pts in CONCORDE_TRACK_DEFS for n, a, b, c, d in pts}
+CONC_BLOCK = "FL470-600"
+
+
+def concorde_tracks():
+    """The four Concorde tracks in the same shape as the NAT tracks, plus supersonic/blockLevel/use for the web display."""
+    return [{"id": tid, "tmi": "C", "direction": d, "supersonic": True, "blockLevel": CONC_BLOCK, "use": use,
+             "route": [{"name": n, "latitude": round(CONC_FIXES[n][0], 4), "longitude": round(CONC_FIXES[n][1], 4)} for n, *_ in pts],
+             "flightLevels": [], "validFrom": "", "validTo": ""} for tid, d, use, pts in CONCORDE_TRACK_DEFS]
+
+
 def oceanic_point(token):
     """Coordinate waypoints as used on the North Atlantic: '52/50', '5730/30', '52N050W', '5230N05000W'.
     Returns (name, lat, lon) or None."""
     t = _SPEEDLEVEL.sub("", token.upper())
+    if t in CONC_FIXES:                                       # SM20W, SN30W ... (Concorde tracks)
+        return t, CONC_FIXES[t][0], CONC_FIXES[t][1]
+    m = re.fullmatch(r"(\d{2})(\d{2})N|N(\d{2})(\d{2})", t)   # ARINC 424 7.2.5: 5020N = 50N 020W, N5020 = 50.5N (half degree) 020W
+    if m:
+        if m.group(1):
+            return t, float(m.group(1)), -float(m.group(2))
+        return t, float(m.group(3)) + 0.5, -float(m.group(4))
     m = re.fullmatch(r"(\d{2})(\d{2})?/(\d{2,3})", t)
     if m:
         lat = int(m.group(1)) + (int(m.group(2)) / 60.0 if m.group(2) else 0.0)
@@ -585,7 +614,7 @@ def convert_network_pilot(pilot, tracks):
     idx = []                                                  # (index in route, (name, lat, lon)) of oceanic coordinates
     for i, tok in enumerate(tokens):
         p = oceanic_point(tok)
-        if p and 40 <= p[1] <= 72 and -70 <= p[2] <= -4:
+        if p and 30 <= p[1] <= 72 and -70 <= p[2] <= -4:
             idx.append((i, p))
     if len(idx) < 2:
         return None
@@ -606,7 +635,7 @@ def convert_network_pilot(pilot, tracks):
     direction = pts[-1][2] > pts[0][2]                        # moving towards Europe = eastbound
     track = "RR"
     flown = {(round(p[1], 2), round(p[2], 2)) for p in pts}   # compare positions, not spelling (61/50 == 61N050W)
-    for t in tracks:                                          # on a track if it passes the whole track's coordinate fixes
+    for t in list(tracks) + concorde_tracks():                # on a track if it passes the whole track's coordinate fixes (Concorde tracks too)
         tpts = [oceanic_point(r["name"]) for r in t.get("route", [])]
         tpos = [(round(q[1], 2), round(q[2], 2)) for q in tpts if q]
         if len(tpos) >= 3 and all(pos in flown for pos in tpos):
@@ -1488,7 +1517,10 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     return self._send(200, "0", "text/plain")
                 if p == "/GetAllNatTracks":
                     with cache.lock:
-                        return self._send(200, cache.tracks)
+                        out = list(cache.tracks)
+                    if q.get("fdd") == "1":                  # the web display also lists the Concorde tracks; EuroScope never gets them
+                        out += concorde_tracks()
+                    return self._send(200, out)
                 if p == "/cmd/status":
                     if not self._session():
                         return self._send(401, {"error": "log in first"})

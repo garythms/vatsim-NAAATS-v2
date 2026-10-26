@@ -77,4 +77,7 @@ export type NatTrack = {
   Direction: number;
   ValidTo: number;
   ValidFrom: number;
+  Supersonic?: boolean; // Concorde track (SM, SN, SO, SP)
+  BlockLevel?: string; // e.g. FL470-600
+  Use?: string; // e.g. westbound only
 };

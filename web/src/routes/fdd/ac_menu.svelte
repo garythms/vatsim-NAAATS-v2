@@ -118,6 +118,7 @@
   $: onCpdlc = !!$menuCallsign && cp.isConnected($menuCallsign);
   const tabs: [string, string][] = [["track", "Track"], ["transfer", "Transfer"], ["untrack", "Release Tag"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["scratch", "Note"], ["contact", "Contact Me"], ["nt", "RCL REQ"], ["remove", "Hide"]];
   $: trackId = ac && ac.Track ? String(ac.Track) : "";
+  $: blockLevel = trackId ? (dataHandler.currentNatTracks.get(trackId)?.BlockLevel ?? "") : "";
   const BTN = "border-2 border-l-blue-6 border-t-blue-6 border-r-blue-0 border-b-blue-0 bg-blue-3 active:bg-blue-1 hover:cursor-pointer select-none";
 </script>
 
@@ -125,7 +126,7 @@
   <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
     <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 52rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
-        <span>Aircraft menu - {$menuCallsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}</span></span>
+        <span>Aircraft menu - {$menuCallsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}{blockLevel ? " - Block " + blockLevel : ""}</span></span>
         <span class="underline hover:cursor-pointer text-sm" on:click={close}>close</span>
       </div>
       <div class="p-3">

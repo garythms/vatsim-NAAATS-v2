@@ -9,6 +9,8 @@
   let tracksRaw: string[] = Array.from(dataHandler.currentNatTracks.keys()).sort();
   let eastbound: NatTrack[];
   let westbound: NatTrack[];
+  let supersonic: NatTrack[];
+  $: supersonic = [];
   $: eastbound = [];
   $: westbound = [];
 
@@ -37,11 +39,14 @@
       // Reset the arrays
       eastbound = [];
       westbound = [];
+      supersonic = [];
       let tracksRaw = Array.from(dataHandler.currentNatTracks.keys()).sort();
 
       for (let i: number = 0; i < tracksRaw.length; i++) {
         //console.log();
-        if (dataHandler.currentNatTracks.get(tracksRaw[i]).Direction == 1) {
+        if (dataHandler.currentNatTracks.get(tracksRaw[i]).Supersonic) {
+          supersonic.push(dataHandler.currentNatTracks.get(tracksRaw[i]));
+        } else if (dataHandler.currentNatTracks.get(tracksRaw[i]).Direction == 1) {
           eastbound.push(dataHandler.currentNatTracks.get(tracksRaw[i]));
         } else {
           westbound.push(dataHandler.currentNatTracks.get(tracksRaw[i]));
@@ -81,6 +86,21 @@
         route={track.Route}
         flightLevels={track.FlightLevels}
         direction={track.Direction}
+      />
+    {/each}
+    {#if supersonic.length > 0}
+    <div class="flex flex-row justify-center w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
+      Supersonic (Concorde)
+    </div>
+    {/if}
+    {#each supersonic as track}
+      <TrackStrip
+        id={track.Identifier}
+        route={track.Route}
+        flightLevels={track.FlightLevels}
+        direction={track.Direction}
+        blockLevel={track.BlockLevel}
+        use={track.Use}
       />
     {/each}
   </div>
