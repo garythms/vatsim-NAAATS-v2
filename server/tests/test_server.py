@@ -1,4 +1,4 @@
-import json, os, sys, tempfile, threading, unittest, urllib.error, urllib.request
+import json, os, time, sys, tempfile, threading, unittest, urllib.error, urllib.request
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import vnaaats_server as s
 
@@ -473,3 +473,46 @@ class RetrackTakeoverTest(unittest.TestCase):
             self.assertEqual(get("/PluginRetrack?code=%s&me=CZQO_CTR" % KEY)["callsigns"], [])                   # somebody else took the position
         finally:
             srv.shutdown()
+
+
+class TempKeyTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        import members as mm
+        cls.tmp = tempfile.mkdtemp()
+        cache = s.TrackCache(s.load_fixes())
+        cache.refresh(fetch=lambda: SAMPLE)
+        store = s.FlightStore(os.path.join(cls.tmp, "k.db"))
+        cls.members = mm.MemberKeys(store)
+        auth = s.Auth({"VNAAATS_POSITIONS": "CZQO_CTR"})
+        cls.srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, store, KEY, None, None, None, auth, None, None, None, cls.members))
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.base = "http://127.0.0.1:%d" % cls.srv.server_port
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def call(self, body):
+        req = urllib.request.Request(self.base + "/auth/temp-key", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read().decode())
+
+    def test_off_without_passphrase(self):
+        os.environ.pop("VNAAATS_TEMP_PASSPHRASE", None)
+        self.assertEqual(self.call({"cid": "1017951", "passphrase": "x"})[0], 404)
+
+    def test_needs_passphrase_then_issues_seven_day_key(self):
+        os.environ["VNAAATS_TEMP_PASSPHRASE"] = "correct-horse-battery"
+        try:
+            self.assertEqual(self.call({"cid": "1017951", "passphrase": "wrong"})[0], 401)
+            code, out = self.call({"cid": "1017951", "name": "Test", "passphrase": "correct-horse-battery"})
+            self.assertEqual(code, 200)
+            self.assertEqual(self.members.check_key(out["key"])[0], "1017951")
+            self.assertAlmostEqual((out["expires"] - time.time()) / 86400, 7, delta=0.05)
+            self.assertEqual(self.call({"cid": "12", "passphrase": "correct-horse-battery"})[0], 400)
+        finally:
+            os.environ.pop("VNAAATS_TEMP_PASSPHRASE", None)

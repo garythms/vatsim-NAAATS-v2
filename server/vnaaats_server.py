@@ -1256,6 +1256,24 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(401, {"error": "wrong password"})
                     token = auth.create_session(re.sub(r"\D", "", name)[:8], name, "password")
                     return self._send_cookie(200, self._status(auth.get(token)), token)
+                if p == "/auth/temp-key":                      # temporary: 7-day key for certified controllers the roster feed misses. Off unless VNAAATS_TEMP_PASSPHRASE is set.
+                    temp_pass = os.environ.get("VNAAATS_TEMP_PASSPHRASE", "")
+                    if len(temp_pass) < 10 or not members:
+                        return self._send(404, {"error": "not switched on"})
+                    ip = self._client_ip()
+                    if auth.throttled(ip):
+                        return self._send(429, {"error": "too many wrong tries - wait 5 minutes"})
+                    if not hmac.compare_digest(str(body.get("passphrase", "")).encode(), temp_pass.encode()):
+                        auth.record_failure(ip)
+                        return self._send(401, {"error": "wrong passphrase"})
+                    cid = re.sub(r"\D", "", str(body.get("cid", "")))
+                    if not 6 <= len(cid) <= 9:
+                        return self._send(400, {"error": "enter your VATSIM CID (numbers only)"})
+                    if sum(1 for m in members.listing() if m["manual"] and not m["revoked"] and not m["expired"]) >= 40 and not members.info(cid).get("exists"):
+                        return self._send(429, {"error": "the temporary keys are used up - contact info@vnaaats.com"})
+                    out = members.issue(cid, str(body.get("name", "")).strip()[:60] or cid, days=7, manual=True)
+                    log.info("Temporary 7-day key issued for CID %s from %s", cid, ip)
+                    return self._send(200, {"key": out["key"], "password": out["password"], "expires": out["expires"], "cid": out["cid"]})
                 if p == "/auth/logout":
                     if cpdlc:
                         cpdlc.stop(self._token())

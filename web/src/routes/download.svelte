@@ -62,6 +62,7 @@
     </div>
 
     <p class="mb-4 p-3 border-2 border-blue-10 bg-blue-3">First time installing? Use the <a href="https://vnaaats.com/guide" class="underline font-bold">install guide</a>. It has the full first-time pack (plugin, radar screen file, example config) and the sector file steps.</p>
+    <a href="/temp-key" style="display:none" aria-hidden="true" tabindex="-1">.</a>
     <h2 class="text-2xl font-bold mb-2">Updating an existing install</h2>
     <p class="mb-6 opacity-90">Close EuroScope and replace <b>only VatsimNAAATS.dll</b> with the one you just downloaded. <b>Keep your existing vnaaats.cfg</b> - do not copy the example file over it, or you will lose your key. Make sure it is the DLL EuroScope actually loads (Other SET &gt; Plug-ins shows its folder).</p>
 
