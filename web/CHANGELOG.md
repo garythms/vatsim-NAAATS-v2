@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.0.1 - 2026-10-26
+- New filter boxes replace PST / FaD / WST / TERM: TRKD (flights you are tracking at your position), EB, WB, HL (above FL340) and LL (FL340 and below). Nothing ticked shows everything; the groups (tracked, direction, level) narrow each other and within a group either box counts. The HL / LL buttons are gone (they are now boxes); ALL TK and RR stay.
+
 ## 2.0.0 - 2026-10-26
 - The ready-made sector pack (Gander sector files, plugin 2.0.0, vNAAATS radar screen and profile) can be downloaded from /download and is mentioned in the guide.
 - First full release of vNAAATS V2 (server 2.0.0, plugin 2.0.0). The display, server and plugin now share the version number 2.0.0; no features changed from 0.20.0 / 0.21.0 / 1.5b23.

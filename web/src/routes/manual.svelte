@@ -68,8 +68,8 @@
     <h2 id="topbar" class="text-2xl font-bold mb-2">4. The top bars and filters</h2>
     <h3 class="text-lg font-bold mt-4 mb-1">Filter bar (top)</h3>
     <ul class="list-disc ml-6 space-y-1 mb-3">
-      <li><b>HL / LL / ALL TK / RR</b> - high level, low level, all tracks, random routings. The selected one is yellow. <b>Default</b> resets the filters.</li>
-      <li><b>PST</b> posted flights (cleared through the plugin), <b>FaD</b> filed data (known only from the filed flight plan), <b>WST</b> westbound only, <b>TERM</b> flights with no update for 30 minutes or more. Hover over each box for its description.</li>
+      <li><b>ALL TK / RR</b> - all tracks, random routings. The selected one is yellow. <b>Default</b> resets the filters.</li>
+      <li><b>TRKD</b> only the flights you are tracking at your position, <b>EB</b> / <b>WB</b> eastbound / westbound, <b>HL</b> above FL340, <b>LL</b> FL340 and below. With nothing ticked you see everything. Boxes in different groups narrow each other (TRKD + WB + HL = your westbound high-level flights); within a group either counts (EB + WB = both directions). Hover over each box for its description.</li>
       <li>The two boxes on the right are the Zulu clock and the TMI (the day number of the NAT track message).</li>
     </ul>
     <h3 class="text-lg font-bold mt-4 mb-1">Controls bar (second row)</h3>

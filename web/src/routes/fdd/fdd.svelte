@@ -52,22 +52,24 @@
     cp.stopCpdlcPolling();
   });
 
-  // Level/track filter for the strip list (HL / LL / ALL TK / RR)
-  const HL_MIN_LEVEL: number = 350; // flight levels >= this count as 'high level'
+  // Track filter for the strip list (ALL TK / RR)
   let filter: string = "ALL";
-  // Flight-type checkboxes. None ticked = show everything; otherwise show flights matching ANY ticked box.
-  // (These are my interpretation of the original GAATS PST / FaD / WST / TERM boxes - see the tooltips.)
-  let showPst: boolean = false;
-  let showFad: boolean = false;
-  let showWst: boolean = false;
-  let showTerm: boolean = false;
-  function typeMatch(ac: any, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
-    if (!pst && !fad && !wst && !term) return true;
-    if (pst && ac.Source != "vatsim") return true;
-    if (fad && ac.Source == "vatsim") return true;
-    if (wst && !ac.Direction) return true;
-    if (term && Date.now() - ac.LastUpdated >= 30 * 60 * 1000) return true;
-    return false;
+  // Filter tick boxes. Nothing ticked = show everything. Different groups narrow each other (Tracked AND direction AND level);
+  // within a group any ticked box counts (EB or WB, HL or LL), so EB + WB shows both directions.
+  const HL_ABOVE: number = 340; // HL = above FL340, LL = FL340 and below. A flight with no level yet is kept in both.
+  let showMine: boolean = false;
+  let showEb: boolean = false;
+  let showWb: boolean = false;
+  let showHl: boolean = false;
+  let showLl: boolean = false;
+  function typeMatch(ac: any, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean): boolean {
+    if (mine) {
+      const me: string = ($session.position ?? "").toUpperCase();
+      if (!me || (ac.TrackedBy ?? "").toUpperCase() !== me) return false;
+    }
+    if ((eb || wb) && !((eb && ac.Direction) || (wb && !ac.Direction))) return false;
+    if ((hl || ll) && ac.AssignedLevel > 0 && !((hl && ac.AssignedLevel > HL_ABOVE) || (ll && ac.AssignedLevel <= HL_ABOVE))) return false;
+    return true;
   }
   // Search, grouping and sorting
   let search: string = "";
@@ -94,14 +96,14 @@
     }
   }
   type Group = { key: string; label: string; track: string; rows: any[]; kind?: string };
-  function buildGroups(_tick: number, _win: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean, s: string, g: string, by: string, _hid: Record<string, number>, _pick: string): Group[] {
+  function buildGroups(_tick: number, _win: string, f: string, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean, s: string, g: string, by: string, _hid: Record<string, number>, _pick: string, _pos: string): Group[] {
     const out: Group[] = [];
     const cmp = sorter(by);
     if (g === "LEVEL") {
       const byLevel = new Map<number, any[]>();
       dataHandler.networkAircraft.forEach((m, track) => {
         for (const ac of m.values()) {
-          if (!matches(ac, track, f, pst, fad, wst, term) || !searchMatch(ac, s)) continue;
+          if (!matches(ac, track, f, mine, eb, wb, hl, ll) || !searchMatch(ac, s)) continue;
           const k = ac.AssignedLevel > 0 ? ac.AssignedLevel : 0;
           byLevel.set(k, [...(byLevel.get(k) ?? []), ac]);
         }
@@ -113,7 +115,7 @@
       const byEntry = new Map<string, any[]>();
       dataHandler.networkAircraft.forEach((m, track) => {
         for (const ac of m.values()) {
-          if (!matches(ac, track, f, pst, fad, wst, term) || !searchMatch(ac, s)) continue;
+          if (!matches(ac, track, f, mine, eb, wb, hl, ll) || !searchMatch(ac, s)) continue;
           const k = ac.Entry || "?";
           byEntry.set(k, [...(byEntry.get(k) ?? []), ac]);
         }
@@ -122,12 +124,12 @@
       return out;
     }
     dataHandler.networkAircraft.forEach((m, track) => {
-      const rows = [...m.values()].filter((ac) => isPicked(ac) || (matches(ac, track, f, pst, fad, wst, term) && searchMatch(ac, s))).sort(cmp);
+      const rows = [...m.values()].filter((ac) => isPicked(ac) || (matches(ac, track, f, mine, eb, wb, hl, ll) && searchMatch(ac, s))).sort(cmp);
       if (rows.length > 0) out.push({ key: track, label: track != "RR" ? track : "RANDOM", track, rows });
     });
     return out;
   }
-  $: groups = buildGroups(tickN, windowMode, filter, showPst, showFad, showWst, showTerm, search, groupBy, sortBy, $hidden, $espicked);
+  $: groups = buildGroups(tickN, windowMode, filter, showMine, showEb, showWb, showHl, showLl, search, groupBy, sortBy, $hidden, $espicked, $session.position);
   $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) n++; })); return n; })() : 0;
   // Number of fix columns: the longest route among the shown flights and track headers, so every row lines up
   $: cols = Math.min(10, Math.max(5, ...groups.map((g) => Math.max(g.track && g.track !== "RR" ? (dataHandler.currentNatTracks.get(g.track)?.Route.length ?? 0) : 0, ...g.rows.map((r: any) => r.RouteEtas.length)))));
@@ -151,26 +153,24 @@
     if (e.key === "Escape") search = "";
   }
   function setFilter(f: string): void { filter = f; }
-  function resetFilters(): void { filter = "ALL"; showPst = showFad = showWst = showTerm = false; search = ""; setWindowMode("WINDOW"); groupBy = "TRACK"; sortBy = "DEFAULT"; }
+  function resetFilters(): void { filter = "ALL"; showMine = showEb = showWb = showHl = showLl = false; search = ""; setWindowMode("WINDOW"); groupBy = "TRACK"; sortBy = "DEFAULT"; }
   // The aircraft just clicked in EuroScope is always on the list, whatever the filters, search, window or Hide say
   function isPicked(ac: any): boolean { return !!$espicked && ac.Callsign.toUpperCase() === $espicked && !!ac.Relevant; }
-  function matches(ac: any, track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
+  function matches(ac: any, track: string, f: string, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean): boolean {
     if (isPicked(ac)) return true;
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
     if ($hidden[ac.Callsign.toUpperCase()]) return false;     // hidden by this person only
-    if (!typeMatch(ac, pst, fad, wst, term)) return false;
+    if (!typeMatch(ac, mine, eb, wb, hl, ll)) return false;
     if (windowMode === "WINDOW" && !dataHandler.inTrafficWindow(ac, WIN_AHEAD, WIN_BEHIND)) return false;
     switch (f) {
-      case "HL": return ac.AssignedLevel >= HL_MIN_LEVEL;
-      case "LL": return ac.AssignedLevel < HL_MIN_LEVEL;
       case "RR": return track == "RR";
       default: return true;
     }
   }
-  function groupHasMatch(track: string, f: string, pst: boolean, fad: boolean, wst: boolean, term: boolean): boolean {
+  function groupHasMatch(track: string, f: string, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean): boolean {
     const m = dataHandler.networkAircraft.get(track);
     if (!m) return false;
-    for (const ac of m.values()) if (matches(ac, track, f, pst, fad, wst, term)) return true;
+    for (const ac of m.values()) if (matches(ac, track, f, mine, eb, wb, hl, ll)) return true;
     return false;
   }
 
@@ -254,10 +254,11 @@
       </div>
       <div class="px-0.5 hover:cursor-default">
         <div class="flex items-center justify-between min-w-5 2xl:h-9 xl:h-8 px-1 border-2 ml-3 border-r-blue-8 border-b-blue-8 border-l-blue-0 border-t-blue-0">
-          <Checkbox identifier={"pst"} label={"PST"} title={"Posted: flights a controller has cleared/posted through the plugin"} bind:checked={showPst} />
-          <Checkbox identifier={"fad"} label={"FaD"} title={"Filed data: flights known only from their filed flight plan (VATSIM data feed)"} bind:checked={showFad} />
-          <Checkbox identifier={"wst"} label={"WST"} title={"Westbound flights only"} bind:checked={showWst} />
-          <Checkbox identifier={"term"} label={"TERM"} title={"Terminated: flights with no update for 30 minutes or more"} bind:checked={showTerm} />
+          <Checkbox identifier={"mine"} label={"TRKD"} title={"Tracked: only the flights you are tracking at your position"} bind:checked={showMine} />
+          <Checkbox identifier={"eb"} label={"EB"} title={"Eastbound flights"} bind:checked={showEb} />
+          <Checkbox identifier={"wb"} label={"WB"} title={"Westbound flights"} bind:checked={showWb} />
+          <Checkbox identifier={"hl"} label={"HL"} title={"High level: above FL340"} bind:checked={showHl} />
+          <Checkbox identifier={"ll"} label={"LL"} title={"Low level: FL340 and below"} bind:checked={showLl} />
         </div>
       </div>
     </div>
@@ -278,7 +279,7 @@
         <Button label="Default" />
       </div>
       <div class="flex flex-row pr-1.5 font-bitmap font-thin 2xl:text-xl xl:text-base">
-        {#each ["HL", "LL", "ALL", "RR"] as f}
+        {#each ["ALL", "RR"] as f}
           <div class="px-0.5" on:click={() => setFilter(f)}>
             <Button
               label={f == "ALL" ? "ALL TK" : f}
@@ -434,7 +435,7 @@
             {:else}
             <div style="grid-column: 2 / span 3;" />
             {#each dataHandler.currentNatTracks.get(g.track).Route as waypoint}
-              <div class="whitespace-nowrap overflow-hidden">{waypoint.name}</div>
+              <div class="whitespace-nowrap overflow-hidden" style={waypoint.name.length > 5 ? "font-size: 0.82em;" : ""}>{waypoint.name}</div>
             {/each}
             {/if}
           {/if}
