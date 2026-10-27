@@ -92,10 +92,16 @@
 </script>
 
 <div
-  class="flex flex-col w-full h-1/3 overflow-y-auto border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10">
+  class="flex flex-col w-full overflow-y-auto border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10"
+  style="min-height: 33.3333%; flex-shrink: 0;">
   <Titlebar
     label="Flight Plan - {asel == null ? 'No selection' : asel.Cpdlc ? '[' + asel.Callsign + ']' : asel.Callsign}"/>
   {#if asel != null}
+    {#if dataHandler.conflicts.get(asel.Callsign)}
+      <div class="flex flex-row items-center px-3 py-1 w-full bg-yellow-300 text-black font-bold text-sm leading-tight border-b-2 border-b-yellow-600" role="alert">
+        <span class="mr-2 text-lg">&#9888;</span><span>{dataHandler.conflicts.get(asel.Callsign).join("; ")}</span>
+      </div>
+    {/if}
     <div
       class="flex flex-row items-center justify-start px-3 py-2 border-b-2 w-full border-b-blue-0">
       <TextInput
@@ -232,9 +238,6 @@
         <div class="opacity-80" title="Who last changed level, Mach, track, SELCAL or route">
           Last change {hhmm(asel.UpdatedAt)} by {asel.UpdatedBy}{lastChange(asel) ? " - " + lastChange(asel) : ""}
         </div>
-      {/if}
-      {#if dataHandler.conflicts.get(asel.Callsign)}
-        <div class="text-yellow-300">&#9888; {dataHandler.conflicts.get(asel.Callsign).join("; ")}</div>
       {/if}
       {#if !editable && $session.editing}
         <div class="opacity-60">View only - sign in and pick a position to edit</div>
