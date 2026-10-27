@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.0.3 - 2026-10-27
+- Shanwick Tango routes (T9, T290, T213, T13, T16) are now on the list as their own groups, below the NAT tracks (and Concorde tracks) and above RANDOM. A flight that files one of these routes (the route name with one of its fixes, or both of its fixes) appears on the group automatically; they are also listed in the Tracks drawer under "Shanwick Tango routes" with their rules: T9 southbound only, even levels FL300-400; T290 northbound only, odd levels FL290-410; T213 both ways; T13 northbound; T16 southbound. A level that does not belong to the route (T9 and T290) shows the usual "not one of the levels" warning.
+- Northbound Tango flights count as EB and southbound ones as WB for the EB / WB filter.
+- Tango flights are Shanwick's: a Gander (CZQO_) position does not list them unless it is tracking them. The 30W neighbour rule does not apply to them.
+
 ## 2.0.2 - 2026-10-26
 - Flights that are handed off (an oceanic controller stopped tracking) or past their exit point now stay on the list for 15 minutes, drawn faded.
 - If you are signed in as a Gander (CZQO_) or Shanwick (EGGX_) position, flights of the other OCA that are 30 minutes or less from 30W are also listed, as normal. Flights that have crossed 30W to the neighbour stay 15 minutes, faded. Other positions (NAT_FSS ...) see everything as before.

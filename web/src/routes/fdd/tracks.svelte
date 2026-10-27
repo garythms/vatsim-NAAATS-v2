@@ -10,7 +10,9 @@
   let eastbound: NatTrack[];
   let westbound: NatTrack[];
   let supersonic: NatTrack[];
+  let tango: NatTrack[];
   $: supersonic = [];
+  $: tango = [];
   $: eastbound = [];
   $: westbound = [];
 
@@ -40,11 +42,14 @@
       eastbound = [];
       westbound = [];
       supersonic = [];
+      tango = [];
       let tracksRaw = Array.from(dataHandler.currentNatTracks.keys()).sort();
 
       for (let i: number = 0; i < tracksRaw.length; i++) {
         //console.log();
-        if (dataHandler.currentNatTracks.get(tracksRaw[i]).Supersonic) {
+        if (dataHandler.currentNatTracks.get(tracksRaw[i]).Tango) {
+          tango.push(dataHandler.currentNatTracks.get(tracksRaw[i]));
+        } else if (dataHandler.currentNatTracks.get(tracksRaw[i]).Supersonic) {
           supersonic.push(dataHandler.currentNatTracks.get(tracksRaw[i]));
         } else if (dataHandler.currentNatTracks.get(tracksRaw[i]).Direction == 1) {
           eastbound.push(dataHandler.currentNatTracks.get(tracksRaw[i]));
@@ -101,6 +106,21 @@
         direction={track.Direction}
         blockLevel={track.BlockLevel}
         use={track.Use}
+      />
+    {/each}
+    {#if tango.length > 0}
+    <div class="flex flex-row justify-center w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
+      Shanwick Tango routes
+    </div>
+    {/if}
+    {#each tango as track}
+      <TrackStrip
+        id={track.Identifier}
+        route={track.Route}
+        flightLevels={track.FlightLevels}
+        direction={track.Direction}
+        use={track.Use}
+        tango={true}
       />
     {/each}
   </div>

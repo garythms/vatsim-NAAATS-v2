@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.0.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.0.2"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -91,7 +91,7 @@ def token_to_latlon(token, fixes):
         lat = int(m.group(1)) + (int(m.group(2)) / 60.0 if m.group(2) else 0.0)
         lon = int(m.group(3))
         return round(lat, 6), -float(lon)                    # NAT tracks are west of Greenwich
-    v = fixes.get(token.upper())
+    v = fixes.get(token.upper()) or TANGO_FIXES.get(token.upper())
     return (v[0], v[1]) if v else None
 
 
@@ -520,6 +520,68 @@ def concorde_tracks():
              "flightLevels": [], "validFrom": "", "validTo": ""} for tid, d, use, pts in CONCORDE_TRACK_DEFS]
 
 
+# ----------------------------------------------------------------------------- Shanwick Tango routes
+# Fixed RNAV routes in the south-east corner of the Shanwick OCA (between Northern Europe, Iberia and the Canaries). They are
+# worked by Shanwick Oceanic and need an oceanic clearance like any other flight. Coordinates and rules: the Shanwick Tango route
+# chart (positions in degrees, minutes, seconds as published) and the Gander Oceanic SOPs. Shown on the web display only.
+def _dms(d, m=0.0, s=0.0):
+    return d + m / 60.0 + s / 3600.0
+
+
+TANGO_FIXES = {
+    "OMOKO": (_dms(48, 50.2), -_dms(12, 0)),
+    "TAMEL": (_dms(48, 43.7), -_dms(10, 29.8)),
+    "LASNO": (_dms(48, 35.9), -_dms(9, 0)),
+    "GELPO": (_dms(48, 38, 19), -_dms(9, 29, 19)),
+    "ADVAT": (_dms(45, 0), -_dms(9, 28, 33)),
+    "BEGAS": (_dms(45, 0), -_dms(9, 0)),
+    "BERUX": (_dms(45, 0), -_dms(11, 0)),
+    "NILAV": (_dms(45, 0), -_dms(13, 25)),
+    "GONAN": (_dms(45, 0), -_dms(14, 0)),
+}
+_EVEN_300_400 = [fl * 100 for fl in range(300, 401, 20)]
+_ODD_290_410 = [fl * 100 for fl in range(290, 411, 20)]
+# id, rule in words, flight levels (feet, empty = no level rule published here), fixes in the direction of use
+TANGO_ROUTE_DEFS = [
+    ("T9", "southbound only, even levels FL300-400", _EVEN_300_400, ["LASNO", "BEGAS"]),
+    ("T290", "northbound only, odd levels FL290-410", _ODD_290_410, ["ADVAT", "GELPO"]),
+    ("T213", "both directions", [], ["TAMEL", "BERUX"]),
+    ("T13", "northbound", [], ["NILAV", "OMOKO"]),
+    ("T16", "southbound", [], ["OMOKO", "GONAN"]),
+]
+
+
+def tango_tracks():
+    """The Tango routes in the same shape as the NAT tracks, plus tango:true and use for the web display."""
+    return [{"id": tid, "tmi": "T", "direction": 0, "tango": True, "use": use,
+             "route": [{"name": n, "latitude": round(TANGO_FIXES[n][0], 4), "longitude": round(TANGO_FIXES[n][1], 4)} for n in fixes],
+             "flightLevels": list(levels), "validFrom": "", "validTo": ""} for tid, use, levels, fixes in TANGO_ROUTE_DEFS]
+
+
+def tango_match(tokens):
+    """The Tango route a filed route uses, or None. Returns (id, fixes in the order flown, northbound).
+    A route matches when it names the airway (T9 ...) and at least one of that route's fixes, or names both of its fixes.
+    The airway name alone is not enough: other parts of the world have a T9 too."""
+    toks = [_SPEEDLEVEL.sub("", str(t).upper()) for t in tokens]
+    best = None
+    for tid, _use, _levels, fixes in TANGO_ROUTE_DEFS:
+        pos = {f: toks.index(f) for f in fixes if f in toks}
+        named = tid in toks
+        if not ((named and pos) or len(pos) == len(fixes)):
+            continue
+        first = min(pos.values()) if pos else toks.index(tid)
+        if best is None or first < best[0]:
+            flown = sorted(pos, key=lambda f: pos[f]) if len(pos) > 1 else list(fixes)
+            best = (first, tid, flown)
+    if not best:
+        return None
+    _, tid, flown = best
+    if len(flown) < 2:
+        flown = next(list(f) for t, _u, _l, f in TANGO_ROUTE_DEFS if t == tid)
+    north = TANGO_FIXES[flown[-1]][0] > TANGO_FIXES[flown[0]][0]
+    return tid, flown, north
+
+
 def oceanic_point(token):
     """Coordinate waypoints as used on the North Atlantic: '52/50', '5730/30', '52N050W', '5230N05000W'.
     Returns (name, lat, lon) or None."""
@@ -617,7 +679,10 @@ def convert_network_pilot(pilot, tracks):
         if p and 30 <= p[1] <= 72 and -70 <= p[2] <= -4:
             idx.append((i, p))
     if len(idx) < 2:
-        return None
+        tg = tango_match(tokens)
+        if not tg:
+            return None
+        return _tango_record(pilot, fp, tg)
     pts = [p for _, p in idx]
     entry = exit_ = None
     j = idx[0][0] - 1                                         # entry fix: the token before the first coordinate (skipping DCT)
@@ -653,6 +718,22 @@ def convert_network_pilot(pilot, tracks):
         "source": "vatsim",
     }
 
+
+
+def _tango_record(pilot, fp, tg):
+    """A flight record for a pilot filed on a Tango route. Northbound counts as 'eastbound', southbound as 'westbound'."""
+    tid, flown, north = tg
+    return {
+        "callsign": pilot.get("callsign", "").upper(), "type": fp.get("aircraft_short") or "",
+        "assignedLevel": parse_level(fp.get("altitude")), "assignedMach": 0,
+        "track": tid, "route": " ".join(flown), "routeEtas": " ".join(["--"] * len(flown)),
+        "departure": fp.get("departure") or "", "arrival": fp.get("arrival") or "",
+        "direction": north, "etd": fp.get("deptime") or "", "selcal": "",
+        "datalinkConnected": False, "isEquipped": True, "state": "", "relevant": True,
+        "trackedBy": "", "trackedById": "", "targetMode": 3,
+        "lastUpdated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "source": "vatsim",
+    }
 
 
 def convert_manual_pilot(pilot, tracks):
@@ -1120,6 +1201,10 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
     def with_cpdlc(rec):
         """Add "cpdlc": true/false (connected to our CPDLC station) to a flight record."""
         rec = dict(rec)
+        if str(rec.get("track", "")).upper() in ("", "RR"):                 # a flight on a Tango route is grouped under it
+            tg = tango_match(str(rec.get("route", "")).split())
+            if tg:
+                rec["track"] = tg[0]
         rec["cpdlc"] = bool(cpdlc and cpdlc.is_connected(rec.get("callsign", "")))
         rec["cpdlcRelease"] = bool(cpdlc and cpdlc.released(rec.get("callsign", "")))   # tell the plugin to release the tag (after UNICOM)
         sent = rec.pop("ntSent", None)
@@ -1528,7 +1613,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     with cache.lock:
                         out = list(cache.tracks)
                     if q.get("fdd") == "1":                  # the web display also lists the Concorde tracks; EuroScope never gets them
-                        out += concorde_tracks()
+                        out += concorde_tracks() + tango_tracks()
                     return self._send(200, out)
                 if p == "/cmd/status":
                     if not self._session():

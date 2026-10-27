@@ -78,6 +78,7 @@ export type NatTrack = {
   ValidTo: number;
   ValidFrom: number;
   Supersonic?: boolean; // Concorde track (SM, SN, SO, SP)
+  Tango?: boolean; // Shanwick Tango route (T9, T290, T213, T13, T16)
   BlockLevel?: string; // e.g. FL470-600
   Use?: string; // e.g. westbound only
 };

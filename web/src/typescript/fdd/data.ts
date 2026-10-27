@@ -187,11 +187,12 @@ export async function parseNatTracks(): Promise<void> {
           ValidFrom: parseInt(objArr[i].validFrom),
           ValidTo: parseInt(objArr[i].validTo),
           Supersonic: !!objArr[i].supersonic,
+          Tango: !!objArr[i].tango,
           BlockLevel: objArr[i].blockLevel ?? "",
           Use: objArr[i].use ?? "",
         };
 
-        if (!track.Direction && !track.Supersonic)
+        if (!track.Direction && !track.Supersonic && !track.Tango)
           track.Route = track.Route.reverse();
 
         console.log(track.Identifier)
@@ -379,7 +380,7 @@ export async function populateAllAircraft() : Promise<void> {
             relevantAircraftCount++;
           }
           // Reverse route if needed
-          if (!ac.Direction) {
+          if (!ac.Direction && !currentNatTracks.get(ac.Track)?.Tango) {      // Tango routes keep the order flown
             ac.Route = ac.Route.reverse();
             ac.RouteEtas = ac.RouteEtas.reverse();
           }
@@ -689,9 +690,15 @@ function scopeState(ac: Aircraft, scope: Scope): "own" | "neighbour" | "gone" | 
 }
 
 // What the list does with one flight: show it or not, and whether to draw it faded (handed off / past its exit point).
+export function isTangoTrack(track: string): boolean {
+  return !!currentNatTracks.get(track)?.Tango;
+}
+
 export function trafficView(ac: Aircraft, ahead: number, behind: number, scope: Scope): { show: boolean; faded: boolean } {
   const pinned = (asel != null && asel.Callsign === ac.Callsign) || ac.Cpdlc || ac.Manual;
   const tracked = (!!ac.TrackedBy && ac.TrackedBy !== "NATTRAK" && OCEANIC_PREFIX.test(ac.TrackedBy)) || (ac.Comm?.kind === "oceanic");
+  // Tango routes are Shanwick's: a Gander position does not list them (unless it is tracking, selected, or on CPDLC)
+  if (scope === "gander" && isTangoTrack(ac.Track) && !pinned && !tracked) return { show: false, faded: false };
   const st = scopeState(ac, scope);
   if (!pinned && !tracked && (st === "far")) return { show: false, faded: false };
   if (!inTrafficWindow(ac, ahead, behind) && !(st === "gone" || st === "neighbour")) return { show: false, faded: false };

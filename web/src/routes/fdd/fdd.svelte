@@ -74,7 +74,7 @@
   // Search, grouping and sorting
   let search: string = "";
   let groupBy: string = "TRACK";   // TRACK | ENTRY
-  // Traffic window: only flights within 60 min of the oceanic entry, until 5 min after the exit ("ALL" shows everything)
+  // Traffic window: only flights within 60 min of the oceanic entry, until 15 min after the exit ("ALL" shows everything)
   const WIN_AHEAD: number = 60;
   const WIN_BEHIND: number = 15;   // minutes past the exit point (or the handoff) a flight stays, faded
   let windowMode: string = "WINDOW";
@@ -318,9 +318,9 @@
       {#if addMsg}<span class="text-yellow-300">{addMsg}</span>{/if}
     {/if}
     <input class="px-2 py-0.5 w-48 text-black uppercase" placeholder="Search callsign / fix" bind:value={search} on:keydown={searchKey} />
-    <label title="Show flights within 60 minutes of oceanic entry, until 5 minutes after the exit">Show
+    <label title="Show flights within 60 minutes of oceanic entry, until 15 minutes after the exit (shown faded)">Show
       <select class="text-black" value={windowMode} on:change={(e) => setWindowMode(e.currentTarget.value)}>
-        <option value="WINDOW">entry -60 / exit +5 min</option>
+        <option value="WINDOW">entry -60 / exit +15 min</option>
         <option value="ALL">all flights</option>
       </select>
     </label>
@@ -430,7 +430,9 @@
           {:else if g.track == "RR" || g.track == ""}
             <div class="whitespace-nowrap" style="grid-column: 4 / span 4;">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
           {:else}
-            {#if dataHandler.currentNatTracks.get(g.track).Supersonic}
+            {#if dataHandler.currentNatTracks.get(g.track).Tango}
+              <div class="whitespace-nowrap overflow-hidden" style="grid-column: 2 / -1;">Tango - {dataHandler.currentNatTracks.get(g.track).Use} - {dataHandler.currentNatTracks.get(g.track).Route.map((w) => w.name).join(" ")}</div>
+            {:else if dataHandler.currentNatTracks.get(g.track).Supersonic}
               <div class="whitespace-nowrap overflow-hidden" style="grid-column: 2 / -1;">Block {dataHandler.currentNatTracks.get(g.track).BlockLevel} - {dataHandler.currentNatTracks.get(g.track).Route.map((w) => w.name).join(" ")}</div>
             {:else}
             <div style="grid-column: 2 / span 3;" />

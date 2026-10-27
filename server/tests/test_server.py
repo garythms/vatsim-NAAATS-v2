@@ -543,7 +543,7 @@ class ConcordeTrackTest(unittest.TestCase):
             plain = json.loads(urllib.request.urlopen(base + "/GetAllNatTracks").read())
             web = json.loads(urllib.request.urlopen(base + "/GetAllNatTracks?fdd=1").read())
             self.assertFalse(any(t["id"] in ("SM", "SN", "SO", "SP") for t in plain))
-            self.assertEqual([t["id"] for t in web][-4:], ["SM", "SN", "SO", "SP"])
+            self.assertEqual([t["id"] for t in web][-9:], ["SM", "SN", "SO", "SP", "T9", "T290", "T213", "T13", "T16"])   # NAT, Concorde, Tango
         finally:
             srv.shutdown()
 
@@ -558,6 +558,49 @@ class ConcordeTrackTest(unittest.TestCase):
         rec = s.convert_network_pilot({"callsign": "BAW1", "flight_plan": {"aircraft_short": "CONC", "departure": "EGLL", "arrival": "KJFK",
                                        "altitude": "50000", "deptime": "1200", "route": "DCT " + pts + " DCT"}}, [])
         self.assertEqual(rec["track"], "SM")
+
+
+class TangoRouteTest(unittest.TestCase):
+    def test_routes_levels_and_positions(self):
+        tr = {t["id"]: t for t in s.tango_tracks()}
+        self.assertEqual(list(tr), ["T9", "T290", "T213", "T13", "T16"])
+        self.assertTrue(all(t["tango"] and "supersonic" not in t and "blockLevel" not in t for t in tr.values()))
+        self.assertEqual([r["name"] for r in tr["T9"]["route"]], ["LASNO", "BEGAS"])
+        self.assertEqual(tr["T9"]["flightLevels"], [30000, 32000, 34000, 36000, 38000, 40000])      # even, FL300-400
+        self.assertEqual(tr["T290"]["flightLevels"], [29000, 31000, 33000, 35000, 37000, 39000, 41000])   # odd, FL290-410
+        self.assertEqual(tr["T213"]["flightLevels"], [])
+        gelpo = [r for r in tr["T290"]["route"] if r["name"] == "GELPO"][0]
+        self.assertAlmostEqual(gelpo["latitude"], 48 + 38 / 60.0 + 19 / 3600.0, places=3)        # 483819N
+        self.assertAlmostEqual(gelpo["longitude"], -(9 + 29 / 60.0 + 19 / 3600.0), places=3)      # 0092919W
+        omoko = [r for r in tr["T16"]["route"] if r["name"] == "OMOKO"][0]
+        self.assertAlmostEqual(omoko["latitude"], 48 + 50.2 / 60.0, places=3)
+
+    def test_matching_filed_routes(self):
+        self.assertEqual(s.tango_match("EGLL DCT LASNO T9 BEGAS DCT LEMD".split()), ("T9", ["LASNO", "BEGAS"], False))
+        self.assertEqual(s.tango_match("LEMD ADVAT T290 GELPO EGLL".split()), ("T290", ["ADVAT", "GELPO"], True))
+        self.assertEqual(s.tango_match("BERUX DCT TAMEL".split())[1:], (["BERUX", "TAMEL"], True))     # both fixes, flown northbound
+        self.assertEqual(s.tango_match("NILAV T13 OMOKO".split())[0], "T13")
+        self.assertEqual(s.tango_match("OMOKO T16 GONAN".split())[0], "T16")
+        self.assertIsNone(s.tango_match("A B T9 C".split()))              # the airway name alone is not enough
+        self.assertIsNone(s.tango_match("LASNO DCT ABCDE".split()))       # one fix and no airway name
+        self.assertIsNone(s.tango_match("EGLL DCT KJFK".split()))
+
+    def test_feed_flight_on_a_tango_route(self):
+        rec = s.convert_network_pilot({"callsign": "EZY12", "flight_plan": {"aircraft_short": "A320", "departure": "EGLL", "arrival": "GCTS",
+                                       "altitude": "36000", "deptime": "1200", "route": "DCT LASNO T9 BEGAS DCT"}}, [])
+        self.assertEqual((rec["track"], rec["route"], rec["direction"], rec["assignedLevel"]), ("T9", "LASNO BEGAS", False, 360))
+        up = s.convert_network_pilot({"callsign": "RYR9", "flight_plan": {"aircraft_short": "B738", "departure": "GCTS", "arrival": "EGLL",
+                                      "altitude": "35000", "route": "ADVAT T290 GELPO"}}, [])
+        self.assertEqual((up["track"], up["direction"]), ("T290", True))
+        self.assertIsNone(s.convert_network_pilot({"callsign": "X1", "flight_plan": {"route": "EGLL DCT KJFK"}}, []))
+
+    def test_nat_flight_is_not_taken_for_a_tango_flight(self):
+        rec = s.convert_network_pilot({"callsign": "BAW2", "flight_plan": {"departure": "EGLL", "arrival": "KJFK", "altitude": "36000",
+                                       "route": "LASNO 50/20 52/30 52/40 LOMSI"}}, [])
+        self.assertEqual(rec["track"], "RR")
+
+    def test_distance_uses_tango_fix_positions(self):
+        self.assertIsNotNone(s.token_to_latlon("ADVAT", {}))
 
 
 class ZipServedTest(unittest.TestCase):
