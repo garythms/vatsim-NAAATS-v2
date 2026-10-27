@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 2.0.3 - 2026-10-27
+- Removed the "N min from <callsign>" warning (same track, same level, entering within 10 minutes). It compared estimated entry times only, so it could flag aircraft that were miles apart; judging separation is the controller's job. The "level is not one of the levels for track X" warning stays.
 - Flight Plan panel: a warning (for example "FL330 is not one of the levels for track V") is now a solid yellow banner at the top of the panel instead of small text at the bottom, and the panel grows to fit instead of scrolling.
 - Flight Plan panel: Datalink moved to the Spd / FL row so the panel fits without side scrolling, and it now reads "Logged on" (green) or "Not logged on" (faded red) instead of "CPDLC on" / "No CPDLC".
 - Filter boxes are now TRKD, EB, WB, RR and TANGO (HL / LL and the ALL TK / RR buttons are gone). RR shows random routings only and TANGO the Shanwick Tango routes only; ticking both shows both kinds.

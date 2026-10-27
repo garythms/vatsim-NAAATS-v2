@@ -209,8 +209,8 @@ export async function parseNatTracks(): Promise<void> {
   return;
 }
 
-// ---- conflict / sanity warnings ---------------------------------------------------------------------
-export const CONFLICT_MINUTES: number = 10; // same track + same level + entering within this many minutes
+// ---- sanity warnings: only "this level is not one of the levels for the track". Separation between aircraft is not judged here;
+// that is the controller's job (and EuroScope has its own STCA) ---------------------------------------------------------------------
 export let conflicts: Map<string, string[]> = new Map();
 
 function etaMinutes(etas: string[]): number {
@@ -229,19 +229,6 @@ function computeConflicts(): void {
       const lv = a.AssignedLevel;
       if (offered.length > 0 && lv > 0 && !offered.some((x) => (x >= 1000 ? x / 100 : x) === lv)) {
         add(a.Callsign, "FL" + lv + " is not one of the levels for track " + track);
-      }
-    }
-    for (let i = 0; i < list.length; i++) {
-      for (let j = i + 1; j < list.length; j++) {
-        const a = list[i], b = list[j];
-        if (a.AssignedLevel <= 0 || a.AssignedLevel !== b.AssignedLevel || a.EntryEta < 0 || b.EntryEta < 0) continue;
-        let d = Math.abs(a.EntryEta - b.EntryEta);
-        d = Math.min(d, 1440 - d);
-        if (d < CONFLICT_MINUTES) {
-          const m = "Track " + track + " FL" + a.AssignedLevel + ": ";
-          add(a.Callsign, m + d + " min from " + b.Callsign);
-          add(b.Callsign, m + d + " min from " + a.Callsign);
-        }
       }
     }
   });
