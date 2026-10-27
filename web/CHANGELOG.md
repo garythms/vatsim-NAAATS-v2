@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 2.0.3 - 2026-10-27
+- Filter boxes are now TRKD, EB, WB, RR and TANGO (HL / LL and the ALL TK / RR buttons are gone). RR shows random routings only and TANGO the Shanwick Tango routes only; ticking both shows both kinds.
 - Shanwick Tango routes (T9, T290, T213, T13, T16) are now on the list in one group, TANGO ROUTES (each strip shows its route name and fixes), below the NAT tracks (and Concorde tracks) and above RANDOM. A flight that files one of these routes (the route name with one of its fixes, or both of its fixes) appears on the group automatically; they are also listed in the Tracks drawer under "Shanwick Tango routes" with their rules: T9 southbound only, even levels FL300-400; T290 northbound only, odd levels FL290-410; T213 both ways; T13 northbound; T16 southbound. A level that does not belong to the route (T9 and T290) shows the usual "not one of the levels" warning.
 - Northbound Tango flights count as EB and southbound ones as WB for the EB / WB filter.
 - Tango flights are Shanwick's: a Gander (CZQO_) position does not list them unless it is tracking them. The 30W neighbour rule does not apply to them.

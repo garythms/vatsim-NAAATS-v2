@@ -56,19 +56,18 @@
   let filter: string = "ALL";
   // Filter tick boxes. Nothing ticked = show everything. Different groups narrow each other (Tracked AND direction AND level);
   // within a group any ticked box counts (EB or WB, HL or LL), so EB + WB shows both directions.
-  const HL_ABOVE: number = 340; // HL = above FL340, LL = FL340 and below. A flight with no level yet is kept in both.
   let showMine: boolean = false;
   let showEb: boolean = false;
   let showWb: boolean = false;
-  let showHl: boolean = false;
-  let showLl: boolean = false;
-  function typeMatch(ac: any, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean): boolean {
+  let showRr: boolean = false;      // RR: random routings only
+  let showTango: boolean = false;   // TANGO: Shanwick Tango routes only
+  function typeMatch(ac: any, track: string, mine: boolean, eb: boolean, wb: boolean, rr: boolean, tg: boolean): boolean {
     if (mine) {
       const me: string = ($session.position ?? "").toUpperCase();
       if (!me || (ac.TrackedBy ?? "").toUpperCase() !== me) return false;
     }
     if ((eb || wb) && !((eb && ac.Direction) || (wb && !ac.Direction))) return false;
-    if ((hl || ll) && ac.AssignedLevel > 0 && !((hl && ac.AssignedLevel > HL_ABOVE) || (ll && ac.AssignedLevel <= HL_ABOVE))) return false;
+    if ((rr || tg) && !((rr && track === "RR") || (tg && dataHandler.isTangoTrack(track)))) return false;
     return true;
   }
   // Search, grouping and sorting
@@ -96,14 +95,14 @@
     }
   }
   type Group = { key: string; label: string; track: string; rows: any[]; kind?: string };
-  function buildGroups(_tick: number, _win: string, f: string, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean, s: string, g: string, by: string, _hid: Record<string, number>, _pick: string, _pos: string): Group[] {
+  function buildGroups(_tick: number, _win: string, f: string, mine: boolean, eb: boolean, wb: boolean, rr: boolean, tg: boolean, s: string, g: string, by: string, _hid: Record<string, number>, _pick: string, _pos: string): Group[] {
     const out: Group[] = [];
     const cmp = sorter(by);
     if (g === "LEVEL") {
       const byLevel = new Map<number, any[]>();
       dataHandler.networkAircraft.forEach((m, track) => {
         for (const ac of m.values()) {
-          if (!matches(ac, track, f, mine, eb, wb, hl, ll) || !searchMatch(ac, s)) continue;
+          if (!matches(ac, track, f, mine, eb, wb, rr, tg) || !searchMatch(ac, s)) continue;
           const k = ac.AssignedLevel > 0 ? ac.AssignedLevel : 0;
           byLevel.set(k, [...(byLevel.get(k) ?? []), ac]);
         }
@@ -115,7 +114,7 @@
       const byEntry = new Map<string, any[]>();
       dataHandler.networkAircraft.forEach((m, track) => {
         for (const ac of m.values()) {
-          if (!matches(ac, track, f, mine, eb, wb, hl, ll) || !searchMatch(ac, s)) continue;
+          if (!matches(ac, track, f, mine, eb, wb, rr, tg) || !searchMatch(ac, s)) continue;
           const k = ac.Entry || "?";
           byEntry.set(k, [...(byEntry.get(k) ?? []), ac]);
         }
@@ -127,7 +126,7 @@
     let tangoRows: any[] = [];
     let rrGroup: Group | null = null;
     dataHandler.networkAircraft.forEach((m, track) => {
-      const rows = [...m.values()].filter((ac) => isPicked(ac) || (matches(ac, track, f, mine, eb, wb, hl, ll) && searchMatch(ac, s))).sort(cmp);
+      const rows = [...m.values()].filter((ac) => isPicked(ac) || (matches(ac, track, f, mine, eb, wb, rr, tg) && searchMatch(ac, s))).sort(cmp);
       if (rows.length === 0) return;
       if (dataHandler.isTangoTrack(track)) { tangoRows = tangoRows.concat(rows); return; }
       const grp: Group = { key: track, label: track != "RR" ? track : "RANDOM", track, rows };
@@ -137,7 +136,7 @@
     if (rrGroup) out.push(rrGroup);
     return out;
   }
-  $: groups = buildGroups(tickN, windowMode, filter, showMine, showEb, showWb, showHl, showLl, search, groupBy, sortBy, $hidden, $espicked, $session.position);
+  $: groups = buildGroups(tickN, windowMode, filter, showMine, showEb, showWb, showRr, showTango, search, groupBy, sortBy, $hidden, $espicked, $session.position);
   $: hiddenCount = (tickN >= 0 && windowMode === "WINDOW") ? (() => { let n = 0; dataHandler.networkAircraft.forEach((m) => m.forEach((ac: any) => { if (ac.Relevant && utils.isRecent(ac.LastUpdated) && !dataHandler.trafficView(ac, WIN_AHEAD, WIN_BEHIND, dataHandler.scopeForPosition($session.position)).show) n++; })); return n; })() : 0;
   // Number of fix columns: the longest route among the shown flights and track headers, so every row lines up
   $: cols = Math.min(10, Math.max(5, ...groups.map((g) => Math.max(g.track && g.track !== "RR" ? (dataHandler.currentNatTracks.get(g.track)?.Route.length ?? 0) : 0, ...g.rows.map((r: any) => r.RouteEtas.length)))));
@@ -161,24 +160,24 @@
     if (e.key === "Escape") search = "";
   }
   function setFilter(f: string): void { filter = f; }
-  function resetFilters(): void { filter = "ALL"; showMine = showEb = showWb = showHl = showLl = false; search = ""; setWindowMode("WINDOW"); groupBy = "TRACK"; sortBy = "DEFAULT"; }
+  function resetFilters(): void { filter = "ALL"; showMine = showEb = showWb = showRr = showTango = false; search = ""; setWindowMode("WINDOW"); groupBy = "TRACK"; sortBy = "DEFAULT"; }
   // The aircraft just clicked in EuroScope is always on the list, whatever the filters, search, window or Hide say
   function isPicked(ac: any): boolean { return !!$espicked && ac.Callsign.toUpperCase() === $espicked && !!ac.Relevant; }
-  function matches(ac: any, track: string, f: string, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean): boolean {
+  function matches(ac: any, track: string, f: string, mine: boolean, eb: boolean, wb: boolean, rr: boolean, tg: boolean): boolean {
     if (isPicked(ac)) return true;
     if (!ac.Relevant || !utils.isRecent(ac.LastUpdated)) return false;
     if ($hidden[ac.Callsign.toUpperCase()]) return false;     // hidden by this person only
-    if (!typeMatch(ac, mine, eb, wb, hl, ll)) return false;
+    if (!typeMatch(ac, track, mine, eb, wb, rr, tg)) return false;
     if (windowMode === "WINDOW" && !dataHandler.trafficView(ac, WIN_AHEAD, WIN_BEHIND, dataHandler.scopeForPosition($session.position)).show) return false;
     switch (f) {
       case "RR": return track == "RR";
       default: return true;
     }
   }
-  function groupHasMatch(track: string, f: string, mine: boolean, eb: boolean, wb: boolean, hl: boolean, ll: boolean): boolean {
+  function groupHasMatch(track: string, f: string, mine: boolean, eb: boolean, wb: boolean, rr: boolean, tg: boolean): boolean {
     const m = dataHandler.networkAircraft.get(track);
     if (!m) return false;
-    for (const ac of m.values()) if (matches(ac, track, f, mine, eb, wb, hl, ll)) return true;
+    for (const ac of m.values()) if (matches(ac, track, f, mine, eb, wb, rr, tg)) return true;
     return false;
   }
 
@@ -265,8 +264,8 @@
           <Checkbox identifier={"mine"} label={"TRKD"} title={"Tracked: only the flights you are tracking at your position"} bind:checked={showMine} />
           <Checkbox identifier={"eb"} label={"EB"} title={"Eastbound flights"} bind:checked={showEb} />
           <Checkbox identifier={"wb"} label={"WB"} title={"Westbound flights"} bind:checked={showWb} />
-          <Checkbox identifier={"hl"} label={"HL"} title={"High level: above FL340"} bind:checked={showHl} />
-          <Checkbox identifier={"ll"} label={"LL"} title={"Low level: FL340 and below"} bind:checked={showLl} />
+          <Checkbox identifier={"rr"} label={"RR"} title={"Random routings only"} bind:checked={showRr} />
+          <Checkbox identifier={"tango"} label={"TANGO"} title={"Shanwick Tango routes only"} bind:checked={showTango} />
         </div>
       </div>
     </div>
@@ -285,18 +284,6 @@
     <div class="flex flex-row-reverse items-center 2xl:scale-100 xl:scale-85">
       <div class="px-3" on:click={resetFilters}>
         <Button label="Default" />
-      </div>
-      <div class="flex flex-row pr-1.5 font-bitmap font-thin 2xl:text-xl xl:text-base">
-        {#each ["ALL", "RR"] as f}
-          <div class="px-0.5" on:click={() => setFilter(f)}>
-            <Button
-              label={f == "ALL" ? "ALL TK" : f}
-              font={"bitmap"}
-              bold={"false"}
-              textColour={filter == f ? "text-yellow-300" : "text-white"}
-            />
-          </div>
-        {/each}
       </div>
     </div>
   </div>

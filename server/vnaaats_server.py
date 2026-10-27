@@ -543,11 +543,11 @@ _EVEN_300_400 = [fl * 100 for fl in range(300, 401, 20)]
 _ODD_290_410 = [fl * 100 for fl in range(290, 411, 20)]
 # id, rule in words, flight levels (feet, empty = no level rule published here), fixes in the direction of use
 TANGO_ROUTE_DEFS = [
-    ("T9", "southbound only, even levels FL300-400", _EVEN_300_400, ["LASNO", "BEGAS"]),
-    ("T290", "northbound only, odd levels FL290-410", _ODD_290_410, ["ADVAT", "GELPO"]),
-    ("T213", "both directions", [], ["TAMEL", "BERUX"]),
-    ("T13", "northbound", [], ["NILAV", "OMOKO"]),
-    ("T16", "southbound", [], ["OMOKO", "GONAN"]),
+    ("T9", "southbound only, even levels FL300-400, no CPDLC mandate", _EVEN_300_400, ["LASNO", "BEGAS"]),
+    ("T290", "northbound only, odd levels FL290-410, no CPDLC mandate", _ODD_290_410, ["ADVAT", "GELPO"]),
+    ("T213", "both directions, CPDLC required FL290-410", [], ["TAMEL", "BERUX"]),
+    ("T13", "northbound, CPDLC required FL290-410, continues into Santa Maria", [], ["NILAV", "OMOKO"]),
+    ("T16", "southbound, CPDLC required FL290-410, continues into Santa Maria", [], ["OMOKO", "GONAN"]),
 ]
 
 
