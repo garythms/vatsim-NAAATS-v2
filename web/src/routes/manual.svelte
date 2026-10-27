@@ -132,7 +132,7 @@
     <ul class="list-disc ml-6 space-y-2 mb-3">
       <li><b>ACID, Type, Depart, Dest</b> - read-only.</li>
       <li><b>Entry</b> - the time at the oceanic entry fix. Edit it and <b>all the other fix times move by the same amount</b>.</li>
-      <li><b>Datalink</b> - green <i>CPDLC on</i> when the pilot is logged on to the vNAAATS CPDLC station, red <i>No CPDLC</i> otherwise.</li>
+      <li><b>Datalink</b> - green <i>Logged on</i> when the pilot is logged on to the vNAAATS CPDLC station, a faded red <i>Not logged on</i> otherwise.</li>
       <li><b>ATC</b> - the callsign of the controller tracking the flight (green), or who the pilot is tuned to on VATSIM: oceanic (green), domestic (pale green), red <i>UNICOM</i> or red <i>NONE</i>.</li>
       <li><b>Level, Mach, Track</b> - editable. A warning appears if the level is not on the track, or if another aircraft is entering the same track and level within 10 minutes.</li>
       <li><b>Route (edit)</b> - amend the route. Latitude/longitude fixes must be written as two numbers over two numbers (51/20). Forms such as 51N20W are refused with a red warning as you type. Fixes you keep keep their times; new fixes have none. This changes the FDD and server only, <b>not</b> the flight plan in EuroScope or on VATSIM.</li>

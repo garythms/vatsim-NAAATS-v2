@@ -108,7 +108,7 @@
       <TextInput
         label={"Type"}
         identifier={"type"}
-        width={"w-16"}
+        width={"w-14"}
         value={asel.Type}
         isDisabled={true}
       />
@@ -135,18 +135,9 @@
         onCommit={(t) => save("entryEta", t)}
       />
       <TextInput
-        label={"Datalink"}
-        identifier={"datalink"}
-        width={"w-24"}
-        value={asel.Cpdlc ? "CPDLC on" : "No CPDLC"}
-        inputForeColour={"text-black"}
-        backColour={asel.Cpdlc ? "bg-green-400" : "bg-red-500"}
-        isDisabled={true}
-      />
-      <TextInput
         label={"ATC"}
         identifier={"trackedby"}
-        width={"w-28"}
+        width={"w-24"}
         value={trackedBy.text}
         inputForeColour={trackedBy.fore}
         backColour={trackedBy.back}
@@ -169,6 +160,15 @@
           maxlength={5}
           {editable}
           onCommit={(t) => save("level", t)}
+        />
+        <TextInput
+          label={"Datalink"}
+          identifier={"datalink"}
+          width={"w-36"}
+          value={asel.Cpdlc ? "Logged on" : "Not logged on"}
+          inputForeColour={"text-black"}
+          backColour={asel.Cpdlc ? "bg-green-400" : "bg-red-500 bg-opacity-50"}
+          isDisabled={true}
         />
       </div>
     </div>
