@@ -123,10 +123,18 @@
       [...byEntry.keys()].sort().forEach((k) => out.push({ key: k, label: k, track: "", rows: byEntry.get(k)!.sort(cmp) }));
       return out;
     }
+    // NAT tracks (and Concorde tracks) first, then ONE group for all the Shanwick Tango routes, then RANDOM
+    let tangoRows: any[] = [];
+    let rrGroup: Group | null = null;
     dataHandler.networkAircraft.forEach((m, track) => {
       const rows = [...m.values()].filter((ac) => isPicked(ac) || (matches(ac, track, f, mine, eb, wb, hl, ll) && searchMatch(ac, s))).sort(cmp);
-      if (rows.length > 0) out.push({ key: track, label: track != "RR" ? track : "RANDOM", track, rows });
+      if (rows.length === 0) return;
+      if (dataHandler.isTangoTrack(track)) { tangoRows = tangoRows.concat(rows); return; }
+      const grp: Group = { key: track, label: track != "RR" ? track : "RANDOM", track, rows };
+      if (track === "RR") rrGroup = grp; else out.push(grp);
     });
+    if (tangoRows.length > 0) out.push({ key: "TANGO", label: "TANGO ROUTES", track: "TANGO", rows: tangoRows.sort(cmp) });
+    if (rrGroup) out.push(rrGroup);
     return out;
   }
   $: groups = buildGroups(tickN, windowMode, filter, showMine, showEb, showWb, showHl, showLl, search, groupBy, sortBy, $hidden, $espicked, $session.position);
@@ -427,6 +435,8 @@
           <div class="px-3 whitespace-nowrap">{g.label}</div>
           {#if g.kind === "LEVEL"}
             <div class="whitespace-nowrap" style="grid-column: 2 / span 4;">{g.rows.length} aircraft</div>
+          {:else if g.track == "TANGO"}
+            <div class="whitespace-nowrap overflow-hidden" style="grid-column: 4 / -1;">SHANWICK TANGO ROUTES: T9 T290 T213 T13 T16</div>
           {:else if g.track == "RR" || g.track == ""}
             <div class="whitespace-nowrap" style="grid-column: 4 / span 4;">{g.track == "RR" ? "RANDOM ROUTINGS" : "ENTRY FIX"}</div>
           {:else}
@@ -469,6 +479,7 @@
             updatedBy={ac.UpdatedBy}
             updatedAt={ac.UpdatedAt}
             direction={ac.Direction ?? false}
+            tango={dataHandler.isTangoTrack(ac.Track) ? ac.Track : ""}
             faded={tickN >= 0 && windowMode === "WINDOW" && dataHandler.trafficView(ac, WIN_AHEAD, WIN_BEHIND, dataHandler.scopeForPosition($session.position)).faded}
           />
         {/each}

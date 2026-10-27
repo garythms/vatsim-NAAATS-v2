@@ -19,6 +19,7 @@
   //export let datalink: boolean;
   export let direction: boolean;
   export let isEquipped: boolean;
+  export let tango: string = "";       // Shanwick Tango route id (T9 ...): the fixes row is shown with the id, like random routings
   export let faded: boolean = false;   // handed off / past its exit point: drawn dimmed
   export let alert: boolean = false; // natTrak request waiting for action: flash
   //export let state: string;
@@ -87,13 +88,13 @@
     dataHandler.ackNatTrak(callsign);
     dataHandler.setAsel(callsign);
   }}>
-  {#if track === "RR"}
+  {#if track === "RR" || tango}
     <div class="flex flex-col items-center justify-end w-full h-8 {darkerColour} {isActive ? 'bg-opacity-75' : ''} text-black hover:cursor-default"
       on:mousedown={stripMouseDown}
       on:mouseup={stripMouseUp}
       on:mouseleave={stripMouseUp}>
       <div class="strip-grid w-full" style="--cols: {cols};">
-        <div style="grid-column: 1 / span 4;" />
+        <div style="grid-column: 1 / span 4;" class="pl-2 font-bold">{tango}</div>
         {#each route as rte}
           <div class="select-none hover:cursor-default whitespace-nowrap overflow-hidden">{rte}</div>
         {/each}
