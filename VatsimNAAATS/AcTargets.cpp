@@ -484,9 +484,14 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 		dc->TextOutA(tagRect.left, tagRect.top + offsetY, text.c_str());
 		offsetX += 50;
 
-		// Mach
+		// Speed: once a controller is tracking the aircraft and a Mach number has been entered, show the assigned Mach (M84);
+		// otherwise show the ground speed in knots (N485)
 		int gs = target->GetPosition().GetReportedGS();
 		text = "N" + to_string(gs);
+		bool isTrackedByAnyone = acFP.GetTrackingControllerIsMe() || string(acFP.GetTrackingControllerCallsign()) != "";
+		if (fp.IsValid && isTrackedByAnyone && !fp.Mach.empty() && isdigit((unsigned char)fp.Mach[0]) && atoi(fp.Mach.c_str()) > 0) {
+			text = "M" + to_string(atoi(fp.Mach.c_str()));   // M79 / M81, as on the original radar
+		}
 
 		dc->TextOutA(tagRect.left + offsetX, tagRect.top + offsetY, text.c_str());
 		offsetX = 2;
