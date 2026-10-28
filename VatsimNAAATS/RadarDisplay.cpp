@@ -304,6 +304,11 @@ void CRadarDisplay::RunRemoteCommands()
 				bool handoffToMe = !mine && string(es.GetHandoffTargetControllerCallsign()) == string(plugin->ControllerMyself().GetCallsign());
 				if (!mine && !trackedBy.empty() && !handoffToMe) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is already tracked by " + trackedBy); continue; }
 				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(cmd.Callsign);
+				if (!fp->IsValid) {
+					// The aircraft is not on this radar's list yet (outside the filters): load it now rather than make the controller wait
+					CDataHandler::CreateFlightData(this, cmd.Callsign);
+					fp = CDataHandler::GetFlightData(cmd.Callsign);
+				}
 				if (!fp->IsValid) { CDataHandler::ReportRemoteResult(cmd.Id, false, "vNAAATS has not loaded " + cmd.Callsign + " yet - try again in a few seconds"); continue; }
 				if (!mine && !es.StartTracking()) {
 					string why = "tracked by " + (trackedBy.empty() ? string("nobody") : trackedBy) + ", handoff offered to " + (string(es.GetHandoffTargetControllerCallsign()).empty() ? string("nobody") : string(es.GetHandoffTargetControllerCallsign())) + ", you are " + string(plugin->ControllerMyself().GetCallsign());
@@ -392,7 +397,28 @@ void CRadarDisplay::RunRemoteCommands()
 
 void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 {
-	if (Phase == REFRESH_PHASE_BEFORE_TAGS) RunRemoteCommands();
+	if (Phase == REFRESH_PHASE_BEFORE_TAGS) {
+		RunRemoteCommands();
+
+		// Sensible traffic filters for the position you log on as (once per position)
+		static string defaultsFor = "";
+		CController me = GetPlugIn()->ControllerMyself();
+		if (me.IsValid() && me.IsController()) {
+			string myCs = me.GetCallsign();
+			if (myCs != defaultsFor) {
+				defaultsFor = myCs;
+				string up = myCs;
+				for (auto& ch : up) ch = (char)toupper((unsigned char)ch);
+				if (up.rfind("NAT", 0) == 0) { // NAT_FSS bandbox: the whole area, all traffic
+					CUtils::AreaSelection = 800;
+					CUtils::PosType = 801;
+					menuBar->SetDropDownValue(CMenuBar::DRP_AREASEL, CUtils::AreaSelection);
+					menuBar->SetDropDownValue(CMenuBar::DRP_TYPESEL, CUtils::PosType);
+					CLogger::Log(CLogType::NORM, "Logged on as " + myCs + ": area BDBX and Multi-role selected.", "CRadarDisplay::OnRefresh");
+				}
+			}
+		}
+	}
 
 	// Create device context
 	CDC dc;

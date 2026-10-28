@@ -786,6 +786,14 @@ bool CUtils::IsAircraftRelevantNow(CRadarScreen* screen, CRadarTarget* target, b
 		}
 	}
 	
+	// Whole oceanic area (bandbox: area BDBX + Multi-role): show every aircraft that is actually in or near it, by position,
+	// whatever EuroScope's sector entry time says (it is -1 when the logged-in sector does not cover the aircraft's route).
+	if (areaSel == 800 && PosType == 801) {
+		double altFt = target->GetPosition().GetPressureAltitude();
+		if (altFt >= 25000 && pos.m_Latitude >= 43 && pos.m_Latitude <= 75 && pos.m_Longitude >= -60 && pos.m_Longitude <= -10)
+			valid = true;
+	}
+
 	string callsign = (string)screen->GetPlugIn()->ControllerMyself().GetCallsign();
 	if (!screen->GetPlugIn()->ControllerMyself().IsController() || callsign.find("SUP") != string::npos) {
 

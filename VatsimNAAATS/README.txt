@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 2.0.5: Missing traffic fixed. With Area Sel = BDBX and Select = Multi-role (the whole area) every aircraft at or above FL250 between 43N-75N and 60W-10W now shows, even when EuroScope has no sector entry time for it. Logging on as NAT_FSS (the bandbox) selects BDBX and Multi-role for you. Use CZQX / EGGX or Delivery only when the area is split or you are running one sector or Delivery. Also, TRACK on the web display now loads an aircraft the radar has not listed yet instead of saying vNAAATS has not loaded it. Replace only VatsimNAAATS.dll.
+
 NEW IN 2.0.4: (1) Clicking TRACK on the web display now shows you as the tracker straight away - the headset icon updates without a second click. (2) If an aircraft's flight plan reached EuroScope after vNAAATS first saw it, the blank Type / Depart / Dest are now filled in automatically. Replace only VatsimNAAATS.dll.
 
 NEW IN 2.0.3: ADVAT (the start of Tango route T290) is now known as a Shanwick entry/exit point. The Shanwick Tango routes themselves are handled on the web display (server 2.0.2). Replace only VatsimNAAATS.dll.
