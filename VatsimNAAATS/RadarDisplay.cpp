@@ -403,6 +403,8 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 		// Sensible traffic filters for the position you log on as (once per position)
 		static string defaultsFor = "";
 		CController me = GetPlugIn()->ControllerMyself();
+		// The web display sends commands to the callsign you are logged on as: set it on every refresh, not only when an aircraft updates
+		if (me.IsValid()) CDataHandler::ControllerCallsign = me.GetCallsign();
 		if (me.IsValid() && me.IsController()) {
 			string myCs = me.GetCallsign();
 			if (myCs != defaultsFor) {
