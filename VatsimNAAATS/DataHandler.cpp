@@ -633,9 +633,10 @@ void CDataHandler::ApplyPendingNetwork(CRadarScreen* screen) {
 				fp->FlightLevel = to_string(netFP.AssignedLevel);
 				fp->Mach = to_string(netFP.AssignedMach);
 				fp->Track = netFP.Track;
-				fp->Depart = netFP.Departure;
-				fp->Dest = netFP.Arrival;
-				fp->Etd = netFP.Etd;
+				// Keep what EuroScope gave us if the server has nothing for these
+				if (!netFP.Departure.empty()) fp->Depart = netFP.Departure;
+				if (!netFP.Arrival.empty()) fp->Dest = netFP.Arrival;
+				if (!netFP.Etd.empty()) fp->Etd = netFP.Etd;
 				fp->State = netFP.State;
 				// Work equipment out again from the EuroScope flight plan each time: the value saved on the server can be a stale "not
 				// equipped" from when the plan was first loaded (remarks not there yet). Fall back to the server value if EuroScope has no remarks.

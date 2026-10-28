@@ -45,7 +45,13 @@
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 1000));
       const s = await m.commandState(id);
-      if (s.state === "ok") { note = "✔ " + (s.msg || "Done"); await dataHandler.populateAllAircraft(); return; }
+      if (s.state === "ok") {
+        note = "✔ " + (s.msg || "Done");
+        await dataHandler.populateAllAircraft();
+        // EuroScope / the server can take a few seconds to report the change (tracker, headset): look again so no second click is needed
+        for (const ms of [3000, 6000]) setTimeout(() => { dataHandler.populateAllAircraft(); }, ms);
+        return;
+      }
       if (s.state === "failed") { note = "✖ " + s.msg; return; }
       if (s.state === "waiting") note = "Waiting - is your EuroScope running with the vNAAATS plugin and signed in as " + $session.position + "?";
     }

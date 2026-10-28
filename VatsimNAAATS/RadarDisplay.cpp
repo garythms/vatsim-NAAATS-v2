@@ -314,7 +314,13 @@ void CRadarDisplay::RunRemoteCommands()
 				fp->FlightLevel = cmd.Level;
 				fp->Mach = cmd.Mach;
 				if (!cmd.Selcal.empty()) { fp->SELCAL = cmd.Selcal; fp->SelcalManual = true; }
-				fp->Sector = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerId();
+				// EuroScope needs a moment to report the new tracker after StartTracking(): if it still says nobody, it is me
+				string myCallsign = plugin->ControllerMyself().IsValid() ? string(plugin->ControllerMyself().GetCallsign()) : "";
+				string myId = plugin->ControllerMyself().IsValid() ? string(plugin->ControllerMyself().GetPositionId()) : "";
+				string trkCallsign = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerCallsign();
+				string trkId = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerId();
+				if (trkCallsign.empty()) { trkCallsign = myCallsign; trkId = myId; }
+				fp->Sector = trkId;
 				fp->IsCleared = true;
 				if (CDataHandler::SquawkOnClearance) CUtils::AssignOceanicSquawk(plugin, cmd.Callsign);
 
@@ -334,8 +340,8 @@ void CRadarDisplay::RunRemoteCommands()
 				netFP->Etd = fp->Etd;
 				netFP->Relevant = true;
 				netFP->TargetMode = CUtils::GetTargetMode(plugin->RadarTargetSelect(cmd.Callsign.c_str()).GetPosition().GetRadarFlags());
-				netFP->TrackedBy = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerCallsign();
-				netFP->TrackedById = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerId();
+				netFP->TrackedBy = trkCallsign;
+				netFP->TrackedById = trkId;
 				netFP->Route = "";
 				netFP->RouteEtas = "";
 				vector<CRoutePosition> rte;
@@ -938,6 +944,22 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 		else {
 			// Flight plan object
 			CFlightPlan fpData = GetPlugIn()->FlightPlanSelect(RadarTarget.GetCallsign());
+
+			// The copy made when the aircraft first appeared can be blank if the pilot's plan reached EuroScope later: fill the gaps
+			if (fpData.IsValid()) {
+				CFlightPlanData fd = fpData.GetFlightPlanData();
+				string esType = fd.GetAircraftFPType(), esDep = fd.GetOrigin(), esDest = fd.GetDestination();
+				bool changed = false;
+				if (fp->Type.empty() && !esType.empty()) { fp->Type = esType; changed = true; }
+				if (fp->Depart.empty() && !esDep.empty()) { fp->Depart = esDep; changed = true; }
+				if (fp->Dest.empty() && !esDest.empty()) { fp->Dest = esDest; changed = true; }
+				if (changed) {
+					fp->Etd = CUtils::ParseZuluTime(false, atoi(fd.GetEstimatedDepartureTime()));
+					fp->IsEquipped = CUtils::IsAircraftEquipped(fd.GetRemarks(), fd.GetAircraftInfo(), fd.GetCapibilities());
+					fp->WindowRefresh = true;
+					CLogger::Log(CLogType::NORM, "Filled in blank flight plan details for " + string(RadarTarget.GetCallsign()) + " from EuroScope.", "CRadarDisplay::OnRadarTargetPositionUpdate");
+				}
+			}
 
 			// Remember who I am so changes sent to the server carry my callsign
 			CDataHandler::ControllerCallsign = GetPlugIn()->ControllerMyself().IsValid() ? GetPlugIn()->ControllerMyself().GetCallsign() : "";

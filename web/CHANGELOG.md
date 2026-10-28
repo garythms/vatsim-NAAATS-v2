@@ -2,6 +2,13 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.0.4 - 2026-10-28
+- After you send TRACK (or release / transfer) from the aircraft menu, the strip list now refreshes again 3 and 6 seconds later, so the headset icon and tracker update without clicking a second time.
+
+## 2.0.4 - 2026-10-28
+- After you send TRACK (or release / transfer) from the aircraft menu, the strip list now refreshes again 3 and 6 seconds later, so the headset icon and tracker update without clicking a second time.
+- Download page: the sector pack, guide PDF and intro video links no longer show "Not found" when clicked (the page was treating them as page links); they now download directly.
+
 ## 2.0.3 - 2026-10-27
 - Removed the "N min from <callsign>" warning (same track, same level, entering within 10 minutes). It compared estimated entry times only, so it could flag aircraft that were miles apart; judging separation is the controller's job. The "level is not one of the levels for track X" warning stays.
 - Flight Plan panel: a warning (for example "FL330 is not one of the levels for track V") is now a solid yellow banner at the top of the panel instead of small text at the bottom, and the panel grows to fit instead of scrolling.

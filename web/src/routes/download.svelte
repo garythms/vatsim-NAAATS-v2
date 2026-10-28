@@ -46,15 +46,15 @@
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold mb-2">Video: how to download and use vNAAATS</div>
-      <video class="w-full bg-black" controls preload="metadata" playsinline src="/vNAAATS-intro.mp4">Your browser cannot play this video. <a class="underline" href="/vNAAATS-intro.mp4">Download it</a>.</video>
+      <video class="w-full bg-black" controls preload="metadata" playsinline src="/vNAAATS-intro.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/vNAAATS-intro.mp4">Download it</a>.</video>
       <div class="text-sm opacity-80 mt-2">About three minutes, with captions. The flights shown are demo data.</div>
     </div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold">User guide (PDF)</div>
       <div class="text-sm opacity-80 mb-3">The install guide and the full user manual in one file. The same text is on the <a href="https://vnaaats.com/guide" class="underline">install guide</a> and <a href="https://vnaaats.com/manual" class="underline">user manual</a> pages.</div>
-      <a href="/vNAAATS-user-guide.pdf" class="inline-block px-5 py-2 mr-2 mb-2 font-bold bg-blue-10 text-black">Open the guide (PDF)</a>
-      <a href="/vNAAATS-user-guide.pdf" download class="inline-block px-5 py-2 mb-2 border-2 border-blue-10">Download</a>
+      <a href="/vNAAATS-user-guide.pdf" rel="external" class="inline-block px-5 py-2 mr-2 mb-2 font-bold bg-blue-10 text-black">Open the guide (PDF)</a>
+      <a href="/vNAAATS-user-guide.pdf" rel="external" download class="inline-block px-5 py-2 mb-2 border-2 border-blue-10">Download</a>
       <details class="mt-2">
         <summary class="cursor-pointer underline text-sm">Read it on this page</summary>
         <iframe class="w-full mt-3 bg-white" style="height: 70vh;" title="vNAAATS user guide" src="/vNAAATS-user-guide.pdf#view=FitH"></iframe>
@@ -65,7 +65,7 @@
     <div class="mb-6 p-4 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold">Ready-made sector pack</div>
       <p class="opacity-90 my-2">The Gander Oceanic sector files with the vNAAATS plugin and radar screen already set up (a clean EuroScope profile). Unzip it into your EuroScope folder and it is ready to use. You still need your own key from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>.</p>
-      <a href="/vNAAATS-sector-pack.zip" class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Download vNAAATS-sector-pack.zip</a>
+      <a href="/vNAAATS-sector-pack.zip" rel="external" download class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Download vNAAATS-sector-pack.zip</a>
     </div>
     <a href="/temp-key" style="display:none" aria-hidden="true" tabindex="-1">.</a>
     <h2 class="text-2xl font-bold mb-2">Updating an existing install</h2>
