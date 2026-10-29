@@ -42,6 +42,12 @@
       <a href={dllUrl || zipUrl} class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">{dllUrl ? "Download VatsimNAAATS.dll" : direct ? "Download VatsimNAAATS-plugin.zip" : "Open the download page"}</a>
       {#if note}<div class="text-sm text-yellow-300 mt-2">{note}</div>{/if}
       <div class="text-sm opacity-80 mt-3">Already installed? Close EuroScope and replace <b>only</b> the DLL. Keep your <b>vnaaats.cfg</b>.</div>
+      <div class="text-sm mt-3"><b>Also needed in the same folder as the DLL:</b></div>
+      <div class="mt-2">
+        <a href="/ICAO_Airlines.txt" rel="external" download class="inline-block px-4 py-1 mr-2 mb-2 border-2 border-blue-10">ICAO_Airlines.txt</a>
+        <a href="/vnaaats.example.cfg" rel="external" download class="inline-block px-4 py-1 mb-2 border-2 border-blue-10">vnaaats.example.cfg</a>
+      </div>
+      <div class="text-sm opacity-80">ICAO_Airlines.txt shows the selected aircraft's radio callsign (e.g. BAW227 (Speedbird)) at the bottom left of the radar. The example config is for new installs only: rename it to <b>vnaaats.cfg</b> and add your key. Never copy it over an existing vnaaats.cfg.</div>
     </div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
@@ -61,7 +67,7 @@
       </details>
     </div>
 
-    <p class="mb-4 p-3 border-2 border-blue-10 bg-blue-3">First time installing? Use the <a href="https://vnaaats.com/guide" class="underline font-bold">install guide</a>. It has the full first-time pack (plugin, radar screen file, example config) and the sector file steps.</p>
+    <p class="mb-4 p-3 border-2 border-blue-10 bg-blue-3">First time installing? Use the <a href="https://vnaaats.com/guide" class="underline font-bold">install guide</a>. It has the full first-time pack (plugin, radar screen file, example config, ICAO_Airlines.txt) and the sector file steps.</p>
     <div class="mb-6 p-4 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold">Ready-made sector pack</div>
       <p class="opacity-90 my-2">The Gander Oceanic sector files with the vNAAATS plugin and radar screen already set up (a clean EuroScope profile). Unzip it into your EuroScope folder and it is ready to use. You still need your own key from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>.</p>
