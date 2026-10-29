@@ -75,6 +75,7 @@ void CDataHandler::LoadSettings() {
 		else if (k == "squawk") SquawkOnClearance = (v != "0");
 		else if (k == "autotype") AutoType = (v == "1");
 		else if (k == "retrack") Retrack = (v != "0");
+		else if (k == "remotelog") CLogger::RemoteMode = (v == "0" ? 0 : (v == "2" ? 2 : 1));
 	}
 	while (!server.empty() && server.back() == '/') server.pop_back();
 	FddUrl = server + "/fdd";
@@ -91,6 +92,7 @@ void CDataHandler::LoadSettings() {
 	TrackedUrl = server + "/PluginTracked?code=" + UrlEncode(key);
 	RetrackUrl = server + "/PluginRetrack?code=" + UrlEncode(key);
 	CommandDoneUrl = server + "/PluginCommandDone?code=" + UrlEncode(key);
+	CLogger::RemoteUrl = key.empty() ? "" : server + "/PluginLog?code=" + UrlEncode(key);
 	if (key.empty()) CLogger::Log(CLogType::WARN, "No API key in vnaaats.cfg - flight data cannot be saved to the server.", "CDataHandler::LoadSettings");
 }
 

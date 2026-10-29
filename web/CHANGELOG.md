@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.2.0 - 2026-10-29
+- No change to the display itself. The server gains the admin log (/admin/log) fed by plugin 2.2.0.
+
 ## 2.1.0 - 2026-10-29
 - Flight plan window: when an aircraft's Type shows NOFP (or is blank) the Type box is outlined in yellow and clicking it opens the whole flight plan in a window in the same layout as EuroScope's Flight plan setting dialog (flight rules, aircraft data, departure, destination, alternate, level, TAS, departure time, enroute and fuel times, route, remarks). Only the controller tracking the aircraft can save; everyone else sees it read only. Saving shows what will change and asks you to confirm, then EuroScope sends the amended plan to the pilot. Needs plugin 2.1.0.
 

@@ -54,12 +54,13 @@ import cpdlc as cpdlc_mod
 import commands as commands_mod
 import rcl_auto as rcl_auto_mod
 import members as members_mod
+import adminlog as adminlog_mod
 log = logging.getLogger("vnaaats")
 
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.1.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.2.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1198,7 +1199,8 @@ MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css
         ".webmanifest": "application/manifest+json", ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json", ".mp4": "video/mp4", ".pdf": "application/pdf", ".zip": "application/zip"}
 
 
-def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None):
+def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None, logs=None):
+    logs = logs if logs is not None else adminlog_mod.LogHub()
     queue = queue if queue is not None else commands_mod.CommandQueue()
     auth = auth or Auth({})
 
@@ -1315,6 +1317,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
 
         def do_POST(self):
             p = urlparse(self.path).path.rstrip("/") or "/"
+            q_post = {k: v[0] for k, v in parse_qs(urlparse(self.path).query, keep_blank_values=True).items()}
             try:
                 if "application/json" not in self.headers.get("Content-Type", ""):
                     return self._send(415, {"error": "send JSON"})          # also blocks cross-site form posts
@@ -1327,6 +1330,19 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         raise ValueError
                 except ValueError:
                     return self._send(400, {"error": "bad JSON"})
+                if p == "/PluginLog":                          # the plugin sends a copy of its log (batched)
+                    bad = key_problem(q_post.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
+                    lines = body.get("lines")
+                    if not isinstance(lines, list):
+                        return self._send(400, {"error": "lines must be a list"})
+                    return self._send(200, logs.add(q_post.get("me", ""), q_post.get("v", ""), [x for x in lines if isinstance(x, str)],
+                                                    ip=self._client_ip(), prev=bool(body.get("prev"))))
+                if p == "/admin/log/detail":
+                    if not logs.token_ok(self.headers.get("X-Admin-Token", ""), self._client_ip()):
+                        return self._send(403, {"error": "not allowed"})
+                    return self._send(200, logs.set_detail(body.get("me", ""), bool(body.get("on"))))
                 if p.startswith("/admin/member/"):               # called by the Gander Oceanic website, not by browsers
                     if not issuer_ok(self):
                         return self._send(403, {"error": "not allowed"})
@@ -1611,6 +1627,12 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             q = {k: v[0] for k, v in parse_qs(u.query, keep_blank_values=True).items()}
             p = u.path.rstrip("/") or "/"
             try:
+                if p == "/admin/log":                          # the page itself holds no data; the token unlocks it
+                    return self._send(200, adminlog_mod.PAGE, "text/html")
+                if p == "/admin/log/data":
+                    if not logs.token_ok(self.headers.get("X-Admin-Token", ""), self._client_ip()):
+                        return self._send(403, {"error": "not allowed"})
+                    return self._send(200, logs.view(q.get("me", ""), q.get("level", ""), to_int(q.get("since"), 0), to_int(q.get("limit"), 400)))
                 if p == "/GetTrackSource":
                     return self._send(200, "0", "text/plain")
                 if p == "/GetAllNatTracks":
@@ -1885,7 +1907,10 @@ def main():
     if os.environ.get("VNAAATS_RCL_AUTO", "on").lower() != "off" and network:
         rcl = rcl_auto_mod.RclAuto(store, queue, network, natrak, lambda route, pos: route_distance_nm(route, pos, cache.fixes), OCEANIC_PREFIXES)
         log.info("Automatic RCL REQ reminders are available (%s)", "ON" if rcl.enabled else "switched off on the display")
-    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl, members, issuer_secret, roster)).serve_forever()
+    logs = adminlog_mod.LogHub(os.environ.get("VNAAATS_ADMIN_TOKEN", ""), os.environ.get("VNAAATS_LOG_DIR", os.path.join(HERE, "logs")))
+    if not logs.token:
+        log.info("Admin log viewer is OFF: set VNAAATS_ADMIN_TOKEN (16+ characters) in /etc/vnaaats.env to switch it on")
+    ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl, members, issuer_secret, roster, logs)).serve_forever()
 
 
 if __name__ == "__main__":

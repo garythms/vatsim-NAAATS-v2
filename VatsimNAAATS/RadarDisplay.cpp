@@ -271,6 +271,9 @@ void CRadarDisplay::RunRemoteCommands()
 		}
 	}
 
+	// Send any waiting log lines to the admin log (background thread, every 5 s at most)
+	CLogger::MaybeFlushRemote();
+
 	// Ask the server for new commands about every 2 seconds
 	if (!CDataHandler::RemotePollBusy && (double)(clock() - CDataHandler::RemoteLastPoll) / (double)CLOCKS_PER_SEC >= 2.0) {
 		CDataHandler::RemoteLastPoll = clock();

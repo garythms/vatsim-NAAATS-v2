@@ -41,6 +41,14 @@ if ! grep -q '^VNAAATS_ISSUER_SECRET=' /etc/vnaaats.env; then
   echo "Created VNAAATS_ISSUER_SECRET in /etc/vnaaats.env (the website needs the same value; it is not shown here)."
 fi
 
+# Admin log (https://<server>/admin/log): the token unlocks the page. Created once. Logs are kept 7 days in /var/lib/vnaaats/logs
+NEWADMIN=""
+if ! grep -q '^VNAAATS_ADMIN_TOKEN=' /etc/vnaaats.env; then
+  NEWADMIN="$(openssl rand -hex 12)"
+  echo "VNAAATS_ADMIN_TOKEN=$NEWADMIN" >> /etc/vnaaats.env
+fi
+grep -q '^VNAAATS_LOG_DIR=' /etc/vnaaats.env || echo "VNAAATS_LOG_DIR=/var/lib/vnaaats/logs" >> /etc/vnaaats.env
+
 # Web editing password (the FDD login) - created once, change it in /etc/vnaaats.env any time
 if grep -q '^VNAAATS_SHARED_PASSWORD=off' /etc/vnaaats.env; then
   NEWPASS=""                                              # shared password switched off on purpose: do not make a new one
@@ -92,6 +100,14 @@ if [ -n "$NEWKEY" ]; then
   echo "=============================================================="
 else
   echo "API key unchanged (see /etc/vnaaats.env)."
+fi
+if [ -n "$NEWADMIN" ]; then
+  echo "=============================================================="
+  echo " ADMIN LOG TOKEN (open https://vnaaats.com/admin/log and paste it; shown only once):"
+  echo " $NEWADMIN"
+  echo "=============================================================="
+else
+  echo "Admin log token unchanged (VNAAATS_ADMIN_TOKEN in /etc/vnaaats.env)."
 fi
 if [ -n "$NEWPASS" ]; then
   echo "=============================================================="

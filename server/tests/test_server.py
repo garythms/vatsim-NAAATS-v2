@@ -617,3 +617,76 @@ class TangoRouteTest(unittest.TestCase):
 class ZipServedTest(unittest.TestCase):
     def test_zip_has_a_type(self):
         self.assertEqual(s.MIME[".zip"], "application/zip")
+
+
+class AdminLogTests(unittest.TestCase):
+    TOKEN = "t" * 24
+
+    @classmethod
+    def setUpClass(cls):
+        import adminlog
+        cls.tmp = tempfile.mkdtemp()
+        cache = s.TrackCache(s.load_fixes())
+        store = s.FlightStore(os.path.join(cls.tmp, "t.db"))
+        cls.hub = adminlog.LogHub(cls.TOKEN, os.path.join(cls.tmp, "logs"))
+        cls.srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, store, KEY, logs=cls.hub))
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.base = "http://127.0.0.1:%d" % cls.srv.server_port
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def call(self, path, body=None, token=None):
+        h = {"Content-Type": "application/json"}
+        if token is not None:
+            h["X-Admin-Token"] = token
+        req = urllib.request.Request(self.base + path, data=json.dumps(body).encode() if body is not None else None, headers=h)
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.loads(r.read().decode() or "null") if "json" in r.headers.get("Content-Type", "") else r.read().decode()
+        except urllib.error.HTTPError as e:
+            return e.code, None
+
+    def test_plugin_needs_key(self):
+        self.assertEqual(self.call("/PluginLog?code=wrong&me=X", {"lines": ["a"]})[0], 401)
+
+    def test_roundtrip_and_redaction(self):
+        code, out = self.call("/PluginLog?code=%s&me=czqo_ctr&v=2.2.0" % KEY, {"lines": [
+            "[ERR 10:00:00.1] [X] Request URL: http://a/PostFlightData?code=SECRETKEY&callsign=AB1", "[LOG 10:00:01.1] hello"]})
+        self.assertEqual((code, out["n"], out["detail"]), (200, 2, False))
+        code, d = self.call("/admin/log/data?me=CZQO_CTR&level=problems", token=self.TOKEN)
+        self.assertEqual(code, 200)
+        self.assertEqual(len(d["lines"]), 1)
+        self.assertNotIn("SECRETKEY", d["lines"][0]["line"])
+        self.assertIn("code=***", d["lines"][0]["line"])
+        self.assertEqual(d["controllers"][0]["errors"], 1)
+        self.assertNotIn("SECRETKEY", open(os.path.join(self.tmp, "logs", os.listdir(os.path.join(self.tmp, "logs"))[0])).read())
+
+    def test_admin_needs_token(self):
+        self.assertEqual(self.call("/admin/log/data", token="nope")[0], 403)
+        self.assertEqual(self.call("/admin/log/data")[0], 403)
+        self.assertEqual(self.call("/admin/log/detail", {"me": "A", "on": True}, token="nope")[0], 403)
+
+    def test_page_has_no_data(self):
+        code, html = self.call("/admin/log")
+        self.assertEqual(code, 200)
+        self.assertIn("Admin token", html)
+
+    def test_detail_flag_reaches_plugin(self):
+        self.call("/PluginLog?code=%s&me=EGGX_CTR" % KEY, {"lines": ["[LOG 1] x"]})
+        self.assertEqual(self.call("/admin/log/detail", {"me": "EGGX_CTR", "on": True}, token=self.TOKEN)[0], 200)
+        self.assertTrue(self.call("/PluginLog?code=%s&me=EGGX_CTR" % KEY, {"lines": []})[1]["detail"])
+        self.call("/admin/log/detail", {"me": "EGGX_CTR", "on": False}, token=self.TOKEN)
+        self.assertFalse(self.call("/PluginLog?code=%s&me=EGGX_CTR" % KEY, {"lines": []})[1]["detail"])
+
+    def test_viewer_off_without_token(self):
+        import adminlog
+        self.assertFalse(adminlog.LogHub("").token_ok(""))
+
+    def test_rate_limit_and_batch_cap(self):
+        import adminlog
+        h = adminlog.LogHub("x" * 20)
+        self.assertEqual(h.add("A", "1", ["l"] * 500)["n"], adminlog.MAX_BATCH)
+        h.add("A", "1", ["l"] * 200); h.add("A", "1", ["l"] * 200)
+        self.assertEqual(h.add("A", "1", ["l"] * 200)["n"], 0)
