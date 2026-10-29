@@ -796,3 +796,70 @@ class InstallerTests(unittest.TestCase):
         for mod in _re.findall(r"^import (\w+)(?: as \w+)?$", src, _re.M):
             if os.path.exists(os.path.join(here, mod + ".py")):
                 self.assertIn(mod + ".py", setup, "deploy/setup.sh does not copy %s.py" % mod)
+
+
+class RouteSanityTests(unittest.TestCase):
+    def rec(self, dep, arr, east, track="RR", route="JANJO 56/50 58/40 ETARI"):
+        return {"departure": dep, "arrival": arr, "direction": east, "track": track, "route": route}
+
+    def test_normal_flights_are_trusted(self):
+        self.assertEqual(s.route_sanity(self.rec("EGLL", "KBOS", False)), "")
+        self.assertEqual(s.route_sanity(self.rec("KJFK", "EGLL", True)), "")
+        self.assertEqual(s.route_sanity(self.rec("CYYZ", "LFPG", True)), "")
+
+    def test_wrong_way_is_flagged(self):
+        self.assertIn("westbound", s.route_sanity(self.rec("EGLL", "KBOS", True)))
+        self.assertIn("eastbound", s.route_sanity(self.rec("KJFK", "EGLL", False)))
+
+    def test_both_ends_on_one_side_is_flagged(self):
+        self.assertIn("does not cross", s.route_sanity(self.rec("EGLL", "EDDF", False)))
+        self.assertIn("does not cross", s.route_sanity(self.rec("KJFK", "KBOS", True)))
+
+    def test_unknown_ends_and_tango_are_not_judged(self):
+        self.assertEqual(s.route_sanity(self.rec("TNCM", "EGLL", False)), "")
+        self.assertEqual(s.route_sanity(self.rec("EGLL", "KBOS", True, track="T9")), "")
+
+    def test_no_route(self):
+        self.assertEqual(s.route_sanity(self.rec("EGLL", "KBOS", False, route="")), "no route")
+
+
+class PluginRouteEndpointTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp()
+        cache = s.TrackCache(s.load_fixes())
+        store = s.FlightStore(os.path.join(cls.tmp, "t.db"))
+        net = s.NetworkTraffic(cache)
+        net.flights = [
+            {"callsign": "GOOD1", "departure": "EGLL", "arrival": "KBOS", "direction": False, "track": "D", "route": "RIKAL 53/50 55/40 55/30 TOBOR", "routeEtas": "-- -- -- -- --"},
+            {"callsign": "BAD1", "departure": "EGLL", "arrival": "KBOS", "direction": True, "track": "RR", "route": "A 53/50 B", "routeEtas": "-- -- --"}]
+        cls.srv = s.ThreadingHTTPServer(("127.0.0.1", 0), s.make_handler(cache, store, KEY, network=net))
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.base = "http://127.0.0.1:%d" % cls.srv.server_port
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def get(self, path):
+        try:
+            with urllib.request.urlopen(self.base + path) as r:
+                return r.status, json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            return e.code, None
+
+    def test_needs_key(self):
+        self.assertEqual(self.get("/PluginRoute?code=bad&callsign=GOOD1")[0], 401)
+
+    def test_good_route_is_given(self):
+        code, d = self.get("/PluginRoute?code=%s&callsign=GOOD1" % KEY)
+        self.assertEqual((code, d["ok"], d["track"]), (200, True, "D"))
+        self.assertEqual(d["route"], "RIKAL 53/50 55/40 55/30 TOBOR")
+
+    def test_wrong_way_route_is_refused_with_a_reason(self):
+        code, d = self.get("/PluginRoute?code=%s&callsign=BAD1" % KEY)
+        self.assertEqual((code, d["ok"]), (200, False))
+        self.assertIn("westbound", d["why"])
+
+    def test_unknown_aircraft_404(self):
+        self.assertEqual(self.get("/PluginRoute?code=%s&callsign=NOPE9" % KEY)[0], 404)

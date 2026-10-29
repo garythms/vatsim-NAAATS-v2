@@ -61,7 +61,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.2.2"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.3.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1168,6 +1168,33 @@ def route_problem(text):
     return ""
 
 
+EU_PREFIX, NA_PREFIX = ("E", "L"), ("K", "C")
+
+
+def route_sanity(rec):
+    """("", route problem) for a flight from the VATSIM feed. A route is trusted when it crosses the ocean the way the flight should:
+    Europe -> North America runs westbound, North America -> Europe eastbound. A route that runs the wrong way, or a flight
+    with both ends in Europe (or both in North America), is "wrong or invalid" and the controller is asked to check it."""
+    dep, arr = str(rec.get("departure", "")).upper(), str(rec.get("arrival", "")).upper()
+    if not str(rec.get("route", "")).strip():
+        return "no route"
+    track = str(rec.get("track", "")).upper()
+    if len(track) > 1 and track.startswith("T"):
+        return ""                                                   # Tango route: not judged by direction
+    def region(code):
+        return "EU" if code.startswith(EU_PREFIX) else "NA" if code.startswith(NA_PREFIX) else ""
+    d, a = region(dep), region(arr)
+    if d and a:
+        if d == a:
+            return "%s to %s does not cross the Atlantic" % (dep, arr)
+        east = bool(rec.get("direction"))
+        if d == "EU" and east:
+            return "%s to %s should run westbound but the route runs eastbound" % (dep, arr)
+        if d == "NA" and not east:
+            return "%s to %s should run eastbound but the route runs westbound" % (dep, arr)
+    return ""
+
+
 def _hhmm_to_min(t):
     return int(t[:2]) * 60 + int(t[2:])
 
@@ -1710,6 +1737,18 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     text = " ".join(q.get("text", "").upper().split())[:SCRATCH_MAX]
                     text = "".join(ch for ch in text if SCRATCH_OK.fullmatch(ch) or ch == " ")
                     return self._send(200, {"ok": store.set_scratch(q.get("callsign", ""), text, "Plugin")})
+                if p == "/PluginRoute":                       # the plugin asks for the filed route of an aircraft nobody has handled yet
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
+                    cs = re.sub(r"[^A-Z0-9]", "", q.get("callsign", "").upper())[:8]
+                    rec = next((f for f in network.all() if f.get("callsign") == cs), None) if network else None
+                    if not rec:
+                        return self._send(404, {"error": "not an oceanic flight on the network"})
+                    why = route_sanity(rec)
+                    if why:
+                        return self._send(200, {"ok": False, "why": why})
+                    return self._send(200, {"ok": True, "route": rec["route"], "track": rec.get("track", "RR")})
                 if p == "/PluginAsel":                        # the plugin reports the aircraft selected in EuroScope
                     bad = key_problem(q.get("code", ""))
                     if bad:

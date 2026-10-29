@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 2.3.0: Aircraft nobody has handled yet now show the route filed with VATSIM, straight away, when it looks right (it crosses the Atlantic the right way for its departure and destination). The route box only says CHECK / EDIT ROUTE when the filed route is missing, runs the wrong way or does not cross the ocean. Needs server 2.3.0. Replace only VatsimNAAATS.dll.
+
 NEW IN 2.2.1: When an aircraft has no route yet, the route box in the flight plan window now says CHECK / EDIT ROUTE instead of AIRCRAFT. Replace only VatsimNAAATS.dll.
 
 NEW IN 2.2.0: Admin log. The plugin now sends a copy of its warnings and errors (and the end of the previous session's log after a crash) to the vNAAATS server, so problems can be found quickly. It never sends your key or any password, and it never slows EuroScope down (it sends in the background; if the server cannot be reached the lines are simply dropped). The admin can ask for full detail from one controller for two hours while chasing a fault. To switch it off, add remotelog=0 to vnaaats.cfg (remotelog=2 sends everything). Needs server 2.2.0. Replace only VatsimNAAATS.dll.

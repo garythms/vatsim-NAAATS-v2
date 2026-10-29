@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.3.0 - 2026-10-29
+- Server 2.3.0 gives the plugin the VATSIM-filed route of aircraft nobody has handled yet (new /PluginRoute), but only when it looks right: Europe to North America must run westbound, North America to Europe eastbound, and both ends on one side of the Atlantic is refused. Needs plugin 2.3.0. No change to the display.
+
 ## 2.2.2 - 2026-10-29
 - Server 2.2.2: Discord alerts from the admin log. Set VNAAATS_ADMIN_WEBHOOK in /etc/vnaaats.env: plugin errors post to that channel with @here (grouped, repeats held back for 15 minutes), and a plain summary posts every 6 hours (VNAAATS_SUMMARY_HOURS). Warnings never ping. No change to the display.
 

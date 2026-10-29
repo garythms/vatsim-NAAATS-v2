@@ -74,6 +74,7 @@ class CDataHandler
 	static vector<string> TakeRetrack(); // callsigns fetched by FetchRetrack
 	static volatile long RetrackFetched; // 1 when FetchRetrack has finished
 	static string AselUrl; // server + /PluginAsel?code=KEY
+	static string RouteUrl; // server + /PluginRoute?code=KEY (the filed route of an aircraft nobody has handled yet)
 	static void ReportAsel(void* args); // tells the server which aircraft was clicked in EuroScope
 	static string UrlEncode(const string& value); // percent-encode a query value
 	// Commands sent from the web flight data display (track / untrack / transfer)
@@ -109,7 +110,7 @@ class CDataHandler
 		static string CommandsUrl;
 		static string CommandDoneUrl;
 		static std::mutex remoteLock;
-		struct CPendingNet { CNetworkFlightPlan net; string scratch; };
+		struct CPendingNet { CNetworkFlightPlan net; string scratch; bool routeOnly = false; string routeText; string routeTrack; }; // routeOnly: the aircraft has no saved record, only the filed route from the server
 		static std::mutex deleteLock;
 		static std::vector<string> deleteQueue;
 		static std::mutex pendingLock;

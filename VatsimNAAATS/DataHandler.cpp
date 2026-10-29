@@ -16,6 +16,7 @@ string CDataHandler::ControllerCallsign = "";
 string CDataHandler::DownloadUrl = DEFAULT_SERVER + "/download";
 string CDataHandler::ScratchUrl = "";
 string CDataHandler::AselUrl = "";
+string CDataHandler::RouteUrl = "";
 bool CDataHandler::Retrack = true;
 string CDataHandler::TrackedUrl = "";
 string CDataHandler::RetrackUrl = "";
@@ -89,6 +90,7 @@ void CDataHandler::LoadSettings() {
 	CommandsUrl = server + "/PluginCommands?code=" + UrlEncode(key);
 	ScratchUrl = server + "/PluginScratch?code=" + UrlEncode(key);
 	AselUrl = server + "/PluginAsel?code=" + UrlEncode(key);
+	RouteUrl = server + "/PluginRoute?code=" + UrlEncode(key);
 	TrackedUrl = server + "/PluginTracked?code=" + UrlEncode(key);
 	RetrackUrl = server + "/PluginRetrack?code=" + UrlEncode(key);
 	CommandDoneUrl = server + "/PluginCommandDone?code=" + UrlEncode(key);
@@ -498,8 +500,43 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 		// Download data
 		CComPtr<IStream> pStream;
 		HRESULT hr = URLOpenBlockingStream(NULL, lpcURL, &pStream, 0, NULL);
-		// If failed (probably a 404 not found)
+		// If failed (probably a 404 not found): nobody has handled this aircraft yet. Ask the server for its filed route
+		// (the VATSIM flight plan, only when it looks right) so it shows without a controller having to enter it.
 		if (FAILED(hr)) {
+			try {
+				static std::mutex routeTriedLock;
+				static std::map<string, clock_t> routeTried;
+				bool ask = false;
+				{
+					std::lock_guard<std::mutex> lk(routeTriedLock);
+					auto it = routeTried.find(callsign);
+					if (it == routeTried.end() || (double)(clock() - it->second) / (double)CLOCKS_PER_SEC >= 120.0) {
+						routeTried[callsign] = clock();
+						ask = !RouteUrl.empty();
+					}
+				}
+				if (ask) {
+					string routeReq = RouteUrl + "&callsign=" + UrlEncode(callsign);
+					DeleteUrlCacheEntry(routeReq.c_str());
+					CComPtr<IStream> rStream;
+					if (SUCCEEDED(URLOpenBlockingStream(NULL, routeReq.c_str(), &rStream, 0, NULL))) {
+						char rBuf[4096];
+						DWORD rRead = 0;
+						string rResp;
+						if (SUCCEEDED(rStream->Read(rBuf, sizeof(rBuf), &rRead))) rResp.assign(rBuf, rRead);
+						auto rj = json::parse(rResp);
+						if (rj.value("ok", false) && !rj.value("route", "").empty()) {
+							std::lock_guard<std::mutex> lk(pendingLock);
+							CPendingNet pn;
+							pn.routeOnly = true;
+							pn.routeText = rj.value("route", "");
+							pn.routeTrack = rj.value("track", "");
+							pending[callsign] = pn;
+						}
+					}
+				}
+			}
+			catch (...) {}
 			// Cleanup
 			delete args;
 			return;
@@ -605,6 +642,21 @@ void CDataHandler::ApplyPendingNetwork(CRadarScreen* screen) {
 		try {
 			// Get flight plan
 			CAircraftFlightPlan* fp = CDataHandler::GetFlightData(callsign);
+
+			// Only the filed route (no saved record on the server): fill it in, change nothing else
+			if (pn.routeOnly) {
+				if (fp->IsValid && !fp->IsCleared) {
+					vector<string> rr;
+					CUtils::StringSplit(pn.routeText, ' ', &rr);
+					if (!rr.empty() && rr != fp->RouteRaw) {
+						fp->RouteRaw = rr;
+						if ((fp->Track == "RR" || fp->Track.empty()) && !pn.routeTrack.empty()) fp->Track = pn.routeTrack;
+						UpdateFlightData(screen, callsign, true);
+						CLogger::Log(CLogType::NORM, "Filed route applied to " + callsign + ": " + pn.routeText, "CDataHandler::ApplyPendingNetwork");
+					}
+				}
+				continue;
+			}
 
 			// If it is valid
 			if (fp->IsValid) {
