@@ -24,7 +24,7 @@
   let wallopText: string = "";
   let ac: any = null;
 
-  $: selcalWarn = selcal ? m.selcalProblem(selcal) : "";
+  $: selcalWarn = /[^A-Za-z\-\s]/.test(selcal) ? "SELCAL is letters only" : "";   // any four letters are allowed; only warn about things that are not letters
   $: canEdit = sess.canEdit($session);
   $: if ($menuCallsign !== lastCs) { lastCs = $menuCallsign; if ($menuCallsign) openFor($menuCallsign); }
 

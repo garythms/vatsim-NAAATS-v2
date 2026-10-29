@@ -70,7 +70,7 @@ SESSION_COOKIE = "vnaaats_session"
 SESSION_SECONDS = 12 * 3600
 DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS"
 EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
-SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
+SELCAL_OK = re.compile(r"[A-Z]{4}")   # VATSIM pilots can use any four letters
 SCRATCH_MAX = 15                                  # characters in the scratchpad note (EuroScope itself documents no limit)
 SCRATCH_OK = re.compile(r"[A-Z0-9 /.,+*-]{0,%d}" % SCRATCH_MAX)
 
@@ -721,6 +721,15 @@ def _plain_fix(token):
     return t if re.fullmatch(r"[A-Z]{5}", t) and t != "DCT" else None
 
 
+SELCAL_REMARK = re.compile(r"\bSEL(?:CAL)?\s*[/:= ]\s*([A-Z]{4})\b")
+
+
+def selcal_from_remarks(remarks):
+    """The SELCAL a pilot filed in the remarks of the VATSIM flight plan (SEL/ABCD, SELCAL ABCD), or "". Any four letters."""
+    m = SELCAL_REMARK.search(str(remarks or "").upper())
+    return m.group(1) if m else ""
+
+
 def convert_network_pilot(pilot, tracks):
     """One pilot from the VATSIM data feed -> a flight record, or None if the route does not cross the ocean.
     The route is the oceanic coordinates plus the named entry fix before them and the exit fix after them."""
@@ -765,7 +774,7 @@ def convert_network_pilot(pilot, tracks):
         "assignedLevel": parse_level(fp.get("altitude")), "assignedMach": 0,
         "track": track, "route": " ".join(names), "routeEtas": " ".join(["--"] * len(names)),
         "departure": fp.get("departure") or "", "arrival": fp.get("arrival") or "",
-        "direction": direction, "etd": fp.get("deptime") or "", "selcal": "",
+        "direction": direction, "etd": fp.get("deptime") or "", "selcal": selcal_from_remarks(fp.get("remarks")),
         "datalinkConnected": False, "isEquipped": True, "state": "", "relevant": True,
         "trackedBy": "", "trackedById": "", "targetMode": 3,
         "lastUpdated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -782,7 +791,7 @@ def _tango_record(pilot, fp, tg):
         "assignedLevel": parse_level(fp.get("altitude")), "assignedMach": 0,
         "track": tid, "route": " ".join(flown), "routeEtas": " ".join(["--"] * len(flown)),
         "departure": fp.get("departure") or "", "arrival": fp.get("arrival") or "",
-        "direction": north, "etd": fp.get("deptime") or "", "selcal": "",
+        "direction": north, "etd": fp.get("deptime") or "", "selcal": selcal_from_remarks(fp.get("remarks")),
         "datalinkConnected": False, "isEquipped": True, "state": "", "relevant": True,
         "trackedBy": "", "trackedById": "", "targetMode": 3,
         "lastUpdated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -811,7 +820,7 @@ def convert_manual_pilot(pilot, tracks):
         "assignedLevel": parse_level(fp.get("altitude")), "assignedMach": 0,
         "track": "RR", "route": " ".join(names), "routeEtas": " ".join(["--"] * len(names)),
         "departure": dep, "arrival": fp.get("arrival") or "",
-        "direction": not dep[:1] in ("E", "L", "B"), "etd": fp.get("deptime") or "", "selcal": "",
+        "direction": not dep[:1] in ("E", "L", "B"), "etd": fp.get("deptime") or "", "selcal": selcal_from_remarks(fp.get("remarks")),
         "datalinkConnected": False, "isEquipped": True, "state": "", "relevant": True,
         "trackedBy": "", "trackedById": "", "targetMode": 3,
         "lastUpdated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1292,7 +1301,7 @@ def validate_edit(body):
     if "selcal" in body:
         sc = re.sub(r"[-\s]", "", str(body["selcal"]).upper())
         if sc and not SELCAL_OK.fullmatch(sc):
-            return None, "SELCAL must be 4 letters from A-H, J-M, P-S (no I, N, O, T-Z), like ABCD"
+            return None, "SELCAL must be exactly 4 letters, like ABCD"
         changes["selcal"] = sc
     if "scratch" in body:
         sp = " ".join(str(body["scratch"]).upper().split())

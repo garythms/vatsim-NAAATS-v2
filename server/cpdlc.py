@@ -205,6 +205,7 @@ class CpdlcStation:
         self.stop_flag = False
         # Connections are NOT restored: a station only polls while a controller is signed in to it, so after a stop pilots must log on again.
         self.db.execute("DELETE FROM cpdlc_conn2 WHERE station=?", (client.station,))
+        self.db.execute("DELETE FROM cpdlc_messages WHERE ts < ?", (self.now() - self.MESSAGE_KEEP,))     # days-old history is not kept
         # A new sign-in starts with nothing unread: whatever is left from earlier sessions is old.
         self.db.execute("UPDATE cpdlc_messages SET seen=1 WHERE station=? AND seen=0", (client.station,))
         self.db.commit()
@@ -229,13 +230,20 @@ class CpdlcStation:
 
     COLS = "id, ts, dir, callsign, min, mrn, ra, text, state, seen, by"
 
+    MESSAGE_MAX_AGE = 6 * 3600           # the drawer never shows anything older than this
+    MESSAGE_KEEP = 2 * 86400             # and anything older than this is deleted when the station starts
+
     def messages(self, callsign=None, after=0, limit=200):
         with self.lock:
+            floor = self.now() - self.MESSAGE_MAX_AGE
             if callsign:
-                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE station=? AND callsign=? AND id>? ORDER BY id DESC LIMIT ?" % self.COLS,
-                                       (self.client.station, callsign.upper(), after, limit)).fetchall()
+                conn = self.connected.get(callsign.upper())
+                if conn:                                          # connected now: this logon only (the request for it arrives just before the connection is made)
+                    floor = max(floor, conn["since"] - 120)
+                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE station=? AND callsign=? AND id>? AND ts>=? ORDER BY id DESC LIMIT ?" % self.COLS,
+                                       (self.client.station, callsign.upper(), after, floor, limit)).fetchall()
             else:
-                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE station=? AND id>? ORDER BY id DESC LIMIT ?" % self.COLS, (self.client.station, after, limit)).fetchall()
+                rows = self.db.execute("SELECT %s FROM cpdlc_messages WHERE station=? AND id>? AND ts>=? ORDER BY id DESC LIMIT ?" % self.COLS, (self.client.station, after, floor, limit)).fetchall()
         return [self._row(r) for r in reversed(rows)]
 
     def mark_seen(self, callsign):

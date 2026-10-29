@@ -54,6 +54,20 @@ class StationTests(unittest.TestCase):
         self.assertEqual((acc["to"], acc["from"], acc["packet"]), ("BAW123", "CZQO", "/data2/1/5/NE/LOGON ACCEPTED"))
         self.assertEqual(st.status()["connected"][0]["callsign"], "BAW123")
 
+    def test_old_messages_are_not_shown(self):
+        clock = [1_000_000.0]
+        hop, st = make(now=lambda: clock[0])
+        st._store("DOWN", "BAW123", 1, None, "Y", "REQUEST LOGON", "", 1)          # yesterday's logon
+        st._store("UP", "BAW123", 2, 1, "NE", "LOGON ACCEPTED", "", 1)
+        clock[0] += 86400
+        hop.queue = [("BAW123", "/data2/5//Y/REQUEST LOGON")]                     # logs on again today
+        st.poll_once()
+        texts = [(x["text"], x["ts"]) for x in st.messages("BAW123")]
+        self.assertTrue(texts and all(ts >= clock[0] - 120 for _, ts in texts), texts)   # nothing from yesterday
+        self.assertTrue(any(t.startswith("REQUEST LOGON") for t, _ in texts))
+        clock[0] += 7 * 3600                                                     # still connected, but the old part ages out
+        self.assertEqual(st.messages(), [])
+
     def test_old_mail_is_not_unread_and_reply_clears(self):
         hop, st = make()
         hop.queue = [("OLD1", "/data2/9//Y/REQUEST LEVEL FL360")]       # waiting at Hoppie, pilot is not logged on
