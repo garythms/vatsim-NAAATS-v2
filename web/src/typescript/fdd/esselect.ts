@@ -8,6 +8,7 @@ import * as dataHandler from "./data";
 const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
 
 export const espicked = writable<string>("");
+export const espickN = writable<number>(0);   // counts every pick, so the highlight pulses again even for the same aircraft
 let lastSeq: number = -1;                 // -1 until the first answer, so an old pick does not scroll the list on page load
 let timer: any = null;
 
@@ -20,6 +21,7 @@ async function poll(): Promise<void> {
     if (d.seq === lastSeq) return;
     lastSeq = d.seq;
     espicked.set(d.callsign || "");
+    espickN.update((n) => n + 1);
     if (d.callsign) {
       dataHandler.setAsel(d.callsign);
       setTimeout(() => {

@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 2.4.1 - 2026-10-29
+- Flight strip picked in EuroScope: a thick black ring with a white inner edge appears for about half a second, then shrinks to a thin ring and stays. It stands out on blue and yellow strips, and pulses again if you click the same aircraft again.
 - Download page: new video showing how to load vNAAATS into EuroScope (profile, sector file, plugin, display, ASR file).
 - Download page and guide: the sector files now link to the official AeroNav package (files.aero-nav.com/EXCXO) instead of a zip hosted here. The page also offers ICAO_Airlines.txt (updated, AIRAC 2611) and the current example config.
 - Plugin: the cursor latitude/longitude readout (and the ruler/QDM tool) now use the radar window's own pixels, so the longitude is correct when EuroScope is not full screen (it showed e.g. E30 over 30W).

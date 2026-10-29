@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { espicked } from "../../typescript/fdd/esselect";
+  import { espicked, espickN } from "../../typescript/fdd/esselect";
   import * as utils from "../../typescript/fdd/utils";
   import * as dataHandler from "../../typescript/fdd/data";
   import { menuCallsign } from "../../typescript/fdd/acmenu";
@@ -82,7 +82,7 @@
   }
 </script>
 
-<div id={"strip-" + callsign} style={($espicked === callsign ? "outline: 3px solid #fde047; outline-offset: -3px;" : "") + (faded ? " opacity: 0.45;" : "")} class="hover:border-green-500 hover:border-2" title={tip}
+<div id={"strip-" + callsign} style={faded ? "opacity: 0.45;" : ""} class={"hover:border-green-500 hover:border-2" + ($espicked === callsign ? ($espickN % 2 ? " es-pick-a" : " es-pick-b") : "")} title={tip}
   on:click={() => {
     if (dataHandler.isNatTrakAlert(callsign)) dataHandler.openNatTrakFor(callsign); // flashing request: open natTrak
     dataHandler.ackNatTrak(callsign);
@@ -129,6 +129,25 @@
   </div>
 </div>
 <style>
+  /* Aircraft picked in EuroScope: a thick black ring with a white inner edge (stands out on blue and on yellow strips)
+     that shrinks to a thin ring and stays. It is drawn over the strip (the strip's own colour would hide a shadow).
+     Two identical animations alternate so a repeat click pulses again. */
+  :global(.es-pick-a), :global(.es-pick-b) { position: relative; }
+  :global(.es-pick-a)::after, :global(.es-pick-b)::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5;
+    border: 2px solid #000; box-shadow: inset 0 0 0 1px #fff;
+  }
+  :global(.es-pick-a)::after { animation: es-pulse-a 1.6s ease-out; }
+  :global(.es-pick-b)::after { animation: es-pulse-b 1.6s ease-out; }
+  @keyframes es-pulse-a {
+    0%, 35% { border-width: 5px; box-shadow: inset 0 0 0 2px #fff; }
+    100%    { border-width: 2px; box-shadow: inset 0 0 0 1px #fff; }
+  }
+  @keyframes es-pulse-b {
+    0%, 35% { border-width: 5px; box-shadow: inset 0 0 0 2px #fff; }
+    100%    { border-width: 2px; box-shadow: inset 0 0 0 1px #fff; }
+  }
+
   /* One grid for every strip and the header rows, so the columns always line up and scale with the list font.
      Columns: callsign, dep/arr, level, Mach, <cols> fix times, aircraft type, tracking icon. */
   :global(.strip-grid) {
