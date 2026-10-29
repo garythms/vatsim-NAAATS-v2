@@ -1248,7 +1248,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         server_version = "vnaaats-server"
 
         def log_message(self, fmt, *args):
-            log.info("%s %s", self.address_string(), fmt % args)
+            log.info("%s %s", self.address_string(), re.sub(r"(?i)\b(code|key|logon|token|password)=[^&\s\"']*", r"\1=***", fmt % args))   # keys never go to the journal
 
         def _send(self, code, body, ctype="application/json"):
             data = body if isinstance(body, bytes) else (body if isinstance(body, str) else json.dumps(body)).encode("utf-8")
