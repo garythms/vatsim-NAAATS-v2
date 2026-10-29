@@ -732,3 +732,67 @@ class EstimateEtaTests(unittest.TestCase):
         self.assertTrue(out["AAA1"].get("etaCalc"))
         self.assertNotIn("--", out["AAA1"]["routeEtas"].split())
         self.assertEqual(out["BBB2"]["routeEtas"], "1200 1230")
+
+
+class NotifierTests(unittest.TestCase):
+    def make(self, **kw):
+        import adminlog
+        sent = []
+        return adminlog.Notifier("http://x", post=sent.append, **kw), sent
+
+    def test_error_alerts_with_here_and_warnings_do_not(self):
+        n, sent = self.make()
+        n.note("CZQO_CTR", "2.2.1", ["[WARN 10:00:00.1] slow", "[LOG 10:00:00.2] hi"])
+        n.tick()
+        self.assertEqual(sent, [])
+        n.note("CZQO_CTR", "2.2.1", ["[ERR 10:00:01.1] Could not post aircraft BAW1: down"])
+        n.tick()
+        self.assertEqual(len(sent), 1)
+        self.assertTrue(sent[0]["content"].startswith("@here"))
+        self.assertEqual(sent[0]["allowed_mentions"], {"parse": ["everyone"]})
+        self.assertIn("CZQO_CTR", sent[0]["content"])
+
+    def test_same_error_from_many_aircraft_is_held_back(self):
+        n, sent = self.make()
+        n.note("A", "1", ["[ERR 1] Could not post aircraft BAW1: down", "[ERR 2] Could not post aircraft DLH2: down", "[EXC 3] other fault"])
+        n.tick()
+        self.assertEqual(len(sent), 1)
+        self.assertIn("2 new", sent[0]["content"])
+        self.assertIn("1 repeats held back", sent[0]["content"])
+
+    def test_summary_has_no_here_and_resets(self):
+        n, sent = self.make(summary_hours=6)
+        n.note("A", "2.2.1", ["[ERR 1] boom 1", "[LOG 2] x"])
+        n.tick()
+        sent.clear()
+        n.tick(now=n.next_summary + 1)
+        self.assertEqual(len(sent), 1)
+        self.assertNotIn("@here", sent[0]["content"])
+        self.assertIn("1 controllers", sent[0]["content"])
+        self.assertIn("1 errors", sent[0]["content"])
+        self.assertEqual(n.stats["err"], 0)
+
+    def test_failed_post_does_not_raise(self):
+        import adminlog
+        def boom(_): raise OSError("discord down")
+        n = adminlog.Notifier("http://x", post=boom)
+        n.note("A", "1", ["[ERR 1] x"])
+        n.tick()
+
+    def test_prev_session_lines_never_alert(self):
+        n, sent = self.make()
+        n.note("A", "1", ["[ERR 1] old crash"], prev=True)
+        n.tick()
+        self.assertEqual(sent, [])
+
+
+class InstallerTests(unittest.TestCase):
+    def test_installer_copies_every_module_the_server_imports(self):
+        """A module the server imports but deploy/setup.sh does not copy crashes the server on start (it did once: adminlog.py)."""
+        import re as _re
+        here = os.path.join(os.path.dirname(__file__), "..")
+        src = open(os.path.join(here, "vnaaats_server.py")).read()
+        setup = open(os.path.join(here, "deploy", "setup.sh")).read()
+        for mod in _re.findall(r"^import (\w+)(?: as \w+)?$", src, _re.M):
+            if os.path.exists(os.path.join(here, mod + ".py")):
+                self.assertIn(mod + ".py", setup, "deploy/setup.sh does not copy %s.py" % mod)

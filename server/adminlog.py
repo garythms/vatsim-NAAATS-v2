@@ -10,6 +10,7 @@ import os
 import re
 import threading
 import time
+import urllib.request
 from datetime import datetime, timezone
 
 LINES_KEEP = 3000          # per controller, in memory
@@ -46,6 +47,7 @@ class LogHub:
         self.rate = {}              # me -> [window start, count]
         self.seq = 0
         self.fails = {}             # ip -> [window start, count]
+        self.notifier = None
         if self.dir:
             try:
                 os.makedirs(self.dir, exist_ok=True)
@@ -81,6 +83,8 @@ class LogHub:
                 self.buf[me].append({"id": self.seq, "t": now, "ts": ts, "me": me, "lv": lv, "prev": bool(prev), "line": line})
             detail = self.detail_until.get(me, 0) > now
         self._write(me, now, out, prev)
+        if self.notifier:
+            self.notifier.note(me, version, out, prev)
         return {"ok": True, "n": len(out), "detail": detail}
 
     def _write(self, me, now, lines, prev):
@@ -143,6 +147,114 @@ class LogHub:
         rows.sort(key=lambda r: r["id"])
         limit = max(1, min(int(limit), 1500))
         return {"controllers": ctrl, "lines": rows[-limit:], "last": self.seq}
+
+
+def _normalise(line):
+    """An error line without its time and numbers, so the same fault from many aircraft counts as one."""
+    t = re.sub(r"^\[[A-Z]+ [0-9:.]+\]\s*", "", str(line))
+    t = re.sub(r"\b[A-Z0-9]{2,7}\b", lambda m: "#" if re.search(r"\d", m.group(0)) else m.group(0), t)
+    return re.sub(r"\d+", "#", t)[:160]
+
+
+class Notifier:
+    """Discord: a message with @here when plugins report errors (batched, repeats held back), and a plain summary every few hours.
+    Sending happens on its own thread and never blocks the plugins; a failed post is dropped."""
+
+    def __init__(self, webhook, post=None, summary_hours=6, cooldown=900, batch_seconds=60):
+        self.webhook = webhook
+        self.post = post or self._post
+        self.summary_s = max(1, int(summary_hours * 3600))
+        self.cooldown = cooldown
+        self.batch_s = batch_seconds
+        self.lock = threading.Lock()
+        self.pending = []                       # (me, version, line) waiting for the next alert
+        self.last_sent = {}                     # normalised error -> when it was last alerted
+        self.suppressed = 0
+        self.reset_stats()
+        self.next_summary = (int(time.time()) // self.summary_s + 1) * self.summary_s
+
+    def reset_stats(self):
+        self.stats = {"since": time.time(), "controllers": set(), "versions": collections.Counter(), "lines": 0, "warn": 0, "err": 0,
+                      "top": collections.Counter()}
+
+    def note(self, me, version, lines, prev=False):
+        """Called for every batch a plugin sends."""
+        if prev:
+            return
+        with self.lock:
+            st = self.stats
+            if me not in st["controllers"]:
+                st["controllers"].add(me)
+                st["versions"][str(version) or "?"] += 1
+            for line in lines:
+                st["lines"] += 1
+                lv = level_of(line)
+                if lv == "WARN":
+                    st["warn"] += 1
+                elif lv in ("ERR", "EXC"):
+                    st["err"] += 1
+                    key = _normalise(line)
+                    st["top"][key] += 1
+                    if time.time() - self.last_sent.get(key, 0) >= self.cooldown:
+                        self.last_sent[key] = time.time()
+                        self.pending.append((me, str(version), line))
+                    else:
+                        self.suppressed += 1
+
+    def _post(self, payload):
+        req = urllib.request.Request(self.webhook, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": "vnaaats-server"})
+        urllib.request.urlopen(req, timeout=10).read()
+
+    def alert_text(self):
+        with self.lock:
+            items, self.pending = self.pending, []
+            held, self.suppressed = self.suppressed, 0
+        if not items:
+            return None
+        lines = ["@here **vNAAATS plugin errors** (%d new)" % len(items)]
+        for me, ver, line in items[:5]:
+            lines.append("`%s` v%s: %s" % (me, ver, re.sub(r"^\[[A-Z]+ [0-9:.]+\]\s*", "", line)[:220].replace("`", "'")))
+        if len(items) > 5:
+            lines.append("...and %d more different errors" % (len(items) - 5))
+        if held:
+            lines.append("(%d repeats held back)" % held)
+        return {"content": "\n".join(lines)[:1900], "allowed_mentions": {"parse": ["everyone"]}}
+
+    def summary_text(self):
+        with self.lock:
+            st, self.stats = self.stats, None
+        self.reset_stats()
+        hours = max(1, round((time.time() - st["since"]) / 3600))
+        lines = ["**vNAAATS log summary** (last %dh)" % hours,
+                 "%d controllers reporting - versions: %s" % (len(st["controllers"]), ", ".join("%s x%d" % (v, n) for v, n in sorted(st["versions"].items())) or "none"),
+                 "%d lines - %d warnings - %d errors" % (st["lines"], st["warn"], st["err"])]
+        for key, n in st["top"].most_common(5):
+            lines.append("%dx %s" % (n, key[:150].replace("`", "'")))
+        if not st["top"]:
+            lines.append("No errors reported.")
+        return {"content": "\n".join(lines)[:1900]}
+
+    def tick(self, now=None):
+        """One pass of the loop (called every few seconds; tests call it directly)."""
+        now = time.time() if now is None else now
+        try:
+            a = self.alert_text()
+            if a:
+                self.post(a)
+            if now >= self.next_summary:
+                self.next_summary = (int(now) // self.summary_s + 1) * self.summary_s
+                self.post(self.summary_text())
+        except Exception:
+            pass
+
+    def run(self):
+        try:
+            self.post({"content": "vNAAATS admin alerts are on. Errors ping @here (grouped, repeats held back); a plain summary comes every %g hours." % (self.summary_s / 3600.0)})
+        except Exception:
+            pass
+        while True:
+            time.sleep(self.batch_s)
+            self.tick()
 
 
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

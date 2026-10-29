@@ -61,7 +61,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.2.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.2.2"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1960,6 +1960,11 @@ def main():
         rcl = rcl_auto_mod.RclAuto(store, queue, network, natrak, lambda route, pos: route_distance_nm(route, pos, cache.fixes), OCEANIC_PREFIXES)
         log.info("Automatic RCL REQ reminders are available (%s)", "ON" if rcl.enabled else "switched off on the display")
     logs = adminlog_mod.LogHub(os.environ.get("VNAAATS_ADMIN_TOKEN", ""), os.environ.get("VNAAATS_LOG_DIR", os.path.join(HERE, "logs")))
+    hook = os.environ.get("VNAAATS_ADMIN_WEBHOOK", "").strip()
+    if hook:
+        logs.notifier = adminlog_mod.Notifier(hook, summary_hours=float(os.environ.get("VNAAATS_SUMMARY_HOURS", "6") or 6))
+        threading.Thread(target=logs.notifier.run, daemon=True).start()
+        log.info("Admin log alerts are ON (errors ping @here, summary every %s hours)", os.environ.get("VNAAATS_SUMMARY_HOURS", "6"))
     if not logs.token:
         log.info("Admin log viewer is OFF: set VNAAATS_ADMIN_TOKEN (16+ characters) in /etc/vnaaats.env to switch it on")
     ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl, members, issuer_secret, roster, logs)).serve_forever()

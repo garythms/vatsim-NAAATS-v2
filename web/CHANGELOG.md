@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.2.2 - 2026-10-29
+- Server 2.2.2: Discord alerts from the admin log. Set VNAAATS_ADMIN_WEBHOOK in /etc/vnaaats.env: plugin errors post to that channel with @here (grouped, repeats held back for 15 minutes), and a plain summary posts every 6 hours (VNAAATS_SUMMARY_HOURS). Warnings never ping. No change to the display.
+
 ## 2.2.1 - 2026-10-29
 - Server 2.2.1 works out estimated times for every aircraft in the VATSIM feed that nobody has handled in the plugin yet (from its position, heading and ground speed, straight along its route), so the fix columns under each track are no longer blank. Times are rough (no wind) and are replaced by the plugin's own times as soon as a controller handles the aircraft. Aircraft on the ground or still climbing get none. No change to the display itself.
 
