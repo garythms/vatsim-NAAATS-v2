@@ -713,6 +713,14 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 		CRect radarBounds = this->GetRadarArea();
 		dc.TextOutA(radarBounds.right - 185, radarBounds.bottom - dc.GetTextExtent("ABC").cy - 2, 
 			CUtils::GetLatLonString(&appCursor->latLonPosition).c_str());
+		// Selected aircraft with its radio callsign, e.g. "BAW227 (Speedbird)", bottom left
+		if (!asel.empty()) {
+			string tele = CUtils::TelephonyFor(asel);
+			if (!tele.empty()) {
+				dc.TextOutA(radarBounds.left + 10, radarBounds.bottom - dc.GetTextExtent("ABC").cy - 2,
+					(asel + " (" + tele + ")").c_str());
+			}
+		}
 		dc.RestoreDC(sDC);
 
 		// Draw overlays if enabled

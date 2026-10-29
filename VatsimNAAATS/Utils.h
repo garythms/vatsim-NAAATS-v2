@@ -155,6 +155,10 @@ class CUtils { // TODO: refactor into namespace
 			string Freq;   // CPDLC handoff: their frequency, e.g. 127.500
 		};
 
+		// Radio-telephony name for a callsign, e.g. BAW227 -> "Speedbird" (empty if unknown).
+		// Reads ICAO_Airlines.txt from the DLL folder once.
+		static string TelephonyFor(const string& callsign);
+
 		// DLL path
 		static char DllPathFile[_MAX_PATH];
 		static string DllPath;

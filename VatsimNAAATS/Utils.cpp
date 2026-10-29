@@ -8,6 +8,8 @@
 #include <chrono>
 #include <map>
 #include <mutex>
+#include <fstream>
+#include <cctype>
 
 // Default values
 int CUtils::InboundX = 1400;
@@ -31,6 +33,43 @@ int CUtils::SelectedOverlay = 800;
 int CUtils::PosType = 802;
 char CUtils::DllPathFile[_MAX_PATH];
 string CUtils::DllPath;
+
+string CUtils::TelephonyFor(const string& callsign) {
+	static std::map<string, string> table;
+	static bool loaded = false;
+	static std::mutex m;
+	std::lock_guard<std::mutex> lock(m);
+	if (!loaded) {
+		loaded = true;
+		std::ifstream in(DllPath + "\\ICAO_Airlines.txt");
+		string line;
+		while (std::getline(in, line)) {
+			if (!line.empty() && line.back() == '\r') line.pop_back();
+			if (line.empty() || line[0] == ';') continue;
+			// ICAO <TAB> COMPANY <TAB> RADIO CALLSIGN <TAB> COUNTRY
+			size_t t1 = line.find('\t');
+			if (t1 != 3) continue;
+			size_t t2 = line.find('\t', t1 + 1);
+			if (t2 == string::npos) continue;
+			size_t t3 = line.find('\t', t2 + 1);
+			string tele = line.substr(t2 + 1, t3 == string::npos ? string::npos : t3 - t2 - 1);
+			if (tele.empty()) continue;
+			// Title case: SPEEDBIRD -> Speedbird
+			bool start = true;
+			for (auto& c : tele) {
+				c = start ? (char)toupper((unsigned char)c) : (char)tolower((unsigned char)c);
+				start = (c == ' ' || c == '-');
+			}
+			table[line.substr(0, 3)] = tele;
+		}
+		CLogger::Log(CLogType::NORM, "Loaded " + to_string(table.size()) + " radio callsigns from ICAO_Airlines.txt.", "CUtils::TelephonyFor");
+	}
+	// Airline callsigns are three letters followed by a digit (BAW227); anything else (G-ABCD, N123AB) has no telephony name.
+	if (callsign.size() < 4 || !isalpha((unsigned char)callsign[0]) || !isalpha((unsigned char)callsign[1]) ||
+		!isalpha((unsigned char)callsign[2]) || !isdigit((unsigned char)callsign[3])) return "";
+	auto it = table.find(callsign.substr(0, 3));
+	return it == table.end() ? "" : it->second;
+}
 
 // Save plugin data
 void CUtils::SavePluginData(CRadarScreen* screen) {
