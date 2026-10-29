@@ -690,3 +690,45 @@ class AdminLogTests(unittest.TestCase):
         self.assertEqual(h.add("A", "1", ["l"] * 500)["n"], adminlog.MAX_BATCH)
         h.add("A", "1", ["l"] * 200); h.add("A", "1", ["l"] * 200)
         self.assertEqual(h.add("A", "1", ["l"] * 200)["n"], 0)
+
+
+class EstimateEtaTests(unittest.TestCase):
+    FIXES = {"JANJO": [57.0, -48.0]}
+
+    def pilot(self, **kw):
+        p = {"latitude": 55.0, "longitude": -20.0, "groundspeed": 480, "heading": 270, "altitude": 36000}
+        p.update(kw)
+        return p
+
+    def test_times_run_forward_along_the_route(self):
+        r = s.estimate_etas("5630/20 5630/30 56/40 JANJO", self.pilot(), self.FIXES, now=0)
+        self.assertEqual(r[0], "0011")                    # 90nm ahead at 480kt
+        times = [int(x[:2]) * 60 + int(x[2:]) for x in r]
+        self.assertEqual(times, sorted(times))
+        self.assertTrue(all(x != "--" for x in r))
+
+    def test_passed_fixes_are_blank(self):
+        r = s.estimate_etas("54/10 5630/20 5630/30", self.pilot(longitude=-15.0), self.FIXES, now=0)
+        self.assertEqual(r[0], "--")                       # behind an aircraft flying west
+        self.assertNotEqual(r[1], "--")
+
+    def test_no_estimate_on_the_ground_or_without_a_position(self):
+        self.assertIsNone(s.estimate_etas("56/30", self.pilot(groundspeed=0), self.FIXES))
+        self.assertIsNone(s.estimate_etas("56/30", self.pilot(altitude=500), self.FIXES))
+        self.assertIsNone(s.estimate_etas("56/30", {}, self.FIXES))
+
+    def test_unknown_fix_is_skipped_not_fatal(self):
+        r = s.estimate_etas("NOWHERE 56/30", self.pilot(), self.FIXES, now=0)
+        self.assertEqual(r[0], "--")
+        self.assertNotEqual(r[1], "--")
+
+    def test_network_flights_get_times_and_plugin_times_win(self):
+        feed = {"pilots": [], "controllers": []}
+        n = s.NetworkTraffic(s.TrackCache({}))
+        n.flights = [{"callsign": "AAA1", "route": "5630/20 5630/30", "routeEtas": "-- --"},
+                     {"callsign": "BBB2", "route": "5630/20 5630/30", "routeEtas": "1200 1230"}]
+        n.pilots = {"AAA1": self.pilot(), "BBB2": self.pilot()}
+        out = {f["callsign"]: f for f in n.all()}
+        self.assertTrue(out["AAA1"].get("etaCalc"))
+        self.assertNotIn("--", out["AAA1"]["routeEtas"].split())
+        self.assertEqual(out["BBB2"]["routeEtas"], "1200 1230")

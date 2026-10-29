@@ -35,6 +35,7 @@ import hmac
 import http.cookies
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -60,7 +61,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.2.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.2.1"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -94,6 +95,47 @@ def token_to_latlon(token, fixes):
         return round(lat, 6), -float(lon)                    # NAT tracks are west of Greenwich
     v = fixes.get(token.upper()) or TANGO_FIXES.get(token.upper())
     return (v[0], v[1]) if v else None
+
+
+def _bearing(lat1, lon1, lat2, lon2):
+    p1, p2, dl = math.radians(lat1), math.radians(lat2), math.radians(lon2 - lon1)
+    y = math.sin(dl) * math.cos(p2)
+    x = math.cos(p1) * math.sin(p2) - math.sin(p1) * math.cos(p2) * math.cos(dl)
+    return (math.degrees(math.atan2(y, x)) + 360) % 360
+
+
+def estimate_etas(route, pilot, fixes, now=None):
+    """Estimated times (HHMM, Zulu) over each fix of a route, for a flight nobody has handled in the plugin yet.
+    From the pilot's position and ground speed in the VATSIM feed, straight along the route from the first fix still ahead.
+    Fixes already passed, or ones that cannot be placed, get "--". Returns None when no estimate is possible (on the ground, climbing, no position)."""
+    toks = str(route or "").split()
+    try:
+        lat, lon = float(pilot["latitude"]), float(pilot["longitude"])
+        gs, hdg, alt = float(pilot.get("groundspeed") or 0), float(pilot.get("heading") or 0), float(pilot.get("altitude") or 0)
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not toks or gs < 150 or gs > 700 or alt < 10000:
+        return None
+    pts = [token_to_latlon(t, fixes) for t in toks]
+    start = None
+    for i, ll in enumerate(pts):
+        if ll and abs((_bearing(lat, lon, ll[0], ll[1]) - hdg + 540) % 360 - 180) <= 100:
+            start = i
+            break
+    if start is None:
+        return None
+    now = time.time() if now is None else now
+    out, dist, prev = ["--"] * len(toks), 0.0, (lat, lon)
+    for i in range(start, len(toks)):
+        if not pts[i]:
+            continue
+        dist += cpdlc_mod.nm_between(prev[0], prev[1], pts[i][0], pts[i][1])
+        prev = pts[i]
+        if dist > 6000:
+            break
+        t = datetime.fromtimestamp(now + dist / gs * 3600, timezone.utc)
+        out[i] = t.strftime("%H%M")
+    return out if any(x != "--" for x in out) else None
 
 
 OCEANIC_PREFIXES = tuple(x.strip().upper() for x in os.environ.get("VNAAATS_OCEANIC_PREFIXES", "CZQO,CZQX,EGGX,NAT,BIRD,KZWY,LPPO,ENOB").split(",") if x.strip())
@@ -941,6 +983,16 @@ class NetworkTraffic:
     def all(self):
         with self.lock:
             flights = [dict(f) for f in self.flights]
+        with self.lock:
+            pilots = self.pilots
+        with self.cache.lock:
+            fixes = dict(self.cache.fixes)
+        for f in flights:                                  # no plugin times yet: work them out from the pilot's position and speed
+            if all(x == "--" for x in str(f.get("routeEtas", "")).split()):
+                est = estimate_etas(f.get("route", ""), pilots.get(f["callsign"]) or {}, fixes)
+                if est:
+                    f["routeEtas"] = " ".join(est)
+                    f["etaCalc"] = True
         if not self.natrak:
             return flights
         clearances = self.natrak.by_callsign()

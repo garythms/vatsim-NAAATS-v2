@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.2.1 - 2026-10-29
+- Server 2.2.1 works out estimated times for every aircraft in the VATSIM feed that nobody has handled in the plugin yet (from its position, heading and ground speed, straight along its route), so the fix columns under each track are no longer blank. Times are rough (no wind) and are replaced by the plugin's own times as soon as a controller handles the aircraft. Aircraft on the ground or still climbing get none. No change to the display itself.
+
 ## 2.2.0 - 2026-10-29
 - No change to the display itself. The server gains the admin log (/admin/log) fed by plugin 2.2.0.
 
