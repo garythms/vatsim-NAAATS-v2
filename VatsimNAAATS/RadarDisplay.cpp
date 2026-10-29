@@ -713,13 +713,22 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 		CRect radarBounds = this->GetRadarArea();
 		dc.TextOutA(radarBounds.right - 185, radarBounds.bottom - dc.GetTextExtent("ABC").cy - 2, 
 			CUtils::GetLatLonString(&appCursor->latLonPosition).c_str());
-		// Selected aircraft with its radio callsign, e.g. "BAW227 (Speedbird)", bottom left
+		// Selected aircraft, bottom centre: "BAW227 (Speedbird)   B788   EGLL - KBOS"
 		if (!asel.empty()) {
+			CFlightPlan selFP = GetPlugIn()->FlightPlanSelect(asel.c_str());
+			string line = asel;
 			string tele = CUtils::TelephonyFor(asel);
-			if (!tele.empty()) {
-				dc.TextOutA(radarBounds.left + 10, radarBounds.bottom - dc.GetTextExtent("ABC").cy - 2,
-					(asel + " (" + tele + ")").c_str());
+			if (!tele.empty()) line += " (" + tele + ")";
+			if (selFP.IsValid()) {
+				string type = selFP.GetFlightPlanData().GetAircraftFPType();
+				string dep = selFP.GetFlightPlanData().GetOrigin();
+				string dest = selFP.GetFlightPlanData().GetDestination();
+				if (!type.empty()) line += "   " + type;
+				if (!dep.empty() || !dest.empty()) line += "   " + (dep.empty() ? string("????") : dep) + " - " + (dest.empty() ? string("????") : dest);
 			}
+			int selAlign = dc.SetTextAlign(TA_CENTER);
+			dc.TextOutA((radarBounds.left + radarBounds.right) / 2, radarBounds.bottom - dc.GetTextExtent("ABC").cy - 2, line.c_str());
+			dc.SetTextAlign(selAlign);
 		}
 		dc.RestoreDC(sDC);
 
