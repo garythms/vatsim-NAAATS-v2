@@ -37,6 +37,11 @@ CFlightPlanWindow::CFlightPlanWindow(POINT topLeft) : CBaseWindow(topLeft) {
 	restrictionSelections[SEL_ATCR_INT] = "INT";
 };
 
+// What the route box shows when the plugin has no route yet for the aircraft (it holds only the "AIRCRAFT" present-position placeholder)
+static string RouteBoxText(const string& route) {
+	return (route.empty() || route == "AIRCRAFT") ? "CHECK / EDIT ROUTE" : route;
+}
+
 void CFlightPlanWindow::MakeWindowItems() {
 	// Button defaults
 	windowButtons[BTN_CLOSE] = CWinButton(BTN_CLOSE, WIN_FLTPLN, "Close", CInputState::INACTIVE);
@@ -1947,7 +1952,7 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 		else {
 			textInputs[TXT_TCK].Content = primedPlan->Track;
 		}
-		textInputs[TXT_RTE].Content = route;
+		textInputs[TXT_RTE].Content = RouteBoxText(route);
 		textInputs[TXT_RTE].State == CInputState::DISABLED;
 
 		if (fp->State == "CPY") {
@@ -1996,7 +2001,7 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 				SetTextValue(screen, CFlightPlanWindow::TXT_TCK, primedPlan->Track);
 			}
 			else {
-				SetTextValue(screen, CFlightPlanWindow::TXT_RTE, route);
+				SetTextValue(screen, CFlightPlanWindow::TXT_RTE, RouteBoxText(route));
 			}
 		}
 		else {
@@ -2017,7 +2022,7 @@ void CFlightPlanWindow::Instantiate(CRadarScreen* screen,string callsign, CMessa
 					SetTextValue(screen, CFlightPlanWindow::TXT_TCK, primedPlan->Track);
 				}
 				else {
-					SetTextValue(screen, CFlightPlanWindow::TXT_RTE, route);
+					SetTextValue(screen, CFlightPlanWindow::TXT_RTE, RouteBoxText(route));
 				}
 			}
 			else
@@ -2662,7 +2667,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 					textInputs[TXT_LEVEL].Content = primedPlan->FlightLevel;
 					textInputs[TXT_DEST].Content = primedPlan->Dest;
 					if (primedPlan->Track == "RR")
-						SetTextValue(screen, CFlightPlanWindow::TXT_RTE, route);
+						SetTextValue(screen, CFlightPlanWindow::TXT_RTE, RouteBoxText(route));
 					else
 						SetTextValue(screen, CFlightPlanWindow::TXT_TCK, primedPlan->Track);
 
