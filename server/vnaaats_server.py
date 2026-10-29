@@ -97,6 +97,13 @@ def token_to_latlon(token, fixes):
     return (v[0], v[1]) if v else None
 
 
+def _gc_nm(lat1, lon1, lat2, lon2):
+    """Great-circle distance in nautical miles."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    a = math.sin((p2 - p1) / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(math.radians(lon2 - lon1) / 2) ** 2
+    return 3440.065 * 2 * math.asin(min(1.0, math.sqrt(a)))
+
+
 def _bearing(lat1, lon1, lat2, lon2):
     p1, p2, dl = math.radians(lat1), math.radians(lat2), math.radians(lon2 - lon1)
     y = math.sin(dl) * math.cos(p2)
@@ -866,6 +873,18 @@ class NetworkTraffic:
         self.atc_freq = {}       # "133.500" -> callsign of every online controller (any position)
         self.pilots = {}         # callsign -> the pilot as in the VATSIM feed (for adding a flight by hand)
         self.tuned = {}          # pilot callsign -> set of frequencies (MHz string) the pilot has tuned, from the transceivers feed
+        self.atc_all = {}        # "121.900" -> [callsigns of every online controller on it]: frequencies are NOT unique worldwide
+        self.atc_range = {}      # controller callsign -> visual range in nm (from the feed)
+        self.tx_pos = {}         # callsign -> [(lat, lon)] of its transceivers (from the transceivers feed)
+
+    def _in_range(self, pilot, controller):
+        """Could this pilot hear this controller? Unknown positions give True, so a feed without them behaves as before."""
+        pp = self.positions.get(pilot)
+        sites = self.tx_pos.get(controller)
+        if not pp or not sites:
+            return True
+        reach = max(float(self.atc_range.get(controller) or 0), 60.0)       # at least ~60 nm, else the controller's own visual range
+        return min(_gc_nm(pp[0], pp[1], s[0], s[1]) for s in sites) <= reach
 
     def is_offline(self, callsign):
         """True only when the feed is healthy (recent, has pilots) and this callsign is not in it. None if we cannot tell."""
@@ -889,8 +908,10 @@ class NetworkTraffic:
             freqs = self.tuned.get((callsign or "").upper())
             if not freqs:
                 return None
+            me = (callsign or "").upper()
             for f in sorted(freqs):
-                by = self.atc_freq.get(f)
+                cands = self.atc_all.get(f) or ([self.atc_freq[f]] if f in self.atc_freq else [])
+                by = next((c for c in cands if self._in_range(me, c)), None)       # same frequency on the other side of the world is not "talking to"
                 if by:
                     return {"kind": "oceanic" if by.startswith(OCEANIC_PREFIXES) else "domestic", "by": by, "freq": f}
             if "122.800" in freqs:
@@ -908,6 +929,7 @@ class NetworkTraffic:
                 with urllib.request.urlopen(req, timeout=30) as r:
                     data = json.loads(r.read().decode("utf-8"))
             tuned = {}
+            sites = {}
             for row in data:
                 cs = str(row.get("callsign", "")).upper()
                 for t in row.get("transceivers", []):
@@ -915,8 +937,13 @@ class NetworkTraffic:
                         tuned.setdefault(cs, set()).add("%.3f" % (int(t["frequency"]) / 1e6))
                     except (KeyError, TypeError, ValueError):
                         pass
+                    try:
+                        sites.setdefault(cs, []).append((float(t["latDeg"]), float(t["lonDeg"])))
+                    except (KeyError, TypeError, ValueError):
+                        pass
             with self.lock:
                 self.tuned = tuned
+                self.tx_pos = sites
         except Exception as e:
             log.error("Transceivers refresh failed: %s", e)
 
@@ -949,11 +976,15 @@ class NetworkTraffic:
                     pass
             ctrls = []
             atc = {}
+            atc_all = {}
+            atc_range = {}
             for c in data.get("controllers", []):
                 try:
                     cs, fr = str(c["callsign"]).upper(), "%.3f" % float(c.get("frequency", 0))
                     if int(c.get("facility", 0)) >= 1 and not cs.endswith("_ATIS") and fr != "199.998":
                         atc[fr] = cs
+                        atc_all.setdefault(fr, []).append(cs)
+                        atc_range[cs] = float(c.get("visual_range") or 0)
                 except (KeyError, TypeError, ValueError):
                     pass
                 try:
@@ -967,6 +998,7 @@ class NetworkTraffic:
                 self.positions = pos
                 self.pilots = raw
                 self.atc_freq = atc
+                self.atc_all, self.atc_range = atc_all, atc_range
                 self.controllers = sorted(ctrls, key=lambda x: x["callsign"])
             log.info("Network traffic refreshed: %d oceanic flights", len(out))
             self.refresh_transceivers()

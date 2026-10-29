@@ -198,6 +198,20 @@ class CommTests(unittest.TestCase):
         n.refresh_transceivers(lambda: [{"callsign": "E5", "transceivers": [{"frequency": 133500000}, {"frequency": 133500000}]}])
         self.assertEqual(n.comm_for("E5")["by"], "CZQO_CTR")
 
+    def test_same_frequency_far_away_is_not_a_match(self):
+        import vnaaats_server as s
+        n = s.NetworkTraffic(None, "x", None)
+        n.atc_all = {"121.900": ["HECA_GND", "MDPP_GND"]}            # Cairo Ground and Puerto Plata Ground share a frequency
+        n.atc_freq = {"121.900": "MDPP_GND"}
+        n.atc_range = {"HECA_GND": 20.0, "MDPP_GND": 20.0}
+        n.tx_pos = {"HECA_GND": [(30.12, 31.40)], "MDPP_GND": [(19.75, -70.57)]}
+        n.positions = {"CFG5X": (19.75, -70.57)}
+        n.tuned = {"CFG5X": {"121.900"}}
+        self.assertEqual(n.comm_for("CFG5X")["by"], "MDPP_GND")      # the one that is actually near
+        n.atc_all = {"121.900": ["HECA_GND"]}
+        n.atc_freq = {"121.900": "HECA_GND"}
+        self.assertEqual(n.comm_for("CFG5X")["kind"], "none")        # only Cairo is on it: out of range, so nobody
+
 
 class StationListTests(unittest.TestCase):
     def test_listed(self):
