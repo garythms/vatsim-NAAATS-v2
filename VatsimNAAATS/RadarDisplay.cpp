@@ -1913,26 +1913,23 @@ void CRadarDisplay::CursorStateUpdater(void* args)
 				// Get the position and monitor in which the point lies
 				GetCursorPos(&cursor->position);
 
-				// Get the monitor
-				HMONITOR monitor = MonitorFromPoint(cursor->position, MONITOR_DEFAULTTONEAREST);
-				GetMonitorInfo(monitor, &monitorInfo);
-
-				// Get the monitor resolution
-				int monResX = abs(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left);
-				int monResY = abs(monitorInfo.rcMonitor.top - monitorInfo.rcMonitor.bottom);
-
-				// Get the relative cursor position
-				if (cursor->position.x > monResX) { // greater than (x)
-					cursor->position.x = cursor->position.x % monResX;
+				// GetCursorPos is in SCREEN pixels, but EuroScope's pixel <-> lat/lon conversion
+				// works in the radar window's own client pixels. Convert (this was why the readout
+				// showed the wrong longitude, e.g. E30 over 30W, whenever the window was not at 0,0).
+				HWND underCursor = WindowFromPoint(cursor->position);
+				if (underCursor != NULL && ScreenToClient(underCursor, &cursor->position)) {
+					// done: cursor->position is now relative to the radar window
 				}
-				if (cursor->position.y > monResY) { // greater than (y)
-					cursor->position.y = cursor->position.y % monResY;
-				}
-				if (cursor->position.x < 0) { // less than (x)
-					cursor->position.x = monResX - (abs(cursor->position.x) % monResX);
-				}
-				if (cursor->position.y < 0) { // less than (y)
-					cursor->position.y = monResY - (abs(cursor->position.y) % monResY);
+				else {
+					// Fallback (old behaviour): wrap to the monitor size
+					HMONITOR monitor = MonitorFromPoint(cursor->position, MONITOR_DEFAULTTONEAREST);
+					GetMonitorInfo(monitor, &monitorInfo);
+					int monResX = abs(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left);
+					int monResY = abs(monitorInfo.rcMonitor.top - monitorInfo.rcMonitor.bottom);
+					if (monResX > 0 && monResY > 0) {
+						cursor->position.x = ((cursor->position.x % monResX) + monResX) % monResX;
+						cursor->position.y = ((cursor->position.y % monResY) + monResY) % monResY;
+					}
 				}
 
 				// Get button presses
