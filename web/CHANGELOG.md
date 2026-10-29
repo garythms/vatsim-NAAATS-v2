@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 2.4.1 - 2026-10-29
+- Download page and guide: the sector files now link to the official AeroNav package (files.aero-nav.com/EXCXO) instead of a zip hosted here. The page also offers ICAO_Airlines.txt (updated, AIRAC 2611) and the current example config.
 - Plugin: the cursor latitude/longitude readout (and the ruler/QDM tool) now use the radar window's own pixels, so the longitude is correct when EuroScope is not full screen (it showed e.g. E30 over 30W).
 - Plugin: the selected aircraft is shown at the bottom left of the radar with its radio callsign, e.g. BAW227 (Speedbird), read from ICAO_Airlines.txt next to the DLL. No change to the FDD.
 

@@ -69,9 +69,9 @@
 
     <p class="mb-4 p-3 border-2 border-blue-10 bg-blue-3">First time installing? Use the <a href="https://vnaaats.com/guide" class="underline font-bold">install guide</a>. It has the full first-time pack (plugin, radar screen file, example config, ICAO_Airlines.txt) and the sector file steps.</p>
     <div class="mb-6 p-4 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold">Ready-made sector pack</div>
-      <p class="opacity-90 my-2">The Gander Oceanic sector files with the vNAAATS plugin and radar screen already set up (a clean EuroScope profile). Unzip it into your EuroScope folder and it is ready to use. You still need your own key from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>.</p>
-      <a href="/vNAAATS-sector-pack.zip" rel="external" download class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Download vNAAATS-sector-pack.zip</a>
+      <div class="text-lg font-bold">Gander Oceanic sector package (AeroNav)</div>
+      <p class="opacity-90 my-2">The official sector files, kept up to date each AIRAC by AeroNav. Install it first, then add the plugin from this page and follow the <a href="https://vnaaats.com/guide" class="underline">install guide</a>. You also need your own key from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>.</p>
+      <a href="https://files.aero-nav.com/EXCXO" rel="external" class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Open files.aero-nav.com/EXCXO</a>
     </div>
     <a href="/temp-key" style="display:none" aria-hidden="true" tabindex="-1">.</a>
     <h2 class="text-2xl font-bold mb-2">Updating an existing install</h2>
