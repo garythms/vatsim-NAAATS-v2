@@ -545,6 +545,22 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 			}	
 		}
 				
+		// Contact Me sent from the FDD: yellow outline round the tag, red after 20 minutes if nobody is tracking the aircraft.
+		// Same rule as the FDD strip: gone once someone tracks it, and after 4 hours.
+		if (fp.IsValid && fp.ContactMeAt > 0) {
+			double cmAgeMin = difftime(time(NULL), (time_t)fp.ContactMeAt) / 60.0;
+			bool cmTracked = acFP.GetTrackingControllerIsMe() || string(acFP.GetTrackingControllerCallsign()) != "";
+			if (cmAgeMin >= 0 && cmAgeMin <= 240 && !cmTracked) {
+				COLORREF cmColour = cmAgeMin < 20.0 ? WarningYellow.ToCOLORREF() : CriticalRed.ToCOLORREF();
+				CRect cmOuter(tagRect);
+				cmOuter.InflateRect(2, 2);
+				CRect cmInner(tagRect);
+				cmInner.InflateRect(3, 3);
+				dc->Draw3dRect(cmOuter, cmColour, cmColour);
+				dc->Draw3dRect(cmInner, cmColour, cmColour);
+			}
+		}
+
 		/// Tag line
 		CSize txtExtent = dc->GetTextExtent(csTagText.c_str()); // Get callsign length
 

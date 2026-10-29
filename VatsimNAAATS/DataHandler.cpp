@@ -591,6 +591,7 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 			netFP.Cpdlc = jsonArray[i].value("cpdlc", false); // older servers do not send it
 			netFP.CpdlcRelease = jsonArray[i].value("cpdlcRelease", false);
 			netFP.NtSent = jsonArray[i].value("ntSent", false);
+			netFP.ContactMeAt = jsonArray[i].value("cmAt", 0.0); // older servers do not send it
 
 			// Hand the data to the draw thread. Writing into the live flight plan from this background thread raced with drawing
 			// (an open flight plan window reading the route while the server's route replaced it) and could crash EuroScope.
@@ -672,6 +673,7 @@ void CDataHandler::ApplyPendingNetwork(CRadarScreen* screen) {
 				if (valuesChanged) { fp->WindowRefresh = true; CLogger::Log(CLogType::NORM, "Web/server change applied to " + callsign + " (level, speed, track or SELCAL).", "CDataHandler::ApplyPendingNetwork"); }
 				fp->CpdlcConnected = netFP.Cpdlc;
 				fp->NtSent = netFP.NtSent;
+				fp->ContactMeAt = netFP.ContactMeAt;
 				{
 					string netScratch = pn.scratch;
 					if (!fp->NetScratchKnown || fp->NetScratch != netScratch) fp->NetScratch = netScratch;

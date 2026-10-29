@@ -296,6 +296,7 @@ struct CNetworkFlightPlan {
 	string LastUpdated;
 	bool Cpdlc = false; // connected to the CPDLC station on the server
 	bool NtSent = false; // natTrak reminder sent to the pilot (red star)
+	double ContactMeAt = 0; // when a Contact Me was sent from the FDD (seconds since 1970, 0 = never)
 	bool CpdlcRelease = false; // server asks to release the tag (pilot sent to UNICOM)
 };
 
@@ -373,6 +374,7 @@ struct CAircraftFlightPlan {
 	bool IsRelevant = true;
 	bool CpdlcConnected = false; // show [CALLSIGN] on the radar tag
 	bool NtSent = false; // natTrak reminder sent: red * beside the callsign
+	double ContactMeAt = 0; // Contact Me sent from the FDD (seconds since 1970, 0 = never): yellow tag outline, red after 20 minutes
 	bool ReleaseRequested = false; // release the tag on the next draw (set after UNICOM)
 	bool ReleaseHandled = false;   // the current server release request has been acted on
 	bool WindowRefresh = false; // server changed level/speed/track/SELCAL: refresh the open flight plan window
