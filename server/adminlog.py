@@ -160,8 +160,10 @@ class Notifier:
     """Discord: a message with @here when plugins report errors (batched, repeats held back), and a plain summary every few hours.
     Sending happens on its own thread and never blocks the plugins; a failed post is dropped."""
 
-    def __init__(self, webhook, post=None, summary_hours=6, cooldown=900, batch_seconds=60):
+    def __init__(self, webhook, post=None, summary_hours=6, cooldown=900, batch_seconds=60, ping_user=""):
         self.webhook = webhook
+        # Who to ping on errors: a Discord user id (numeric) pings just that person; empty keeps @here.
+        self.ping_user = re.sub(r"\D", "", ping_user or "")
         self.post = post or self._post
         self.summary_s = max(1, int(summary_hours * 3600))
         self.cooldown = cooldown
@@ -205,20 +207,24 @@ class Notifier:
         req = urllib.request.Request(self.webhook, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", "User-Agent": "vnaaats-server"})
         urllib.request.urlopen(req, timeout=10).read()
 
+    def ping_text(self):
+        return "<@%s>" % self.ping_user if self.ping_user else "@here"
+
     def alert_text(self):
         with self.lock:
             items, self.pending = self.pending, []
             held, self.suppressed = self.suppressed, 0
         if not items:
             return None
-        lines = ["@here **vNAAATS plugin errors** (%d new)" % len(items)]
+        lines = ["%s **vNAAATS plugin errors** (%d new)" % (self.ping_text(), len(items))]
         for me, ver, line in items[:5]:
             lines.append("`%s` v%s: %s" % (me, ver, re.sub(r"^\[[A-Z]+ [0-9:.]+\]\s*", "", line)[:220].replace("`", "'")))
         if len(items) > 5:
             lines.append("...and %d more different errors" % (len(items) - 5))
         if held:
             lines.append("(%d repeats held back)" % held)
-        return {"content": "\n".join(lines)[:1900], "allowed_mentions": {"parse": ["everyone"]}}
+        allowed = {"users": [self.ping_user]} if self.ping_user else {"parse": ["everyone"]}
+        return {"content": "\n".join(lines)[:1900], "allowed_mentions": allowed}
 
     def summary_text(self):
         with self.lock:
@@ -249,7 +255,7 @@ class Notifier:
 
     def run(self):
         try:
-            self.post({"content": "vNAAATS admin alerts are on. Errors ping @here (grouped, repeats held back); a plain summary comes every %g hours." % (self.summary_s / 3600.0)})
+            self.post({"content": "vNAAATS admin alerts are on. Errors ping %s (grouped, repeats held back); a plain summary comes every %g hours." % (self.ping_text(), self.summary_s / 3600.0)})
         except Exception:
             pass
         while True:
