@@ -117,4 +117,4 @@ NEW IN 1.5b5: start-up logging and protection (vNAAATS.log shows each start-up s
 vNAAATS.asr (in the zip)
 This is the vNAAATS radar screen layout. Its sector-file lines are left blank, like the AeroNav ASR files, and it has no personal settings in it, so it should open with whatever Gander sector file you have loaded. Put it in your EuroScope ASR folder, or open it from Open SCT/ASR. If EuroScope still shows a "different sector file" warning, pick your latest Gander (EXCXO) sector file, then press Save once.
 
-NEW (next release): the selected aircraft is shown at the bottom left of the radar with its radio callsign, e.g. BAW227 (Speedbird). It reads ICAO_Airlines.txt, which must sit in the SAME folder as the DLL (it is included in the zip).
+NEW IN 2.4.1: (1) The cursor lat/long readout and ruler were wrong unless EuroScope was full screen (E30 over 30W) - fixed. (2) The selected aircraft is shown at the bottom left of the radar with its radio callsign, e.g. BAW227 (Speedbird). It reads ICAO_Airlines.txt, which must sit in the SAME folder as the DLL (it is included in the zip). Replace the DLL and also copy ICAO_Airlines.txt next to it.

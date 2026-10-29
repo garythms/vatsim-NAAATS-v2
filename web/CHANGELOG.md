@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.4.1 - 2026-10-29
+- Plugin: the cursor latitude/longitude readout (and the ruler/QDM tool) now use the radar window's own pixels, so the longitude is correct when EuroScope is not full screen (it showed e.g. E30 over 30W).
+- Plugin: the selected aircraft is shown at the bottom left of the radar with its radio callsign, e.g. BAW227 (Speedbird), read from ICAO_Airlines.txt next to the DLL. No change to the FDD.
+
 ## 2.4.0 - 2026-10-29
 - SELCAL: any four letters are accepted (VATSIM pilots are not limited to the real-world letters) and the warning about letters is gone. A SELCAL filed in the VATSIM flight plan remarks (SEL/ABCD) now fills the SELCAL box for you.
 - CPDLC drawer: only the current logon is shown (never more than 6 hours); days-old messages are no longer listed.
