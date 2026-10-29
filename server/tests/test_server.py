@@ -752,6 +752,14 @@ class NotifierTests(unittest.TestCase):
         self.assertEqual(sent[0]["allowed_mentions"], {"parse": ["everyone"]})
         self.assertIn("CZQO_CTR", sent[0]["content"])
 
+    def test_ping_user_pings_only_that_person(self):
+        n, sent = self.make(ping_user="<@123456789012345678>")
+        n.note("A", "1", ["[ERR 1] boom"])
+        n.tick()
+        self.assertTrue(sent[0]["content"].startswith("<@123456789012345678>"))
+        self.assertNotIn("@here", sent[0]["content"])
+        self.assertEqual(sent[0]["allowed_mentions"], {"users": ["123456789012345678"]})
+
     def test_same_error_from_many_aircraft_is_held_back(self):
         n, sent = self.make()
         n.note("A", "1", ["[ERR 1] Could not post aircraft BAW1: down", "[ERR 2] Could not post aircraft DLH2: down", "[EXC 3] other fault"])

@@ -2042,9 +2042,10 @@ def main():
     logs = adminlog_mod.LogHub(os.environ.get("VNAAATS_ADMIN_TOKEN", ""), os.environ.get("VNAAATS_LOG_DIR", os.path.join(HERE, "logs")))
     hook = os.environ.get("VNAAATS_ADMIN_WEBHOOK", "").strip()
     if hook:
-        logs.notifier = adminlog_mod.Notifier(hook, summary_hours=float(os.environ.get("VNAAATS_SUMMARY_HOURS", "6") or 6))
+        logs.notifier = adminlog_mod.Notifier(hook, summary_hours=float(os.environ.get("VNAAATS_SUMMARY_HOURS", "6") or 6),
+                                         ping_user=os.environ.get("VNAAATS_ADMIN_PING", ""))
         threading.Thread(target=logs.notifier.run, daemon=True).start()
-        log.info("Admin log alerts are ON (errors ping @here, summary every %s hours)", os.environ.get("VNAAATS_SUMMARY_HOURS", "6"))
+        log.info("Admin log alerts are ON (errors ping %s, summary every %s hours)", "you" if os.environ.get("VNAAATS_ADMIN_PING") else "@here", os.environ.get("VNAAATS_SUMMARY_HOURS", "6"))
     if not logs.token:
         log.info("Admin log viewer is OFF: set VNAAATS_ADMIN_TOKEN (16+ characters) in /etc/vnaaats.env to switch it on")
     ThreadingHTTPServer((host, port), make_handler(cache, store, api_key, web_dir if os.path.isdir(web_dir) else None, network, natrak, auth, cpdlc, queue, rcl, members, issuer_secret, roster, logs)).serve_forever()
