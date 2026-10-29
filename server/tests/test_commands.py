@@ -101,6 +101,38 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(self.call("/cmd/status?id=%d" % cid)[0], 401)
 
 
+class PlanCommandTests(unittest.TestCase):
+    GOOD = {"planType": "i", "acInfo": "h/b77w/l", "origin": "kewr", "dest": "egll", "alternate": "", "tas": "480", "alt": "35000",
+            "enrouteH": "6", "enrouteM": "20", "fuelH": "7", "fuelM": "30", "etd": "1435", "route": "dct 52/50 52/40 dct", "remarks": "SEL/ABCD RMK/TEST"}
+
+    def test_planget(self):
+        self.assertEqual(cm.clean_command({"type": "planget", "callsign": "ual19"}), ("planget", "UAL19", {}, None))
+
+    def test_planset_ok(self):
+        t, cs, a, e = cm.clean_command({"type": "planset", "callsign": "ual19", "plan": dict(self.GOOD)})
+        self.assertIsNone(e)
+        p = a["plan"]
+        self.assertEqual((p["planType"], p["acInfo"], p["origin"], p["dest"], p["alt"], p["tas"], p["route"]), ("I", "H/B77W/L", "KEWR", "EGLL", 35000, 480, "DCT 52/50 52/40 DCT"))
+
+    def test_planset_rejects(self):
+        for k, v in (("origin", "K"), ("dest", "EG LL"), ("planType", "X"), ("etd", "2560"), ("alt", "99999"), ("tas", "abc"),
+                     ("route", "DCT <script>"), ("remarks", "bad\nline"), ("acInfo", "")):
+            plan = dict(self.GOOD, **{k: v})
+            self.assertIsNotNone(cm.clean_command({"type": "planset", "callsign": "UAL19", "plan": plan})[3], k)
+        self.assertIsNotNone(cm.clean_command({"type": "planset", "callsign": "UAL19"})[3])
+
+    def test_planget_result_keeps_long_message(self):
+        q = cm.CommandQueue()
+        cid = q.add("EGGX_CTR", "planget", "UAL19", {}, by="x")
+        q.pending_for("EGGX_CTR")
+        q.done(cid, True, "x" * 3000)
+        self.assertEqual(len(q.status(cid)["msg"]), 3000)
+        cid2 = q.add("EGGX_CTR", "track", "UAL19", {}, by="x")
+        q.pending_for("EGGX_CTR")
+        q.done(cid2, True, "y" * 3000)
+        self.assertEqual(len(q.status(cid2)["msg"]), 200)
+
+
 if __name__ == "__main__":
     unittest.main()
 

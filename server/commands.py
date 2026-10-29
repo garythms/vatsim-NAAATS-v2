@@ -12,7 +12,7 @@ import re
 import threading
 import time
 
-TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg")   # last three are typed into EuroScope by the plugin (autotype=1)
+TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg", "planget", "planset")   # last three are typed into EuroScope by the plugin (autotype=1)
 TTL_SECONDS = 60           # an unclaimed command is dropped after this (old clicks must not fire minutes later)
 KEEP_SECONDS = 600         # finished commands stay readable this long
 SELCAL_OK = re.compile(r"[A-HJ-MP-S]{4}")
@@ -21,6 +21,58 @@ CALLSIGN_OK = re.compile(r"[A-Z0-9_\-]{2,12}")
 
 NATMSG = ("Hello, you will soon be entering oceanic airspace. Please request oceanic clearance via nattrak.vatsim.net "
           "no later than 20 minutes before your oceanic entry point. Clearance via CPDLC is unavailable.")
+
+
+PLAN_ICAO = re.compile(r"[A-Z0-9]{3,4}")
+PLAN_AC = re.compile(r"[A-Z0-9/\-]{1,30}")
+PLAN_ROUTE = re.compile(r"[A-Z0-9/ ._+\-]{0,1500}")
+PLAN_REMARKS = re.compile(r"[ -~]{0,500}")      # printable ASCII only
+
+
+def clean_plan(p):
+    """Check the flight plan fields sent by the FDD edit window. Returns (plan dict, error)."""
+    if not isinstance(p, dict):
+        return None, "no flight plan sent"
+    out = {}
+    plan_type = str(p.get("planType", "I")).strip().upper()
+    if plan_type not in ("I", "V"):
+        return None, "flight rules must be IFR or VFR"
+    out["planType"] = plan_type
+    ac = str(p.get("acInfo", "")).strip().upper()
+    if not PLAN_AC.fullmatch(ac):
+        return None, "aircraft data looks like H/B77W/L (equipment letters allowed)"
+    out["acInfo"] = ac
+    for key, label, optional in (("origin", "departure airport", False), ("dest", "destination airport", False), ("alternate", "alternate airport", True)):
+        v = str(p.get(key, "")).strip().upper()
+        if v == "" and optional:
+            out[key] = ""
+            continue
+        if not PLAN_ICAO.fullmatch(v):
+            return None, "%s must be an airport code like EGLL" % label
+        out[key] = v
+    nums = (("tas", 0, 999, "TAS"), ("alt", 0, 60000, "altitude (feet)"), ("enrouteH", 0, 99, "enroute hours"), ("enrouteM", 0, 59, "enroute minutes"),
+            ("fuelH", 0, 99, "fuel hours"), ("fuelM", 0, 59, "fuel minutes"))
+    for key, lo, hi, label in nums:
+        try:
+            v = int(str(p.get(key, 0)).strip() or 0)
+        except ValueError:
+            return None, "%s must be a number" % label
+        if not lo <= v <= hi:
+            return None, "%s must be %d to %d" % (label, lo, hi)
+        out[key] = v
+    etd = str(p.get("etd", "")).strip()
+    if not re.fullmatch(r"([01]\d|2[0-3])[0-5]\d", etd):
+        return None, "departure time is four digits, for example 1435"
+    out["etd"] = etd
+    route = str(p.get("route", "")).strip().upper()
+    if not PLAN_ROUTE.fullmatch(route):
+        return None, "the route has characters that are not allowed (letters, numbers, / . + - and spaces)"
+    out["route"] = route
+    remarks = str(p.get("remarks", ""))
+    if not PLAN_REMARKS.fullmatch(remarks):
+        return None, "remarks may only use normal keyboard characters (max 500)"
+    out["remarks"] = remarks
+    return out, None
 
 
 def clean_command(body):
@@ -61,6 +113,13 @@ def clean_command(body):
         args = {"text": ".contactme"}        # EuroScope's .contactme takes no callsign: it acts on the selected aircraft (the plugin selects it first)
     elif typ == "natmsg":
         args = {"text": ".msg " + cs + " " + NATMSG}
+    elif typ == "planget":
+        args = {}
+    elif typ == "planset":
+        plan, err = clean_plan(body.get("plan"))
+        if err:
+            return None, None, None, err
+        args = {"plan": plan}
     return typ, cs, args, None
 
 
@@ -105,7 +164,7 @@ class CommandQueue:
             if not c or c["state"] not in ("delivered", "pending"):
                 return None
             c["state"] = "ok" if ok else "failed"
-            c["msg"] = (msg or "")[:200]
+            c["msg"] = (msg or "")[:(6000 if c["type"] == "planget" else 200)]    # planget carries the whole flight plan as JSON
             return dict(c)
 
     def status(self, cid):

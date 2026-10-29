@@ -634,8 +634,8 @@ void CDataHandler::ApplyPendingNetwork(CRadarScreen* screen) {
 				fp->Mach = to_string(netFP.AssignedMach);
 				fp->Track = netFP.Track;
 				// Keep what EuroScope gave us if the server has nothing for these
-				if (!netFP.Departure.empty()) fp->Depart = netFP.Departure;
-				if (!netFP.Arrival.empty()) fp->Dest = netFP.Arrival;
+				if (!netFP.Departure.empty() && netFP.Departure != "NOFP") fp->Depart = netFP.Departure;
+				if (!netFP.Arrival.empty() && netFP.Arrival != "NOFP") fp->Dest = netFP.Arrival;
 				if (!netFP.Etd.empty()) fp->Etd = netFP.Etd;
 				fp->State = netFP.State;
 				// Work equipment out again from the EuroScope flight plan each time: the value saved on the server can be a stale "not
@@ -802,6 +802,7 @@ void CDataHandler::PollRemoteCommands(void* args) {
 						rc.Target = a.value("target", "");
 						rc.Freq = a.value("freq", "");
 						rc.Text = a.value("text", "");
+					if (a.contains("plan") && a["plan"].is_object()) rc.Plan = a["plan"].dump();   // flight plan edit: JSON text for the draw thread
 					}
 					if (rc.Id > 0) remoteQueue.push_back(rc);
 				}

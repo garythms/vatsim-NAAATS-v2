@@ -79,7 +79,7 @@ class CDataHandler
 	// Commands sent from the web flight data display (track / untrack / transfer)
 	struct CRemoteCommand {
 		int Id = 0;
-		string Type, Callsign, Level, Mach, Selcal, Target, Freq, Text;
+		string Type, Callsign, Level, Mach, Selcal, Target, Freq, Text, Plan;
 	};
 	static void PollRemoteCommands(void* args); // async: asks the server for waiting commands
 	static void ReportRemoteCommand(void* args); // async: tells the server how a command went

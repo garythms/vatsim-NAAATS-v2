@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 2.1.0: Edit the flight plan from the web display. When an aircraft's Type shows NOFP, click the Type box on the Flight Plan panel to open the whole flight plan (flight rules, aircraft data, departure, destination, alternate, level, TAS, times, route, remarks). The controller tracking the aircraft can change it and Save; EuroScope then sends the amended plan to the pilot. Everyone else sees it read only. Also: a flight plan EuroScope showed as NOFP is refreshed automatically once the plan has loaded. Needs server 2.1.0 and the new web display. Replace only VatsimNAAATS.dll.
+
 NEW IN 2.0.7: TRACK on the web display now accepts a handoff that was offered to you (before it said "EuroScope would not let you track ... handoff offered to <you>"). Replace only VatsimNAAATS.dll.
 
 NEW IN 2.0.6: Fixes "Waiting - is your EuroScope running with the vNAAATS plugin and signed in as ..." on the web display when you ARE signed in. The plugin only learned your callsign once an aircraft had appeared on your list, so a quiet screen never collected web commands (TRACK, TRANSFER, SELCAL and so on). It now knows your callsign as soon as you log on. Replace only VatsimNAAATS.dll.

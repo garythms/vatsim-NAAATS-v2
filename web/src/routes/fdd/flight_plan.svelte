@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { planEditCallsign, isNofp } from "../../typescript/fdd/planedit";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as utils from "../../typescript/fdd/utils";
   import Titlebar from "../../props/fdd/titlebar.svelte";
@@ -111,13 +112,19 @@
         value={asel.Callsign}
         isDisabled={true}
       />
-      <TextInput
-        label={"Type"}
-        identifier={"type"}
-        width={"w-14"}
-        value={asel.Type}
-        isDisabled={true}
-      />
+      <div class="relative" title={isNofp(asel.Type) ? "No aircraft type - click to open the flight plan" : ""}>
+        <TextInput
+          label={"Type"}
+          identifier={"type"}
+          width={"w-14"}
+          value={asel.Type}
+          isDisabled={true}
+          backColour={isNofp(asel.Type) ? "border-yellow-300" : ""}
+        />
+        {#if isNofp(asel.Type)}
+          <span class="absolute inset-0 hover:cursor-pointer" style="top: 1.25rem;" on:click={() => planEditCallsign.set(asel.Callsign)} />
+        {/if}
+      </div>
       <TextInput
         label={"Depart"}
         identifier={"depart"}

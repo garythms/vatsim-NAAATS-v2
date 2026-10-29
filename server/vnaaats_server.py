@@ -59,7 +59,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.0.2"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.1.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -346,6 +346,10 @@ class FlightStore:
         with self.lock:
             row = self.db.execute("SELECT data FROM flights WHERE callsign=?", (cs,)).fetchone()
             old = json.loads(row[0]) if row else None
+            for k in ("type", "departure", "arrival"):
+                # an incomplete plan (blank or NOFP) from one plugin must not wipe real details another plugin already sent
+                if old and str(rec[k]).strip().upper() in ("", "NOFP") and str(old.get(k, "")).strip().upper() not in ("", "NOFP"):
+                    rec[k] = old[k]
             if old and old.get("webEditPending"):
                 # a controller edited this on the web and the plugin has not fetched it yet: keep the web values
                 for k in EDIT_FIELDS:
@@ -1701,6 +1705,13 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         store.mark_cm(c["callsign"], base)
                     if c and rcl and c.get("by") == "AUTO":                  # the automatic RCL REQ reminder
                         rcl.done(c, ok, q.get("msg", ""))
+                    if c and ok and c["type"] == "planset":                   # the plan was amended in EuroScope: show it on the FDD too
+                        pl = (c.get("args") or {}).get("plan") or {}
+                        ac_parts = str(pl.get("acInfo", "")).split("/")
+                        ch = {"departure": pl.get("origin", ""), "arrival": pl.get("dest", ""), "etd": pl.get("etd", "")}
+                        if len(ac_parts) >= 2 and ac_parts[1]:
+                            ch["type"] = ac_parts[1]
+                        store.edit(c["callsign"], {k: v for k, v in ch.items() if v}, by=c.get("by", "Plugin"))
                     if c and ok and c["type"] == "transfer" and cpdlc:        # handoff started: tell the pilot (if on CPDLC)
                         try:
                             cpdlc.handoff(c["callsign"], c["args"]["target"], c["args"].get("freq", ""), by=c["by"])

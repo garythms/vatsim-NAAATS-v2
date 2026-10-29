@@ -13,6 +13,8 @@
 #include <gdiplus.h>
 #include <ctype.h>
 #include <iostream>
+#include <functional>
+#include <json.hpp>
 
 using namespace Gdiplus;
 using namespace std;
@@ -387,6 +389,72 @@ void CRadarDisplay::RunRemoteCommands()
 				if (cmd.Type == "selcal" || cmd.Type == "contactme") plugin->SetASELAircraft(es);
 				InterlockedExchange(&TypingBusy, 1);
 				_beginthread(TypeThread, 0, (void*)new CTypeJob{ cmd.Text, cmd.Id });   // the thread reports the result
+			}
+			else if (cmd.Type == "planget") {
+				// Hand the whole flight plan to the FDD edit window (as JSON in the result message)
+				CFlightPlanData fd = es.GetFlightPlanData();
+				auto S = [](const char* v) { return string(v ? v : ""); };
+				nlohmann::json j;
+				j["callsign"] = cmd.Callsign;
+				j["planType"] = S(fd.GetPlanType());
+				j["acInfo"] = S(fd.GetAircraftInfo());
+				j["origin"] = S(fd.GetOrigin());
+				j["dest"] = S(fd.GetDestination());
+				j["alternate"] = S(fd.GetAlternate());
+				j["tas"] = fd.GetTrueAirspeed();
+				j["alt"] = fd.GetFinalAltitude();
+				j["etd"] = S(fd.GetEstimatedDepartureTime());
+				j["enrouteH"] = S(fd.GetEnrouteHours());
+				j["enrouteM"] = S(fd.GetEnrouteMinutes());
+				j["fuelH"] = S(fd.GetFuelHours());
+				j["fuelM"] = S(fd.GetFuelMinutes());
+				j["route"] = S(fd.GetRoute());
+				j["remarks"] = S(fd.GetRemarks());
+				j["mine"] = mine;
+				j["trackedBy"] = trackedBy;
+				CDataHandler::ReportRemoteResult(cmd.Id, true, j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+			}
+			else if (cmd.Type == "planset") {
+				// Only the controller tracking the aircraft may change its flight plan
+				if (!mine) { CDataHandler::ReportRemoteResult(cmd.Id, false, "Track " + cmd.Callsign + " first - only the tracking controller can change its flight plan"); continue; }
+				nlohmann::json p = nlohmann::json::parse(cmd.Plan, nullptr, false);
+				if (p.is_discarded() || !p.is_object()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "no flight plan received"); continue; }
+				CFlightPlanData fd = es.GetFlightPlanData();
+				auto S = [](const char* v) { return string(v ? v : ""); };
+				string failed;
+				// Change only what differs, so a "no change" answer from EuroScope is never taken as a refusal
+				auto setStr = [&](const char* name, const string& want, const string& have, const std::function<bool(const char*)>& setter) {
+					if (want != have && !setter(want.c_str())) failed += string(failed.empty() ? "" : ", ") + name;
+				};
+				setStr("flight rules", p.value("planType", "I"), S(fd.GetPlanType()), [&](const char* v) { return fd.SetPlanType(v); });
+				setStr("aircraft data", p.value("acInfo", ""), S(fd.GetAircraftInfo()), [&](const char* v) { return fd.SetAircraftInfo(v); });
+				setStr("departure", p.value("origin", ""), S(fd.GetOrigin()), [&](const char* v) { return fd.SetOrigin(v); });
+				setStr("destination", p.value("dest", ""), S(fd.GetDestination()), [&](const char* v) { return fd.SetDestination(v); });
+				setStr("alternate", p.value("alternate", ""), S(fd.GetAlternate()), [&](const char* v) { return fd.SetAlternate(v); });
+				setStr("departure time", p.value("etd", ""), S(fd.GetEstimatedDepartureTime()), [&](const char* v) { return fd.SetEstimatedDepartureTime(v); });
+				setStr("enroute hours", to_string(p.value("enrouteH", 0)), to_string(atoi(fd.GetEnrouteHours())), [&](const char* v) { return fd.SetEnrouteHours(v); });
+				setStr("enroute minutes", to_string(p.value("enrouteM", 0)), to_string(atoi(fd.GetEnrouteMinutes())), [&](const char* v) { return fd.SetEnrouteMinutes(v); });
+				setStr("fuel hours", to_string(p.value("fuelH", 0)), to_string(atoi(fd.GetFuelHours())), [&](const char* v) { return fd.SetFuelHours(v); });
+				setStr("fuel minutes", to_string(p.value("fuelM", 0)), to_string(atoi(fd.GetFuelMinutes())), [&](const char* v) { return fd.SetFuelMinutes(v); });
+				setStr("route", p.value("route", ""), S(fd.GetRoute()), [&](const char* v) { return fd.SetRoute(v); });
+				setStr("remarks", p.value("remarks", ""), S(fd.GetRemarks()), [&](const char* v) { return fd.SetRemarks(v); });
+				int tas = p.value("tas", 0), alt = p.value("alt", 0);
+				if (tas != fd.GetTrueAirspeed() && !fd.SetTrueAirspeed(tas)) failed += string(failed.empty() ? "" : ", ") + "TAS";
+				if (alt != fd.GetFinalAltitude() && !fd.SetFinalAltitude(alt)) failed += string(failed.empty() ? "" : ", ") + "altitude";
+				if (!failed.empty()) { CLogger::Log(CLogType::WARN, "Flight plan change for " + cmd.Callsign + " refused by EuroScope: " + failed, "CRadarDisplay::RunRemoteCommands"); CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not change: " + failed); continue; }
+				if (!fd.AmendFlightPlan()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope did not send the amended flight plan"); continue; }
+				// Keep vNAAATS' own copy in step
+				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(cmd.Callsign);
+				if (fp->IsValid) {
+					fp->Type = S(fd.GetAircraftFPType());
+					fp->Depart = S(fd.GetOrigin());
+					fp->Dest = S(fd.GetDestination());
+					fp->Etd = CUtils::ParseZuluTime(false, atoi(fd.GetEstimatedDepartureTime()));
+					fp->IsEquipped = CUtils::IsAircraftEquipped(S(fd.GetRemarks()), S(fd.GetAircraftInfo()), fd.GetCapibilities());
+					fp->WindowRefresh = true;
+				}
+				CLogger::Log(CLogType::NORM, "Flight plan for " + cmd.Callsign + " amended from the FDD.", "CRadarDisplay::RunRemoteCommands");
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Flight plan for " + cmd.Callsign + " amended");
 			}
 			else {
 				CDataHandler::ReportRemoteResult(cmd.Id, false, "unknown command");
@@ -982,9 +1050,11 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 				CFlightPlanData fd = fpData.GetFlightPlanData();
 				string esType = fd.GetAircraftFPType(), esDep = fd.GetOrigin(), esDest = fd.GetDestination();
 				bool changed = false;
-				if (fp->Type.empty() && !esType.empty()) { fp->Type = esType; changed = true; }
-				if (fp->Depart.empty() && !esDep.empty()) { fp->Depart = esDep; changed = true; }
-				if (fp->Dest.empty() && !esDest.empty()) { fp->Dest = esDest; changed = true; }
+				// "NOFP" is what EuroScope shows while it has no data for a field, so it counts as blank
+				auto blank = [](const string& v) { return v.empty() || v == "NOFP"; };
+				if (blank(fp->Type) && !blank(esType) && esType != fp->Type) { fp->Type = esType; changed = true; }
+				if (blank(fp->Depart) && !blank(esDep) && esDep != fp->Depart) { fp->Depart = esDep; changed = true; }
+				if (blank(fp->Dest) && !blank(esDest) && esDest != fp->Dest) { fp->Dest = esDest; changed = true; }
 				if (changed) {
 					fp->Etd = CUtils::ParseZuluTime(false, atoi(fd.GetEstimatedDepartureTime()));
 					fp->IsEquipped = CUtils::IsAircraftEquipped(fd.GetRemarks(), fd.GetAircraftInfo(), fd.GetCapibilities());

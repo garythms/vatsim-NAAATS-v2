@@ -390,6 +390,17 @@ class MediaRangeTest(unittest.TestCase):
             srv.shutdown()
 
 
+class NofpGuardTest(unittest.TestCase):
+    def test_incomplete_plan_does_not_wipe_real_details(self):
+        d = tempfile.mkdtemp()
+        st = s.FlightStore(os.path.join(d, "t.db"))
+        st.upsert({"callsign": "UAL19", "type": "B77W", "departure": "KEWR", "arrival": "EGLL"})
+        rec = st.upsert({"callsign": "UAL19", "type": "NOFP", "departure": "", "arrival": "NOFP"})
+        self.assertEqual((rec["type"], rec["departure"], rec["arrival"]), ("B77W", "KEWR", "EGLL"))
+        rec = st.upsert({"callsign": "UAL19", "type": "A333", "departure": "KJFK", "arrival": "EGKK"})
+        self.assertEqual((rec["type"], rec["departure"], rec["arrival"]), ("A333", "KJFK", "EGKK"))
+
+
 if __name__ == "__main__":
     unittest.main()
 
