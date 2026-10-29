@@ -49,6 +49,8 @@ EuroScope command for you to paste into the command line.
 NEW IN 1.5b3: a red * beside the callsign on the radar tag means a natTrak reminder was sent to that pilot from the FDD (aircraft menu > NatTrak).
 It disappears when the pilot requests clearance or an oceanic controller tracks the aircraft.
 
+NEW IN 2.4.0: (1) Contact Me from the FDD now outlines the aircraft's EuroScope tag in yellow, red after 20 minutes if nobody is tracking it. (2) If an aircraft you were tracking disconnects and its pilot returns within 5 minutes, the plugin tracks it again with the same Flight Level, Mach and SELCAL (retrack=0 in vnaaats.cfg turns this off, together with the re-track after a crash). (3) Any four letters are accepted as a SELCAL, and a SELCAL filed in the VATSIM remarks (SEL/ABCD) is filled in on the FDD.
+
 NEW IN 2.3.0: Aircraft nobody has handled yet now show the route filed with VATSIM, straight away, when it looks right (it crosses the Atlantic the right way for its departure and destination). The route box only says CHECK / EDIT ROUTE when the filed route is missing, runs the wrong way or does not cross the ocean. Needs server 2.3.0. Replace only VatsimNAAATS.dll.
 
 NEW IN 2.2.1: When an aircraft has no route yet, the route box in the flight plan window now says CHECK / EDIT ROUTE instead of AIRCRAFT. Replace only VatsimNAAATS.dll.

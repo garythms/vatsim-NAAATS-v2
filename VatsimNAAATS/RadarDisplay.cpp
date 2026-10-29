@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
 #include "RadarDisplay.h"
+#include <set>
 #include "AcTargets.h"
 #include "InboundList.h"
 #include "Constants.h"
@@ -206,6 +207,40 @@ static void TypeThread(void* arg) {
 
 static int RetrackPhase = 0; // see RunRemoteCommands: 0 = not connected
 
+// Aircraft I was tracking whose pilot disconnected: if the pilot is back within 5 minutes and nobody else has the aircraft,
+// track it again with the Flight Level, Mach and SELCAL it had. (Runs about every 10 seconds, on the EuroScope thread.)
+static void RunTrackMemos(CPlugIn* plugin, const std::set<string>& mineNow) {
+	const double WINDOW_SECONDS = 300.0;
+	time_t now = time(NULL);
+	for (auto& kv : CDataHandler::MemoSnapshot()) {
+		const string& cs = kv.first;
+		const CDataHandler::CTrackMemo& m = kv.second;
+		try {
+			CFlightPlan es = plugin->FlightPlanSelect(cs.c_str());
+			CRadarTarget rt = plugin->RadarTargetSelect(cs.c_str());
+			if (m.DisconnectedAt == 0) {
+				if (mineNow.count(cs)) continue;                                  // still tracking it
+				// no longer mine: pilot gone (remember it) or I released / handed it off (forget it)
+				if (!es.IsValid() || !rt.IsValid()) CDataHandler::MemoDisconnected(cs);
+				else CDataHandler::MemoForget(cs);
+				continue;
+			}
+			if (difftime(now, m.DisconnectedAt) > WINDOW_SECONDS) { CDataHandler::MemoForget(cs); continue; }   // too late
+			if (difftime(now, m.DisconnectedAt) < 10.0) continue;                 // let EuroScope drop the old one first
+			if (!es.IsValid() || !rt.IsValid()) continue;                         // not back yet
+			if (rt.GetPosition().GetReceivedTime() > 30) continue;                // flight plan still there but no fresh position
+			if (es.GetTrackingControllerIsMe() || !string(es.GetTrackingControllerCallsign()).empty()) { CDataHandler::MemoForget(cs); continue; }   // someone has it
+			CDataHandler::CRemoteCommand cmd;
+			cmd.Id = 0; cmd.Type = "track"; cmd.Callsign = cs; cmd.Level = m.Level; cmd.Mach = m.Mach;
+			cmd.Selcal = (m.Selcal == "N/A") ? "" : m.Selcal;
+			CDataHandler::QueueLocalCommand(cmd);
+			CLogger::Log(CLogType::NORM, cs + " is back within 5 minutes: tracking it again (FL" + m.Level + " M" + m.Mach + (cmd.Selcal.empty() ? "" : " SELCAL " + cmd.Selcal) + ").", "RunTrackMemos");
+			CDataHandler::MemoForget(cs);
+		}
+		catch (...) { CDataHandler::MemoForget(cs); }
+	}
+}
+
 void CRadarDisplay::RunRemoteCommands()
 {
 	CPlugIn* plugin = GetPlugIn();
@@ -258,9 +293,19 @@ void CRadarDisplay::RunRemoteCommands()
 		if (phase == 4 && CDataHandler::Retrack && (double)(clock() - lastReport) / (double)CLOCKS_PER_SEC >= 10.0) {
 			lastReport = clock();
 			string list;
+			std::set<string> mineNow;
 			for (CFlightPlan f = plugin->FlightPlanSelectFirst(); f.IsValid(); f = plugin->FlightPlanSelectNext(f)) {
-				if (f.GetTrackingControllerIsMe()) list += (list.empty() ? "" : ",") + string(f.GetCallsign());
+				if (f.GetTrackingControllerIsMe()) {
+					list += (list.empty() ? "" : ",") + string(f.GetCallsign());
+					string csNow = f.GetCallsign();
+					mineNow.insert(csNow);
+					// Remember what I set on it, in case its pilot disconnects and comes back
+					CAircraftFlightPlan* mfp = CDataHandler::GetFlightData(csNow);
+					if (mfp->IsValid && !mfp->FlightLevel.empty() && !mfp->Mach.empty() && atoi(mfp->FlightLevel.c_str()) > 0 && atoi(mfp->Mach.c_str()) > 0)
+						CDataHandler::MemoTracked(csNow, mfp->FlightLevel, mfp->Mach, mfp->SELCAL);
+				}
 			}
+			RunTrackMemos(plugin, mineNow);
 			static clock_t lastSent = 0;
 			// also sent once a minute when nothing changed: this is how the server knows I was still here before a crash
 			if (list != lastReported || (double)(clock() - lastSent) / (double)CLOCKS_PER_SEC >= 60.0) {
@@ -1188,6 +1233,8 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 }
 
 void CRadarDisplay::OnFlightPlanDisconnect(CFlightPlan FlightPlan) {
+	// If I was tracking it, start the 5 minute window in which it is tracked again when the pilot returns
+	if (CDataHandler::Retrack) CDataHandler::MemoDisconnected(FlightPlan.GetCallsign());
 	// Close the flight plan window immediately and cancel the ASEL so that we don't get a crash
 	if (FlightPlan.GetCallsign() == asel) {
 		menuBar->SetButtonState(CMenuBar::BTN_FLIGHTPLAN, CInputState::INACTIVE);

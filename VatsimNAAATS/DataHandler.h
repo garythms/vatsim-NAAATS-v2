@@ -7,6 +7,8 @@
 #include "Logger.h"
 #include <json.hpp>
 #include <mutex>
+#include <map>
+#include <ctime>
 #include <atomic>
 
 using namespace std;
@@ -82,6 +84,16 @@ class CDataHandler
 		int Id = 0;
 		string Type, Callsign, Level, Mach, Selcal, Target, Freq, Text, Plan;
 	};
+	// Aircraft I track, remembered so that if the pilot disconnects and comes back within 5 minutes I can track them again with the same data
+	struct CTrackMemo {
+		string Level, Mach, Selcal;
+		time_t DisconnectedAt = 0; // 0 = still connected
+	};
+	static void MemoTracked(const string& callsign, const string& level, const string& mach, const string& selcal); // I track it now: remember FL / Mach / SELCAL
+	static void MemoDisconnected(const string& callsign); // its pilot has gone: start the 5 minute window (only if I was tracking it)
+	static void MemoForget(const string& callsign);
+	static vector<std::pair<string, CTrackMemo>> MemoSnapshot();
+	static void QueueLocalCommand(const CRemoteCommand& cmd); // run a command as if the web display had sent it (Id 0: no server answer)
 	static void PollRemoteCommands(void* args); // async: asks the server for waiting commands
 	static void ReportRemoteCommand(void* args); // async: tells the server how a command went
 	static vector<CRemoteCommand> TakeRemoteCommands(); // commands collected so far (called from the EuroScope thread)

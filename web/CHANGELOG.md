@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.4.0 - 2026-10-29
+- SELCAL: any four letters are accepted (VATSIM pilots are not limited to the real-world letters) and the warning about letters is gone. A SELCAL filed in the VATSIM flight plan remarks (SEL/ABCD) now fills the SELCAL box for you.
+- CPDLC drawer: only the current logon is shown (never more than 6 hours); days-old messages are no longer listed.
+- Server 2.4.0: a pilot tuned to a frequency that a far-away controller also uses (for example Cairo Ground on 121.900) is no longer shown as talking to that controller.
+
 ## 2.3.0 - 2026-10-29
 - Server 2.3.0 gives the plugin the VATSIM-filed route of aircraft nobody has handled yet (new /PluginRoute), but only when it looks right: Europe to North America must run westbound, North America to Europe eastbound, and both ends on one side of the Atlantic is refused. Needs plugin 2.3.0. No change to the display.
 

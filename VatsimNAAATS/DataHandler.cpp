@@ -881,7 +881,42 @@ vector<CDataHandler::CRemoteCommand> CDataHandler::TakeRemoteCommands() {
 struct CRemoteResult { int Id; bool Ok; string Msg; };
 
 void CDataHandler::ReportRemoteResult(int id, bool ok, const string& msg) {
+	if (id <= 0) { // a command the plugin gave itself (automatic re-track): there is no server queue entry, just log how it went
+		CLogger::Log(ok ? CLogType::NORM : CLogType::WARN, "Automatic re-track: " + msg, "CDataHandler::ReportRemoteResult");
+		return;
+	}
 	_beginthread(CDataHandler::ReportRemoteCommand, 0, (void*)new CRemoteResult{ id, ok, msg });
+}
+
+static std::mutex memoLock;
+static std::map<string, CDataHandler::CTrackMemo> trackMemo;
+
+void CDataHandler::MemoTracked(const string& callsign, const string& level, const string& mach, const string& selcal) {
+	std::lock_guard<std::mutex> lk(memoLock);
+	CTrackMemo& m = trackMemo[callsign];
+	m.Level = level; m.Mach = mach; m.Selcal = selcal;
+	m.DisconnectedAt = 0;
+}
+
+void CDataHandler::MemoDisconnected(const string& callsign) {
+	std::lock_guard<std::mutex> lk(memoLock);
+	auto it = trackMemo.find(callsign);
+	if (it != trackMemo.end() && it->second.DisconnectedAt == 0) it->second.DisconnectedAt = time(NULL);
+}
+
+void CDataHandler::MemoForget(const string& callsign) {
+	std::lock_guard<std::mutex> lk(memoLock);
+	trackMemo.erase(callsign);
+}
+
+vector<std::pair<string, CDataHandler::CTrackMemo>> CDataHandler::MemoSnapshot() {
+	std::lock_guard<std::mutex> lk(memoLock);
+	return vector<std::pair<string, CTrackMemo>>(trackMemo.begin(), trackMemo.end());
+}
+
+void CDataHandler::QueueLocalCommand(const CRemoteCommand& cmd) {
+	std::lock_guard<std::mutex> lock(remoteLock);
+	remoteQueue.push_back(cmd);
 }
 
 void CDataHandler::ReportRemoteCommand(void* args) {
