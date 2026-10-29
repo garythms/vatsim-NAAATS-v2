@@ -57,6 +57,12 @@
     </div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
+      <div class="text-lg font-bold mb-2">Video: loading vNAAATS into EuroScope</div>
+      <video class="w-full bg-black" controls preload="metadata" playsinline src="/vNAAATS-install-howto.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/vNAAATS-install-howto.mp4">Download it</a>.</video>
+      <div class="text-sm opacity-80 mt-2">About a minute and a quarter: opening your profile, loading the sector file and plugin, then adding the vNAAATS display and the ASR file.</div>
+    </div>
+
+    <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold">User guide (PDF)</div>
       <div class="text-sm opacity-80 mb-3">The install guide and the full user manual in one file. The same text is on the <a href="https://vnaaats.com/guide" class="underline">install guide</a> and <a href="https://vnaaats.com/manual" class="underline">user manual</a> pages.</div>
       <a href="/vNAAATS-user-guide.pdf" rel="external" class="inline-block px-5 py-2 mr-2 mb-2 font-bold bg-blue-10 text-black">Open the guide (PDF)</a>
