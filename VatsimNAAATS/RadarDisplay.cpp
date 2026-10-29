@@ -310,7 +310,11 @@ void CRadarDisplay::RunRemoteCommands()
 					fp = CDataHandler::GetFlightData(cmd.Callsign);
 				}
 				if (!fp->IsValid) { CDataHandler::ReportRemoteResult(cmd.Id, false, "vNAAATS has not loaded " + cmd.Callsign + " yet - try again in a few seconds"); continue; }
-				if (!mine && !es.StartTracking()) {
+				// StartTracking() only works on an untracked aircraft; a handoff offered to me has to be accepted instead
+				bool started = true;
+				if (handoffToMe) es.AcceptHandoff();
+				else if (!mine) started = es.StartTracking();
+				if (!started) {
 					string why = "tracked by " + (trackedBy.empty() ? string("nobody") : trackedBy) + ", handoff offered to " + (string(es.GetHandoffTargetControllerCallsign()).empty() ? string("nobody") : string(es.GetHandoffTargetControllerCallsign())) + ", you are " + string(plugin->ControllerMyself().GetCallsign());
 					CLogger::Log(CLogType::WARN, "StartTracking refused for " + cmd.Callsign + ": " + why + ".", "CRadarDisplay::RunRemoteCommands");
 					CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not let you track " + cmd.Callsign + " (" + why + ")");
@@ -324,7 +328,7 @@ void CRadarDisplay::RunRemoteCommands()
 				string myId = plugin->ControllerMyself().IsValid() ? string(plugin->ControllerMyself().GetPositionId()) : "";
 				string trkCallsign = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerCallsign();
 				string trkId = plugin->FlightPlanSelect(cmd.Callsign.c_str()).GetTrackingControllerId();
-				if (trkCallsign.empty()) { trkCallsign = myCallsign; trkId = myId; }
+				if (trkCallsign.empty() || handoffToMe) { trkCallsign = myCallsign; trkId = myId; }
 				fp->Sector = trkId;
 				fp->IsCleared = true;
 				if (CDataHandler::SquawkOnClearance) CUtils::AssignOceanicSquawk(plugin, cmd.Callsign);

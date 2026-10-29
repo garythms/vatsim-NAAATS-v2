@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.0.5 - 2026-10-29
+- Flight Plan panel: the plugin's "AIRCRAFT" placeholder (present position, when a flight has no route) is no longer shown as a route fix, so it no longer triggers "AIRCRAFT is not a fix name".
+
 ## 2.0.4 - 2026-10-28
 - After you send TRACK (or release / transfer) from the aircraft menu, the strip list now refreshes again 3 and 6 seconds later, so the headset icon and tracker update without clicking a second time.
 

@@ -1097,7 +1097,7 @@ NAMED_OK = re.compile(r"[A-Z]{3,5}")                      # named waypoint, e.g.
 
 def route_problem(text):
     """Why a route text is not accepted ("" if fine). Latitude/longitude fixes must be two numbers / two numbers (51/20)."""
-    fixes = str(text).upper().split()
+    fixes = [f for f in str(text).upper().split() if f != "AIRCRAFT"]   # AIRCRAFT = the plugin's "present position" placeholder, not a fix
     if not fixes:
         return "type the route fixes separated by spaces, for example 52/50 52/40 52/30"
     if len(fixes) > 40:

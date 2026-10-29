@@ -18,7 +18,7 @@
   let routeDraft: string = "";
   let routeFor: string = "";
   let routeFocus: boolean = false;
-  $: if (asel && !routeFocus && (asel.Callsign !== routeFor || true)) { routeFor = asel.Callsign; routeDraft = asel.Route.join(" "); }
+  $: if (asel && !routeFocus && (asel.Callsign !== routeFor || true)) { routeFor = asel.Callsign; routeDraft = asel.Route.filter((f: string) => f !== "AIRCRAFT").join(" "); }
   function routeProblem(text: string): string {
     const fixes = text.trim().toUpperCase().split(/\s+/).filter((f) => f !== "");
     if (fixes.length === 0) return "Type the route fixes separated by spaces, e.g. 52/50 52/40";
