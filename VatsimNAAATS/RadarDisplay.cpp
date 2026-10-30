@@ -1153,7 +1153,7 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 				_beginthread(CDataHandler::DownloadNetworkAircraft, 0, (void*)data); // Async
 			}
 			catch (std::exception & ex) {
-				CLogger::DebugLog(this, "An exception occurred. " + *ex.what());
+				CLogger::DebugLog(this, string("An exception occurred. ") + ex.what());
 			}			
 
 			// Timer
@@ -1230,7 +1230,7 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 					}
 				}
 				catch (std::exception & ex) {
-					CLogger::DebugLog(this, "An exception occurred. " + *ex.what());
+					CLogger::DebugLog(this, string("An exception occurred. ") + ex.what());
 				}
 
 				// Reset the clock
@@ -1332,7 +1332,7 @@ void CRadarDisplay::OnFlightPlanDisconnect(CFlightPlan FlightPlan) {
 			}
 		}
 		catch (std::exception & ex) {
-			CLogger::DebugLog(this, "An exception occurred. " + *ex.what());
+			CLogger::DebugLog(this, string("An exception occurred. ") + ex.what());
 		}
 	}
 }
@@ -2028,9 +2028,9 @@ void CRadarDisplay::CursorStateUpdater(void* args)
 		
 	}
 	catch (exception & ex) {
-		CLogger::DebugLog(cursor->screen, "An exception occurred in the CursorStateUpdater. " + *ex.what());
+		CLogger::DebugLog(cursor->screen, string("An exception occurred in the CursorStateUpdater. ") + ex.what());
 		CLogger::Log(CLogType::ERR, "An error occurred. \nCursor position: " + to_string(cursor->latLonPosition.m_Latitude) + "," + to_string(cursor->latLonPosition.m_Longitude)
-			+ "\nRefresh Resolution: " + to_string(cursor->screen->RefreshResolution) + "\nVerbose details: " + *ex.what(), "CRadarDisplay::CursorStateUpdater");
+			+ "\nRefresh Resolution: " + to_string(cursor->screen->RefreshResolution) + string("\nVerbose details: ") + ex.what(), "CRadarDisplay::CursorStateUpdater");
 	}
 
 	// Clean up and return
