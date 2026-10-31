@@ -746,9 +746,11 @@ def convert_network_pilot(pilot, tracks):
             idx.append((i, p))
     if len(idx) < 2:
         tg = tango_match(tokens)
-        if not tg:
-            return None
-        return _tango_record(pilot, fp, tg)
+        if tg:
+            return _tango_record(pilot, fp, tg)
+        if inactive_nat_token(route_str, tracks):                 # filed NATE but track E is not in use today: still ours to see (an RR flight)
+            return _rr_record(pilot, fp, tracks)
+        return None
     pts = [p for _, p in idx]
     entry = exit_ = None
     j = idx[0][0] - 1                                         # entry fix: the token before the first coordinate (skipping DCT)
@@ -802,23 +804,26 @@ def _tango_record(pilot, fp, tg):
     }
 
 
-def convert_manual_pilot(pilot, tracks):
-    """A flight added by hand: the same record as the VATSIM feed gives, but for any pilot with a flight plan.
-    If the route does not have two oceanic coordinates the plain fixes of the route are used and the direction is a guess
-    from where the flight starts (Europe = westbound)."""
-    rec = convert_network_pilot(pilot, tracks)
-    if rec:
-        return rec
-    fp = pilot.get("flight_plan") or {}
-    if not fp:
-        return None
+def inactive_nat_token(route_str, tracks):
+    """True if the filed route has a NATx token for a track that is not in use today (so it could not be expanded)."""
+    active = {str(t.get("id", "")).upper() for t in tracks}
+    for tok in (route_str or "").upper().split():
+        m = NAT_TOKEN.fullmatch(_SPEEDLEVEL.sub("", tok))
+        if m and m.group(1) not in active:
+            return True
+    return False
+
+
+def _rr_record(pilot, fp, tracks):
+    """A random-route flight built from the plain fixes of the filed route (no oceanic coordinates to go on).
+    The direction is a guess from where the flight starts (Europe = westbound)."""
     names = []
     for tok in expand_nat_tokens((fp.get("route") or "").upper().split(), tracks)[0]:
         if tok == "DCT" or re.fullmatch(r"[A-Z]{1,2}\d{1,3}[A-Z]?", tok) or re.fullmatch(r"[NMK]\d{3,4}[FAMS]\d{3,4}", tok):
             continue
         names.append(tok)
     dep = (fp.get("departure") or "").upper()
-    rec = {
+    return {
         "callsign": pilot.get("callsign", "").upper(), "type": fp.get("aircraft_short") or "",
         "assignedLevel": parse_level(fp.get("altitude")), "assignedMach": 0,
         "track": "RR", "route": " ".join(names), "routeEtas": " ".join(["--"] * len(names)),
@@ -829,7 +834,19 @@ def convert_manual_pilot(pilot, tracks):
         "lastUpdated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source": "vatsim",
     }
-    return rec
+
+
+def convert_manual_pilot(pilot, tracks):
+    """A flight added by hand: the same record as the VATSIM feed gives, but for any pilot with a flight plan.
+    If the route does not have two oceanic coordinates the plain fixes of the route are used and the direction is a guess
+    from where the flight starts (Europe = westbound)."""
+    rec = convert_network_pilot(pilot, tracks)
+    if rec:
+        return rec
+    fp = pilot.get("flight_plan") or {}
+    if not fp:
+        return None
+    return _rr_record(pilot, fp, tracks)
 
 
 class NatTrakFeed:
