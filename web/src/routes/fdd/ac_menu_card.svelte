@@ -148,23 +148,23 @@
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={close}>Close</button>
       </div>
       <div class="p-3">
-        <div class="flex flex-row flex-wrap items-center mb-3 select-none">
+        <div class="flex flex-row flex-wrap items-center gap-x-2 gap-y-2 mb-4 select-none">
           {#each tabs as t}
-            <span class="px-2 py-0.5 mr-1 mb-1 {BTN} {tab === t[0] ? 'bg-blue-1 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6' : ''}" on:click={() => pickTab(t[0])}>{t[1]}</span>
+            <span class="px-2 py-0.5 {BTN} {tab === t[0] ? 'bg-blue-1 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6' : ''}" on:click={() => pickTab(t[0])}>{t[1]}</span>
           {/each}
           {#if isConc}
-            <span class="px-2 py-0.5 mr-1 mb-1 {BTN}" on:click={openPos}>Position reports</span>
+            <span class="px-2 py-0.5 {BTN}" on:click={openPos}>Position reports</span>
           {/if}
           <span class="ml-auto" />
-          <span class="px-2 py-0.5 mb-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer {tab === 'sup' ? 'bg-red-900' : ''}" on:click={() => pickTab("sup")}>Supervisor</span>
+          <span class="px-2 py-0.5 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer {tab === 'sup' ? 'bg-red-900' : ''}" on:click={() => pickTab("sup")}>Supervisor</span>
         </div>
 
         {#if tab === "track"}
-          <div class="flex flex-row flex-wrap items-start">
-            <button class="px-2 py-1 mr-4 mb-2 {BTN}" disabled={busy || !canEdit} on:click={track}>{trackedByMe ? "Update aircraft" : "Track aircraft"}</button>
-            <label class="mr-3 mb-2 text-sm">FL <input class="w-16 px-1 text-black" bind:value={level} placeholder="optional" /></label>
-            <label class="mr-3 mb-2 text-sm">Mach <input class="w-16 px-1 text-black" bind:value={mach} placeholder="optional" /></label>
-            <div class="flex flex-col items-start mb-2">
+          <div class="flex flex-row flex-wrap items-start gap-x-4 gap-y-3">
+            <button class="px-2 py-1 {BTN}" disabled={busy || !canEdit} on:click={track}>{trackedByMe ? "Update aircraft" : "Track aircraft"}</button>
+            <label class="text-sm">FL <input class="w-16 px-1 text-black" bind:value={level} placeholder="optional" /></label>
+            <label class="text-sm">Mach <input class="w-16 px-1 text-black" bind:value={mach} placeholder="optional" /></label>
+            <div class="flex flex-col items-start">
               <label class="text-sm">SELCAL <input class="w-20 px-1 text-black uppercase" maxlength="4" bind:value={selcal} /></label>
               <button class="px-2 py-1 mt-2 {BTN}" disabled={busy || !canEdit || !m.validSelcal(selcal)} title="Types .selcal into EuroScope for this aircraft" on:click={() => typeIn({ type: "selcal", selcal: selcal.toUpperCase() }, m.selcalCommand(selcal))}>SELCAL Check</button>
             </div>
