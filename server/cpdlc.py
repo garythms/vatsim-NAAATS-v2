@@ -415,6 +415,25 @@ class CpdlcStation:
         if pend["kind"] == "unicom":
             self.on_release(cs)
 
+    def disconnect(self, callsign, by=""):
+        """Controller's choice: log this pilot off CPDLC from our station now (a stuck or unwanted connection).
+        Sends the LOGOFF uplink (if Hoppie is unreachable the pilot is still dropped from our list). Returns the stored message."""
+        cs = (callsign or "").strip().upper()
+        if not re.fullmatch(r"[A-Z0-9]{2,8}", cs):
+            raise ValueError("bad callsign")
+        if not self.is_connected(cs):
+            raise ValueError("%s is not connected to your CPDLC station" % cs)
+        self.pending.pop(cs, None)
+        mn = self._alloc_min()
+        row = None
+        try:
+            self._send_packet(cs, mn, None, "NE", LOGOFF_TEXT)
+            row = self._store("UP", cs, mn, None, "NE", LOGOFF_TEXT, state="", by=by or "controller")
+        except RuntimeError as e:
+            log.warning("logoff of %s failed: %s", cs, e)
+        self._set_connected(cs, False)
+        return {"ok": True, "callsign": cs, "sent": row is not None}
+
     def accept_logon(self, callsign, their_min=None):
         cs = callsign.upper()
         mn = self._alloc_min()

@@ -60,6 +60,13 @@ class CDataHandler
 
 	// Read vnaaats.cfg (server address, API key, squawk option) from the DLL folder
 	static void LoadSettings();
+	static string SettingsUrl; // server + /PluginSettings?code=KEY: options chosen on the FDD Settings box
+	static long long SettingsStamp; // settingsstamp= in vnaaats.cfg: the version of the FDD settings already written to it
+	static volatile long SettingsBusy; // 1 while a fetch is running
+	static volatile long SettingsMessagePending; // 1 = tell the controller to restart EuroScope
+	static void FetchSettings(void* args); // writes changed FDD settings into vnaaats.cfg (they apply when EuroScope is restarted)
+	static bool AutoClick; // autoclick=1 (default): after typing .contactme, click the aircraft for you
+	static bool Highlight; // highlight=1 (default): circle the aircraft in white when it is clicked on the FDD
 	static bool AutoType; // autotype=1: type .selcal / .contactme / .msg into EuroScope when the FDD asks
 	static bool SquawkOnClearance; // assign 2000 when a clearance is sent
 	static string ControllerCallsign; // my EuroScope callsign, sent with changes

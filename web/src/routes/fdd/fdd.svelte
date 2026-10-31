@@ -4,6 +4,8 @@
   import Button from "../../props/fdd/button.svelte";
   import Checkbox from "../../props/fdd/checkbox.svelte";
   import FlightStrip from "../../props/fdd/flight_strip.svelte";
+  import { settingsOpen } from "../../typescript/fdd/settings";
+  import * as acmenu from "../../typescript/fdd/acmenu";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as site from "../../typescript/site";
   import * as sess from "../../typescript/fdd/session";
@@ -191,7 +193,7 @@
   let tone: string = dataHandler.tone;
   function refreshNatTrak(): void {
     const all: any[] = [...dataHandler.natTrakData.values()];
-    pendingList = all.filter((d) => d.status === "PENDING");
+    pendingList = all.filter((d) => d.status === "PENDING" && !dataHandler.isNatTrakIgnored(d.callsign));
     clearedList = all.filter((d) => d.status !== "PENDING").sort((a, b) => String(b.clearance_issued).localeCompare(String(a.clearance_issued)));
     alertCount = pendingList.filter((d) => dataHandler.isNatTrakAlert(d.callsign)).length;
     soundOn = dataHandler.soundOn;
@@ -208,6 +210,11 @@
   function toggleSound(): void {
     dataHandler.setSound(!dataHandler.soundOn);
     refreshNatTrak();
+  }
+  let circleOn: boolean = acmenu.circleOn;
+  function toggleCircle(): void {
+    acmenu.setCircle(!acmenu.circleOn);
+    circleOn = acmenu.circleOn;
   }
   function toggleVisual(): void {
     dataHandler.setVisual(!dataHandler.visualOn);
@@ -336,6 +343,7 @@
         <option value="UPDATED">last changed</option>
       </select>
     </label>
+    <button class="px-2 py-0.5 font-bold border border-blue-6 bg-blue-3" title="Plugin options (vnaaats.cfg)" on:click={() => settingsOpen.set(true)}>Settings</button>
     {#if $cpdlcStatus.enabled}
       <button class="px-2 py-0.5 font-bold border border-blue-6 {(cpdlcUnread > 0 || $cpdlcAttention.size > 0) && visualOn && tickN >= 0 ? 'nt-flash text-black' : 'bg-blue-3'}"
         title="Open the CPDLC panel" on:click={() => cpdlcOpen.set(!$cpdlcOpen)}>
@@ -387,6 +395,7 @@
         <span class="flex flex-row gap-x-3">
           <span class="underline hover:cursor-pointer" title="Flashing strips and tab title" on:click={toggleVisual}>Visual: {visualOn ? "ON" : "OFF"}</span>
           <span class="underline hover:cursor-pointer" title="Sound when a new request arrives" on:click={toggleSound}>Audio: {soundOn ? "ON" : "OFF"}</span>
+          <span class="underline hover:cursor-pointer" title="Clicking an aircraft here circles it in white in EuroScope for a few seconds" on:click={toggleCircle}>Circle: {circleOn ? "ON" : "OFF"}</span>
           <span class="underline hover:cursor-pointer" title="Change the alert sound (plays a preview)" on:click={changeTone}>Tone: {tone}</span>
         </span>
       </div>

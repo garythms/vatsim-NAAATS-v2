@@ -11,6 +11,7 @@
   let westbound: NatTrack[];
   let supersonic: NatTrack[];
   let tango: NatTrack[];
+  let tangoGroups: { label: string; tracks: NatTrack[] }[] = [];
   $: supersonic = [];
   $: tango = [];
   $: eastbound = [];
@@ -57,6 +58,11 @@
           westbound.push(dataHandler.currentNatTracks.get(tracksRaw[i]));
         }
       }
+      tangoGroups = [
+        { label: "Northbound", tracks: tango.filter((t) => t.TangoDir === "north") },
+        { label: "Southbound", tracks: tango.filter((t) => t.TangoDir === "south") },
+        { label: "Bi-directional", tracks: tango.filter((t) => t.TangoDir !== "north" && t.TangoDir !== "south") },
+      ].filter((g) => g.tracks.length > 0);
     },
     null,
     true
@@ -108,20 +114,20 @@
         use={track.Use}
       />
     {/each}
-    {#if tango.length > 0}
-    <div class="flex flex-row justify-center w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
-      Shanwick Tango routes
-    </div>
-    {/if}
-    {#each tango as track}
-      <TrackStrip
-        id={track.Identifier}
-        route={track.Route}
-        flightLevels={track.FlightLevels}
-        direction={track.Direction}
-        use={track.Use}
-        tango={true}
-      />
+    {#each tangoGroups as grp}
+      <div class="flex flex-row justify-center w-full bg-grey-500 bg-opacity-70 select-none hover:cursor-default">
+        Shanwick Tango routes - {grp.label}
+      </div>
+      {#each grp.tracks as track}
+        <TrackStrip
+          id={track.Identifier}
+          route={track.Route}
+          flightLevels={track.FlightLevels}
+          direction={track.Direction}
+          use={track.Use}
+          tango={true}
+        />
+      {/each}
     {/each}
   </div>
 </div>

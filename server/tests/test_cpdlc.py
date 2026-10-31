@@ -236,6 +236,17 @@ class AutomationTests(unittest.TestCase):
         self.assertFalse(st.is_connected("BAW9"))
         self.assertEqual(released, ["BAW9"])
 
+    def test_controller_can_log_a_pilot_off(self):
+        hop, st = self.connect()
+        r = st.disconnect("baw9", by="CZQO_CTR")
+        self.assertTrue(r["ok"])
+        self.assertTrue(self.uplinks(hop)[-1].endswith("/NE/LOGOFF"))
+        self.assertFalse(st.is_connected("BAW9"))
+        with self.assertRaises(ValueError):
+            st.disconnect("BAW9")                       # not connected any more
+        with self.assertRaises(ValueError):
+            st.disconnect("??")
+
     def test_other_reply_does_not_log_off(self):
         hop, st = self.connect()
         row = st.unicom("BAW9")

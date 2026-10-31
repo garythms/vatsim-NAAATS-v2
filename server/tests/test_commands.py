@@ -105,6 +105,9 @@ class PlanCommandTests(unittest.TestCase):
     GOOD = {"planType": "i", "acInfo": "h/b77w/l", "origin": "kewr", "dest": "egll", "alternate": "", "tas": "480", "alt": "35000",
             "enrouteH": "6", "enrouteM": "20", "fuelH": "7", "fuelM": "30", "etd": "1435", "route": "dct 52/50 52/40 dct", "remarks": "SEL/ABCD RMK/TEST"}
 
+    def test_highlight(self):
+        self.assertEqual(cm.clean_command({"type": "highlight", "callsign": "baw1"}), ("highlight", "BAW1", {}, None))
+
     def test_planget(self):
         self.assertEqual(cm.clean_command({"type": "planget", "callsign": "ual19"}), ("planget", "UAL19", {}, None))
 

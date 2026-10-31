@@ -55,13 +55,14 @@ import cpdlc as cpdlc_mod
 import commands as commands_mod
 import rcl_auto as rcl_auto_mod
 import members as members_mod
+import usersettings as usersettings_mod
 import adminlog as adminlog_mod
 log = logging.getLogger("vnaaats")
 
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.4.1"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.5.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -597,17 +598,18 @@ _EVEN_300_400 = [fl * 100 for fl in range(300, 401, 20)]
 _ODD_290_410 = [fl * 100 for fl in range(290, 411, 20)]
 # id, rule in words, flight levels (feet, empty = no level rule published here), fixes in the direction of use
 TANGO_ROUTE_DEFS = [
-    ("T9", "southbound only, even levels FL300-400, no CPDLC mandate", _EVEN_300_400, ["LASNO", "BEGAS"]),
-    ("T290", "northbound only, odd levels FL290-410, no CPDLC mandate", _ODD_290_410, ["ADVAT", "GELPO"]),
-    ("T213", "both directions, CPDLC required FL290-410", [], ["TAMEL", "BERUX"]),
-    ("T13", "northbound, CPDLC required FL290-410, continues into Santa Maria", [], ["NILAV", "OMOKO"]),
-    ("T16", "southbound, CPDLC required FL290-410, continues into Santa Maria", [], ["OMOKO", "GONAN"]),
+    ("T9", "southbound only, even levels FL300-400", _EVEN_300_400, ["LASNO", "BEGAS"]),
+    ("T290", "northbound only, odd levels FL290-410", _ODD_290_410, ["ADVAT", "GELPO"]),
+    ("T213", "both directions", [], ["TAMEL", "BERUX"]),
+    ("T13", "northbound, continues into Santa Maria", [], ["NILAV", "OMOKO"]),
+    ("T16", "southbound, continues into Santa Maria", [], ["OMOKO", "GONAN"]),
 ]
 
 
 def tango_tracks():
     """The Tango routes in the same shape as the NAT tracks, plus tango:true and use for the web display."""
     return [{"id": tid, "tmi": "T", "direction": 0, "tango": True, "use": use,
+             "tangoDir": "both" if use.startswith("both") else ("north" if use.startswith("north") else "south"),
              "route": [{"name": n, "latitude": round(TANGO_FIXES[n][0], 4), "longitude": round(TANGO_FIXES[n][1], 4)} for n in fixes],
              "flightLevels": list(levels), "validFrom": "", "validTo": ""} for tid, use, levels, fixes in TANGO_ROUTE_DEFS]
 
@@ -1360,6 +1362,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             return "" if cid else why
         return "unknown"
 
+    usettings = usersettings_mod.UserSettings(store)
+
     def issuer_ok(handler):
         sec = handler.headers.get("X-Issuer-Secret", "")
         return bool(issuer_secret) and len(issuer_secret) >= 24 and hmac.compare_digest(sec.encode(), issuer_secret.encode())
@@ -1541,7 +1545,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if cpdlc:
                         cpdlc.stop(self._token())                  # a new position means a different CPDLC station
                     return self._send(200, self._status(self._session()))
-                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom", "/cpdlc/force-logout"):
+                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom", "/cpdlc/force-logout", "/cpdlc/disconnect"):
                     if not cpdlc:
                         return self._send(404, {"error": "CPDLC is not switched on"})
                     sess = self._session()
@@ -1573,6 +1577,12 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if p == "/cpdlc/seen":
                         st.mark_seen(str(body.get("callsign", "")))
                         return self._send(200, {"ok": True})
+                    if p == "/cpdlc/disconnect":
+                        # log one pilot off CPDLC from this station (they stay connected on VATSIM; they can log on again)
+                        try:
+                            return self._send(200, st.disconnect(str(body.get("callsign", "")), by="%s (%s)" % (sess["position"], sess["name"])))
+                        except ValueError as e:
+                            return self._send(400, {"error": str(e)})
                     if p == "/cpdlc/unicom":
                         try:
                             return self._send(200, st.unicom(str(body.get("callsign", "")), by="%s (%s)" % (sess["position"], sess["name"])))
@@ -1589,6 +1599,16 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     except RuntimeError as e:
                         return self._send(502, {"error": str(e)})
                     return self._send(200, msg)
+                if p == "/settings":
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if sess.get("via") not in ("member", "vatsim") or not re.fullmatch(r"\d{1,9}", str(sess.get("cid", ""))):
+                        return self._send(403, {"error": "settings need your own sign-in (personal password or VATSIM Connect), not the shared password"})
+                    rec, err = usettings.set(sess["cid"], body.get("settings"))
+                    if err:
+                        return self._send(400, {"error": err})
+                    return self._send(200, rec)
                 if p == "/cmd/queue":
                     sess = self._session()
                     if not sess:
@@ -1829,6 +1849,21 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         if now_names and cur["owners"] and not (now_names & cur["owners"]):
                             ok = False                                            # somebody else has signed in on this position on the FDD: not theirs to get back
                     return self._send(200, {"callsigns": cur["list"] if ok else []})
+                if p == "/settings":                          # the FDD Settings box: this controller's plugin options
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if sess.get("via") not in ("member", "vatsim") or not re.fullmatch(r"\d{1,9}", str(sess.get("cid", ""))):
+                        return self._send(403, {"error": "settings need your own sign-in (personal password or VATSIM Connect), not the shared password"})
+                    rec = usettings.get(sess["cid"])
+                    return self._send(200, {"settings": rec["settings"], "stamp": rec["stamp"], "defaults": {k: v["default"] for k, v in usersettings_mod.OPTIONS.items()}})
+                if p == "/PluginSettings":                    # the plugin writes these into vnaaats.cfg (needs a personal key: it carries the CID)
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
+                    cid, _ = members.check_key(q.get("code", "")) if members else (None, "")
+                    rec = usettings.get(cid) if cid else {"settings": {}, "stamp": 0}
+                    return self._send(200, rec)
                 if p == "/asel":                              # the FDD asks which aircraft its controller clicked in EuroScope
                     sess = self._session()
                     pos = (sess["position"] if sess else "").upper()

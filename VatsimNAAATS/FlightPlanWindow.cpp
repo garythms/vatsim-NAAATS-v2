@@ -2739,7 +2739,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 						_beginthread(CDataHandler::PostNetworkAircraft, 0, (void*)data); // Async
 					}
 					catch (std::exception & ex) {
-						CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
+						CLogger::DebugLog(screen, string("An exception occurred. ") + ex.what());
 						
 					}					
 				}
@@ -2796,7 +2796,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 						}
 					}
 					catch (std::exception & ex) {
-						CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
+						CLogger::DebugLog(screen, string("An exception occurred. ") + ex.what());
 						CLogger::Log(CLogType::ERR, "An error occurred whilst trying to update network data. Callsign: " + netFP->Callsign, "");
 					}					
 				}
@@ -2866,8 +2866,8 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 							}
 						}
 						catch (std::exception & ex) {
-							CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
-							CLogger::Log(CLogType::ERR, "An error occurred whilst trying to update network data. Callsign: " + netFP->Callsign + "\nVerbose details: " + *ex.what(), "");
+							CLogger::DebugLog(screen, string("An exception occurred. ") + ex.what());
+							CLogger::Log(CLogType::ERR, "An error occurred whilst trying to update network data. Callsign: " + netFP->Callsign + string("\nVerbose details: ") + ex.what(), "");
 						}
 					}
 				}
@@ -2926,7 +2926,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 					}
 				}
 				catch (std::exception & ex) {
-					CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
+					CLogger::DebugLog(screen, string("An exception occurred. ") + ex.what());
 				}
 			}
 		}
@@ -3000,7 +3000,7 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 				}
 			}
 			catch (std::exception & ex) {
-				CLogger::DebugLog(screen, "An exception occurred. " + *ex.what());
+				CLogger::DebugLog(screen, string("An exception occurred. ") + ex.what());
 			}
 		}
 		if (id == BTN_UNCLEAR) {

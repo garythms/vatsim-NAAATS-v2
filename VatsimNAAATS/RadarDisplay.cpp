@@ -191,12 +191,41 @@ static bool TypeIntoEuroScope(const string& text) {
 	return true;
 }
 
-struct CTypeJob { string Text; int Id; };
+static HWND g_radarWnd = NULL;            // the radar window the cursor was last seen over (set by the cursor thread)
+static volatile clock_t g_ignoreClicksUntil = 0; // our own simulated click must not trigger vNAAATS actions
+
+// Click once at a point of the radar window (client pixels), then put the mouse back where it was.
+static bool ClickRadarPoint(POINT clientPt) {
+	HWND w = g_radarWnd;
+	if (!w || !IsWindow(w)) return false;
+	POINT sp = clientPt;
+	if (!ClientToScreen(w, &sp)) return false;
+	POINT back; GetCursorPos(&back);
+	g_ignoreClicksUntil = clock() + 1500;
+	SetCursorPos(sp.x, sp.y);
+	Sleep(120);
+	mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+	Sleep(50);
+	mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+	Sleep(250);
+	SetCursorPos(back.x, back.y);
+	return true;
+}
+
+struct CTypeJob { string Text; int Id; bool Click = false; POINT Px = { 0, 0 }; };
 static volatile LONG TypingBusy = 0;
 static void TypeThread(void* arg) {
 	CTypeJob* job = (CTypeJob*)arg;
 	try {
-		if (TypeIntoEuroScope(job->Text)) CDataHandler::ReportRemoteResult(job->Id, true, "Sent to EuroScope: " + job->Text.substr(0, 40));
+		if (TypeIntoEuroScope(job->Text)) {
+			string note = "Sent to EuroScope: " + job->Text.substr(0, 40);
+			if (job->Click) {
+				Sleep(500);                       // EuroScope now waits for a click on the aircraft
+				if (ClickRadarPoint(job->Px)) note += " (aircraft clicked for you)";
+				else note += " - click the aircraft to send it";
+			}
+			CDataHandler::ReportRemoteResult(job->Id, true, note);
+		}
 		else CDataHandler::ReportRemoteResult(job->Id, false, "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste");
 	}
 	catch (...) { CDataHandler::ReportRemoteResult(job->Id, false, "plugin error while typing"); }
@@ -254,6 +283,17 @@ void CRadarDisplay::RunRemoteCommands()
 			if (*it == cs) it = CRoutesHelper::ActiveRoutes.erase(it); else ++it;
 		}
 		CDataHandler::DeleteFlightData(cs);
+	}
+	// Settings chosen on the FDD: check every 2 minutes; changed ones are written to vnaaats.cfg and apply after a restart of EuroScope
+	{
+		static clock_t lastSettings = 0;
+		if (CDataHandler::SettingsBusy == 0 && (lastSettings == 0 || (double)(clock() - lastSettings) / (double)CLOCKS_PER_SEC >= 120.0)) {
+			lastSettings = clock();
+			InterlockedExchange(&CDataHandler::SettingsBusy, 1);
+			_beginthread(CDataHandler::FetchSettings, 0, NULL);
+		}
+		if (InterlockedExchange(&CDataHandler::SettingsMessagePending, 0))
+			plugin->DisplayUserMessage("vNAAATS", "Settings", "Your vNAAATS settings were changed on the FDD and saved in vnaaats.cfg. Close EuroScope and open it again for them to take effect.", true, true, true, true, true);
 	}
 	CDataHandler::ApplyPendingNetwork(this); // changes fetched from the server (e.g. edits made on the web FDD), applied on this thread
 	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) { RetrackPhase = 0; return; }   // disconnected: start the recovery again next time
@@ -436,7 +476,23 @@ void CRadarDisplay::RunRemoteCommands()
 				// .selcal and .contactme act on the selected aircraft (they take no callsign), so select it first
 				if (cmd.Type == "selcal" || cmd.Type == "contactme") plugin->SetASELAircraft(es);
 				InterlockedExchange(&TypingBusy, 1);
-				_beginthread(TypeThread, 0, (void*)new CTypeJob{ cmd.Text, cmd.Id });   // the thread reports the result
+				CTypeJob* job = new CTypeJob{ cmd.Text, cmd.Id };
+				if (cmd.Type == "contactme" && CDataHandler::AutoClick) {
+					// where the aircraft is on this radar (worked out here, on EuroScope's own thread)
+					CRadarTarget tgt = plugin->RadarTargetSelect(cmd.Callsign.c_str());
+					if (tgt.IsValid()) {
+						POINT px = ConvertCoordFromPositionToPixel(tgt.GetPosition().GetPosition());
+						CRect area(GetRadarArea());
+						if (area.PtInRect(px)) { job->Click = true; job->Px = px; }
+					}
+				}
+				_beginthread(TypeThread, 0, (void*)job);   // the thread reports the result
+			}
+			else if (cmd.Type == "highlight") {
+				if (!CDataHandler::Highlight) { CDataHandler::ReportRemoteResult(cmd.Id, true, "circle is switched off (highlight=0 in vnaaats.cfg)"); continue; }
+				hlCallsign = cmd.Callsign;
+				hlUntil = clock() + 3000;
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Circled " + cmd.Callsign);
 			}
 			else if (cmd.Type == "planget") {
 				// Hand the whole flight plan to the FDD edit window (as JSON in the result message)
@@ -729,6 +785,22 @@ void CRadarDisplay::OnRefresh(HDC hDC, int Phase)
 			int selAlign = dc.SetTextAlign(TA_CENTER);
 			dc.TextOutA((radarBounds.left + radarBounds.right) / 2, radarBounds.bottom - dc.GetTextExtent("ABC").cy - 2, line.c_str());
 			dc.SetTextAlign(selAlign);
+		}
+		// White circle around an aircraft that was just clicked on the FDD (3 seconds)
+		if (!hlCallsign.empty()) {
+			if (clock() < hlUntil) {
+				CRadarTarget hlt = GetPlugIn()->RadarTargetSelect(hlCallsign.c_str());
+				if (hlt.IsValid()) {
+					POINT hp = ConvertCoordFromPositionToPixel(hlt.GetPosition().GetPosition());
+					CPen hpen(PS_SOLID, 3, RGB(255, 255, 255));
+					CPen* oldPen = dc.SelectObject(&hpen);
+					CBrush* oldBrush = (CBrush*)dc.SelectStockObject(NULL_BRUSH);
+					dc.Ellipse(hp.x - 24, hp.y - 24, hp.x + 24, hp.y + 24);
+					dc.SelectObject(oldBrush);
+					dc.SelectObject(oldPen);
+				}
+			}
+			else hlCallsign.clear();
 		}
 		dc.RestoreDC(sDC);
 
@@ -1153,7 +1225,7 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 				_beginthread(CDataHandler::DownloadNetworkAircraft, 0, (void*)data); // Async
 			}
 			catch (std::exception & ex) {
-				CLogger::DebugLog(this, "An exception occurred. " + *ex.what());
+				CLogger::DebugLog(this, string("An exception occurred. ") + ex.what());
 			}			
 
 			// Timer
@@ -1230,7 +1302,7 @@ void CRadarDisplay::OnRadarTargetPositionUpdate(CRadarTarget RadarTarget)
 					}
 				}
 				catch (std::exception & ex) {
-					CLogger::DebugLog(this, "An exception occurred. " + *ex.what());
+					CLogger::DebugLog(this, string("An exception occurred. ") + ex.what());
 				}
 
 				// Reset the clock
@@ -1332,7 +1404,7 @@ void CRadarDisplay::OnFlightPlanDisconnect(CFlightPlan FlightPlan) {
 			}
 		}
 		catch (std::exception & ex) {
-			CLogger::DebugLog(this, "An exception occurred. " + *ex.what());
+			CLogger::DebugLog(this, string("An exception occurred. ") + ex.what());
 		}
 	}
 }
@@ -1445,6 +1517,7 @@ void CRadarDisplay::OnOverScreenObject(int ObjectType, const char* sObjectId, PO
 
 void CRadarDisplay::OnClickScreenObject(int ObjectType, const char* sObjectId, POINT Pt, RECT Area, int Button)
 {
+	if (clock() < g_ignoreClicksUntil) return; // the plugin's own click (Contact Me), not the controller's
 	// If menu button
 	if (ObjectType == MENBAR) {
 		if (Button == BUTTON_RIGHT) { // Toggle buttons
@@ -1953,6 +2026,12 @@ void CRadarDisplay::CursorStateUpdater(void* args)
 					isCursorInsideRadarArea = true;
 				}
 
+				// Remember which window is the radar (ours, under the mouse, mouse inside the radar area)
+				if (isCursorInsideRadarArea && underCursor != NULL) {
+					DWORD wpid = 0; GetWindowThreadProcessId(underCursor, &wpid);
+					if (wpid == GetCurrentProcessId()) g_radarWnd = underCursor;
+				}
+
 				// Lat/lon position
 				cursor->latLonPosition = cursor->screen->ConvertCoordFromPixelToPosition(cursor->position);
 
@@ -2028,9 +2107,9 @@ void CRadarDisplay::CursorStateUpdater(void* args)
 		
 	}
 	catch (exception & ex) {
-		CLogger::DebugLog(cursor->screen, "An exception occurred in the CursorStateUpdater. " + *ex.what());
+		CLogger::DebugLog(cursor->screen, string("An exception occurred in the CursorStateUpdater. ") + ex.what());
 		CLogger::Log(CLogType::ERR, "An error occurred. \nCursor position: " + to_string(cursor->latLonPosition.m_Latitude) + "," + to_string(cursor->latLonPosition.m_Longitude)
-			+ "\nRefresh Resolution: " + to_string(cursor->screen->RefreshResolution) + "\nVerbose details: " + *ex.what(), "CRadarDisplay::CursorStateUpdater");
+			+ "\nRefresh Resolution: " + to_string(cursor->screen->RefreshResolution) + string("\nVerbose details: ") + ex.what(), "CRadarDisplay::CursorStateUpdater");
 	}
 
 	// Clean up and return
