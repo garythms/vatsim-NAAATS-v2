@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- vNAAATS app: fixed "Command status not allowed by ACL" (the app now explicitly allows its own commands for vnaaats.com pages).
 - vNAAATS app: if the app does not answer, the setup screen now says why (after 15 seconds) and offers Try again / Continue anyway instead of staying on "Checking...".
 
 ## 2.5.2 - 2026-10-31
