@@ -862,8 +862,8 @@ void CDataHandler::PollRemoteCommands(void* args) {
 					rc.Callsign = item.value("callsign", "");
 					if (item.contains("args") && item["args"].is_object()) {
 						auto& a = item["args"];
-						if (a.contains("level")) rc.Level = to_string(a["level"].get<int>());
-						if (a.contains("mach")) rc.Mach = to_string(a["mach"].get<int>());
+						if (a.contains("level") && a["level"].get<int>() > 0) rc.Level = to_string(a["level"].get<int>());
+						if (a.contains("mach") && a["mach"].get<int>() > 0) rc.Mach = to_string(a["mach"].get<int>());
 						rc.Selcal = a.value("selcal", "");
 						rc.Target = a.value("target", "");
 						rc.Freq = a.value("freq", "");

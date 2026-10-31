@@ -5,7 +5,16 @@ import { writable } from "svelte/store";
 
 const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
 
-export const menuCallsign = writable<string>("");   // "" = menu closed
+// The open aircraft menus, newest first (at most 3). Empty = no menu open.
+export const MAX_MENUS = 3;
+export const menuStack = writable<string[]>([]);
+export function openMenu(callsign: string): void {
+  const cs = (callsign || "").toUpperCase();
+  if (!cs) return;
+  menuStack.update((l) => [cs, ...l.filter((x) => x !== cs)].slice(0, MAX_MENUS));
+}
+export function closeMenu(callsign: string): void { menuStack.update((l) => l.filter((x) => x !== callsign)); }
+export function closeAllMenus(): void { menuStack.set([]); }
 
 export type Controller = { callsign: string; frequency: string; name: string; facility: number };
 

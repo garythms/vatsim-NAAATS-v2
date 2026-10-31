@@ -3,7 +3,7 @@
   import { espicked, espickN } from "../../typescript/fdd/esselect";
   import * as utils from "../../typescript/fdd/utils";
   import * as dataHandler from "../../typescript/fdd/data";
-  import { menuCallsign } from "../../typescript/fdd/acmenu";
+  import { openMenu } from "../../typescript/fdd/acmenu";
 
   // Elements for spread prop
   export let callsign: string;
@@ -107,7 +107,7 @@
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
-    <div class="flex flex-row items-center whitespace-nowrap overflow-hidden pl-2 hover:cursor-pointer select-none {cmState === 'yellow' ? 'bg-yellow-300' : cmState === 'red' ? 'bg-red-600 text-white' : ''}" title={cmState === "yellow" ? "Contact me sent at " + cmZ(cmAt) + " - waiting for the pilot" : cmState === "red" ? "Contact me sent at " + cmZ(cmAt) + " (over 20 minutes ago) and nobody is tracking this flight" : "Click for the aircraft menu"} on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); menuCallsign.set(callsign); }}>
+    <div class="flex flex-row items-center whitespace-nowrap overflow-hidden pl-2 hover:cursor-pointer select-none {cmState === 'yellow' ? 'bg-yellow-300' : cmState === 'red' ? 'bg-red-600 text-white' : ''}" title={cmState === "yellow" ? "Contact me sent at " + cmZ(cmAt) + " - waiting for the pilot" : cmState === "red" ? "Contact me sent at " + cmZ(cmAt) + " (over 20 minutes ago) and nobody is tracking this flight" : "Click for the aircraft menu"} on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); openMenu(callsign); }}>
       {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if ntSent}<span class="text-red-600 font-bold pl-0.5" style="font-size: 1.5em; line-height: 0.6;" title="natTrak reminder sent to the pilot">*</span>{/if}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="whitespace-nowrap overflow-hidden select-none" style="font-size: 0.88em;">{departure}/{arrival}</div>

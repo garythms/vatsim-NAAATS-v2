@@ -4,6 +4,8 @@
  */
 import { writable } from "svelte/store";
 import * as dataHandler from "./data";
+import { get } from "svelte/store";
+import { menuStack, openMenu } from "./acmenu";
 
 const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
 
@@ -24,6 +26,7 @@ async function poll(): Promise<void> {
     espickN.update((n) => n + 1);
     if (d.callsign) {
       dataHandler.setAsel(d.callsign);
+      if (get(menuStack).length > 0) openMenu(d.callsign);     // a menu is open: bring this aircraft up above it (up to 3)
       setTimeout(() => {
         const el = document.getElementById("strip-" + d.callsign);
         if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });

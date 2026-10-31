@@ -3,6 +3,9 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Aircraft menu: if a menu is open and you click another aircraft in EuroScope, that aircraft's menu opens above it, so you can work on up to 3 at once (the oldest closes when a fourth is picked). Each has its own Close button.
+- Aircraft menu, Track tab: you can press Track without a flight level or Mach (blank keeps what is already set; the plugin takes EuroScope's own figures). Once you are tracking the aircraft the tab and button say Update. "SELCAL test (copy)" is now "SELCAL Check" and sends .selcal to EuroScope (needs autotype=1). The plugin part needs the next plugin version.
+- Aircraft menu, Supervisor tab: "Copy .wallop" also sets the aircraft's note to WALLOPED (in front of any note already there).
 - Flights that filed a NAT track which is not in use today (for example NATE when there is no track E) now appear on the display as random-route (RR) flights instead of being missing. Server change only.
 - Windows now open and close with a short animation: the CPDLC window slides out slowly and fades, and the other windows (settings, relief, aircraft menu, flight plan edit, position reports) fade and glide in and out.
 - Close, Sign out and Change are now proper buttons (they were underlined text), including "Sign out of CPDLC" and "Close" in the CPDLC window. The CPDLC window also has a vertical Close tab on its left edge.

@@ -87,14 +87,16 @@ def clean_command(body):
         return None, None, None, "bad callsign"
     args = {}
     if typ == "track":
+        raw_level = str(body.get("level", "")).strip()
+        raw_mach = str(body.get("mach", "")).strip()
         try:
-            level = int(str(body.get("level", "")).strip() or 0)
-            mach = int(str(body.get("mach", "")).lstrip("Mm.").lstrip("0") or 0)
+            level = int(raw_level) if raw_level else 0               # blank = leave it as it is (0 = not given)
+            mach = (int(raw_mach.lstrip("Mm.").lstrip("0") or 0) if raw_mach else 0)
         except ValueError:
             return None, None, None, "level and Mach must be numbers"
-        if not 1 <= level <= 999:
+        if raw_level and not 1 <= level <= 999:
             return None, None, None, "level must be 1-999 (e.g. 350)"
-        if not 1 <= mach <= 299:
+        if raw_mach and not 1 <= mach <= 299:
             return None, None, None, "Mach must be e.g. 84 for M0.84"
         sel = re.sub(r"[-\s]", "", str(body.get("selcal", "")).upper())
         if sel and not SELCAL_OK.fullmatch(sel):
