@@ -47,7 +47,7 @@
         <a href="/ICAO_Airlines.txt" rel="external" download class="inline-block px-4 py-1 mr-2 mb-2 border-2 border-blue-10">ICAO_Airlines.txt</a>
         <a href="/vnaaats.example.cfg" rel="external" download class="inline-block px-4 py-1 mb-2 border-2 border-blue-10">vnaaats.example.cfg</a>
       </div>
-      <div class="text-sm opacity-80">ICAO_Airlines.txt shows the selected aircraft's radio callsign (e.g. BAW227 (Speedbird)) at the bottom left of the radar. The example config is for new installs only: rename it to <b>vnaaats.cfg</b> and add your key. Never copy it over an existing vnaaats.cfg.</div>
+      <div class="text-sm opacity-80">ICAO_Airlines.txt shows the selected aircraft's radio callsign (e.g. BAW227 (Speedbird)) at the bottom centre of the radar. The example config is for new installs only: rename it to <b>vnaaats.cfg</b> and add your key. Never copy it over an existing vnaaats.cfg.</div>
     </div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
