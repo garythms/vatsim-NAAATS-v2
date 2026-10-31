@@ -46,3 +46,21 @@ class NatTokenTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InactiveTrackTests(unittest.TestCase):
+    """A flight that filed NATE when track E is not in use must still reach the display (as RR), not vanish."""
+    def pilot(self, route):
+        return {"callsign": "TST1", "flight_plan": {"route": route, "departure": "EGLL", "arrival": "KJFK", "altitude": "35000", "aircraft_short": "B77W"}}
+
+    def test_inactive_nat_token_still_listed(self):
+        rec = s.convert_network_pilot(self.pilot("DCT NATE DCT"), [])
+        self.assertIsNotNone(rec)
+        self.assertEqual((rec["track"], rec["callsign"]), ("RR", "TST1"))
+
+    def test_with_entry_and_exit_fixes(self):
+        rec = s.convert_network_pilot(self.pilot("ALLRY NATE GISTI"), [{"id": "A", "route": []}])
+        self.assertEqual(rec["route"], "ALLRY GISTI")
+
+    def test_no_nat_token_still_ignored(self):
+        self.assertIsNone(s.convert_network_pilot(self.pilot("DCT KOK DCT LGL"), []))

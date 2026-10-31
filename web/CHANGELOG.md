@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Flights that filed a NAT track which is not in use today (for example NATE when there is no track E) now appear on the display as random-route (RR) flights instead of being missing. Server change only.
 - Windows now open and close with a short animation: the CPDLC window slides out slowly and fades, and the other windows (settings, relief, aircraft menu, flight plan edit, position reports) fade and glide in and out.
 - Close, Sign out and Change are now proper buttons (they were underlined text), including "Sign out of CPDLC" and "Close" in the CPDLC window. The CPDLC window also has a vertical Close tab on its left edge.
 - Sign-in: tick "Remember me on this computer" to save your name and password (in the vNAAATS app they go in the Windows Credential Manager; in Chrome, its own password manager), then sign in with one click. "Forget the saved sign-in" removes it.
