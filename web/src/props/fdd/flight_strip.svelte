@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { circleInEs } from "../../typescript/fdd/acmenu";
   import { espicked, espickN } from "../../typescript/fdd/esselect";
   import * as utils from "../../typescript/fdd/utils";
   import * as dataHandler from "../../typescript/fdd/data";
@@ -87,6 +88,7 @@
     if (dataHandler.isNatTrakAlert(callsign)) dataHandler.openNatTrakFor(callsign); // flashing request: open natTrak
     dataHandler.ackNatTrak(callsign);
     dataHandler.setAsel(callsign);
+    circleInEs(callsign);
   }}>
   {#if track === "RR" || tango}
     <div class="flex flex-col items-center justify-end w-full h-8 {darkerColour} {isActive ? 'bg-opacity-75' : ''} text-black hover:cursor-default"

@@ -76,6 +76,8 @@ class CRadarDisplay : public CRadarScreen
 		clock_t tenSecondTimer;
 		clock_t thirtySecondTimer;
 		bool aselDetailed;	
+		string hlCallsign; // aircraft circled in white after a click on the FDD
+		clock_t hlUntil = 0;
 		map<string, int> aircraftOnScreen;
 		map<int, string> menuFields;
 		string asel = "";

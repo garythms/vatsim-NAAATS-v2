@@ -190,7 +190,12 @@
       {:else if !$cpdlcStatus.active}
         <!-- sign-in form is shown above -->
       {:else if shown}
-        <div class="px-3 py-1 font-bold border-b border-blue-4 select-none">[{shown}]</div>
+        <div class="flex flex-row items-center justify-between px-3 py-1 font-bold border-b border-blue-4 select-none">
+          <span>[{shown}]</span>
+          <button class="px-2 py-0.5 text-xs font-bold border border-red-400 text-red-300 hover:bg-red-700 hover:text-white"
+            title="Log this pilot off CPDLC from your station. The pilot can log on again."
+            on:click={() => { if (confirm("Log " + shown + " off CPDLC from your station?")) { cp.disconnectPilot(shown).then((e) => { if (e) loadError = e; }); } }}>Log off pilot</button>
+        </div>
         <div class="flex-1 min-h-0 overflow-y-auto px-2 py-1 text-sm" bind:this={thread}>
           {#if loadError}<div class="text-yellow-300">{loadError}</div>{/if}
           {#each messages as m}

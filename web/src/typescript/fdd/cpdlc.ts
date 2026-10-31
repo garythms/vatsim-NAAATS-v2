@@ -91,12 +91,8 @@ export async function refreshCpdlc(): Promise<void> {
     const total = unreadTotal(s);
     if (prevUnread >= 0 && total > prevUnread) playCpdlcSound();
     prevUnread = total;
-    // A new aircraft in the connected list = a pilot has just logged on
+    // A pilot just logging on does NOT flash or ping: only a request or a reply (an unread message) does.
     const nowConnected = new Set(s.connected.map((c) => c.callsign));
-    if (knownConnected !== null) {
-      const fresh = [...nowConnected].filter((c) => !knownConnected!.has(c));
-      if (fresh.length > 0) { cpdlcAttention.update((a) => new Set([...a, ...fresh])); playCpdlcSound(); }
-    }
     cpdlcAttention.update((a) => { const n = new Set([...a].filter((c) => nowConnected.has(c))); return n.size === a.size ? a : n; });
     knownConnected = nowConnected;
   } catch (e) { /* offline: keep what we have */ }
@@ -160,6 +156,13 @@ export async function forceLogout(callsign: string, understand: string): Promise
   const r = await post("/cpdlc/force-logout", { callsign, confirm: true, understand });
   refreshCpdlc();
   return r.ok ? "" : (r.data.error ?? "could not force the log out");
+}
+
+// Log one pilot off CPDLC from your station (stuck or unwanted connection). Returns an error message, or "" on success.
+export async function disconnectPilot(callsign: string): Promise<string> {
+  const r = await post("/cpdlc/disconnect", { callsign });
+  refreshCpdlc();
+  return r.ok ? "" : (r.data.error ?? "could not log the pilot off");
 }
 
 export async function logoffCpdlc(): Promise<void> {

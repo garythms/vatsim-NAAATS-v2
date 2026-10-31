@@ -60,6 +60,8 @@ class CDataHandler
 
 	// Read vnaaats.cfg (server address, API key, squawk option) from the DLL folder
 	static void LoadSettings();
+	static bool AutoClick; // autoclick=1 (default): after typing .contactme, click the aircraft for you
+	static bool Highlight; // highlight=1 (default): circle the aircraft in white when it is clicked on the FDD
 	static bool AutoType; // autotype=1: type .selcal / .contactme / .msg into EuroScope when the FDD asks
 	static bool SquawkOnClearance; // assign 2000 when a clearance is sent
 	static string ControllerCallsign; // my EuroScope callsign, sent with changes

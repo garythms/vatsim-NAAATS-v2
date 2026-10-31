@@ -12,7 +12,7 @@ import re
 import threading
 import time
 
-TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg", "planget", "planset")   # last three are typed into EuroScope by the plugin (autotype=1)
+TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg", "planget", "planset", "highlight")   # planget/planset/selcal/contactme/natmsg are typed into EuroScope by the plugin (autotype=1)
 TTL_SECONDS = 60           # an unclaimed command is dropped after this (old clicks must not fire minutes later)
 KEEP_SECONDS = 600         # finished commands stay readable this long
 SELCAL_OK = re.compile(r"[A-Z]{4}")   # VATSIM pilots can use any four letters
@@ -113,7 +113,7 @@ def clean_command(body):
         args = {"text": ".contactme"}        # EuroScope's .contactme takes no callsign: it acts on the selected aircraft (the plugin selects it first)
     elif typ == "natmsg":
         args = {"text": ".msg " + cs + " " + NATMSG}
-    elif typ == "planget":
+    elif typ in ("planget", "highlight"):      # highlight: the plugin circles the aircraft in white for a few seconds
         args = {}
     elif typ == "planset":
         plan, err = clean_plan(body.get("plan"))

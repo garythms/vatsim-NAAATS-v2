@@ -93,7 +93,7 @@
 </script>
 
 <div
-  class="flex flex-col w-full overflow-y-auto border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10"
+  class="flex flex-col w-full overflow-y-auto overflow-x-hidden border-2 border-l-blue-0 border-t-blue-0 border-r-blue-10 border-b-blue-10"
   style="min-height: 33.3333%; flex-shrink: 0;">
   <Titlebar
     label="Flight Plan - {asel == null ? 'No selection' : asel.Cpdlc ? '[' + asel.Callsign + ']' : asel.Callsign}"/>
@@ -104,11 +104,11 @@
       </div>
     {/if}
     <div
-      class="flex flex-row items-center justify-start px-3 py-2 border-b-2 w-full border-b-blue-0">
+      class="flex flex-row flex-wrap gap-y-1 items-center justify-start px-3 py-2 border-b-2 w-full border-b-blue-0">
       <TextInput
         label={"ACID"}
         identifier={"acid"}
-        width={"w-24"}
+        width={"w-20"}
         value={asel.Callsign}
         isDisabled={true}
       />
@@ -150,7 +150,7 @@
       <TextInput
         label={"ATC"}
         identifier={"trackedby"}
-        width={"w-24"}
+        width={"w-20"}
         value={trackedBy.text}
         inputForeColour={trackedBy.fore}
         backColour={trackedBy.back}
@@ -158,17 +158,17 @@
       />
     </div>
     <div class="flex flex-row items-top justify-start">
-      <div class="flex flex-row items-start py-1.5 pl-2 justify-start w-full">
+      <div class="flex flex-row flex-wrap gap-y-1 items-start py-1.5 pl-2 justify-start w-full">
         <EditInput
           label={"Spd"}
-          width={"w-28"}
+          width={"w-20"}
           value={"M" + String(asel.AssignedMach).padStart(3, "0")}
           {editable}
           onCommit={(t) => save("mach", t)}
         />
         <EditInput
           label={"FL"}
-          width={"w-28"}
+          width={"w-20"}
           value={asel.AssignedLevel.toString()}
           maxlength={5}
           {editable}
@@ -177,7 +177,7 @@
         <TextInput
           label={"Datalink"}
           identifier={"datalink"}
-          width={"w-36"}
+          width={"w-32"}
           value={asel.Cpdlc ? "Logged on" : "Not logged on"}
           inputForeColour={"text-black"}
           backColour={asel.Cpdlc ? "bg-green-400" : "bg-red-500 bg-opacity-50"}
@@ -185,8 +185,8 @@
         />
       </div>
     </div>
-    <div class="flex flex-row items-top pt-1 px-1 ml-1 justify-start">
-      <div class="flex flex-col px-2 flex-1 relative">
+    <div class="flex flex-row flex-wrap gap-y-1 items-top pt-1 px-1 ml-1 justify-start">
+      <div class="flex flex-col px-2 relative" style="flex: 1 1 100%; min-width: 0;">
         <label class="font-regular font-bold text-sm">Route (edit)</label>
         <input id="route-edit" class="h-6 px-1 text-base font-bitmap uppercase {editable ? 'bg-blue-1 text-yellow-300' : 'bg-blue-2 text-white'} border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6 focus:outline-none {routeWarn ? 'border-red-500' : 'focus:border-green-300'}"
           disabled={!editable} bind:value={routeDraft} on:focus={() => (routeFocus = true)} on:blur={saveRoute}
@@ -195,7 +195,7 @@
       </div>
       <EditInput
         label={"Note"}
-        width={"w-32"}
+        width={"w-28"}
         value={asel.Scratch ?? ""}
         maxlength={15}
         allowEmpty={true}

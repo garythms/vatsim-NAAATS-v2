@@ -597,17 +597,18 @@ _EVEN_300_400 = [fl * 100 for fl in range(300, 401, 20)]
 _ODD_290_410 = [fl * 100 for fl in range(290, 411, 20)]
 # id, rule in words, flight levels (feet, empty = no level rule published here), fixes in the direction of use
 TANGO_ROUTE_DEFS = [
-    ("T9", "southbound only, even levels FL300-400, no CPDLC mandate", _EVEN_300_400, ["LASNO", "BEGAS"]),
-    ("T290", "northbound only, odd levels FL290-410, no CPDLC mandate", _ODD_290_410, ["ADVAT", "GELPO"]),
-    ("T213", "both directions, CPDLC required FL290-410", [], ["TAMEL", "BERUX"]),
-    ("T13", "northbound, CPDLC required FL290-410, continues into Santa Maria", [], ["NILAV", "OMOKO"]),
-    ("T16", "southbound, CPDLC required FL290-410, continues into Santa Maria", [], ["OMOKO", "GONAN"]),
+    ("T9", "southbound only, even levels FL300-400", _EVEN_300_400, ["LASNO", "BEGAS"]),
+    ("T290", "northbound only, odd levels FL290-410", _ODD_290_410, ["ADVAT", "GELPO"]),
+    ("T213", "both directions", [], ["TAMEL", "BERUX"]),
+    ("T13", "northbound, continues into Santa Maria", [], ["NILAV", "OMOKO"]),
+    ("T16", "southbound, continues into Santa Maria", [], ["OMOKO", "GONAN"]),
 ]
 
 
 def tango_tracks():
     """The Tango routes in the same shape as the NAT tracks, plus tango:true and use for the web display."""
     return [{"id": tid, "tmi": "T", "direction": 0, "tango": True, "use": use,
+             "tangoDir": "both" if use.startswith("both") else ("north" if use.startswith("north") else "south"),
              "route": [{"name": n, "latitude": round(TANGO_FIXES[n][0], 4), "longitude": round(TANGO_FIXES[n][1], 4)} for n in fixes],
              "flightLevels": list(levels), "validFrom": "", "validTo": ""} for tid, use, levels, fixes in TANGO_ROUTE_DEFS]
 
@@ -1541,7 +1542,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if cpdlc:
                         cpdlc.stop(self._token())                  # a new position means a different CPDLC station
                     return self._send(200, self._status(self._session()))
-                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom", "/cpdlc/force-logout"):
+                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom", "/cpdlc/force-logout", "/cpdlc/disconnect"):
                     if not cpdlc:
                         return self._send(404, {"error": "CPDLC is not switched on"})
                     sess = self._session()
@@ -1573,6 +1574,12 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if p == "/cpdlc/seen":
                         st.mark_seen(str(body.get("callsign", "")))
                         return self._send(200, {"ok": True})
+                    if p == "/cpdlc/disconnect":
+                        # log one pilot off CPDLC from this station (they stay connected on VATSIM; they can log on again)
+                        try:
+                            return self._send(200, st.disconnect(str(body.get("callsign", "")), by="%s (%s)" % (sess["position"], sess["name"])))
+                        except ValueError as e:
+                            return self._send(400, {"error": str(e)})
                     if p == "/cpdlc/unicom":
                         try:
                             return self._send(200, st.unicom(str(body.get("callsign", "")), by="%s (%s)" % (sess["position"], sess["name"])))

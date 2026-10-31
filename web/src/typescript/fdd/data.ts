@@ -188,6 +188,7 @@ export async function parseNatTracks(): Promise<void> {
           ValidTo: parseInt(objArr[i].validTo),
           Supersonic: !!objArr[i].supersonic,
           Tango: !!objArr[i].tango,
+          TangoDir: objArr[i].tangoDir ?? "both",
           BlockLevel: objArr[i].blockLevel ?? "",
           Use: objArr[i].use ?? "",
         };
@@ -416,6 +417,8 @@ export function concOverdueList(): string[] {
 // A request is "pending" until a controller clears it on natTrak. New pending requests ping and flash
 // until they are clicked (acknowledged) or cleared.
 export let natTrakAcked: Set<string> = new Set();
+const NATTRAK_SETTLE_MS = 60000;      // requests found in the first minute after opening the display are old ones: no flash, no ping
+let natTrakStartedAt: number = 0;
 let prevPending: Set<string> | null = null; // null until the first successful fetch (no ping for what is already there)
 
 function readSetting(key: string, def: string): string {
@@ -506,7 +509,7 @@ export function isNatTrakAlert(callsign: string): boolean {
 export async function natTrakFetch() : Promise<void> {
   try {
     const response: Response = await fetch(allNatTrakGet);
-    if (response.status === 401) { natTrakData = new Map(); return; }
+    if (response.status === 401) { natTrakData = new Map(); natTrakStartedAt = 0; prevPending = null; return; }
     const objArr: any[] = await response.json();
     if (!Array.isArray(objArr)) return;
 
@@ -545,7 +548,12 @@ export async function natTrakFetch() : Promise<void> {
     const nowPending: Set<string> = new Set();
     fresh.forEach((v, k) => { if (v.status === "PENDING") nowPending.add(k); });
     let isNew: boolean = false;
-    if (prevPending !== null) {
+    if (natTrakStartedAt === 0) natTrakStartedAt = Date.now();
+    if (prevPending === null || Date.now() - natTrakStartedAt < NATTRAK_SETTLE_MS) {
+      // Old requests (from before the controller opened the display, plus anything seen in the first minute) are marked as seen:
+      // they stay in the PENDING box but do not flash or ping.
+      nowPending.forEach((k) => natTrakAcked.add(k));
+    } else if (prevPending !== null) {
       nowPending.forEach((k) => {
         if (!prevPending!.has(k)) {
           natTrakAcked.delete(k);

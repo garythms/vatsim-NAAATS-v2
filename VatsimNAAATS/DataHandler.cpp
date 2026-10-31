@@ -45,6 +45,8 @@ std::atomic<bool> CDataHandler::RemotePollBusy(false);
 clock_t CDataHandler::RemoteLastPoll = 0;
 bool CDataHandler::SquawkOnClearance = true;
 bool CDataHandler::AutoType = false;
+bool CDataHandler::AutoClick = true;
+bool CDataHandler::Highlight = true;
 
 string CDataHandler::UrlEncode(const string& value) {
 	static const char* hex = "0123456789ABCDEF";
@@ -76,6 +78,8 @@ void CDataHandler::LoadSettings() {
 		else if (k == "squawk") SquawkOnClearance = (v != "0");
 		else if (k == "autotype") AutoType = (v == "1");
 		else if (k == "retrack") Retrack = (v != "0");
+		else if (k == "autoclick") AutoClick = (v != "0");
+		else if (k == "highlight") Highlight = (v != "0");
 		else if (k == "remotelog") CLogger::RemoteMode = (v == "0" ? 0 : (v == "2" ? 2 : 1));
 	}
 	while (!server.empty() && server.back() == '/') server.pop_back();

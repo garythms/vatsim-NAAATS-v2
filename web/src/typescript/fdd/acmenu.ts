@@ -61,6 +61,18 @@ export async function queueCommand(body: Record<string, string | number>): Promi
   } catch (e) { return "cannot reach the server"; }
 }
 
+// Clicking an aircraft on the FDD circles it in white in EuroScope for a few seconds (switch it off with "Circle" on the FDD).
+function readCircle(): boolean { try { return localStorage.getItem("vnaaats.circle") !== "off"; } catch (e) { return true; } }
+export let circleOn: boolean = readCircle();
+export function setCircle(on: boolean): void {
+  circleOn = on;
+  try { localStorage.setItem("vnaaats.circle", on ? "on" : "off"); } catch (e) { /* not saved, still works for this visit */ }
+}
+export function circleInEs(callsign: string): void {
+  if (!circleOn || !callsign) return;
+  queueCommand({ type: "highlight", callsign }).catch(() => {});
+}
+
 // Wait for EuroScope's answer. state: ok | failed | waiting | pending | delivered
 export async function commandState(id: number): Promise<{ state: string; msg: string }> {
   try {

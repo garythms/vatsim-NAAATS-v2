@@ -4,6 +4,7 @@
   import Button from "../../props/fdd/button.svelte";
   import Checkbox from "../../props/fdd/checkbox.svelte";
   import FlightStrip from "../../props/fdd/flight_strip.svelte";
+  import * as acmenu from "../../typescript/fdd/acmenu";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as site from "../../typescript/site";
   import * as sess from "../../typescript/fdd/session";
@@ -209,6 +210,11 @@
     dataHandler.setSound(!dataHandler.soundOn);
     refreshNatTrak();
   }
+  let circleOn: boolean = acmenu.circleOn;
+  function toggleCircle(): void {
+    acmenu.setCircle(!acmenu.circleOn);
+    circleOn = acmenu.circleOn;
+  }
   function toggleVisual(): void {
     dataHandler.setVisual(!dataHandler.visualOn);
     refreshNatTrak();
@@ -387,6 +393,7 @@
         <span class="flex flex-row gap-x-3">
           <span class="underline hover:cursor-pointer" title="Flashing strips and tab title" on:click={toggleVisual}>Visual: {visualOn ? "ON" : "OFF"}</span>
           <span class="underline hover:cursor-pointer" title="Sound when a new request arrives" on:click={toggleSound}>Audio: {soundOn ? "ON" : "OFF"}</span>
+          <span class="underline hover:cursor-pointer" title="Clicking an aircraft here circles it in white in EuroScope for a few seconds" on:click={toggleCircle}>Circle: {circleOn ? "ON" : "OFF"}</span>
           <span class="underline hover:cursor-pointer" title="Change the alert sound (plays a preview)" on:click={changeTone}>Tone: {tone}</span>
         </span>
       </div>
