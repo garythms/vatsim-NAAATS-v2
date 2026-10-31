@@ -4,5 +4,16 @@
   "description": "Only pages from vnaaats.com may talk to this app.",
   "windows": ["main"],
   "remote": { "urls": ["https://vnaaats.com/*"] },
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "allow-status",
+    "allow-pick-folder",
+    "allow-update-plugin",
+    "allow-save-key",
+    "allow-pick-exe",
+    "allow-launch",
+    "allow-cred-get",
+    "allow-cred-save",
+    "allow-cred-forget"
+  ]
 }
