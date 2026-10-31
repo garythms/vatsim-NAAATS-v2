@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- vNAAATS app (test build): a small Windows program that opens this display and, on start-up, checks your EXOCO folder, updates an old plugin DLL, saves your key into vnaaats.cfg and starts EuroScope and VACS. The normal browser display is unchanged.
 - Squawk 2000 is now given as soon as you start tracking an aircraft (plugin), not when the clearance is sent. Domestic reassign it when the aircraft is back in radar service. Aircraft you were already tracking when EuroScope started are left alone.
 
 ## 2.5.1 - 2026-10-31
