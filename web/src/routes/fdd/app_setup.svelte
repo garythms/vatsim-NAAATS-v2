@@ -11,8 +11,12 @@
   const SEEN = "vnaaats.appSetupSeen";
   function seen(): boolean { try { return sessionStorage.getItem(SEEN) === "1"; } catch (e) { return false; } }
 
+  let problem: string = "";                         // why the app did not answer
   async function refresh(): Promise<void> {
-    try { st = await app.status(); } catch (e) { msg = app.errText(e); }
+    try {
+      st = await Promise.race([app.status(), new Promise<never>((_, no) => setTimeout(() => no("the app did not answer within 15 seconds"), 15000))]);
+      problem = "";
+    } catch (e) { problem = app.errText(e); console.error("vNAAATS app:", e); }
   }
   onMount(async () => {
     if (!app.inApp() || seen()) return;
@@ -47,7 +51,13 @@
     <div class="w-[34rem] max-w-full max-h-full overflow-y-auto bg-blue-3 border-2 border-blue-10 text-white font-regular p-4">
       <div class="text-xl font-bold mb-1">vNAAATS setup</div>
       <div class="mb-3 text-sm opacity-80">A quick check that this computer is ready{st ? " (app " + st.app_version + ")" : ""}.</div>
-      {#if !st}
+      {#if !st && problem}
+        <div class="mb-2 text-yellow-300 text-sm break-words">The app could not check this computer: {problem}</div>
+        <div class="flex gap-2">
+          <button class={BTN} on:click={refresh}>Try again</button>
+          <button class="px-3 py-1 border border-blue-6" on:click={done}>Continue anyway</button>
+        </div>
+      {:else if !st}
         <div>Checking...</div>
       {:else}
         <div class={STEP}>

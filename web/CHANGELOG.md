@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- vNAAATS app: if the app does not answer, the setup screen now says why (after 15 seconds) and offers Try again / Continue anyway instead of staying on "Checking...".
+
 ## 2.5.2 - 2026-10-31
 - Aircraft menu: if a menu is open and you click another aircraft in EuroScope, that aircraft's menu opens above it, so you can work on up to 3 at once (the oldest closes when a fourth is picked). Each has its own Close button.
 - Aircraft menu, Track tab: you can press Track without a flight level or Mach (blank keeps what is already set; the plugin takes EuroScope's own figures). Once you are tracking the aircraft the tab and button say Update. "SELCAL test (copy)" is now "SELCAL Check" and sends .selcal to EuroScope (needs autotype=1). The plugin part needs the next plugin version.
