@@ -13,4 +13,5 @@ tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = "2"
+keyring = { version = "3", features = ["windows-native"] }
 vnaaats-core = { path = "../../core" }

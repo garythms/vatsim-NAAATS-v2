@@ -24,4 +24,9 @@ export const saveKey = (key: string): Promise<void> => call("save_key", { key })
 export const pickExe = (kind: "euroscope" | "vacs"): Promise<string | null> => call("pick_exe", { kind });
 export const launch = (kind: "euroscope" | "vacs"): Promise<void> => call("launch", { kind });
 
+// The saved sign-in (kept in the Windows Credential Manager)
+export const credGet = (): Promise<{ name: string; password: string } | null> => call("cred_get");
+export const credSave = (name: string, password: string): Promise<void> => call("cred_save", { name, password });
+export const credForget = (): Promise<void> => call("cred_forget");
+
 export function errText(e: unknown): string { return typeof e === "string" ? e : (e as any)?.message ?? "something went wrong"; }

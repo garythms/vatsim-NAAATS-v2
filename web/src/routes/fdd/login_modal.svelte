@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as sess from "../../typescript/fdd/session";
+  import * as app from "../../typescript/fdd/app";
 
   const { session } = sess;
   let name: string = "";
@@ -9,7 +10,36 @@
   let error: string = "";
   let busy: boolean = false;
 
+  // Remember me: the app keeps the name and password in the Windows Credential Manager; Chrome keeps them in its own password manager.
+  let remember: boolean = false;
+  let savedName: string = "";                       // app: a sign-in is saved for this name
+  const browserCreds: boolean = typeof window !== "undefined" && "PasswordCredential" in window && !app.inApp();
+  async function loadSaved(): Promise<void> {
+    if (!app.inApp()) return;
+    try { savedName = (await app.credGet())?.name ?? ""; } catch (e) { savedName = ""; }
+  }
+  async function useSaved(): Promise<void> {
+    busy = true; error = "";
+    try {
+      if (app.inApp()) {
+        const c = await app.credGet();
+        if (!c) { savedName = ""; busy = false; return; }
+        error = await sess.loginPassword(c.name, c.password);
+        if (error) error += " (the saved password may have changed: sign in again with Remember me ticked)";
+      } else {
+        const c: any = await (navigator.credentials as any).get({ password: true, mediation: "optional" });
+        if (c?.id && c?.password) error = await sess.loginPassword(c.id, c.password);
+      }
+    } catch (e) { error = "could not use the saved sign-in"; }
+    busy = false;
+  }
+  async function forget(): Promise<void> {
+    try { await app.credForget(); } catch (e) { /* nothing saved */ }
+    savedName = "";
+  }
+
   onMount(() => {
+    loadSaved();
     sess.refreshSession();
     // Ask again now and then, so a session that has run out brings the sign-in screen back
     const t = setInterval(sess.refreshSession, 30000);
@@ -21,7 +51,14 @@
 
   async function doPassword(): Promise<void> {
     busy = true; error = "";
+    const typedName = name, typedPassword = password;
     error = await sess.loginPassword(name, password);
+    if (!error && remember) {
+      try {
+        if (app.inApp()) { await app.credSave(typedName, typedPassword); savedName = typedName.trim(); }
+        else if (browserCreds) await (navigator.credentials as any).store(new (window as any).PasswordCredential({ id: typedName, password: typedPassword, name: typedName }));
+      } catch (e) { /* signed in anyway; just not saved */ }
+    }
     password = "";
     busy = false;
   }
@@ -55,10 +92,19 @@
           </button>
         {/if}
         {#if $session.password}
+          {#if savedName}
+            <button class="w-full mb-1 py-2 font-bold bg-blue-10 text-black" disabled={busy} on:click={useSaved}>Sign in as {savedName}</button>
+            <button class="mb-3 text-sm underline opacity-80" on:click={forget}>Forget the saved sign-in</button>
+          {:else if browserCreds}
+            <button class="w-full mb-3 py-1 border border-blue-6 bg-blue-4" disabled={busy} on:click={useSaved}>Use a saved sign-in</button>
+          {/if}
           <form on:submit|preventDefault={doPassword}>
             <div class="text-sm mb-1">{$session.vatsim ? "or use your password" : "Your name or CID, and your password (from your myCZQO vNAAATS key page)"}</div>
             <input class="w-full mb-2 px-2 py-1 text-black" placeholder="Name or CID" bind:value={name} maxlength="40" autocomplete="name" />
             <input class="w-full mb-2 px-2 py-1 text-black" type="password" placeholder="Password" bind:value={password} autocomplete="current-password" />
+            {#if app.inApp() || browserCreds}
+              <label class="flex items-center gap-2 mb-2 text-sm"><input type="checkbox" bind:checked={remember} /> Remember me on this computer</label>
+            {/if}
             <button class="w-full py-2 font-bold bg-blue-10 text-black" disabled={busy || !name || !password}>Sign in</button>
           </form>
         {/if}

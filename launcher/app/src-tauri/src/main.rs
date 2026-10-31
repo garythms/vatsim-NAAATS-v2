@@ -181,10 +181,50 @@ fn launch(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> Result<
     cmd.spawn().map(|_| ()).map_err(|e| format!("could not start it: {}", e))
 }
 
+// The saved sign-in lives in the Windows Credential Manager (where Windows keeps its own saved passwords), never in a plain file.
+#[derive(Serialize, Deserialize)]
+struct Login {
+    name: String,
+    password: String,
+}
+
+fn cred_entry() -> Result<keyring::Entry, String> {
+    keyring::Entry::new("vNAAATS", "flight-data-display").map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cred_get(window: WebviewWindow) -> Result<Option<Login>, String> {
+    check_origin(&window)?;
+    match cred_entry()?.get_password() {
+        Ok(text) => Ok(serde_json::from_str(&text).ok()),
+        Err(keyring::Error::NoEntry) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn cred_save(window: WebviewWindow, name: String, password: String) -> Result<(), String> {
+    check_origin(&window)?;
+    if name.trim().is_empty() || password.is_empty() || name.len() > 100 || password.len() > 200 {
+        return Err("nothing to save".into());
+    }
+    let text = serde_json::to_string(&Login { name: name.trim().to_string(), password }).map_err(|e| e.to_string())?;
+    cred_entry()?.set_password(&text).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn cred_forget(window: WebviewWindow) -> Result<(), String> {
+    check_origin(&window)?;
+    match cred_entry()?.delete_credential() {
+        Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, save_key, pick_exe, launch])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, save_key, pick_exe, launch, cred_get, cred_save, cred_forget])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }
