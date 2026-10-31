@@ -62,7 +62,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.5.0"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.5.1"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1609,6 +1609,42 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if err:
                         return self._send(400, {"error": err})
                     return self._send(200, rec)
+                if p == "/relief/start":                       # the confirmed relief: hand every aircraft of this position to the next controller
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    pos = sess["position"]
+                    if not pos or pos == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position first"})
+                    target = str(body.get("target", "")).strip().upper()
+                    if not commands_mod.CALLSIGN_OK.fullmatch(target) or target == pos.upper():
+                        return self._send(400, {"error": "choose the controller who is taking over"})
+                    if network:
+                        with network.lock:
+                            online = {c["callsign"].upper(): c for c in network.controllers}
+                        if target not in online:
+                            return self._send(400, {"error": target + " is not online"})
+                        freq = online[target].get("frequency", "")
+                    else:
+                        freq = ""
+                    asked = [re.sub(r"[^A-Z0-9]", "", str(x).upper())[:8] for x in (body.get("callsigns") or [])][:100]
+                    with es_pick_lock:
+                        cur = tracked_now.get(pos.upper())
+                    mine = set(cur["list"]) if cur and time.time() - cur["ts"] <= RETRACK_WINDOW else set()
+                    cs_list = [c for c in asked if c in mine]            # only aircraft this position really has
+                    by = ("RELIEF %s (%s)" % (pos, sess["name"]))[:60]
+                    ids, told = [], []
+                    for c in cs_list:
+                        ids.append({"callsign": c, "id": queue.add(pos, "transfer", c, {"target": target, "freq": freq if re.fullmatch(r"1[0-3]\d\.\d{1,3}", str(freq)) else ""}, by=by)})
+                        if cpdlc and cpdlc.is_connected(c):
+                            try:
+                                st = cpdlc.station_with(c)
+                                st.send(c, commands_mod.RELIEF_CPDLC_TEXT, ra="NE", by=by)
+                                told.append(c)
+                            except (ValueError, RuntimeError):
+                                pass
+                    log.info("Relief of %s by %s started by %s: %d aircraft, %d told on CPDLC", pos, target, sess["name"], len(cs_list), len(told))
+                    return self._send(200, {"commands": ids, "cpdlcTold": told})
                 if p == "/cmd/queue":
                     sess = self._session()
                     if not sess:
@@ -1786,6 +1822,20 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(401, {"error": "log in first"})
                     st = queue.status(to_int(q.get("id"), 0))
                     return self._send(200, st) if st else self._send(404, {"error": "unknown command"})
+                if p == "/relief/plan":                        # what a relief would move: the aircraft this position tracks
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    pos = (sess["position"] or "").upper()
+                    if not pos or pos == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position first"})
+                    with es_pick_lock:
+                        cur = tracked_now.get(pos)
+                    alive = time.time() - plugin_seen.get(pos, 0) < 30
+                    lst = list(cur["list"]) if cur and time.time() - cur["ts"] <= RETRACK_WINDOW else []
+                    return self._send(200, {"position": pos, "pluginAlive": alive,
+                                            "aircraft": [{"callsign": c, "cpdlc": bool(cpdlc and cpdlc.is_connected(c))} for c in lst],
+                                            "message": commands_mod.RELIEF_CPDLC_TEXT})
                 if p == "/GetControllers":
                     if not network:
                         return self._send(200, [])
@@ -1901,6 +1951,15 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         if len(ac_parts) >= 2 and ac_parts[1]:
                             ch["type"] = ac_parts[1]
                         store.edit(c["callsign"], {k: v for k, v in ch.items() if v}, by=c.get("by", "Plugin"))
+                    if c and ok and c["type"] == "transfer" and str(c.get("by", "")).startswith("RELIEF"):    # relief: the next controller takes it now
+                        queue.add(c["args"]["target"], "takeover", c["callsign"], {}, by=c["by"])
+                    if c and ok and c["type"] == "takeover" and str(c.get("by", "")).startswith("RELIEF") and cpdlc:   # taken: log the pilot off so they log on to the new station
+                        try:
+                            st = cpdlc.station_with(c["callsign"])
+                            if st:
+                                st.disconnect(c["callsign"], by=c["by"])
+                        except (ValueError, RuntimeError):
+                            pass
                     if c and ok and c["type"] == "transfer" and cpdlc:        # handoff started: tell the pilot (if on CPDLC)
                         try:
                             cpdlc.handoff(c["callsign"], c["args"]["target"], c["args"].get("freq", ""), by=c["by"])

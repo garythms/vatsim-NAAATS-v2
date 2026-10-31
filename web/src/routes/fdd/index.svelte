@@ -6,6 +6,7 @@
   import LoginModal from "./login_modal.svelte";
   import CpdlcPanel from "./cpdlc_panel.svelte";
   import SettingsPanel from "./settings_panel.svelte";
+  import ReliefPanel from "./relief_panel.svelte";
   import PosReports from "./pos_reports.svelte";
   import AcMenu from "./ac_menu.svelte";
   import PlanEdit from "./plan_edit.svelte";
@@ -28,6 +29,7 @@
 <LoginModal />
 <CpdlcPanel />
 <SettingsPanel />
+<ReliefPanel />
 <PosReports />
 <AcMenu />
 <PlanEdit />

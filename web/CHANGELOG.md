@@ -2,6 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.5.1 - 2026-10-31
+- Relief button: when another controller takes over your position, press Relief, choose who is taking over (a relief callsign works too) and confirm. Every aircraft you track is handed to them in EuroScope and they start tracking it (needs the new plugin on both sides). Aircraft on CPDLC are told "There is a controller change in progress which requires you to re log into the CPDLC stations once you receive a log off message" and are logged off once the new controller has them.
+- natTrak sign-in box: now shown every time you choose a position (each controlling session), not just the first time in a browser.
+
+
 ## 2.5.0 - 2026-10-31
 - CPDLC: a "Log off pilot" button in the drawer logs the selected pilot off CPDLC from your station. A pilot who has only just logged on no longer flashes or pings: only a request or a reply does.
 - natTrak PENDING: requests that were already waiting when you opened the display (and anything arriving in the first minute) stay in the box but do not flash or ping.
