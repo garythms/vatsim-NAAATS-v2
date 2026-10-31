@@ -212,6 +212,7 @@
     dataHandler.setSound(!dataHandler.soundOn);
     refreshNatTrak();
   }
+  const circleNote = acmenu.circleNote;
   let circleOn: boolean = acmenu.circleOn;
   function toggleCircle(): void {
     acmenu.setCircle(!acmenu.circleOn);
@@ -398,6 +399,7 @@
           <span class="underline hover:cursor-pointer" title="Flashing strips and tab title" on:click={toggleVisual}>Visual: {visualOn ? "ON" : "OFF"}</span>
           <span class="underline hover:cursor-pointer" title="Sound when a new request arrives" on:click={toggleSound}>Audio: {soundOn ? "ON" : "OFF"}</span>
           <span class="underline hover:cursor-pointer" title="Clicking an aircraft here circles it in white in EuroScope for a few seconds" on:click={toggleCircle}>Circle: {circleOn ? "ON" : "OFF"}</span>
+          {#if $circleNote}<span class="text-yellow-300 ml-2">{$circleNote}</span>{/if}
           <span class="underline hover:cursor-pointer" title="Change the alert sound (plays a preview)" on:click={changeTone}>Tone: {tone}</span>
         </span>
       </div>

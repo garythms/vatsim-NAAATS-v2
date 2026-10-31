@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Circle in EuroScope: if the circle does not appear, a yellow note next to "Circle: ON" now says why (EuroScope not answering / plugin older than 2.5.0 / aircraft not on your radar). The plugin no longer needs a flight plan to draw the circle.
+
 ## 2.5.1 - 2026-10-31
 - Relief button: when another controller takes over your position, press Relief, choose who is taking over (a relief callsign works too) and confirm. Every aircraft you track is handed to them in EuroScope and they start tracking it (needs the new plugin on both sides). Aircraft on CPDLC are told "There is a controller change in progress which requires you to re log into the CPDLC stations once you receive a log off message" and are logged off once the new controller has them.
 - natTrak sign-in box: now shown every time you choose a position (each controlling session), not just the first time in a browser.
