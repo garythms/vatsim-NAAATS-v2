@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- CPDLC window: connected aircraft are now a list down the left (with unread counts), the window can be dragged wider or narrower (remembered), standard messages are grouped (Level / Contact / Replies), Unable / Standby / Roger / Reply are proper buttons, and Force log out moved into a "More" menu.
 - Aircraft menu / filter bar: more room between the buttons at half-screen width; removed a "Default" button that did nothing (the right-hand one still resets the filters).
 - Aircraft whose tracking controller has logged off now show as untracked, so the menu says "Track" and not "Update" (server).
 - vNAAATS app: "Get VACS" now opens the VACS website (vacs.network).

@@ -125,18 +125,57 @@
   function key(e: KeyboardEvent): void { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }
 
   const stateColour: Record<string, string> = { WILCO: "text-green-300", ROGER: "text-green-300", AFFIRM: "text-green-300", UNABLE: "text-red-400", NEGATIVE: "text-red-400", STANDBY: "text-yellow-300", SENT: "opacity-60", OPEN: "text-yellow-300", ANSWERED: "opacity-60" };
+
+  // Panel width: drag the left edge to change it; remembered on this computer
+  const WKEY = "vnaaats.cpdlcWidth";
+  let panelW: number = 640;
+  try { const w = parseInt(localStorage.getItem(WKEY) ?? ""); if (w >= 380) panelW = w; } catch (e) { /* default */ }
+  let dragging: boolean = false;
+  function dragStart(e: PointerEvent): void { dragging = true; (e.target as HTMLElement).setPointerCapture(e.pointerId); }
+  function dragMove(e: PointerEvent): void {
+    if (!dragging) return;
+    panelW = Math.max(380, Math.min(window.innerWidth * 0.92, window.innerWidth - e.clientX));
+  }
+  function dragEnd(): void { dragging = false; try { localStorage.setItem(WKEY, String(Math.round(panelW))); } catch (e) { /* not kept */ } }
+
+  // "More" menu (force log-out lives here)
+  let moreOpen: boolean = false;
+  function startForce(): void { moreOpen = false; forceStep = 1; }
+
+  // Ready-made messages in groups
+  const GROUPS: { name: string; labels: string[] }[] = [
+    { name: "Level", labels: ["Climb and maintain", "Descend and maintain", "Maintain level", "Expect climb"] },
+    { name: "Contact / squawk", labels: ["Contact", "Squawk"] },
+    { name: "Replies", labels: ["Standby", "Roger", "Unable", "Affirm", "Negative"] },
+  ];
+  $: groupedTemplates = (() => {
+    const used = new Set<string>();
+    const out = GROUPS.map((g) => ({ name: g.name, items: cp.templates.filter((t) => g.labels.includes(t.label)) }));
+    out.forEach((g) => g.items.forEach((t) => used.add(t.label)));
+    const rest = cp.templates.filter((t) => !used.has(t.label));
+    if (rest.length) out.push({ name: "Other", items: rest });
+    return out.filter((g) => g.items.length > 0);
+  })();
 </script>
 
-<!-- Pull-out CPDLC panel: slides in from the right edge -->
+<!-- Pull-out CPDLC panel: slides in from the right edge. Aircraft list on the left, messages on the right. -->
 <div class="fixed z-40 top-0 bottom-0 right-0 flex flex-row font-regular text-white" style="transform: translateX({$cpdlcOpen ? '0' : '100%'}); opacity: {$cpdlcOpen ? 1 : 0}; transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.45s ease; pointer-events: {$cpdlcOpen ? 'auto' : 'none'};">
   <button class="self-center -mr-px w-7 py-6 flex items-center justify-center font-bold text-sm bg-blue-4 border-2 border-r-0 border-blue-10 hover:bg-blue-10 hover:text-black select-none" style="writing-mode: vertical-rl; transform: rotate(180deg);" title="Close the CPDLC window" on:click={() => cpdlcOpen.set(false)}>Close ✕</button>
-  <div class="w-96 max-w-screen h-full flex flex-col bg-blue-2 border-l-2 border-blue-10 shadow-5xl">
-    <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-3 font-bold select-none">
+  <!-- drag this edge to make the window wider or narrower -->
+  <div class="w-1.5 h-full cursor-col-resize bg-blue-10 opacity-40 hover:opacity-100 select-none touch-none" title="Drag to resize" on:pointerdown={dragStart} on:pointermove={dragMove} on:pointerup={dragEnd} on:pointercancel={dragEnd}></div>
+  <div class="max-w-screen h-full flex flex-col bg-blue-2 border-l-2 border-blue-10 shadow-5xl" style="width: {panelW}px;">
+    <div class="relative flex flex-row justify-between items-center px-3 py-2 bg-blue-3 font-bold select-none">
       <span>CPDLC {$cpdlcStatus.active && $cpdlcStatus.station ? "- station " + $cpdlcStatus.station : ""}</span>
       <span class="flex flex-row gap-2 shrink-0">
         {#if $cpdlcStatus.active}<button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black whitespace-nowrap" on:click={signOut}>Sign out of CPDLC</button>{/if}
+        {#if canUse}<button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => (moreOpen = !moreOpen)}>More ▾</button>{/if}
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => cpdlcOpen.set(false)}>Close</button>
       </span>
+      {#if moreOpen}
+        <div class="absolute right-12 top-full z-10 mt-1 w-72 bg-blue-3 border-2 border-blue-10 shadow-5xl font-regular font-normal text-sm">
+          <button class="block w-full text-left px-3 py-2 hover:bg-blue-10 hover:text-black" on:click={startForce}>Force log out a CPDLC callsign...</button>
+        </div>
+      {/if}
     </div>
     {#if !$cpdlcStatus.enabled}
       <div class="p-3 text-sm opacity-80">CPDLC is switched off on this server.</div>
@@ -166,11 +205,9 @@
       {#if canUse && ($cpdlcStatus.lockedSeconds ?? 0) > 0}
         <div class="p-2 border-b border-blue-4 text-sm text-yellow-300">Sign-in to {$cpdlcStatus.stationForPosition} is blocked for {mmss($cpdlcStatus.lockedSeconds ?? 0)} after a forced log out.</div>
       {/if}
-      {#if canUse}
+      {#if canUse && forceStep > 0}
         <div class="px-3 py-2 border-b border-blue-4 text-sm">
-          {#if forceStep === 0}
-            <span class="underline hover:cursor-pointer" on:click={() => (forceStep = 1)}>Force log out a CPDLC callsign...</span>
-          {:else if forceStep === 1}
+          {#if forceStep === 1}
             <div class="font-bold mb-1">Force log out a CPDLC callsign</div>
             <div class="opacity-80 mb-2">Type the CPDLC callsign to clear, for example CZQX. Use this only if the callsign is stuck because someone left without signing out.</div>
             <input class="w-full px-2 py-1 text-black uppercase" placeholder="CPDLC callsign" bind:value={forceCs} />
@@ -195,85 +232,100 @@
       {#if $cpdlcStatus.error}
         <div class="px-3 py-1 text-xs text-yellow-300">Hoppie: {$cpdlcStatus.error}</div>
       {/if}
-      <div class="px-3 py-1 text-xs opacity-70 select-none">Connected aircraft ({connected.length}){$cpdlcStatus.autoAccept ? " - logons accepted automatically" : ""}</div>
-      <div class="flex flex-row flex-wrap gap-1 px-2 pb-2 border-b border-blue-4" style="max-height: 7rem; overflow-y: auto;">
-        {#each connected as c}
-          <button class="px-2 py-0.5 text-sm border border-blue-6 {c.callsign === shown ? 'bg-blue-10 text-black' : 'bg-blue-3'} {(c.unread > 0 || $cpdlcAttention.has(c.callsign)) && !($cpdlcOpen && c.callsign === shown) ? 'nt-flash text-black' : ''}"
-            on:click={() => pick(c.callsign)}>[{c.callsign}]{c.unread > 0 ? " (" + c.unread + ")" : ""}</button>
-        {/each}
-        {#if connected.length === 0}
-          <span class="text-sm opacity-70 px-1">Nobody is connected.{$cpdlcStatus.station ? " Pilots send a logon request to " + $cpdlcStatus.station + "." : ""}</span>
-        {/if}
-      </div>
-      {#if !canUse}
-        <div class="p-3 text-sm opacity-80">Sign in and choose a position to read and send CPDLC messages.</div>
-      {:else if !$cpdlcStatus.active}
-        <!-- sign-in form is shown above -->
-      {:else if shown}
-        <div class="flex flex-row items-center justify-between px-3 py-1 font-bold border-b border-blue-4 select-none">
-          <span>[{shown}]</span>
-          <button class="px-2 py-0.5 text-xs font-bold border border-red-400 text-red-300 hover:bg-red-700 hover:text-white"
-            title="Log this pilot off CPDLC from your station. The pilot can log on again."
-            on:click={() => { if (confirm("Log " + shown + " off CPDLC from your station?")) { cp.disconnectPilot(shown).then((e) => { if (e) loadError = e; }); } }}>Log off pilot</button>
-        </div>
-        <div class="flex-1 min-h-0 overflow-y-auto px-2 py-1 text-sm" bind:this={thread}>
-          {#if loadError}<div class="text-yellow-300">{loadError}</div>{/if}
-          {#each messages as m}
-            <div class="my-1 px-2 py-1 border-l-4 {m.dir === 'UP' ? 'border-blue-10 bg-blue-3' : 'border-yellow-300 bg-blue-4'}">
-              <div class="flex flex-row justify-between text-xs opacity-80">
-                <span>{m.dir === "UP" ? "▲ UPLINK" : "▼ DOWNLINK"} {hhmm(m.ts)}{m.by && m.by !== "auto" ? " " + m.by : ""}</span>
-                <span class={stateColour[m.state] ?? ""}>{m.state === "LOGON" ? "" : m.state}{m.dir === "DOWN" && !m.seen ? " NEW" : ""}</span>
-              </div>
-              <div class="font-bold break-words">{m.readable}</div>
-              {#if m.dir === "DOWN" && m.state === "OPEN"}
-                <div class="flex flex-row gap-2 mt-1 text-xs">
-                  <span class="underline hover:cursor-pointer" on:click={() => answer(m, { text: "UNABLE", ra: "NE" })}>unable</span>
-                  <span class="underline hover:cursor-pointer" on:click={() => answer(m, { text: "STANDBY", ra: "NE" })}>standby</span>
-                  <span class="underline hover:cursor-pointer" on:click={() => answer(m, { text: "ROGER", ra: "NE" })}>roger</span>
-                  <span class="underline hover:cursor-pointer" on:click={() => answer(m, { text: "", ra: "WU" })}>reply...</span>
-                </div>
-              {/if}
-            </div>
-          {/each}
-          {#if messages.length === 0 && !loadError}<div class="opacity-70 px-1">No messages yet.</div>{/if}
-        </div>
-        <div class="px-2 py-2 border-t-2 border-blue-10">
-          <div class="flex flex-row flex-wrap gap-1 mb-1">
-            {#each cp.templates as t}
-              <button class="px-1.5 py-0.5 text-xs bg-blue-3 border border-blue-6 hover:bg-blue-4" on:click={() => useTemplate(t)}>{t.label}</button>
+      <div class="flex-1 min-h-0 flex flex-col sm:flex-row">
+        <!-- connected aircraft: one row each, flashing when something new has come in -->
+        <div class="sm:w-40 shrink-0 flex flex-col border-b sm:border-b-0 sm:border-r border-blue-4 max-h-32 sm:max-h-none">
+          <div class="px-3 py-1 text-xs opacity-70 select-none">Connected ({connected.length}){$cpdlcStatus.autoAccept ? " - auto accept" : ""}</div>
+          <div class="flex-1 min-h-0 overflow-y-auto flex flex-row sm:flex-col flex-wrap sm:flex-nowrap gap-1 px-2 pb-2">
+            {#each connected as c}
+              <button class="flex flex-row items-center justify-between gap-2 px-2 py-1.5 text-sm text-left border border-blue-6 {c.callsign === shown ? 'bg-blue-10 text-black font-bold' : 'bg-blue-3 hover:bg-blue-4'} {(c.unread > 0 || $cpdlcAttention.has(c.callsign)) && !($cpdlcOpen && c.callsign === shown) ? 'nt-flash text-black' : ''}"
+                on:click={() => pick(c.callsign)}>
+                <span>{c.callsign}</span>
+                {#if c.unread > 0}<span class="px-1.5 text-xs font-bold bg-yellow-300 text-black rounded-full">{c.unread}</span>{/if}
+              </button>
             {/each}
-          </div>
-          <div class="flex flex-row items-center gap-2 mb-1">
-            <select class="text-black text-xs flex-1 min-w-0" on:change={useFree}>
-              <option value="">Standard messages...</option>
-              {#each $cpdlcFreetexts as f, i}<option value={i}>{f.text.length > 60 ? f.text.slice(0, 58) + "..." : f.text}</option>{/each}
-            </select>
-            {#if !unicomAsk}
-              <button class="px-2 py-0.5 text-xs font-bold bg-yellow-300 text-black" on:click={() => (unicomAsk = true)}>UNICOM</button>
-            {:else}
-              <span class="text-xs text-yellow-300">Send [{shown}] to UNICOM?</span>
-              <button class="px-2 py-0.5 text-xs font-bold bg-yellow-300 text-black" on:click={doUnicom}>Yes</button>
-              <button class="px-2 py-0.5 text-xs bg-blue-3 border border-blue-6" on:click={() => (unicomAsk = false)}>No</button>
+            {#if connected.length === 0}
+              <span class="text-sm opacity-70 px-1">Nobody is connected.{$cpdlcStatus.station ? " Pilots send a logon request to " + $cpdlcStatus.station + "." : ""}</span>
             {/if}
           </div>
-          {#if replyTo}<div class="text-xs text-yellow-300 mb-1">Replying to: {replyTo.readable} <span class="underline hover:cursor-pointer" on:click={() => (replyTo = null)}>cancel</span></div>{/if}
-          <textarea class="w-full px-2 py-1 text-black uppercase" rows="2" maxlength="240" placeholder="Message to [{shown}] - @ marks the changeable parts" bind:value={text} on:keydown={key}></textarea>
-          <div class="flex flex-row items-center gap-2 mt-1 text-sm">
-            <label>Reply wanted
-              <select class="text-black" bind:value={ra}>
-                <option value="WU">Wilco / Unable</option>
-                <option value="AN">Affirm / Negative</option>
-                <option value="R">Roger</option>
-                <option value="NE">None</option>
-              </select>
-            </label>
-            <button class="ml-auto px-4 py-1 font-bold bg-blue-10 text-black" disabled={busy || !text.trim()} on:click={send}>Send</button>
-          </div>
-          {#if sendMsg}<div class="text-xs mt-1 {sendOk ? 'text-green-300' : 'text-yellow-300'}">{sendMsg}</div>{/if}
         </div>
-      {:else}
-        <div class="p-3 text-sm opacity-80">Select a connected aircraft above.</div>
-      {/if}
+        <div class="flex-1 min-w-0 min-h-0 flex flex-col">
+          {#if !canUse}
+            <div class="p-3 text-sm opacity-80">Sign in and choose a position to read and send CPDLC messages.</div>
+          {:else if !$cpdlcStatus.active}
+            <!-- sign-in form is shown above -->
+          {:else if shown}
+            <div class="flex flex-row items-center justify-between px-3 py-1 font-bold border-b border-blue-4 select-none">
+              <span>[{shown}]</span>
+              <button class="px-2 py-0.5 text-xs font-bold border border-red-400 text-red-300 hover:bg-red-700 hover:text-white"
+                title="Log this pilot off CPDLC from your station. The pilot can log on again."
+                on:click={() => { if (confirm("Log " + shown + " off CPDLC from your station?")) { cp.disconnectPilot(shown).then((e) => { if (e) loadError = e; }); } }}>Log off pilot</button>
+            </div>
+            <div class="flex-1 min-h-0 overflow-y-auto px-2 py-1 text-sm" bind:this={thread}>
+              {#if loadError}<div class="text-yellow-300">{loadError}</div>{/if}
+              {#each messages as m}
+                <div class="my-1 px-2 py-1 border-l-4 {m.dir === 'UP' ? 'border-blue-10 bg-blue-3' : 'border-yellow-300 bg-blue-4'}">
+                  <div class="flex flex-row justify-between text-xs opacity-80">
+                    <span>{m.dir === "UP" ? "▲ UPLINK" : "▼ DOWNLINK"} {hhmm(m.ts)}{m.by && m.by !== "auto" ? " " + m.by : ""}</span>
+                    <span class={stateColour[m.state] ?? ""}>{m.state === "LOGON" ? "" : m.state}{m.dir === "DOWN" && !m.seen ? " NEW" : ""}</span>
+                  </div>
+                  <div class="font-bold break-words">{m.readable}</div>
+                  {#if m.dir === "DOWN" && m.state === "OPEN"}
+                    <div class="flex flex-row flex-wrap gap-2 mt-1.5 text-sm">
+                      <button class="px-3 py-1 font-bold bg-red-700 border border-red-300 hover:bg-red-600" on:click={() => answer(m, { text: "UNABLE", ra: "NE" })}>Unable</button>
+                      <button class="px-3 py-1 font-bold bg-yellow-300 text-black hover:bg-yellow-200" on:click={() => answer(m, { text: "STANDBY", ra: "NE" })}>Standby</button>
+                      <button class="px-3 py-1 font-bold bg-green-700 border border-green-300 hover:bg-green-600" on:click={() => answer(m, { text: "ROGER", ra: "NE" })}>Roger</button>
+                      <button class="px-3 py-1 font-bold bg-blue-10 text-black hover:bg-blue-8" on:click={() => answer(m, { text: "", ra: "WU" })}>Reply...</button>
+                    </div>
+                  {/if}
+                </div>
+              {/each}
+              {#if messages.length === 0 && !loadError}<div class="opacity-70 px-1">No messages yet.</div>{/if}
+            </div>
+            <div class="px-2 py-2 border-t-2 border-blue-10">
+              <div class="flex flex-col gap-1 mb-2">
+                {#each groupedTemplates as g}
+                  <div class="flex flex-row flex-wrap items-center gap-1">
+                    <span class="w-24 shrink-0 text-xs opacity-70 select-none">{g.name}</span>
+                    {#each g.items as t}
+                      <button class="px-2 py-0.5 text-xs bg-blue-3 border border-blue-6 hover:bg-blue-4" on:click={() => useTemplate(t)}>{t.label}</button>
+                    {/each}
+                  </div>
+                {/each}
+              </div>
+              <div class="flex flex-row items-center gap-2 mb-1">
+                <select class="text-black text-xs flex-1 min-w-0" on:change={useFree}>
+                  <option value="">Standard messages...</option>
+                  {#each $cpdlcFreetexts as f, i}<option value={i}>{f.text.length > 60 ? f.text.slice(0, 58) + "..." : f.text}</option>{/each}
+                </select>
+                {#if !unicomAsk}
+                  <button class="px-2 py-0.5 text-xs font-bold bg-yellow-300 text-black" on:click={() => (unicomAsk = true)}>UNICOM</button>
+                {:else}
+                  <span class="text-xs text-yellow-300">Send [{shown}] to UNICOM?</span>
+                  <button class="px-2 py-0.5 text-xs font-bold bg-yellow-300 text-black" on:click={doUnicom}>Yes</button>
+                  <button class="px-2 py-0.5 text-xs bg-blue-3 border border-blue-6" on:click={() => (unicomAsk = false)}>No</button>
+                {/if}
+              </div>
+              {#if replyTo}<div class="text-xs text-yellow-300 mb-1">Replying to: {replyTo.readable} <span class="underline hover:cursor-pointer" on:click={() => (replyTo = null)}>cancel</span></div>{/if}
+              <textarea class="w-full px-2 py-1 text-black uppercase" rows="2" maxlength="240" placeholder="Message to [{shown}] - @ marks the changeable parts" bind:value={text} on:keydown={key}></textarea>
+              <div class="flex flex-row items-center gap-2 mt-1 text-sm">
+                <label>Reply wanted
+                  <select class="text-black" bind:value={ra}>
+                    <option value="WU">Wilco / Unable</option>
+                    <option value="AN">Affirm / Negative</option>
+                    <option value="R">Roger</option>
+                    <option value="NE">None</option>
+                  </select>
+                </label>
+                <button class="ml-auto px-4 py-1 font-bold bg-blue-10 text-black" disabled={busy || !text.trim()} on:click={send}>Send</button>
+              </div>
+              {#if sendMsg}<div class="text-xs mt-1 {sendOk ? 'text-green-300' : 'text-yellow-300'}">{sendMsg}</div>{/if}
+            </div>
+          {:else}
+            <div class="p-3 text-sm opacity-80">Select a connected aircraft on the left.</div>
+          {/if}
+        </div>
+      </div>
     {/if}
   </div>
 </div>
