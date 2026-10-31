@@ -394,6 +394,15 @@ void CRadarDisplay::RunRemoteCommands()
 	for (auto& cmd : cmds) {
 		try {
 			CFlightPlan es = plugin->FlightPlanSelect(cmd.Callsign.c_str());
+			if (cmd.Type == "highlight") {
+				// the circle only needs the aircraft's radar target (not a flight plan)
+				if (!CDataHandler::Highlight) { CDataHandler::ReportRemoteResult(cmd.Id, true, "circle is switched off (highlight=0 in vnaaats.cfg)"); continue; }
+				if (!plugin->RadarTargetSelect(cmd.Callsign.c_str()).IsValid()) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is not on your EuroScope radar"); continue; }
+				hlCallsign = cmd.Callsign;
+				hlUntil = clock() + 3000;
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Circled " + cmd.Callsign);
+				continue;
+			}
 			if (!es.IsValid()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope has no flight plan for " + cmd.Callsign); continue; }
 			bool mine = es.GetTrackingControllerIsMe();
 			string trackedBy = es.GetTrackingControllerCallsign();

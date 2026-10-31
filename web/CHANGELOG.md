@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.5.2 - 2026-10-31
 - Aircraft menu: if a menu is open and you click another aircraft in EuroScope, that aircraft's menu opens above it, so you can work on up to 3 at once (the oldest closes when a fourth is picked). Each has its own Close button.
 - Aircraft menu, Track tab: you can press Track without a flight level or Mach (blank keeps what is already set; the plugin takes EuroScope's own figures). Once you are tracking the aircraft the tab and button say Update. "SELCAL test (copy)" is now "SELCAL Check" and sends .selcal to EuroScope (needs autotype=1). The plugin part needs the next plugin version.
 - Aircraft menu, Supervisor tab: "Copy .wallop" also sets the aircraft's note to WALLOPED (in front of any note already there).
@@ -13,6 +13,7 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 - vNAAATS app (test build): a small Windows program that opens this display and, on start-up, checks your EXOCO folder, updates an old plugin DLL, saves your key into vnaaats.cfg and starts EuroScope and VACS. The normal browser display is unchanged.
 - Squawk 2000 is now given as soon as you start tracking an aircraft (plugin), not when the clearance is sent. Domestic reassign it when the aircraft is back in radar service. Aircraft you were already tracking when EuroScope started are left alone.
 - vNAAATS app: the setup check also installs the current ICAO_Airlines.txt next to the plugin DLL and replaces an old one, in the same Update button as the plugin.
+- Circle in EuroScope: if the circle does not appear, a yellow note next to "Circle: ON" now says why (EuroScope not answering / plugin older than 2.5.0 / aircraft not on your radar). The plugin no longer needs a flight plan to draw the circle.
 
 ## 2.5.1 - 2026-10-31
 - Relief button: when another controller takes over your position, press Relief, choose who is taking over (a relief callsign works too) and confirm. Every aircraft you track is handed to them in EuroScope and they start tracking it (needs the new plugin on both sides). Aircraft on CPDLC are told "There is a controller change in progress which requires you to re log into the CPDLC stations once you receive a log off message" and are logged off once the new controller has them.
