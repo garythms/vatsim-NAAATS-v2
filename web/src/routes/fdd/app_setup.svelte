@@ -40,7 +40,7 @@
   const folder = () => run(() => app.pickFolder());
   const update = () => run(async () => { const v = await app.updatePlugin(); msg = "Updated: " + v + "."; });
   const saveKey = () => run(async () => { await app.saveKey(key); key = ""; }, "Key saved.");
-  const VACS_URL = "https://github.com/vacs-project/vacs";
+  const VACS_URL = "https://vacs.network/";
   const pick = (k: "euroscope" | "vacs") => run(async () => {
     msg = "A file window should open (it can appear behind this one)...";
     const r = await app.pickExe(k);

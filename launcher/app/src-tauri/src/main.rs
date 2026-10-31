@@ -213,7 +213,7 @@ async fn open_url(window: WebviewWindow, url: String) -> Result<(), String> {
     check_origin(&window)?;
     let u = tauri::Url::parse(&url).map_err(|_| "not a web address".to_string())?;
     let host = u.host_str().unwrap_or("");
-    let ok = u.scheme() == "https" && ["nattrak.vatsim.net", "github.com", "vatsim.net", "vnaaats.com"].contains(&host);
+    let ok = u.scheme() == "https" && ["nattrak.vatsim.net", "github.com", "vatsim.net", "vnaaats.com", "vacs.network", "docs.vacs.network"].contains(&host);
     if !ok {
         return Err("that address is not allowed".into());
     }
