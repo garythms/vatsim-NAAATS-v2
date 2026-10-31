@@ -64,7 +64,7 @@
     <div class="w-full max-h-full overflow-y-auto bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 46rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
         <span>Flight plan - {$planEditCallsign}</span>
-        <span class="underline hover:cursor-pointer text-sm" on:click={close}>close</span>
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={close}>Close</button>
       </div>
       <div class="p-3 text-sm">
         {#if loading}

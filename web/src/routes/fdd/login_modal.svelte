@@ -125,7 +125,7 @@
           <input class="flex-1 px-2 py-1 text-black uppercase" placeholder="Other position e.g. CZQO_E_CTR" bind:value={custom} maxlength="16" />
           <button class="px-3 font-bold bg-blue-10 text-black" disabled={!custom}>Use</button>
         </form>
-        <button class="mt-3 text-sm underline opacity-80" on:click={sess.logout}>Sign out</button>
+        <button class="mt-3 px-3 py-1 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={sess.logout}>Sign out</button>
       {/if}
       {#if error}<div class="mt-2 text-sm text-yellow-300">{error}</div>{/if}
     </div>

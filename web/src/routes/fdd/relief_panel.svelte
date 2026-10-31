@@ -47,7 +47,7 @@
     <div class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
       <div class="flex flex-row justify-between items-center px-3 py-1 bg-blue-3 font-bold">
         <span>Relief: hand over {$session.position}</span>
-        <span class="underline hover:cursor-pointer text-sm" on:click={() => reliefOpen.set(false)}>close</span>
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => reliefOpen.set(false)}>Close</button>
       </div>
       {#if error}<div class="m-3 text-yellow-300">{error}</div>{/if}
       {#if plan}

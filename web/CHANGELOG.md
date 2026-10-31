@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Close, Sign out and Change are now proper buttons (they were underlined text), including "Sign out of CPDLC" and "Close" in the CPDLC window. The CPDLC window also has a vertical Close tab on its left edge.
 - Sign-in: tick "Remember me on this computer" to save your name and password (in the vNAAATS app they go in the Windows Credential Manager; in Chrome, its own password manager), then sign in with one click. "Forget the saved sign-in" removes it.
 - vNAAATS app (test build): a small Windows program that opens this display and, on start-up, checks your EXOCO folder, updates an old plugin DLL, saves your key into vnaaats.cfg and starts EuroScope and VACS. The normal browser display is unchanged.
 - Squawk 2000 is now given as soon as you start tracking an aircraft (plugin), not when the clearance is sent. Domestic reassign it when the aircraft is back in radar service. Aircraft you were already tracking when EuroScope started are left alone.

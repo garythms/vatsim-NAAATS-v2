@@ -41,7 +41,7 @@
     <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 36rem; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
         <span>Position reports - {asel.Callsign}</span>
-        <span class="underline hover:cursor-pointer text-sm" on:click={() => posOpen.set(false)}>close</span>
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => posOpen.set(false)}>Close</button>
       </div>
       <div class="px-3 py-1 text-xs opacity-80">
         Type the time the pilot reports at each fix (Actual) and any revised estimate (Est), as four digits (1432). Calc is the calculated time.

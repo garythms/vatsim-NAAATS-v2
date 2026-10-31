@@ -44,7 +44,7 @@
     <div class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
       <div class="flex flex-row justify-between items-center px-3 py-1 bg-blue-3 font-bold">
         <span>Plugin settings (vnaaats.cfg)</span>
-        <span class="underline hover:cursor-pointer text-sm" on:click={() => settingsOpen.set(false)}>close</span>
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => settingsOpen.set(false)}>Close</button>
       </div>
       <div class="m-3 p-2 border-2 border-yellow-300 text-yellow-300 text-sm">
         <b>EuroScope must be closed and opened again for any change to take effect.</b>
