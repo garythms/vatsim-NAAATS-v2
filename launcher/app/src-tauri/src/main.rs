@@ -16,6 +16,10 @@ struct Saved {
     root: Option<String>,
     euroscope: Option<String>,
     vacs: Option<String>,
+    #[serde(default)]
+    afv: Option<String>,
+    #[serde(default)]
+    trackaudio: Option<String>,
 }
 
 fn config_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -56,6 +60,8 @@ struct Status {
     root: Option<String>,
     euroscope: Option<String>,
     vacs: Option<String>,
+    afv: Option<String>,
+    trackaudio: Option<String>,
     dll_found: bool,
     dll_path: Option<String>,
     dll_sha: Option<String>,
@@ -78,6 +84,8 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
         root: saved.root.clone(),
         euroscope: saved.euroscope.clone(),
         vacs: saved.vacs.clone(),
+        afv: saved.afv.clone(),
+        trackaudio: saved.trackaudio.clone(),
         dll_found: false,
         dll_path: None,
         dll_sha: None,
@@ -170,14 +178,19 @@ async fn save_key(window: WebviewWindow, app: tauri::AppHandle, key: String) -> 
 }
 
 fn kind_ok(kind: &str) -> Result<(), String> {
-    if kind == "euroscope" || kind == "vacs" { Ok(()) } else { Err("unknown program".into()) }
+    if ["euroscope", "vacs", "afv", "trackaudio"].contains(&kind) { Ok(()) } else { Err("unknown program".into()) }
 }
 
 #[tauri::command]
 async fn pick_exe(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> Result<Option<String>, String> {
     check_origin(&window)?;
     kind_ok(&kind)?;
-    let title = if kind == "euroscope" { "Choose EuroScope.exe" } else { "Choose the VACS program" };
+    let title = match kind.as_str() {
+        "euroscope" => "Choose EuroScope.exe",
+        "afv" => "Choose the Audio for VATSIM program",
+        "trackaudio" => "Choose the TrackAudio program",
+        _ => "Choose the VACS program",
+    };
     let Some(p) = app.dialog().file().set_parent(&window).set_title(title).add_filter("Program", &["exe"]).blocking_pick_file() else { return Ok(None) };
     let path = p.into_path().map_err(|e| e.to_string())?;
     if !vnaaats_core::is_exe(&path) {
@@ -185,7 +198,12 @@ async fn pick_exe(window: WebviewWindow, app: tauri::AppHandle, kind: String) ->
     }
     let mut s = load(&app);
     let text = path.to_string_lossy().into_owned();
-    if kind == "euroscope" { s.euroscope = Some(text.clone()) } else { s.vacs = Some(text.clone()) }
+    match kind.as_str() {
+        "euroscope" => s.euroscope = Some(text.clone()),
+        "afv" => s.afv = Some(text.clone()),
+        "trackaudio" => s.trackaudio = Some(text.clone()),
+        _ => s.vacs = Some(text.clone()),
+    }
     store(&app, &s)?;
     Ok(Some(text))
 }
@@ -195,7 +213,13 @@ async fn launch(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> R
     check_origin(&window)?;
     kind_ok(&kind)?;
     let s = load(&app);
-    let path = if kind == "euroscope" { s.euroscope } else { s.vacs }.ok_or("choose the program first")?;
+    let path = match kind.as_str() {
+        "euroscope" => s.euroscope,
+        "afv" => s.afv,
+        "trackaudio" => s.trackaudio,
+        _ => s.vacs,
+    }
+    .ok_or("choose the program first")?;
     let p = PathBuf::from(&path);
     if !vnaaats_core::is_exe(&p) {
         return Err("that program is no longer there - choose it again".into());
@@ -213,7 +237,7 @@ async fn open_url(window: WebviewWindow, url: String) -> Result<(), String> {
     check_origin(&window)?;
     let u = tauri::Url::parse(&url).map_err(|_| "not a web address".to_string())?;
     let host = u.host_str().unwrap_or("");
-    let ok = u.scheme() == "https" && ["nattrak.vatsim.net", "github.com", "vatsim.net", "vnaaats.com", "vacs.network", "docs.vacs.network"].contains(&host);
+    let ok = u.scheme() == "https" && ["nattrak.vatsim.net", "github.com", "vatsim.net", "vnaaats.com", "vacs.network", "docs.vacs.network", "audio.vatsim.net"].contains(&host);
     if !ok {
         return Err("that address is not allowed".into());
     }

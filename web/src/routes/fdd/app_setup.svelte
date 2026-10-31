@@ -9,6 +9,8 @@
   let key: string = "";
   let autoES: boolean = true;
   let autoVacs: boolean = true;
+  let audio: app.AudioChoice = "none";
+  let autoAudio: boolean = true;
 
   const SEEN = "vnaaats.appSetupSeen";
   function seen(): boolean { try { return sessionStorage.getItem(SEEN) === "1"; } catch (e) { return false; } }
@@ -25,6 +27,7 @@
     await app.welcomeDone;
     await refresh();
     autoES = app.autoGet("euroscope"); autoVacs = app.autoGet("vacs");
+    audio = app.audioGet(); autoAudio = app.autoGet(audio === "none" ? "afv" : audio);
     show = true;
   });
 
@@ -41,11 +44,15 @@
   const update = () => run(async () => { const v = await app.updatePlugin(); msg = "Updated: " + v + "."; });
   const saveKey = () => run(async () => { await app.saveKey(key); key = ""; }, "Key saved.");
   const VACS_URL = "https://vacs.network/";
-  const pick = (k: "euroscope" | "vacs") => run(async () => {
+  const pick = (k: app.ProgKind) => run(async () => {
     msg = "A file window should open (it can appear behind this one)...";
     const r = await app.pickExe(k);
     msg = r ? "" : "Nothing was chosen.";
   });
+  const AUDIO_URL: Record<string, string> = { afv: "https://audio.vatsim.net/", trackaudio: "https://github.com/pierr3/TrackAudio/releases" };
+  const AUDIO_NAME: Record<string, string> = { afv: "Audio for VATSIM", trackaudio: "TrackAudio" };
+  function chooseAudio(c: app.AudioChoice): void { audio = c; app.audioSet(c); if (c !== "none") autoAudio = app.autoGet(c); }
+  const getAudio = () => run(() => app.openExternal(AUDIO_URL[audio], true), "Opening the download page in your browser...");
   const getVacs = () => run(() => app.openExternal(VACS_URL, true), "Opening the VACS page in your browser...");
   function done(): void {
     try { sessionStorage.setItem(SEEN, "1"); } catch (e) { /* shown again next time */ }
@@ -124,6 +131,23 @@
           </div>
           {#if !st.vacs}<div class="text-xs opacity-70 mt-1 break-all">Or open this address yourself: {VACS_URL}</div>{/if}
           <label class="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" bind:checked={autoVacs} on:change={() => app.autoSet("vacs", autoVacs)} /> Open VACS for me when I choose my position</label>
+        </div>
+        <div class={STEP}>
+          <b>{st.root ? "6" : "4"}. Audio client (voice with pilots)</b>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-sm">
+            <label><input type="radio" name="audioc" checked={audio === "afv"} on:change={() => chooseAudio("afv")} /> Audio for VATSIM</label>
+            <label><input type="radio" name="audioc" checked={audio === "trackaudio"} on:change={() => chooseAudio("trackaudio")} /> TrackAudio</label>
+            <label><input type="radio" name="audioc" checked={audio === "none"} on:change={() => chooseAudio("none")} /> Neither</label>
+          </div>
+          {#if audio !== "none"}
+            {#if st[audio]}<div class="text-sm opacity-80 break-all mt-1">{st[audio]}</div>{/if}
+            <div class="flex gap-2 mt-1">
+              <button class="px-3 py-1 border border-blue-6" disabled={busy} on:click={() => pick(audio)}>{st[audio] ? "Change" : "Find " + AUDIO_NAME[audio]}</button>
+              {#if !st[audio]}<button class="px-3 py-1 underline" disabled={busy} on:click={getAudio}>Get {AUDIO_NAME[audio]}</button>{/if}
+            </div>
+            {#if !st[audio]}<div class="text-xs opacity-70 mt-1 break-all">Or open this address yourself: {AUDIO_URL[audio]}</div>{/if}
+            <label class="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" bind:checked={autoAudio} on:change={() => app.autoSet(audio === "none" ? "afv" : audio, autoAudio)} /> Open {AUDIO_NAME[audio]} for me when I choose my position</label>
+          {/if}
         </div>
         {#if msg}<div class="mb-2 text-sm text-yellow-300">{msg}</div>{/if}
         <button class="w-full py-2 font-bold {ready ? 'bg-blue-10 text-black' : 'border border-blue-6'}" on:click={done}>{ready ? "Continue" : "Continue anyway"}</button>
