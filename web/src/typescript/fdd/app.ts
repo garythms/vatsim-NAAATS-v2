@@ -26,8 +26,11 @@ export const pickExe = (kind: "euroscope" | "vacs"): Promise<string | null> => c
 export const launch = (kind: "euroscope" | "vacs"): Promise<void> => call("launch", { kind });
 
 // Open a web page in the normal browser (pop-up windows do not work inside the app). Falls back to window.open outside the app.
-export async function openExternal(url: string): Promise<void> {
-  if (inApp()) { try { await call("open_url", { url }); return; } catch (e) { /* fall through to a normal window */ } }
+// With strict set, a failure in the app is thrown so the caller can show it; otherwise it falls back to a normal window.
+export async function openExternal(url: string, strict: boolean = false): Promise<void> {
+  if (inApp()) {
+    try { await call("open_url", { url }); return; } catch (e) { if (strict) throw e; }
+  }
   window.open(url, "_blank");
 }
 

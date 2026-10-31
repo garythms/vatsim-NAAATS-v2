@@ -3,8 +3,10 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- vNAAATS app: now uses the vNAAATS logo as its icon (program file, installer, taskbar and window).
+- vNAAATS app: "Find VACS" now says what it is doing (and when nothing was chosen); "Get VACS" shows an error and the address if it cannot open your browser; messages from Update now no longer vanish.
 - New "Code signing policy" page, an app section on the download page and app wording on the privacy page (needed to apply for free code signing).
-- vNAAATS app: "Welcome to vNAAATS" opening animation with a short radio-style sound (jet, "Gander Radio, SELCAL ...", SELCAL tones, chime).
+- vNAAATS app: "Welcome to vNAAATS" opening animation with a short radio-style sound (jet, "Cell Cal, Alpha Bravo Charlie Golf", SELCAL tones, chime).
 - vNAAATS app: EuroScope and VACS now open by themselves once you choose your position (tick boxes on the setup screen replace the Open buttons).
 - vNAAATS app: natTrak and Get VACS links now open in your normal browser (they did nothing inside the app).
 - Aircraft menu: back in the middle of the screen (the stacked menus had moved it to the top).

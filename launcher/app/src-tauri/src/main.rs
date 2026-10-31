@@ -178,7 +178,7 @@ async fn pick_exe(window: WebviewWindow, app: tauri::AppHandle, kind: String) ->
     check_origin(&window)?;
     kind_ok(&kind)?;
     let title = if kind == "euroscope" { "Choose EuroScope.exe" } else { "Choose the VACS program" };
-    let Some(p) = app.dialog().file().set_title(title).add_filter("Program", &["exe"]).blocking_pick_file() else { return Ok(None) };
+    let Some(p) = app.dialog().file().set_parent(&window).set_title(title).add_filter("Program", &["exe"]).blocking_pick_file() else { return Ok(None) };
     let path = p.into_path().map_err(|e| e.to_string())?;
     if !vnaaats_core::is_exe(&path) {
         return Err("that is not a program (.exe)".into());
