@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Aircraft menu: back in the middle of the screen (the stacked menus had moved it to the top).
 - vNAAATS app: fixed "Command status not allowed by ACL" (the app now explicitly allows its own commands for vnaaats.com pages).
 - vNAAATS app: if the app does not answer, the setup screen now says why (after 15 seconds) and offers Try again / Continue anyway instead of staying on "Checking...".
 
