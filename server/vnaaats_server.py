@@ -56,6 +56,7 @@ import commands as commands_mod
 import rcl_auto as rcl_auto_mod
 import members as members_mod
 import usersettings as usersettings_mod
+import pluginfiles as pluginfiles_mod
 import adminlog as adminlog_mod
 log = logging.getLogger("vnaaats")
 
@@ -1363,6 +1364,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         return "unknown"
 
     usettings = usersettings_mod.UserSettings(store)
+    plugin_files = pluginfiles_mod.PluginFiles(os.environ.get("VNAAATS_REPO", "garythms/vatsim-NAAATS-v2"))
 
     def issuer_ok(handler):
         sec = handler.headers.get("X-Issuer-Secret", "")
@@ -1822,6 +1824,13 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(401, {"error": "log in first"})
                     st = queue.status(to_int(q.get("id"), 0))
                     return self._send(200, st) if st else self._send(404, {"error": "unknown command"})
+                if p in ("/plugin/latest.json", "/plugin/VatsimNAAATS.dll"):    # the latest released plugin, for the vNAAATS app (public: it is on GitHub too)
+                    info, blob = plugin_files.latest()
+                    if not info:
+                        return self._send(503, {"error": "the latest plugin is not available right now"})
+                    if p.endswith(".json"):
+                        return self._send(200, info)
+                    return self._send(200, blob, ctype="application/octet-stream")
                 if p == "/relief/plan":                        # what a relief would move: the aircraft this position tracks
                     sess = self._session()
                     if not sess:

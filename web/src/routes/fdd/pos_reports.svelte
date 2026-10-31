@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade, fly } from "svelte/transition";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
   import { posOpen, nowHHMM } from "../../typescript/fdd/posreports";
@@ -37,11 +38,11 @@
 </script>
 
 {#if $posOpen && asel && asel.IsConc}
-  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={() => posOpen.set(false)}>
-    <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 36rem; max-height: 90vh; display: flex; flex-direction: column;">
+  <div transition:fade={{ duration: 180 }} class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={() => posOpen.set(false)}>
+    <div transition:fly={{ y: 24, duration: 220 }} class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 36rem; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
         <span>Position reports - {asel.Callsign}</span>
-        <span class="underline hover:cursor-pointer text-sm" on:click={() => posOpen.set(false)}>close</span>
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => posOpen.set(false)}>Close</button>
       </div>
       <div class="px-3 py-1 text-xs opacity-80">
         Type the time the pilot reports at each fix (Actual) and any revised estimate (Est), as four digits (1432). Calc is the calculated time.

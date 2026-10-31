@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade, fly } from "svelte/transition";
   import * as st from "../../typescript/fdd/settings";
   import * as sess from "../../typescript/fdd/session";
 
@@ -12,7 +13,7 @@
     { key: "autoclick", label: "Click the aircraft after Contact Me", help: "After typing .contactme, the plugin also clicks the aircraft so the message is sent.", choices: yesNo },
     { key: "highlight", label: "Circle the aircraft when clicked here", help: "Clicking an aircraft on the FDD circles it in white in EuroScope for 3 seconds.", choices: yesNo },
     { key: "retrack", label: "Re-track aircraft automatically", help: "After a crash, a lost connection or a pilot reconnecting within 5 minutes, track the aircraft again.", choices: yesNo },
-    { key: "squawk", label: "Assign squawk 2000 on clearance", help: "A transponder code is given when a clearance is sent.", choices: yesNo },
+    { key: "squawk", label: "Assign squawk 2000 on tracking", help: "Code 2000 is given as soon as you start tracking an aircraft; domestic reassign it later.", choices: yesNo },
     { key: "remotelog", label: "Send problems to the vNAAATS server", help: "Warnings and errors go to the server so faults can be found quickly (never your key).", choices: [{ v: "1", t: "Warnings and errors" }, { v: "2", t: "Everything" }, { v: "0", t: "Off" }] },
   ];
 
@@ -40,11 +41,11 @@
 </script>
 
 {#if $settingsOpen}
-  <div class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60" on:click|self={() => settingsOpen.set(false)}>
-    <div class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
+  <div transition:fade={{ duration: 180 }} class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60" on:click|self={() => settingsOpen.set(false)}>
+    <div transition:fly={{ y: 24, duration: 220 }} class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
       <div class="flex flex-row justify-between items-center px-3 py-1 bg-blue-3 font-bold">
         <span>Plugin settings (vnaaats.cfg)</span>
-        <span class="underline hover:cursor-pointer text-sm" on:click={() => settingsOpen.set(false)}>close</span>
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => settingsOpen.set(false)}>Close</button>
       </div>
       <div class="m-3 p-2 border-2 border-yellow-300 text-yellow-300 text-sm">
         <b>EuroScope must be closed and opened again for any change to take effect.</b>

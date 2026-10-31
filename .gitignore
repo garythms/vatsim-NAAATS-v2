@@ -65,3 +65,4 @@ vnaaats.cfg
 # Python
 __pycache__/
 *.pyc
+launcher/target/

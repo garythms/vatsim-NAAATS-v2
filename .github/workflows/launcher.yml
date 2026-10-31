@@ -1,0 +1,40 @@
+name: Build vNAAATS app
+# The vNAAATS app (Windows): a window around the web Flight Data Display that can also check/replace the plugin DLL,
+# save the key into vnaaats.cfg and start EuroScope / VACS. Published as the "launcher-test" pre-release (a test build).
+on:
+  push:
+    paths: ['launcher/**', '.github/workflows/launcher.yml']
+  pull_request:
+    paths: ['launcher/**', '.github/workflows/launcher.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            launcher/target
+          key: launcher-${{ hashFiles('launcher/**/Cargo.toml') }}
+      - name: Test the file handling
+        working-directory: launcher
+        run: cargo test -p vnaaats-core
+      - name: Install the Tauri tool
+        run: npm install -g @tauri-apps/cli@2
+      - name: Build the app
+        working-directory: launcher/app/src-tauri
+        run: tauri build
+      - name: Publish the test build
+        if: github.event_name == 'push' && (github.ref_name == 'server-and-squawk' || startsWith(github.ref_name, 'feature/launcher'))
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = Get-ChildItem launcher/target/release/bundle/nsis/*.exe | Select-Object -First 1
+          Copy-Item $exe.FullName vNAAATS-app-setup.exe
+          gh release delete launcher-test --yes --cleanup-tag 2>$null
+          gh release create launcher-test vNAAATS-app-setup.exe --prerelease --target ${{ github.sha }} --title "vNAAATS app (test build)" --notes "Test build of the vNAAATS app (${{ github.sha }}). Not for general use yet."

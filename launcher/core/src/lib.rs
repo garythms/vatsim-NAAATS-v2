@@ -1,0 +1,201 @@
+//! The file work of the vNAAATS app. Kept apart from the window code so it can be tested on any computer.
+use sha2::{Digest, Sha256};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub const DLL_NAME: &str = "VatsimNAAATS.dll";
+pub const CFG_NAME: &str = "vnaaats.cfg";
+const PLACEHOLDER: &str = "PASTE_YOUR_API_KEY_HERE";
+const DEFAULT_SERVER: &str = "https://vnaaats.com";
+
+pub fn sha256_hex(bytes: &[u8]) -> String {
+    let mut h = Sha256::new();
+    h.update(bytes);
+    h.finalize().iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// Find VatsimNAAATS.dll under `root` (looking up to `max_depth` folders down). Returns the first match, shallowest first.
+pub fn find_plugin_dll(root: &Path, max_depth: usize) -> Option<PathBuf> {
+    let mut level = vec![root.to_path_buf()];
+    for _ in 0..=max_depth {
+        let mut next = Vec::new();
+        for dir in &level {
+            let Ok(rd) = fs::read_dir(dir) else { continue };
+            let mut subs = Vec::new();
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    subs.push(p);
+                } else if p.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case(DLL_NAME)).unwrap_or(false) {
+                    return Some(p);
+                }
+            }
+            next.extend(subs);
+        }
+        if next.is_empty() {
+            break;
+        }
+        level = next;
+    }
+    None
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CfgInfo {
+    pub exists: bool,
+    pub has_key: bool,
+    pub server: String,
+}
+
+pub fn read_cfg(dir: &Path) -> CfgInfo {
+    let mut info = CfgInfo { exists: false, has_key: false, server: DEFAULT_SERVER.to_string() };
+    let Ok(text) = fs::read_to_string(dir.join(CFG_NAME)) else { return info };
+    info.exists = true;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('#') {
+            continue;
+        }
+        if let Some((k, v)) = line.split_once('=') {
+            let (k, v) = (k.trim(), v.trim());
+            if k == "key" && !v.is_empty() && v != PLACEHOLDER {
+                info.has_key = true;
+            } else if k == "server" && !v.is_empty() {
+                info.server = v.to_string();
+            }
+        }
+    }
+    info
+}
+
+/// A key looks like 1234567.abc... (a personal key) or a long code (the shared key): letters, numbers, dot, dash, underscore.
+pub fn valid_key(key: &str) -> bool {
+    (8..=120).contains(&key.len()) && key != PLACEHOLDER && key.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+}
+
+/// Put `key=` into vnaaats.cfg (replacing an existing key line, or adding one; creating the file if it is not there).
+/// Every other line is kept as it was, including the line endings.
+pub fn set_cfg_key(dir: &Path, key: &str) -> Result<(), String> {
+    let key = key.trim();
+    if !valid_key(key) {
+        return Err("that does not look like a vNAAATS key (it is long, with letters, numbers and a dot)".into());
+    }
+    let path = dir.join(CFG_NAME);
+    let old = fs::read_to_string(&path).unwrap_or_default();
+    let eol = if old.contains("\r\n") || old.is_empty() { "\r\n" } else { "\n" };
+    let mut out: Vec<String> = Vec::new();
+    let mut done = false;
+    for line in old.lines() {
+        let t = line.trim_start();
+        if !t.starts_with('#') && t.split_once('=').map(|(k, _)| k.trim() == "key").unwrap_or(false) {
+            if !done {
+                out.push(format!("key={}", key));
+                done = true;
+            }
+        } else {
+            out.push(line.to_string());
+        }
+    }
+    if old.is_empty() {
+        out.push(format!("server={}", DEFAULT_SERVER));
+    }
+    if !done {
+        out.push(format!("key={}", key));
+    }
+    let text = out.join(eol) + eol;
+    let tmp = dir.join("vnaaats.cfg.tmp");
+    fs::write(&tmp, text).map_err(|e| format!("could not write vnaaats.cfg: {}", e))?;
+    fs::rename(&tmp, &path).map_err(|e| format!("could not save vnaaats.cfg: {}", e))
+}
+
+/// Replace the plugin DLL with `bytes` after checking its SHA-256. Fails with a plain message if EuroScope still has it open.
+pub fn replace_dll(dll: &Path, bytes: &[u8], expected_sha: &str) -> Result<(), String> {
+    if bytes.len() < 2 || &bytes[..2] != b"MZ" {
+        return Err("the download is not a DLL".into());
+    }
+    if !expected_sha.eq_ignore_ascii_case(&sha256_hex(bytes)) {
+        return Err("the download does not match its checksum - try again".into());
+    }
+    let tmp = dll.with_extension("dll.new");
+    fs::write(&tmp, bytes).map_err(|e| format!("could not write the new plugin: {}", e))?;
+    if let Err(e) = fs::rename(&tmp, dll) {
+        let _ = fs::remove_file(&tmp);
+        return Err(format!("could not replace the plugin - close EuroScope and try again ({})", e));
+    }
+    Ok(())
+}
+
+pub fn is_exe(path: &Path) -> bool {
+    path.is_file() && path.extension().map(|e| e.to_string_lossy().eq_ignore_ascii_case("exe")).unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn finds_dll_in_nested_folder() {
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("EXOCO/Plugins/vNAAATS");
+        fs::create_dir_all(&p).unwrap();
+        fs::write(p.join("vatsimnaaats.dll"), b"MZ").unwrap();           // upper/lower case does not matter
+        assert_eq!(find_plugin_dll(d.path(), 5).unwrap(), p.join("vatsimnaaats.dll"));
+        assert!(find_plugin_dll(d.path(), 1).is_none());                 // too deep for that limit
+    }
+
+    #[test]
+    fn cfg_key_detection() {
+        let d = tempfile::tempdir().unwrap();
+        assert!(!read_cfg(d.path()).exists);
+        fs::write(d.path().join(CFG_NAME), "server=https://x.example\nkey=PASTE_YOUR_API_KEY_HERE\n").unwrap();
+        let i = read_cfg(d.path());
+        assert!(i.exists && !i.has_key);
+        assert_eq!(i.server, "https://x.example");
+        fs::write(d.path().join(CFG_NAME), "# key=abc\nkey=1234567.abcdefghij\n").unwrap();
+        assert!(read_cfg(d.path()).has_key);
+    }
+
+    #[test]
+    fn set_key_keeps_other_lines_and_endings() {
+        let d = tempfile::tempdir().unwrap();
+        fs::write(d.path().join(CFG_NAME), "server=https://vnaaats.com\r\nkey=PASTE_YOUR_API_KEY_HERE\r\n# autotype=1 ok\r\nautotype=1\r\n").unwrap();
+        set_cfg_key(d.path(), " 1234567.abcdefghijkl ").unwrap();
+        let t = fs::read_to_string(d.path().join(CFG_NAME)).unwrap();
+        assert_eq!(t, "server=https://vnaaats.com\r\nkey=1234567.abcdefghijkl\r\n# autotype=1 ok\r\nautotype=1\r\n");
+    }
+
+    #[test]
+    fn set_key_creates_or_appends() {
+        let d = tempfile::tempdir().unwrap();
+        set_cfg_key(d.path(), "1234567.abcdefghijkl").unwrap();
+        let i = read_cfg(d.path());
+        assert!(i.exists && i.has_key && i.server == "https://vnaaats.com");
+        let d2 = tempfile::tempdir().unwrap();
+        fs::write(d2.path().join(CFG_NAME), "autotype=1\n").unwrap();
+        set_cfg_key(d2.path(), "1234567.abcdefghijkl").unwrap();
+        assert_eq!(fs::read_to_string(d2.path().join(CFG_NAME)).unwrap(), "autotype=1\nkey=1234567.abcdefghijkl\n");
+    }
+
+    #[test]
+    fn rejects_bad_keys() {
+        let d = tempfile::tempdir().unwrap();
+        for bad in ["", "short", "has space in it ok", "PASTE_YOUR_API_KEY_HERE", "a=b\nserver=evil"] {
+            assert!(set_cfg_key(d.path(), bad).is_err(), "{}", bad);
+        }
+        assert!(!d.path().join(CFG_NAME).exists());
+    }
+
+    #[test]
+    fn replace_dll_checks_sha_and_header() {
+        let d = tempfile::tempdir().unwrap();
+        let dll = d.path().join(DLL_NAME);
+        fs::write(&dll, b"MZold").unwrap();
+        let new = b"MZnew-plugin".to_vec();
+        assert!(replace_dll(&dll, &new, "deadbeef").is_err());
+        assert!(replace_dll(&dll, b"<html>", &sha256_hex(b"<html>")).is_err());
+        assert_eq!(fs::read(&dll).unwrap(), b"MZold");                  // untouched on failure
+        replace_dll(&dll, &new, &sha256_hex(&new).to_uppercase()).unwrap();
+        assert_eq!(fs::read(&dll).unwrap(), new);
+        assert!(!d.path().join("VatsimNAAATS.dll.new").exists());
+    }
+}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade, fly } from "svelte/transition";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as pe from "../../typescript/fdd/planedit";
 
@@ -60,11 +61,11 @@
 </script>
 
 {#if $planEditCallsign}
-  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
-    <div class="w-full max-h-full overflow-y-auto bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 46rem;">
+  <div transition:fade={{ duration: 180 }} class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
+    <div transition:fly={{ y: 24, duration: 220 }} class="w-full max-h-full overflow-y-auto bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 46rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
         <span>Flight plan - {$planEditCallsign}</span>
-        <span class="underline hover:cursor-pointer text-sm" on:click={close}>close</span>
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={close}>Close</button>
       </div>
       <div class="p-3 text-sm">
         {#if loading}

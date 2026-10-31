@@ -300,8 +300,8 @@
     <div>
       {#if $session.loggedIn && $session.position}
         <span class="font-bold text-green-300">{$session.position}</span> {$session.name}
-        <span class="underline hover:cursor-pointer ml-1" on:click={() => sess.choosePosition("")} title="Choose another position">change</span>
-        <span class="underline hover:cursor-pointer ml-1" on:click={sess.logout}>sign out</span>
+        <button class="ml-1 px-2 py-0 font-bold border border-blue-6 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => sess.choosePosition("")} title="Choose another position">Change</button>
+        <button class="ml-1 px-2 py-0 font-bold border border-blue-6 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={sess.logout}>Sign out</button>
       {:else if $session.editing}
         <span class="opacity-70">Signed out</span>
         <span class="underline hover:cursor-pointer ml-1" on:click={() => location.reload()}>sign in</span>

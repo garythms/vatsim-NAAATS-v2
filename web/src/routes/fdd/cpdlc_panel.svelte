@@ -128,13 +128,14 @@
 </script>
 
 <!-- Pull-out CPDLC panel: slides in from the right edge -->
-<div class="fixed z-40 top-0 bottom-0 right-0 flex flex-row font-regular text-white" style="transform: translateX({$cpdlcOpen ? '0' : '100%'}); transition: transform 0.25s ease;">
+<div class="fixed z-40 top-0 bottom-0 right-0 flex flex-row font-regular text-white" style="transform: translateX({$cpdlcOpen ? '0' : '100%'}); opacity: {$cpdlcOpen ? 1 : 0}; transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.45s ease; pointer-events: {$cpdlcOpen ? 'auto' : 'none'};">
+  <button class="self-center -mr-px w-7 py-6 flex items-center justify-center font-bold text-sm bg-blue-4 border-2 border-r-0 border-blue-10 hover:bg-blue-10 hover:text-black select-none" style="writing-mode: vertical-rl; transform: rotate(180deg);" title="Close the CPDLC window" on:click={() => cpdlcOpen.set(false)}>Close ✕</button>
   <div class="w-96 max-w-screen h-full flex flex-col bg-blue-2 border-l-2 border-blue-10 shadow-5xl">
     <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-3 font-bold select-none">
       <span>CPDLC {$cpdlcStatus.active && $cpdlcStatus.station ? "- station " + $cpdlcStatus.station : ""}</span>
-      <span class="text-sm">
-        {#if $cpdlcStatus.active}<span class="underline hover:cursor-pointer mr-3" on:click={signOut}>sign out of CPDLC</span>{/if}
-        <span class="underline hover:cursor-pointer" on:click={() => cpdlcOpen.set(false)}>close</span>
+      <span class="flex flex-row gap-2 shrink-0">
+        {#if $cpdlcStatus.active}<button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black whitespace-nowrap" on:click={signOut}>Sign out of CPDLC</button>{/if}
+        <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => cpdlcOpen.set(false)}>Close</button>
       </span>
     </div>
     {#if !$cpdlcStatus.enabled}
