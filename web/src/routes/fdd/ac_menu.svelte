@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade, fly } from "svelte/transition";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
   import * as cp from "../../typescript/fdd/cpdlc";
@@ -129,8 +130,8 @@
 </script>
 
 {#if $menuCallsign}
-  <div class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
-    <div class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 52rem;">
+  <div transition:fade={{ duration: 180 }} class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.55);" on:click|self={close}>
+    <div transition:fly={{ y: 24, duration: 220 }} class="w-full bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 52rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
         <span>Aircraft menu - {$menuCallsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}{blockLevel ? " - Block " + blockLevel : ""}</span></span>
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={close}>Close</button>

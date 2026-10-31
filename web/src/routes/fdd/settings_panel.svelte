@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade, fly } from "svelte/transition";
   import * as st from "../../typescript/fdd/settings";
   import * as sess from "../../typescript/fdd/session";
 
@@ -40,8 +41,8 @@
 </script>
 
 {#if $settingsOpen}
-  <div class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60" on:click|self={() => settingsOpen.set(false)}>
-    <div class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
+  <div transition:fade={{ duration: 180 }} class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60" on:click|self={() => settingsOpen.set(false)}>
+    <div transition:fly={{ y: 24, duration: 220 }} class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
       <div class="flex flex-row justify-between items-center px-3 py-1 bg-blue-3 font-bold">
         <span>Plugin settings (vnaaats.cfg)</span>
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => settingsOpen.set(false)}>Close</button>

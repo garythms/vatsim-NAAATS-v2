@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade, fly } from "svelte/transition";
   import * as rl from "../../typescript/fdd/relief";
   import * as acmenu from "../../typescript/fdd/acmenu";
   import * as sess from "../../typescript/fdd/session";
@@ -43,8 +44,8 @@
 </script>
 
 {#if $reliefOpen}
-  <div class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60" on:click|self={() => reliefOpen.set(false)}>
-    <div class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
+  <div transition:fade={{ duration: 180 }} class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60" on:click|self={() => reliefOpen.set(false)}>
+    <div transition:fly={{ y: 24, duration: 220 }} class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
       <div class="flex flex-row justify-between items-center px-3 py-1 bg-blue-3 font-bold">
         <span>Relief: hand over {$session.position}</span>
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => reliefOpen.set(false)}>Close</button>
