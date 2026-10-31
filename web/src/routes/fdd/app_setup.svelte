@@ -33,14 +33,20 @@
 
   async function run(f: () => Promise<unknown>, ok: string = ""): Promise<void> {
     busy = true; msg = "";
-    try { await f(); msg = ok; } catch (e) { msg = "✖ " + app.errText(e); }
+    try { await f(); if (ok) msg = ok; } catch (e) { msg = "✖ " + app.errText(e); }
     await refresh();
     busy = false;
   }
   const folder = () => run(() => app.pickFolder());
   const update = () => run(async () => { const v = await app.updatePlugin(); msg = "Updated: " + v + "."; });
   const saveKey = () => run(async () => { await app.saveKey(key); key = ""; }, "Key saved.");
-  const pick = (k: "euroscope" | "vacs") => run(() => app.pickExe(k));
+  const VACS_URL = "https://github.com/vacs-project/vacs";
+  const pick = (k: "euroscope" | "vacs") => run(async () => {
+    msg = "A file window should open (it can appear behind this one)...";
+    const r = await app.pickExe(k);
+    msg = r ? "" : "Nothing was chosen.";
+  });
+  const getVacs = () => run(() => app.openExternal(VACS_URL, true), "Opening the VACS page in your browser...");
   function done(): void {
     try { sessionStorage.setItem(SEEN, "1"); } catch (e) { /* shown again next time */ }
     show = false;
@@ -114,8 +120,9 @@
           {#if st.vacs}<div class="text-sm opacity-80 break-all">{st.vacs}</div>{/if}
           <div class="flex gap-2 mt-1">
             <button class="px-3 py-1 border border-blue-6" disabled={busy} on:click={() => pick("vacs")}>{st.vacs ? "Change" : "Find the VACS program"}</button>
-            {#if !st.vacs}<button class="px-3 py-1 underline" on:click={() => app.openExternal("https://github.com/vacs-project/vacs")}>Get VACS</button>{/if}
+            {#if !st.vacs}<button class="px-3 py-1 underline" disabled={busy} on:click={getVacs}>Get VACS</button>{/if}
           </div>
+          {#if !st.vacs}<div class="text-xs opacity-70 mt-1 break-all">Or open this address yourself: {VACS_URL}</div>{/if}
           <label class="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" bind:checked={autoVacs} on:change={() => app.autoSet("vacs", autoVacs)} /> Open VACS for me when I choose my position</label>
         </div>
         {#if msg}<div class="mb-2 text-sm text-yellow-300">{msg}</div>{/if}

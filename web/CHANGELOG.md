@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- vNAAATS app: "Find VACS" now says what it is doing (and when nothing was chosen); "Get VACS" shows an error and the address if it cannot open your browser; messages from Update now no longer vanish.
 - New "Code signing policy" page, an app section on the download page and app wording on the privacy page (needed to apply for free code signing).
 - vNAAATS app: "Welcome to vNAAATS" opening animation with a short radio-style sound (jet, "Gander Radio, SELCAL ...", SELCAL tones, chime).
 - vNAAATS app: EuroScope and VACS now open by themselves once you choose your position (tick boxes on the setup screen replace the Open buttons).
