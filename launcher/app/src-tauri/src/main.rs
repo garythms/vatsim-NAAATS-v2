@@ -62,6 +62,8 @@ struct Status {
     latest_version: Option<String>,
     latest_sha: Option<String>,
     up_to_date: Option<bool>,
+    airlines_found: bool,
+    airlines_up_to_date: Option<bool>,
     cfg_exists: bool,
     cfg_has_key: bool,
     error: Option<String>,
@@ -82,11 +84,14 @@ fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, String
         latest_version: None,
         latest_sha: None,
         up_to_date: None,
+        airlines_found: false,
+        airlines_up_to_date: None,
         cfg_exists: false,
         cfg_has_key: false,
         error: None,
     };
     let Some(root) = saved.root else { return Ok(st) };
+    let mut airlines_local: Option<String> = None;
     if let Some(dll) = vnaaats_core::find_plugin_dll(Path::new(&root), 6) {
         st.dll_found = true;
         st.dll_path = Some(dll.to_string_lossy().into_owned());
@@ -94,6 +99,8 @@ fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, String
             st.dll_sha = Some(vnaaats_core::sha256_hex(&bytes));
         }
         if let Some(dir) = dll.parent() {
+            airlines_local = std::fs::read(dir.join("ICAO_Airlines.txt")).ok().map(|b| vnaaats_core::sha256_hex(&b));
+            st.airlines_found = airlines_local.is_some();
             let c = vnaaats_core::read_cfg(dir);
             st.cfg_exists = c.exists;
             st.cfg_has_key = c.has_key;
@@ -105,6 +112,9 @@ fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, String
             st.latest_sha = v["sha256"].as_str().map(String::from);
             if let (Some(a), Some(b)) = (&st.dll_sha, &st.latest_sha) {
                 st.up_to_date = Some(a.eq_ignore_ascii_case(b));
+            }
+            if let Some(want) = v["airlinesSha256"].as_str() {
+                st.airlines_up_to_date = Some(airlines_local.as_deref().map(|h| h.eq_ignore_ascii_case(want)).unwrap_or(false));
             }
         }
         Err(e) => st.error = Some(e),
@@ -129,10 +139,26 @@ fn update_plugin(window: WebviewWindow, app: tauri::AppHandle) -> Result<String,
     let root = load(&app).root.ok_or("choose your EXOCO folder first")?;
     let dll = vnaaats_core::find_plugin_dll(Path::new(&root), 6).ok_or("VatsimNAAATS.dll was not found in that folder")?;
     let info: serde_json::Value = serde_json::from_slice(&http_get("/plugin/latest.json", 4096)?).map_err(|e| e.to_string())?;
+    let dir = dll.parent().ok_or("bad folder")?.to_path_buf();
+    let mut done: Vec<String> = Vec::new();
+    // the airline list (radio callsigns) goes next to the DLL
+    if let Some(want) = info["airlinesSha256"].as_str() {
+        let list = dir.join("ICAO_Airlines.txt");
+        let have = std::fs::read(&list).ok().map(|b| vnaaats_core::sha256_hex(&b));
+        if have.as_deref().map(|h| !h.eq_ignore_ascii_case(want)).unwrap_or(true) {
+            let bytes = http_get("/ICAO_Airlines.txt", 5 * 1024 * 1024)?;
+            vnaaats_core::replace_file(&list, &bytes, want)?;
+            done.push("airline list".to_string());
+        }
+    }
     let sha = info["sha256"].as_str().ok_or("the server did not say which plugin is the latest")?.to_string();
-    let bytes = http_get("/plugin/VatsimNAAATS.dll", 20 * 1024 * 1024)?;
-    vnaaats_core::replace_dll(&dll, &bytes, &sha)?;
-    Ok(info["version"].as_str().unwrap_or("").to_string())
+    let current = std::fs::read(&dll).ok().map(|b| vnaaats_core::sha256_hex(&b));
+    if current.as_deref().map(|h| !h.eq_ignore_ascii_case(&sha)).unwrap_or(true) {
+        let bytes = http_get("/plugin/VatsimNAAATS.dll", 20 * 1024 * 1024)?;
+        vnaaats_core::replace_dll(&dll, &bytes, &sha)?;
+        done.push(format!("plugin {}", info["version"].as_str().unwrap_or("")));
+    }
+    Ok(if done.is_empty() { "already up to date".to_string() } else { done.join(" and ") })
 }
 
 #[tauri::command]

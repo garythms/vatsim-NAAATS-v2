@@ -20,7 +20,8 @@
     show = true;
   });
 
-  $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && st.cfg_has_key;
+  $: listOk = !!st && st.airlines_up_to_date !== false;
+  $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && listOk && st.cfg_has_key;
 
   async function run(f: () => Promise<unknown>, ok: string = ""): Promise<void> {
     busy = true; msg = "";
@@ -29,7 +30,7 @@
     busy = false;
   }
   const folder = () => run(() => app.pickFolder());
-  const update = () => run(async () => { const v = await app.updatePlugin(); msg = "Plugin updated to " + v; });
+  const update = () => run(async () => { const v = await app.updatePlugin(); msg = "Updated: " + v + "."; });
   const saveKey = () => run(async () => { await app.saveKey(key); key = ""; }, "Key saved.");
   const pick = (k: "euroscope" | "vacs") => run(() => app.pickExe(k));
   const start = (k: "euroscope" | "vacs") => run(() => app.launch(k), k === "euroscope" ? "EuroScope is starting." : "VACS is starting.");
@@ -59,11 +60,15 @@
             <b>2. The vNAAATS plugin</b>
             {#if !st.dll_found}
               <div class="text-yellow-300 text-sm">VatsimNAAATS.dll was not found in that folder. Put it in EXOCO/Plugins/vNAAATS, or choose another folder.</div>
-            {:else if st.up_to_date === true}
-              <div class="text-green-300 text-sm">✔ Up to date{st.latest_version ? " (" + st.latest_version + ")" : ""}</div>
-            {:else if st.up_to_date === false}
-              <div class="text-yellow-300 text-sm">A newer plugin{st.latest_version ? " (" + st.latest_version + ")" : ""} is available. Close EuroScope first, then update.</div>
-              <button class="{BTN} mt-1" disabled={busy} on:click={update}>Update the plugin</button>
+            {:else if st.up_to_date === true && st.airlines_up_to_date !== false}
+              <div class="text-green-300 text-sm">✔ Plugin{st.latest_version ? " " + st.latest_version : ""} and airline list are up to date</div>
+            {:else if st.up_to_date === false || st.airlines_up_to_date === false}
+              <div class="text-yellow-300 text-sm">
+                {#if st.up_to_date === false}A newer plugin{st.latest_version ? " (" + st.latest_version + ")" : ""} is available.{/if}
+                {#if st.airlines_up_to_date === false}{st.airlines_found ? "A newer" : "No"} airline list (ICAO_Airlines.txt){st.airlines_found ? " is available" : " is installed"}.{/if}
+                Close EuroScope first, then update.
+              </div>
+              <button class="{BTN} mt-1" disabled={busy} on:click={update}>Update now</button>
             {:else}
               <div class="text-yellow-300 text-sm">Could not check for the latest plugin{st.error ? ": " + st.error : ""}.</div>
             {/if}

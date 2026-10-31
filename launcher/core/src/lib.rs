@@ -125,6 +125,23 @@ pub fn replace_dll(dll: &Path, bytes: &[u8], expected_sha: &str) -> Result<(), S
     Ok(())
 }
 
+/// Replace a plain data file (such as ICAO_Airlines.txt) after checking its SHA-256.
+pub fn replace_file(dest: &Path, bytes: &[u8], expected_sha: &str) -> Result<(), String> {
+    if bytes.is_empty() {
+        return Err("the download is empty".into());
+    }
+    if !expected_sha.eq_ignore_ascii_case(&sha256_hex(bytes)) {
+        return Err("the download does not match its checksum - try again".into());
+    }
+    let tmp = dest.with_extension("txt.new");
+    fs::write(&tmp, bytes).map_err(|e| format!("could not write {}: {}", dest.display(), e))?;
+    if let Err(e) = fs::rename(&tmp, dest) {
+        let _ = fs::remove_file(&tmp);
+        return Err(format!("could not replace {}: {}", dest.display(), e));
+    }
+    Ok(())
+}
+
 pub fn is_exe(path: &Path) -> bool {
     path.is_file() && path.extension().map(|e| e.to_string_lossy().eq_ignore_ascii_case("exe")).unwrap_or(false)
 }
@@ -183,6 +200,19 @@ mod tests {
             assert!(set_cfg_key(d.path(), bad).is_err(), "{}", bad);
         }
         assert!(!d.path().join(CFG_NAME).exists());
+    }
+
+    #[test]
+    fn replace_file_checks_sha() {
+        let d = tempfile::tempdir().unwrap();
+        let f = d.path().join("ICAO_Airlines.txt");
+        fs::write(&f, b"old").unwrap();
+        assert!(replace_file(&f, b"new list", "deadbeef").is_err());
+        assert!(replace_file(&f, b"", &sha256_hex(b"")).is_err());
+        assert_eq!(fs::read(&f).unwrap(), b"old");
+        replace_file(&f, b"new list", &sha256_hex(b"new list")).unwrap();
+        assert_eq!(fs::read(&f).unwrap(), b"new list");
+        assert!(!d.path().join("ICAO_Airlines.txt.new").exists());
     }
 
     #[test]

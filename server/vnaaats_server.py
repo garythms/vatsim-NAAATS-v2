@@ -31,6 +31,7 @@ default CZQO_*=CZQX, EGGX_*=EGGX, NAT_*=NATX), VNAAATS_HOPPIE_URL, VNAAATS_CPDLC
 VNAAATS_CONNECT_BASE (https://auth.vatsim.net, sandbox: https://auth-dev.vatsim.net), VNAAATS_ALLOWED_CIDS (comma list; if empty
 any VATSIM member rated VNAAATS_MIN_RATING or higher, default 2 = S1, may log in).
 """
+import hashlib
 import hmac
 import http.cookies
 import json
@@ -1846,7 +1847,13 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if not info:
                         return self._send(503, {"error": "the latest plugin is not available right now"})
                     if p.endswith(".json"):
-                        return self._send(200, info)
+                        out = dict(info)
+                        try:                                  # the airline list the website serves (the app installs it next to the DLL)
+                            with open(os.path.join(web_dir, "ICAO_Airlines.txt"), "rb") as fh:
+                                out["airlinesSha256"] = hashlib.sha256(fh.read()).hexdigest()
+                        except (OSError, TypeError):
+                            pass
+                        return self._send(200, out)
                     return self._send(200, blob, ctype="application/octet-stream")
                 if p == "/relief/plan":                        # what a relief would move: the aircraft this position tracks
                     sess = self._session()
