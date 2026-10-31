@@ -9,7 +9,7 @@ INSTALL
       server=https://vnaaats.com
       key=<the key you were sent - keep it private>
       squawk=1
-   (squawk=0 turns off automatic squawk 2000 on oceanic clearance)
+   (squawk=0 turns off automatic squawk 2000 when you start tracking an aircraft)
 5. Start EuroScope > Other SET > Plug-ins > Load, pick VatsimNAAATS.dll.
 6. If it will not load, install the Microsoft Visual C++ 2015-2022 Redistributable (x86).
 

@@ -2605,7 +2605,6 @@ void CFlightPlanWindow::ButtonUp(int id, CRadarScreen* screen) {
 
 				primedPlan->IsCleared = true;
 				primedPlan->State = "PC";
-				if (CDataHandler::SquawkOnClearance && screen != nullptr) CUtils::AssignOceanicSquawk(screen->GetPlugIn(), primedPlan->Callsign);
 				SetButtonState(BTN_ATCR, CInputState::DISABLED);
 				dropDowns[DRP_ATCR].State = CInputState::DISABLED;
 				textInputs[TXT_SPD].State = CInputState::DISABLED;

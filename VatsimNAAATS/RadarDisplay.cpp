@@ -330,7 +330,7 @@ void CRadarDisplay::RunRemoteCommands()
 			}
 		}
 		// Tell the server what I am tracking (when it changes, checked every 10 s) - only once recovery is finished
-		if (phase == 4 && CDataHandler::Retrack && (double)(clock() - lastReport) / (double)CLOCKS_PER_SEC >= 10.0) {
+		if (phase == 4 && (CDataHandler::Retrack || CDataHandler::SquawkOnClearance) && (double)(clock() - lastReport) / (double)CLOCKS_PER_SEC >= 10.0) {
 			lastReport = clock();
 			string list;
 			std::set<string> mineNow;
@@ -345,7 +345,16 @@ void CRadarDisplay::RunRemoteCommands()
 						CDataHandler::MemoTracked(csNow, mfp->FlightLevel, mfp->Mach, mfp->SELCAL);
 				}
 			}
-			RunTrackMemos(plugin, mineNow);
+			// Squawk 2000 as soon as I start tracking an aircraft (domestic reassign it when it is back in radar service).
+			// Aircraft I was already tracking when this display started are left alone.
+			static std::set<string> prevMine;
+			static bool prevMineKnown = false;
+			if (CDataHandler::SquawkOnClearance && prevMineKnown) {
+				for (auto& c : mineNow) if (prevMine.find(c) == prevMine.end()) CUtils::AssignOceanicSquawk(plugin, c);
+			}
+			prevMine = mineNow;
+			prevMineKnown = true;
+			if (CDataHandler::Retrack) RunTrackMemos(plugin, mineNow);
 			static clock_t lastSent = 0;
 			// also sent once a minute when nothing changed: this is how the server knows I was still here before a crash
 			if (list != lastReported || (double)(clock() - lastSent) / (double)CLOCKS_PER_SEC >= 60.0) {
