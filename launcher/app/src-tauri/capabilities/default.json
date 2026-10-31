@@ -12,6 +12,7 @@
     "allow-save-key",
     "allow-pick-exe",
     "allow-launch",
+    "allow-open-url",
     "allow-cred-get",
     "allow-cred-save",
     "allow-cred-forget"

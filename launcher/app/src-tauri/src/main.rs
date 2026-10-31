@@ -207,6 +207,26 @@ async fn launch(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> R
     cmd.spawn().map(|_| ()).map_err(|e| format!("could not start it: {}", e))
 }
 
+/// Open a web page in the normal browser. Only a few known sites are allowed, so a page cannot make this open anything else.
+#[tauri::command]
+async fn open_url(window: WebviewWindow, url: String) -> Result<(), String> {
+    check_origin(&window)?;
+    let u = tauri::Url::parse(&url).map_err(|_| "not a web address".to_string())?;
+    let host = u.host_str().unwrap_or("");
+    let ok = u.scheme() == "https" && ["nattrak.vatsim.net", "github.com", "vatsim.net", "vnaaats.com"].contains(&host);
+    if !ok {
+        return Err("that address is not allowed".into());
+    }
+    #[cfg(windows)]
+    {
+        Command::new("rundll32").arg("url.dll,FileProtocolHandler").arg(u.as_str()).spawn().map(|_| ()).map_err(|e| e.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        Err("opening web pages is only supported on Windows".into())
+    }
+}
+
 // The saved sign-in lives in the Windows Credential Manager (where Windows keeps its own saved passwords), never in a plain file.
 #[derive(Serialize, Deserialize)]
 struct Login {
@@ -250,7 +270,7 @@ async fn cred_forget(window: WebviewWindow) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, save_key, pick_exe, launch, cred_get, cred_save, cred_forget])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, save_key, pick_exe, launch, open_url, cred_get, cred_save, cred_forget])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }
