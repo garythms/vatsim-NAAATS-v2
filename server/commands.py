@@ -12,12 +12,14 @@ import re
 import threading
 import time
 
-TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg", "planget", "planset", "highlight")   # planget/planset/selcal/contactme/natmsg are typed into EuroScope by the plugin (autotype=1)
+TYPES = ("track", "untrack", "transfer", "selcal", "contactme", "natmsg", "planget", "planset", "highlight", "takeover")   # planget/planset/selcal/contactme/natmsg are typed into EuroScope by the plugin (autotype=1)
 TTL_SECONDS = 60           # an unclaimed command is dropped after this (old clicks must not fire minutes later)
 KEEP_SECONDS = 600         # finished commands stay readable this long
 SELCAL_OK = re.compile(r"[A-Z]{4}")   # VATSIM pilots can use any four letters
 CALLSIGN_OK = re.compile(r"[A-Z0-9_\-]{2,12}")
 
+
+RELIEF_CPDLC_TEXT = "THERE IS A CONTROLLER CHANGE IN PROGRESS WHICH REQUIRES YOU TO RE LOG INTO THE CPDLC STATIONS ONCE YOU RECEIVE A LOG OFF MESSAGE"
 
 NATMSG = ("Hello, you will soon be entering oceanic airspace. Please request oceanic clearance via nattrak.vatsim.net "
           "no later than 20 minutes before your oceanic entry point. Clearance via CPDLC is unavailable.")
@@ -113,7 +115,7 @@ def clean_command(body):
         args = {"text": ".contactme"}        # EuroScope's .contactme takes no callsign: it acts on the selected aircraft (the plugin selects it first)
     elif typ == "natmsg":
         args = {"text": ".msg " + cs + " " + NATMSG}
-    elif typ in ("planget", "highlight"):      # highlight: the plugin circles the aircraft in white for a few seconds
+    elif typ in ("planget", "highlight", "takeover"):      # highlight: the plugin circles the aircraft in white for a few seconds
         args = {}
     elif typ == "planset":
         plan, err = clean_plan(body.get("plan"))

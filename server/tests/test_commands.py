@@ -18,6 +18,11 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(cm.clean_command({"type": "transfer", "callsign": "BAW123", "target": "eisn_ctr", "freq": "127.500"})[2], {"target": "EISN_CTR", "freq": "127.500"})
         self.assertEqual(cm.clean_command({"type": "transfer", "callsign": "BAW123", "target": "EISN_CTR", "freq": "x"})[2]["freq"], "")
 
+    def test_takeover_and_relief_text(self):
+        self.assertEqual(cm.clean_command({"type": "takeover", "callsign": "baw123"}), ("takeover", "BAW123", {}, None))
+        self.assertLessEqual(len(cm.RELIEF_CPDLC_TEXT), 240)          # fits one CPDLC uplink
+        self.assertRegex(cm.RELIEF_CPDLC_TEXT, r"^[A-Z0-9 ]+$")       # Hoppie-safe characters
+
     def test_lifecycle(self):
         now = [1000.0]
         q = cm.CommandQueue(now=lambda: now[0])

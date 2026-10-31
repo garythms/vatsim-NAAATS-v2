@@ -5,6 +5,7 @@
   import Checkbox from "../../props/fdd/checkbox.svelte";
   import FlightStrip from "../../props/fdd/flight_strip.svelte";
   import { settingsOpen } from "../../typescript/fdd/settings";
+  import { reliefOpen } from "../../typescript/fdd/relief";
   import * as acmenu from "../../typescript/fdd/acmenu";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as site from "../../typescript/site";
@@ -343,6 +344,7 @@
         <option value="UPDATED">last changed</option>
       </select>
     </label>
+    <button class="px-2 py-0.5 font-bold border border-blue-6 bg-blue-3" title="Hand all your tracked aircraft to the controller relieving you" on:click={() => reliefOpen.set(true)}>Relief</button>
     <button class="px-2 py-0.5 font-bold border border-blue-6 bg-blue-3" title="Plugin options (vnaaats.cfg)" on:click={() => settingsOpen.set(true)}>Settings</button>
     {#if $cpdlcStatus.enabled}
       <button class="px-2 py-0.5 font-bold border border-blue-6 {(cpdlcUnread > 0 || $cpdlcAttention.size > 0) && visualOn && tickN >= 0 ? 'nt-flash text-black' : 'bg-blue-3'}"

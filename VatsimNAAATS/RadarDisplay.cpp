@@ -463,6 +463,21 @@ void CRadarDisplay::RunRemoteCommands()
 				if (fp->IsValid) fp->Sector = "-1";
 				CDataHandler::ReportRemoteResult(cmd.Id, true, "Released " + cmd.Callsign);
 			}
+			else if (cmd.Type == "takeover") {
+				// Relief: the controller before me has handed me this aircraft (or has gone and left it untracked)
+				if (mine) { CDataHandler::ReportRemoteResult(cmd.Id, true, "Already tracking " + cmd.Callsign); continue; }
+				bool handoffToMe = string(es.GetHandoffTargetControllerCallsign()) == string(plugin->ControllerMyself().GetCallsign());
+				if (!trackedBy.empty() && !handoffToMe) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is tracked by " + trackedBy + ", not offered to you"); continue; }
+				bool started = true;
+				if (handoffToMe) es.AcceptHandoff(); else started = es.StartTracking();
+				if (!started) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not let you track " + cmd.Callsign); continue; }
+				CAircraftFlightPlan* fp = CDataHandler::GetFlightData(cmd.Callsign);
+				if (fp->IsValid) {
+					string myId = plugin->ControllerMyself().IsValid() ? string(plugin->ControllerMyself().GetPositionId()) : "";
+					fp->Sector = myId;
+				}
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Took over " + cmd.Callsign);
+			}
 			else if (cmd.Type == "transfer") {
 				if (!mine) { CDataHandler::ReportRemoteResult(cmd.Id, false, "Track " + cmd.Callsign + " first - you can only transfer your own aircraft"); continue; }
 				CController target = plugin->ControllerSelect(cmd.Target.c_str());
