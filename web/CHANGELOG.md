@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- natTrak sign-in box: now shown every time you choose a position (each controlling session), not just the first time in a browser.
+
 ## 2.5.0 - 2026-10-31
 - CPDLC: a "Log off pilot" button in the drawer logs the selected pilot off CPDLC from your station. A pilot who has only just logged on no longer flashes or pings: only a request or a reply does.
 - natTrak PENDING: requests that were already waiting when you opened the display (and anything arriving in the first minute) stay in the box but do not flash or ping.
