@@ -55,6 +55,7 @@ import cpdlc as cpdlc_mod
 import commands as commands_mod
 import rcl_auto as rcl_auto_mod
 import members as members_mod
+import usersettings as usersettings_mod
 import adminlog as adminlog_mod
 log = logging.getLogger("vnaaats")
 
@@ -1361,6 +1362,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             return "" if cid else why
         return "unknown"
 
+    usettings = usersettings_mod.UserSettings(store)
+
     def issuer_ok(handler):
         sec = handler.headers.get("X-Issuer-Secret", "")
         return bool(issuer_secret) and len(issuer_secret) >= 24 and hmac.compare_digest(sec.encode(), issuer_secret.encode())
@@ -1596,6 +1599,16 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     except RuntimeError as e:
                         return self._send(502, {"error": str(e)})
                     return self._send(200, msg)
+                if p == "/settings":
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if sess.get("via") not in ("member", "vatsim") or not re.fullmatch(r"\d{1,9}", str(sess.get("cid", ""))):
+                        return self._send(403, {"error": "settings need your own sign-in (personal password or VATSIM Connect), not the shared password"})
+                    rec, err = usettings.set(sess["cid"], body.get("settings"))
+                    if err:
+                        return self._send(400, {"error": err})
+                    return self._send(200, rec)
                 if p == "/cmd/queue":
                     sess = self._session()
                     if not sess:
@@ -1836,6 +1849,21 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         if now_names and cur["owners"] and not (now_names & cur["owners"]):
                             ok = False                                            # somebody else has signed in on this position on the FDD: not theirs to get back
                     return self._send(200, {"callsigns": cur["list"] if ok else []})
+                if p == "/settings":                          # the FDD Settings box: this controller's plugin options
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if sess.get("via") not in ("member", "vatsim") or not re.fullmatch(r"\d{1,9}", str(sess.get("cid", ""))):
+                        return self._send(403, {"error": "settings need your own sign-in (personal password or VATSIM Connect), not the shared password"})
+                    rec = usettings.get(sess["cid"])
+                    return self._send(200, {"settings": rec["settings"], "stamp": rec["stamp"], "defaults": {k: v["default"] for k, v in usersettings_mod.OPTIONS.items()}})
+                if p == "/PluginSettings":                    # the plugin writes these into vnaaats.cfg (needs a personal key: it carries the CID)
+                    bad = key_problem(q.get("code", ""))
+                    if bad:
+                        return self._send(401, {"error": "bad key", "reason": bad})
+                    cid, _ = members.check_key(q.get("code", "")) if members else (None, "")
+                    rec = usettings.get(cid) if cid else {"settings": {}, "stamp": 0}
+                    return self._send(200, rec)
                 if p == "/asel":                              # the FDD asks which aircraft its controller clicked in EuroScope
                     sess = self._session()
                     pos = (sess["position"] if sess else "").upper()

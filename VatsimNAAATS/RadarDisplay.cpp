@@ -284,6 +284,17 @@ void CRadarDisplay::RunRemoteCommands()
 		}
 		CDataHandler::DeleteFlightData(cs);
 	}
+	// Settings chosen on the FDD: check every 2 minutes; changed ones are written to vnaaats.cfg and apply after a restart of EuroScope
+	{
+		static clock_t lastSettings = 0;
+		if (CDataHandler::SettingsBusy == 0 && (lastSettings == 0 || (double)(clock() - lastSettings) / (double)CLOCKS_PER_SEC >= 120.0)) {
+			lastSettings = clock();
+			InterlockedExchange(&CDataHandler::SettingsBusy, 1);
+			_beginthread(CDataHandler::FetchSettings, 0, NULL);
+		}
+		if (InterlockedExchange(&CDataHandler::SettingsMessagePending, 0))
+			plugin->DisplayUserMessage("vNAAATS", "Settings", "Your vNAAATS settings were changed on the FDD and saved in vnaaats.cfg. Close EuroScope and open it again for them to take effect.", true, true, true, true, true);
+	}
 	CDataHandler::ApplyPendingNetwork(this); // changes fetched from the server (e.g. edits made on the web FDD), applied on this thread
 	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) { RetrackPhase = 0; return; }   // disconnected: start the recovery again next time
 	CDataHandler::ControllerCallsign = plugin->ControllerMyself().GetCallsign();

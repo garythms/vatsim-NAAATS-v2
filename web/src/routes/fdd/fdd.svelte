@@ -4,6 +4,7 @@
   import Button from "../../props/fdd/button.svelte";
   import Checkbox from "../../props/fdd/checkbox.svelte";
   import FlightStrip from "../../props/fdd/flight_strip.svelte";
+  import { settingsOpen } from "../../typescript/fdd/settings";
   import * as acmenu from "../../typescript/fdd/acmenu";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as site from "../../typescript/site";
@@ -192,7 +193,7 @@
   let tone: string = dataHandler.tone;
   function refreshNatTrak(): void {
     const all: any[] = [...dataHandler.natTrakData.values()];
-    pendingList = all.filter((d) => d.status === "PENDING");
+    pendingList = all.filter((d) => d.status === "PENDING" && !dataHandler.isNatTrakIgnored(d.callsign));
     clearedList = all.filter((d) => d.status !== "PENDING").sort((a, b) => String(b.clearance_issued).localeCompare(String(a.clearance_issued)));
     alertCount = pendingList.filter((d) => dataHandler.isNatTrakAlert(d.callsign)).length;
     soundOn = dataHandler.soundOn;
@@ -342,6 +343,7 @@
         <option value="UPDATED">last changed</option>
       </select>
     </label>
+    <button class="px-2 py-0.5 font-bold border border-blue-6 bg-blue-3" title="Plugin options (vnaaats.cfg)" on:click={() => settingsOpen.set(true)}>Settings</button>
     {#if $cpdlcStatus.enabled}
       <button class="px-2 py-0.5 font-bold border border-blue-6 {(cpdlcUnread > 0 || $cpdlcAttention.size > 0) && visualOn && tickN >= 0 ? 'nt-flash text-black' : 'bg-blue-3'}"
         title="Open the CPDLC panel" on:click={() => cpdlcOpen.set(!$cpdlcOpen)}>

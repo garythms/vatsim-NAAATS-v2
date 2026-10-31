@@ -23,11 +23,28 @@
   let logonErr: string = "";
   let logonBusy: boolean = false;
 
+  // Optional: remember the Hoppie code in THIS browser only (never on the server), per controller, so it need not be typed each time.
+  const savedKey = (): string => "vnaaats.hoppie." + ($session.cid || "x");
+  function loadSaved(): string { try { return localStorage.getItem(savedKey()) ?? ""; } catch (e) { return ""; } }
+  function storeSaved(code: string): void { try { if (code) localStorage.setItem(savedKey(), code); else localStorage.removeItem(savedKey()); } catch (e) { /* not saved */ } }
+  let remember: boolean = false;
+  let hasSaved: boolean = false;
+  let autoTried: string = "";
   async function signIn(): Promise<void> {
     logonBusy = true;
-    logonErr = await cp.logonCpdlc(hoppieCode.trim());
+    const code = hoppieCode.trim();
+    logonErr = await cp.logonCpdlc(code);
     logonBusy = false;
-    if (logonErr === "") hoppieCode = "";          // do not keep the code in the page
+    if (logonErr === "") { if (remember) { storeSaved(code); hasSaved = true; } hoppieCode = ""; }
+  }
+  function forgetSaved(): void { storeSaved(""); hasSaved = false; remember = false; autoTried = "x"; }
+  // Sign in by itself with the saved code, once per page visit and station
+  $: if (canUse && $cpdlcStatus.enabled && !$cpdlcStatus.active && $cpdlcStatus.stationForPosition && !$cpdlcStatus.inUse
+        && !($cpdlcStatus.lockedSeconds ?? 0) && autoTried !== $cpdlcStatus.stationForPosition && $session.cid) {
+    autoTried = $cpdlcStatus.stationForPosition;
+    const saved = loadSaved();
+    hasSaved = saved !== "";
+    if (saved) { logonBusy = true; cp.logonCpdlc(saved).then((e) => { logonBusy = false; if (e) logonErr = "Saved code did not work: " + e; }); }
   }
   function useFree(e: Event): void {
     const sel = e.target as HTMLSelectElement;
@@ -131,10 +148,12 @@
             <div class="text-yellow-300">{$cpdlcStatus.stationForPosition} is already being used by another controller.</div>
           {:else}
             <div class="font-bold mb-1">Sign in to CPDLC as {$cpdlcStatus.stationForPosition}</div>
-            <div class="opacity-80 mb-2">Type your own Hoppie logon code. It is kept in server memory only while you are signed in, and is never saved.</div>
+            <div class="opacity-80 mb-2">Type your own Hoppie logon code. The server keeps it in memory only while you are signed in and never saves it. You can choose to remember it in this browser.</div>
             <form on:submit|preventDefault={signIn}>
               <input type="password" autocomplete="off" class="w-full px-2 py-1 text-black" placeholder="Your Hoppie code" bind:value={hoppieCode} />
+              <label class="block mt-1 text-xs opacity-90"><input type="checkbox" bind:checked={remember} /> Remember my code on this computer (stored in this browser only)</label>
               <button class="mt-2 px-4 py-1 font-bold bg-blue-10 text-black" disabled={logonBusy || !hoppieCode.trim()}>{logonBusy ? "Checking..." : "Sign in"}</button>
+              {#if hasSaved}<span class="ml-3 underline text-xs hover:cursor-pointer" on:click={forgetSaved}>Forget the saved code</span>{/if}
             </form>
             {#if logonErr}<div class="mt-1 text-yellow-300">{logonErr}</div>{/if}
           {/if}

@@ -500,10 +500,17 @@ export function ackNatTrak(callsign: string): void {
   natTrakAcked = natTrakAcked;
 }
 
+// Aircraft that Bodo Oceanic (ENOB) controls or is working are not ours to clear: their natTrak requests are left out of PENDING.
+export function isNatTrakIgnored(callsign: string): boolean {
+  const ac: any = findAircraftLocal(callsign.toUpperCase());
+  if (!ac) return false;
+  return /^ENOB/i.test(ac.TrackedBy ?? "") || (ac.Comm?.kind === "oceanic" && /^ENOB/i.test(ac.Comm?.by ?? ""));
+}
+
 export function isNatTrakAlert(callsign: string): boolean {
   const cs: string = callsign.toUpperCase();
   const d = natTrakData.get(cs);
-  return !!d && d.status === "PENDING" && !natTrakAcked.has(cs);
+  return !!d && d.status === "PENDING" && !natTrakAcked.has(cs) && !isNatTrakIgnored(cs);
 }
 
 export async function natTrakFetch() : Promise<void> {

@@ -45,6 +45,10 @@ std::atomic<bool> CDataHandler::RemotePollBusy(false);
 clock_t CDataHandler::RemoteLastPoll = 0;
 bool CDataHandler::SquawkOnClearance = true;
 bool CDataHandler::AutoType = false;
+string CDataHandler::SettingsUrl = "";
+long long CDataHandler::SettingsStamp = 0;
+volatile long CDataHandler::SettingsBusy = 0;
+volatile long CDataHandler::SettingsMessagePending = 0;
 bool CDataHandler::AutoClick = true;
 bool CDataHandler::Highlight = true;
 
@@ -79,6 +83,7 @@ void CDataHandler::LoadSettings() {
 		else if (k == "autotype") AutoType = (v == "1");
 		else if (k == "retrack") Retrack = (v != "0");
 		else if (k == "autoclick") AutoClick = (v != "0");
+		else if (k == "settingsstamp") { try { SettingsStamp = stoll(v); } catch (...) { SettingsStamp = 0; } }
 		else if (k == "highlight") Highlight = (v != "0");
 		else if (k == "remotelog") CLogger::RemoteMode = (v == "0" ? 0 : (v == "2" ? 2 : 1));
 	}
@@ -92,6 +97,7 @@ void CDataHandler::LoadSettings() {
 	FlightDataUpdate = server + "/UpdateFlightData?code=" + UrlEncode(key);
 	CpdlcHandoffUrl = server + "/CpdlcHandoff?code=" + UrlEncode(key);
 	CommandsUrl = server + "/PluginCommands?code=" + UrlEncode(key);
+	SettingsUrl = server + "/PluginSettings?code=" + UrlEncode(key);
 	ScratchUrl = server + "/PluginScratch?code=" + UrlEncode(key);
 	AselUrl = server + "/PluginAsel?code=" + UrlEncode(key);
 	RouteUrl = server + "/PluginRoute?code=" + UrlEncode(key);
@@ -1094,6 +1100,76 @@ void CDataHandler::FetchRetrack(void* args) {
 		CLogger::Log(CLogType::EXC, "Could not fetch the aircraft to re-track: " + string(e.what()), "CDataHandler::FetchRetrack");
 	}
 	InterlockedExchange(&RetrackFetched, 1);
+}
+
+void CDataHandler::FetchSettings(void* args) {
+	try {
+		if (!SettingsUrl.empty()) {
+			string reqUrl = SettingsUrl;
+			DeleteUrlCacheEntry(reqUrl.c_str());
+			CComPtr<IStream> pStream;
+			if (SUCCEEDED(URLOpenBlockingStream(NULL, reqUrl.c_str(), &pStream, 0, NULL))) {
+				string body;
+				char buf[4096];
+				DWORD got = 0;
+				while (SUCCEEDED(pStream->Read(buf, sizeof(buf), &got)) && got > 0) body.append(buf, got);
+				auto j = json::parse(body);
+				long long stamp = j.contains("stamp") && j["stamp"].is_number() ? j["stamp"].get<long long>() : 0;
+				if (stamp > SettingsStamp && j.contains("settings") && j["settings"].is_object() && !j["settings"].empty()) {
+					// Only these options can be changed from the FDD (never the key or the server address)
+					static const char* allowed[] = { "autotype", "autoclick", "highlight", "retrack", "squawk", "remotelog" };
+					map<string, string> want;
+					for (const char* name : allowed) {
+						if (j["settings"].contains(name)) {
+							auto& v = j["settings"][name];
+							string val = v.is_string() ? v.get<string>() : (v.is_number() ? to_string(v.get<int>()) : "");
+							if (val == "0" || val == "1" || val == "2") want[name] = val;
+						}
+					}
+					string path = CUtils::DllPath + "\\vnaaats.cfg";
+					vector<string> lines;
+					{
+						ifstream in(path);
+						string l;
+						while (getline(in, l)) { if (!l.empty() && l.back() == '\r') l.pop_back(); lines.push_back(l); }
+					}
+					map<string, string> have;
+					for (auto& line : lines) {
+						size_t eq = line.find('=');
+						if (eq == string::npos || line.empty() || line[0] == '#') continue;
+						string key = line.substr(0, eq);
+						while (!key.empty() && key.back() == ' ') key.pop_back();
+						auto it = want.find(key);
+						if (it != want.end()) { have[key] = line.substr(eq + 1); line = key + "=" + it->second; }
+					}
+					bool changed = false;
+					for (auto& kv : want) {
+						auto h = have.find(kv.first);
+						string cur = h == have.end() ? string("") : h->second;
+						while (!cur.empty() && (cur.back() == ' ' || cur.back() == '\r')) cur.pop_back();
+						if (h == have.end()) { lines.push_back(kv.first + "=" + kv.second); changed = true; }
+						else if (cur != kv.second) changed = true;
+					}
+					// remember which version of the FDD settings is in the file
+					bool stampDone = false;
+					for (auto& line : lines) if (line.rfind("settingsstamp=", 0) == 0) { line = "settingsstamp=" + to_string(stamp); stampDone = true; }
+					if (!stampDone) lines.push_back("settingsstamp=" + to_string(stamp));
+					ofstream out(path, ios::trunc);
+					for (auto& line : lines) out << line << "\r\n";
+					out.close();
+					SettingsStamp = stamp;
+					if (changed) {
+						CLogger::Log(CLogType::NORM, "Settings chosen on the FDD were saved to vnaaats.cfg. EuroScope must be restarted for them to take effect.", "CDataHandler::FetchSettings");
+						InterlockedExchange(&SettingsMessagePending, 1);
+					}
+				}
+			}
+		}
+	}
+	catch (exception & e) {
+		CLogger::Log(CLogType::EXC, "Could not fetch the settings: " + string(e.what()), "CDataHandler::FetchSettings");
+	}
+	InterlockedExchange(&SettingsBusy, 0);
 }
 
 vector<string> CDataHandler::TakeRetrack() {

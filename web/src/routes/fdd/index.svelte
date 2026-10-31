@@ -5,6 +5,7 @@
   import NatTrakData from "./nattrak_data.svelte";
   import LoginModal from "./login_modal.svelte";
   import CpdlcPanel from "./cpdlc_panel.svelte";
+  import SettingsPanel from "./settings_panel.svelte";
   import PosReports from "./pos_reports.svelte";
   import AcMenu from "./ac_menu.svelte";
   import PlanEdit from "./plan_edit.svelte";
@@ -26,6 +27,7 @@
 
 <LoginModal />
 <CpdlcPanel />
+<SettingsPanel />
 <PosReports />
 <AcMenu />
 <PlanEdit />

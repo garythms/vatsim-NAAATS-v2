@@ -9,6 +9,9 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 - Flight Plan window: narrower, so it fits at half screen without a sideways scroll bar.
 - Clicking an aircraft on the FDD circles it in white in EuroScope for 3 seconds (needs plugin 2.5.0; "Circle: ON/OFF" next to Audio, or highlight=0 in vnaaats.cfg).
 - Plugin 2.5.0: after typing .contactme the plugin clicks the aircraft for you (autoclick=0 turns it off).
+- Settings button: choose the plugin options (autotype, autoclick, circle, retrack, squawk, remote log) on the FDD. Your EuroScope writes them into vnaaats.cfg within about 2 minutes and tells you to close and reopen EuroScope. Needs a personal key or VATSIM sign-in.
+- CPDLC: tick "Remember my code on this computer" and the Hoppie code is kept in this browser only and used to sign in automatically ("Forget the saved code" removes it).
+- natTrak PENDING: requests for aircraft tracked by ENOB (Bodø Oceanic) are ignored.
 
 ## 2.4.1 - 2026-10-29
 - Flight strip picked in EuroScope: a thick black ring with a white inner edge appears for about half a second, then shrinks to a thin ring and stays. It stands out on blue and yellow strips, and pulses again if you click the same aircraft again.
