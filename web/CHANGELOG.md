@@ -3,7 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
-- vNAAATS app: "Welcome to vNAAATS" opening animation with a short tune.
+- vNAAATS app: "Welcome to vNAAATS" opening animation with a short radio-style sound (jet, "Gander Radio, SELCAL ...", SELCAL tones, chime).
 - vNAAATS app: EuroScope and VACS now open by themselves once you choose your position (tick boxes on the setup screen replace the Open buttons).
 - vNAAATS app: natTrak and Get VACS links now open in your normal browser (they did nothing inside the app).
 - Aircraft menu: back in the middle of the screen (the stacked menus had moved it to the top).

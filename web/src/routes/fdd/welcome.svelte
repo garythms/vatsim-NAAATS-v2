@@ -5,46 +5,18 @@
   // "Welcome to vNAAATS": a short opening animation with a little tune, played once each time the app is opened.
   let show: boolean = false;
   let out: boolean = false;
-  let ctx: AudioContext | null = null;
+  let audio: HTMLAudioElement | null = null;
   const KEY = "vnaaats.welcomeSeen";
 
-  function note(freq: number, at: number, len: number, vol: number, type: OscillatorType = "sine"): void {
-    if (!ctx) return;
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.type = type; o.frequency.value = freq;
-    const t = ctx.currentTime + at;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.03);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
-    o.connect(g); g.connect(ctx.destination);
-    o.start(t); o.stop(t + len + 0.05);
-  }
-  function whoosh(at: number, len: number): void {
-    if (!ctx) return;
-    const n = Math.floor(ctx.sampleRate * len), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * i / n);
-    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
-    s.buffer = buf; f.type = "bandpass"; f.Q.value = 1.2;
-    const t = ctx.currentTime + at;
-    f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(3000, t + len);
-    g.gain.value = 0.12;
-    s.connect(f); f.connect(g); g.connect(ctx.destination); s.start(t);
-  }
+  // The sound is a recorded file (jet flyby, "Gander Radio, SELCAL ...", SELCAL tones, chime), about 10 seconds.
   function tune(): void {
-    try {
-      ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      void ctx.resume();
-      note(65.4, 0, 3.6, 0.10, "triangle");            // low swell under everything
-      whoosh(0.9, 1.1);                                 // the plane crossing the line
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => note(f, 1.6 + i * 0.16, 1.6, 0.13));   // rising C major chime
-      note(1318.5, 2.35, 1.4, 0.07);
-      note(1567.98, 2.5, 1.3, 0.05);
-    } catch (e) { /* no sound is fine */ }
+    try { audio = new Audio("/welcome.mp3"); audio.volume = 0.9; void audio.play().catch(() => { /* no sound is fine */ }); } catch (e) { /* no sound is fine */ }
   }
 
   function finish(): void {
     if (out) return;
     out = true;
+    try { if (audio) { audio.pause(); } } catch (e) { /* nothing playing */ }
     setTimeout(() => { show = false; app.finishWelcome(); }, 600);
   }
   onMount(() => {
@@ -53,7 +25,7 @@
     if (!app.inApp() || seen) { app.finishWelcome(); return; }
     show = true;
     tune();
-    setTimeout(finish, 4600);
+    setTimeout(finish, 9800);
   });
 </script>
 
