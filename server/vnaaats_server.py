@@ -905,6 +905,7 @@ class NetworkTraffic:
         self.tuned = {}          # pilot callsign -> set of frequencies (MHz string) the pilot has tuned, from the transceivers feed
         self.atc_all = {}        # "121.900" -> [callsigns of every online controller on it]: frequencies are NOT unique worldwide
         self.atc_range = {}      # controller callsign -> visual range in nm (from the feed)
+        self.atc_calls = set()   # callsign of every controller online (any position, not ATIS)
         self.tx_pos = {}         # callsign -> [(lat, lon)] of its transceivers (from the transceivers feed)
 
     def _in_range(self, pilot, controller):
@@ -922,6 +923,13 @@ class NetworkTraffic:
             if not self.positions or not self.updated or time.time() - self.updated > 600:
                 return None
             return (callsign or "").upper() not in self.positions
+
+    def atc_online(self, callsign):
+        """True/False: is this controller callsign online on the network right now? None when the feed is not healthy (cannot tell)."""
+        with self.lock:
+            if not self.atc_calls or not self.updated or time.time() - self.updated > 600:
+                return None
+            return (callsign or "").upper() in self.atc_calls
 
     def position(self, callsign):
         with self.lock:
@@ -1008,7 +1016,13 @@ class NetworkTraffic:
             atc = {}
             atc_all = {}
             atc_range = {}
+            calls = set()
             for c in data.get("controllers", []):
+                try:
+                    if not str(c["callsign"]).upper().endswith("_ATIS"):
+                        calls.add(str(c["callsign"]).upper())
+                except (KeyError, TypeError):
+                    pass
                 try:
                     cs, fr = str(c["callsign"]).upper(), "%.3f" % float(c.get("frequency", 0))
                     if int(c.get("facility", 0)) >= 1 and not cs.endswith("_ATIS") and fr != "199.998":
@@ -1029,6 +1043,7 @@ class NetworkTraffic:
                 self.pilots = raw
                 self.atc_freq = atc
                 self.atc_all, self.atc_range = atc_all, atc_range
+                self.atc_calls = calls
                 self.controllers = sorted(ctrls, key=lambda x: x["callsign"])
             log.info("Network traffic refreshed: %d oceanic flights", len(out))
             self.refresh_transceivers()
@@ -1348,6 +1363,9 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
     def with_cpdlc(rec):
         """Add "cpdlc": true/false (connected to our CPDLC station) to a flight record."""
         rec = dict(rec)
+        by = str(rec.get("trackedBy", "")).upper()
+        if by and by != "NATTRAK" and network and hasattr(network, "atc_online") and network.atc_online(by) is False:
+            rec["trackedBy"], rec["trackedById"] = "", ""                    # that controller has logged off: nobody is tracking it now
         if str(rec.get("track", "")).upper() in ("", "RR"):                 # a flight on a Tango route is grouped under it
             tg = tango_match(str(rec.get("route", "")).split())
             if tg:

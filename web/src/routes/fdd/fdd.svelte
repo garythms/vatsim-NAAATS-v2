@@ -263,13 +263,10 @@
 
 <!-- The main flight data panel with flight strips -->
 <div class="flex flex-col w-full border-b-2 border-r-2 border-blue-10">
-  <div class="flex flex-row justify-around w-full h-1/14 border-blue-10 border-b-2 text-white py-5 font-regular font-light">
+  <div class="flex flex-row flex-wrap gap-y-2 justify-around items-center w-full min-h-[3.5rem] border-blue-10 border-b-2 text-white py-3 font-regular font-light">
     <div class="flex flex-row items-center justify-start 2xl:scale-100 xl:scale-85">
-      <div class="hover:cursor-default">
-        <Button label="Default" />
-      </div>
       <div class="px-0.5 hover:cursor-default">
-        <div class="flex items-center justify-between min-w-5 2xl:h-9 xl:h-8 px-1 border-2 ml-3 border-r-blue-8 border-b-blue-8 border-l-blue-0 border-t-blue-0">
+        <div class="flex items-center justify-between min-w-5 2xl:h-9 xl:h-8 px-1 border-2 border-r-blue-8 border-b-blue-8 border-l-blue-0 border-t-blue-0">
           <Checkbox identifier={"mine"} label={"TRKD"} title={"Tracked: only the flights you are tracking at your position"} bind:checked={showMine} />
           <Checkbox identifier={"eb"} label={"EB"} title={"Eastbound flights"} bind:checked={showEb} />
           <Checkbox identifier={"wb"} label={"WB"} title={"Westbound flights"} bind:checked={showWb} />

@@ -3,6 +3,8 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Aircraft menu / filter bar: more room between the buttons at half-screen width; removed a "Default" button that did nothing (the right-hand one still resets the filters).
+- Aircraft whose tracking controller has logged off now show as untracked, so the menu says "Track" and not "Update" (server).
 - vNAAATS app: "Get VACS" now opens the VACS website (vacs.network).
 - vNAAATS app: now uses the vNAAATS logo as its icon (program file, installer, taskbar and window).
 - vNAAATS app: "Find VACS" now says what it is doing (and when nothing was chosen); "Get VACS" shows an error and the address if it cannot open your browser; messages from Update now no longer vanish.

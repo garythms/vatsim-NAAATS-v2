@@ -196,6 +196,27 @@ class OfflineTests(unittest.TestCase):
         self.assertIsNone(n.is_offline("GONE9"))
 
 
+class AtcOnlineTests(unittest.TestCase):
+    def test_atc_online(self):
+        import vnaaats_server as s, time
+        n = s.NetworkTraffic(None, "off", None)
+        self.assertIsNone(n.atc_online("CZQO_CTR"))                 # no feed yet: cannot tell
+        n.atc_calls, n.updated = {"CZQO_CTR"}, time.time()
+        self.assertTrue(n.atc_online("czqo_ctr"))
+        self.assertFalse(n.atc_online("CZQO_E_CTR"))                # logged off: its old tracks no longer count
+        n.updated = time.time() - 4000                              # stale feed: cannot tell
+        self.assertIsNone(n.atc_online("CZQO_E_CTR"))
+
+    def test_refresh_fills_calls(self):
+        import vnaaats_server as s
+        n = s.NetworkTraffic(s.TrackCache(s.load_fixes()))
+        n.refresh_transceivers = lambda *a, **k: None
+        n.refresh(fetch=lambda: {"pilots": [], "controllers": [
+            {"callsign": "CZQO_CTR", "frequency": "128.100", "facility": 6, "name": "A"},
+            {"callsign": "CZQO_ATIS", "frequency": "199.998", "facility": 4, "name": "B"}]})
+        self.assertEqual(n.atc_calls, {"CZQO_CTR"})
+
+
 class CommTests(unittest.TestCase):
     def test_comm(self):
         import vnaaats_server as s
