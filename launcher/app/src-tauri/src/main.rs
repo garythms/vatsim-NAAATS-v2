@@ -70,7 +70,7 @@ struct Status {
 }
 
 #[tauri::command]
-fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, String> {
+async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, String> {
     check_origin(&window)?;
     let saved = load(&app);
     let mut st = Status {
@@ -123,7 +123,7 @@ fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, String
 }
 
 #[tauri::command]
-fn pick_folder(window: WebviewWindow, app: tauri::AppHandle) -> Result<Option<String>, String> {
+async fn pick_folder(window: WebviewWindow, app: tauri::AppHandle) -> Result<Option<String>, String> {
     check_origin(&window)?;
     let Some(p) = app.dialog().file().set_title("Choose your EXOCO folder (the one holding Plugins)").blocking_pick_folder() else { return Ok(None) };
     let path = p.into_path().map_err(|e| e.to_string())?;
@@ -134,7 +134,7 @@ fn pick_folder(window: WebviewWindow, app: tauri::AppHandle) -> Result<Option<St
 }
 
 #[tauri::command]
-fn update_plugin(window: WebviewWindow, app: tauri::AppHandle) -> Result<String, String> {
+async fn update_plugin(window: WebviewWindow, app: tauri::AppHandle) -> Result<String, String> {
     check_origin(&window)?;
     let root = load(&app).root.ok_or("choose your EXOCO folder first")?;
     let dll = vnaaats_core::find_plugin_dll(Path::new(&root), 6).ok_or("VatsimNAAATS.dll was not found in that folder")?;
@@ -162,7 +162,7 @@ fn update_plugin(window: WebviewWindow, app: tauri::AppHandle) -> Result<String,
 }
 
 #[tauri::command]
-fn save_key(window: WebviewWindow, app: tauri::AppHandle, key: String) -> Result<(), String> {
+async fn save_key(window: WebviewWindow, app: tauri::AppHandle, key: String) -> Result<(), String> {
     check_origin(&window)?;
     let root = load(&app).root.ok_or("choose your EXOCO folder first")?;
     let dll = vnaaats_core::find_plugin_dll(Path::new(&root), 6).ok_or("VatsimNAAATS.dll was not found in that folder")?;
@@ -174,7 +174,7 @@ fn kind_ok(kind: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn pick_exe(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> Result<Option<String>, String> {
+async fn pick_exe(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> Result<Option<String>, String> {
     check_origin(&window)?;
     kind_ok(&kind)?;
     let title = if kind == "euroscope" { "Choose EuroScope.exe" } else { "Choose the VACS program" };
@@ -191,7 +191,7 @@ fn pick_exe(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> Resul
 }
 
 #[tauri::command]
-fn launch(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> Result<(), String> {
+async fn launch(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> Result<(), String> {
     check_origin(&window)?;
     kind_ok(&kind)?;
     let s = load(&app);
@@ -219,7 +219,7 @@ fn cred_entry() -> Result<keyring::Entry, String> {
 }
 
 #[tauri::command]
-fn cred_get(window: WebviewWindow) -> Result<Option<Login>, String> {
+async fn cred_get(window: WebviewWindow) -> Result<Option<Login>, String> {
     check_origin(&window)?;
     match cred_entry()?.get_password() {
         Ok(text) => Ok(serde_json::from_str(&text).ok()),
@@ -229,7 +229,7 @@ fn cred_get(window: WebviewWindow) -> Result<Option<Login>, String> {
 }
 
 #[tauri::command]
-fn cred_save(window: WebviewWindow, name: String, password: String) -> Result<(), String> {
+async fn cred_save(window: WebviewWindow, name: String, password: String) -> Result<(), String> {
     check_origin(&window)?;
     if name.trim().is_empty() || password.is_empty() || name.len() > 100 || password.len() > 200 {
         return Err("nothing to save".into());
@@ -239,7 +239,7 @@ fn cred_save(window: WebviewWindow, name: String, password: String) -> Result<()
 }
 
 #[tauri::command]
-fn cred_forget(window: WebviewWindow) -> Result<(), String> {
+async fn cred_forget(window: WebviewWindow) -> Result<(), String> {
     check_origin(&window)?;
     match cred_entry()?.delete_credential() {
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
