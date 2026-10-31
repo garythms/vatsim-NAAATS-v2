@@ -5,7 +5,16 @@ import { writable } from "svelte/store";
 
 const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
 
-export const menuCallsign = writable<string>("");   // "" = menu closed
+// The open aircraft menus, newest first (at most 3). Empty = no menu open.
+export const MAX_MENUS = 3;
+export const menuStack = writable<string[]>([]);
+export function openMenu(callsign: string): void {
+  const cs = (callsign || "").toUpperCase();
+  if (!cs) return;
+  menuStack.update((l) => [cs, ...l.filter((x) => x !== cs)].slice(0, MAX_MENUS));
+}
+export function closeMenu(callsign: string): void { menuStack.update((l) => l.filter((x) => x !== callsign)); }
+export function closeAllMenus(): void { menuStack.set([]); }
 
 export type Controller = { callsign: string; frequency: string; name: string; facility: number };
 
@@ -68,9 +77,27 @@ export function setCircle(on: boolean): void {
   circleOn = on;
   try { localStorage.setItem("vnaaats.circle", on ? "on" : "off"); } catch (e) { /* not saved, still works for this visit */ }
 }
-export function circleInEs(callsign: string): void {
+export const circleNote = writable<string>("");     // why the circle did not appear ("" = nothing to say)
+let circleNoteTimer: any = null;
+function noteCircle(text: string): void {
+  circleNote.set(text);
+  if (circleNoteTimer) clearTimeout(circleNoteTimer);
+  if (text) circleNoteTimer = setTimeout(() => circleNote.set(""), 10000);
+}
+export async function circleInEs(callsign: string): Promise<void> {
   if (!circleOn || !callsign) return;
-  queueCommand({ type: "highlight", callsign }).catch(() => {});
+  try {
+    const id = await queueCommand({ type: "highlight", callsign });
+    if (typeof id === "string") { noteCircle("Circle: " + id); return; }
+    // wait up to 8 seconds for EuroScope to answer
+    for (let i = 0; i < 8; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const s = await commandState(id);
+      if (s.state === "ok") { if (s.msg.indexOf("switched off") >= 0) noteCircle("Circle: " + s.msg); return; }
+      if (s.state === "failed") { noteCircle("Circle: " + s.msg); return; }
+    }
+    noteCircle("Circle: your EuroScope did not answer. It needs the vNAAATS plugin 2.5.0 or newer, running with the vNAAATS display open. Turn the Circle off here if you do not want it.");
+  } catch (e) { /* the circle is a nicety: never break a click */ }
 }
 
 // Wait for EuroScope's answer. state: ok | failed | waiting | pending | delivered

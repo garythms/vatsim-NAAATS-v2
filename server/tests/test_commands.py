@@ -18,6 +18,12 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(cm.clean_command({"type": "transfer", "callsign": "BAW123", "target": "eisn_ctr", "freq": "127.500"})[2], {"target": "EISN_CTR", "freq": "127.500"})
         self.assertEqual(cm.clean_command({"type": "transfer", "callsign": "BAW123", "target": "EISN_CTR", "freq": "x"})[2]["freq"], "")
 
+    def test_track_without_level_or_mach(self):
+        t, cs, a, e = cm.clean_command({"type": "track", "callsign": "baw123", "level": "", "mach": ""})
+        self.assertEqual((t, cs, a, e), ("track", "BAW123", {"level": 0, "mach": 0, "selcal": ""}, None))
+        self.assertEqual(cm.clean_command({"type": "track", "callsign": "BAW123", "level": "350"})[2]["mach"], 0)
+        self.assertIsNotNone(cm.clean_command({"type": "track", "callsign": "BAW123", "level": "1000"})[3])
+
     def test_takeover_and_relief_text(self):
         self.assertEqual(cm.clean_command({"type": "takeover", "callsign": "baw123"}), ("takeover", "BAW123", {}, None))
         self.assertLessEqual(len(cm.RELIEF_CPDLC_TEXT), 240)          # fits one CPDLC uplink

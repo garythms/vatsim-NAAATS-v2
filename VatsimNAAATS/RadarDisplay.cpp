@@ -394,6 +394,15 @@ void CRadarDisplay::RunRemoteCommands()
 	for (auto& cmd : cmds) {
 		try {
 			CFlightPlan es = plugin->FlightPlanSelect(cmd.Callsign.c_str());
+			if (cmd.Type == "highlight") {
+				// the circle only needs the aircraft's radar target (not a flight plan)
+				if (!CDataHandler::Highlight) { CDataHandler::ReportRemoteResult(cmd.Id, true, "circle is switched off (highlight=0 in vnaaats.cfg)"); continue; }
+				if (!plugin->RadarTargetSelect(cmd.Callsign.c_str()).IsValid()) { CDataHandler::ReportRemoteResult(cmd.Id, false, cmd.Callsign + " is not on your EuroScope radar"); continue; }
+				hlCallsign = cmd.Callsign;
+				hlUntil = clock() + 3000;
+				CDataHandler::ReportRemoteResult(cmd.Id, true, "Circled " + cmd.Callsign);
+				continue;
+			}
 			if (!es.IsValid()) { CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope has no flight plan for " + cmd.Callsign); continue; }
 			bool mine = es.GetTrackingControllerIsMe();
 			string trackedBy = es.GetTrackingControllerCallsign();
@@ -419,8 +428,18 @@ void CRadarDisplay::RunRemoteCommands()
 					CDataHandler::ReportRemoteResult(cmd.Id, false, "EuroScope would not let you track " + cmd.Callsign + " (" + why + ")");
 					continue;
 				}
-				fp->FlightLevel = cmd.Level;
-				fp->Mach = cmd.Mach;
+				// Level and Mach are optional: when the controller leaves them blank keep what is there, else take EuroScope's own figures
+				if (!cmd.Level.empty()) fp->FlightLevel = cmd.Level;
+				else if (fp->FlightLevel.empty() || fp->FlightLevel == "0") {
+					int fl = es.GetControllerAssignedData().GetFinalAltitude() / 100;
+					if (fl <= 0) fl = es.GetFlightPlanData().GetFinalAltitude() / 100;
+					fp->FlightLevel = to_string(fl > 0 ? fl : 0);
+				}
+				if (!cmd.Mach.empty()) fp->Mach = cmd.Mach;
+				else if (fp->Mach.empty() || fp->Mach == "0") {
+					int mc = es.GetControllerAssignedData().GetAssignedMach() / 10;
+					fp->Mach = to_string(mc > 0 ? mc : 0);
+				}
 				if (!cmd.Selcal.empty()) { fp->SELCAL = cmd.Selcal; fp->SelcalManual = true; }
 				// EuroScope needs a moment to report the new tracker after StartTracking(): if it still says nobody, it is me
 				string myCallsign = plugin->ControllerMyself().IsValid() ? string(plugin->ControllerMyself().GetCallsign()) : "";
@@ -435,8 +454,8 @@ void CRadarDisplay::RunRemoteCommands()
 				CNetworkFlightPlan* netFP = new CNetworkFlightPlan();
 				netFP->Callsign = fp->Callsign;
 				netFP->Type = fp->Type;
-				netFP->AssignedLevel = stoi(fp->FlightLevel);
-				netFP->AssignedMach = stoi(fp->Mach);
+				netFP->AssignedLevel = atoi(fp->FlightLevel.c_str());
+				netFP->AssignedMach = atoi(fp->Mach.c_str());
 				netFP->Track = fp->Track;
 				netFP->Departure = fp->Depart;
 				netFP->Arrival = fp->Dest;
