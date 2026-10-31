@@ -5,6 +5,7 @@
   import NatTrakData from "./nattrak_data.svelte";
   import LoginModal from "./login_modal.svelte";
   import AppSetup from "./app_setup.svelte";
+  import Welcome from "./welcome.svelte";
   import CpdlcPanel from "./cpdlc_panel.svelte";
   import SettingsPanel from "./settings_panel.svelte";
   import ReliefPanel from "./relief_panel.svelte";
@@ -27,6 +28,7 @@
   });
 </script>
 
+<Welcome />
 <AppSetup />
 <LoginModal />
 <CpdlcPanel />

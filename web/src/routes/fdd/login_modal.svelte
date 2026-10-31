@@ -69,14 +69,16 @@
   }
   async function natYes(): Promise<void> {
     const p = askNat;
-    window.open("https://nattrak.vatsim.net/", "_blank");        // the controller signs in there by hand
+    void app.openExternal("https://nattrak.vatsim.net/");        // the controller signs in there by hand
     askNat = "";
     error = await sess.choosePosition(p);
+    if (!error && p !== "") void app.autoLaunch();
   }
   async function natLater(): Promise<void> {
     const p = askNat;
     askNat = "";
     error = await sess.choosePosition(p);
+    if (!error && p !== "") void app.autoLaunch();
   }
 </script>
 

@@ -7,6 +7,8 @@
   let busy: boolean = false;
   let msg: string = "";
   let key: string = "";
+  let autoES: boolean = true;
+  let autoVacs: boolean = true;
 
   const SEEN = "vnaaats.appSetupSeen";
   function seen(): boolean { try { return sessionStorage.getItem(SEEN) === "1"; } catch (e) { return false; } }
@@ -20,7 +22,9 @@
   }
   onMount(async () => {
     if (!app.inApp() || seen()) return;
+    await app.welcomeDone;
     await refresh();
+    autoES = app.autoGet("euroscope"); autoVacs = app.autoGet("vacs");
     show = true;
   });
 
@@ -37,7 +41,6 @@
   const update = () => run(async () => { const v = await app.updatePlugin(); msg = "Updated: " + v + "."; });
   const saveKey = () => run(async () => { await app.saveKey(key); key = ""; }, "Key saved.");
   const pick = (k: "euroscope" | "vacs") => run(() => app.pickExe(k));
-  const start = (k: "euroscope" | "vacs") => run(() => app.launch(k), k === "euroscope" ? "EuroScope is starting." : "VACS is starting.");
   function done(): void {
     try { sessionStorage.setItem(SEEN, "1"); } catch (e) { /* shown again next time */ }
     show = false;
@@ -102,18 +105,18 @@
           <b>{st.root ? "4" : "2"}. EuroScope</b>
           {#if st.euroscope}<div class="text-sm opacity-80 break-all">{st.euroscope}</div>{/if}
           <div class="flex gap-2 mt-1">
-            {#if st.euroscope}<button class={BTN} disabled={busy} on:click={() => start("euroscope")}>Open EuroScope</button>{/if}
             <button class="px-3 py-1 border border-blue-6" disabled={busy} on:click={() => pick("euroscope")}>{st.euroscope ? "Change" : "Find EuroScope.exe"}</button>
           </div>
+          <label class="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" bind:checked={autoES} on:change={() => app.autoSet("euroscope", autoES)} /> Open EuroScope for me when I choose my position</label>
         </div>
         <div class={STEP}>
           <b>{st.root ? "5" : "3"}. VACS (voice calls between controllers, optional)</b>
           {#if st.vacs}<div class="text-sm opacity-80 break-all">{st.vacs}</div>{/if}
           <div class="flex gap-2 mt-1">
-            {#if st.vacs}<button class={BTN} disabled={busy} on:click={() => start("vacs")}>Open VACS</button>{/if}
             <button class="px-3 py-1 border border-blue-6" disabled={busy} on:click={() => pick("vacs")}>{st.vacs ? "Change" : "Find the VACS program"}</button>
-            {#if !st.vacs}<a class="px-3 py-1 underline" href="https://github.com/vacs-project/vacs" target="_blank" rel="noopener">Get VACS</a>{/if}
+            {#if !st.vacs}<button class="px-3 py-1 underline" on:click={() => app.openExternal("https://github.com/vacs-project/vacs")}>Get VACS</button>{/if}
           </div>
+          <label class="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" bind:checked={autoVacs} on:change={() => app.autoSet("vacs", autoVacs)} /> Open VACS for me when I choose my position</label>
         </div>
         {#if msg}<div class="mb-2 text-sm text-yellow-300">{msg}</div>{/if}
         <button class="w-full py-2 font-bold {ready ? 'bg-blue-10 text-black' : 'border border-blue-6'}" on:click={done}>{ready ? "Continue" : "Continue anyway"}</button>

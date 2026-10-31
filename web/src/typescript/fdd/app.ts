@@ -25,6 +25,35 @@ export const saveKey = (key: string): Promise<void> => call("save_key", { key })
 export const pickExe = (kind: "euroscope" | "vacs"): Promise<string | null> => call("pick_exe", { kind });
 export const launch = (kind: "euroscope" | "vacs"): Promise<void> => call("launch", { kind });
 
+// Open a web page in the normal browser (pop-up windows do not work inside the app). Falls back to window.open outside the app.
+export async function openExternal(url: string): Promise<void> {
+  if (inApp()) { try { await call("open_url", { url }); return; } catch (e) { /* fall through to a normal window */ } }
+  window.open(url, "_blank");
+}
+
+// Settings for opening the programs automatically once a position is chosen (kept in this app's own storage)
+export type AutoKind = "euroscope" | "vacs";
+export function autoGet(kind: AutoKind): boolean { try { return localStorage.getItem("vnaaats.auto." + kind) !== "0"; } catch (e) { return true; } }
+export function autoSet(kind: AutoKind, on: boolean): void { try { localStorage.setItem("vnaaats.auto." + kind, on ? "1" : "0"); } catch (e) { /* not kept */ } }
+
+/** Called after a position is chosen: starts EuroScope and VACS once per app session, if ticked and located. */
+export async function autoLaunch(): Promise<void> {
+  if (!inApp()) return;
+  let st: AppStatus;
+  try { st = await status(); } catch (e) { return; }
+  for (const k of ["euroscope", "vacs"] as AutoKind[]) {
+    if (!st[k] || !autoGet(k)) continue;
+    const flag = "vnaaats.launched." + k;
+    try { if (sessionStorage.getItem(flag) === "1") continue; sessionStorage.setItem(flag, "1"); } catch (e) { /* carry on */ }
+    try { await launch(k); } catch (e) { /* the setup screen shows launch errors; here we stay quiet */ }
+  }
+}
+
+// The welcome animation tells the setup screen when it has finished
+let welcomeResolve: () => void = () => {};
+export const welcomeDone: Promise<void> = new Promise<void>((r) => { welcomeResolve = r; });
+export function finishWelcome(): void { welcomeResolve(); }
+
 // The saved sign-in (kept in the Windows Credential Manager)
 export const credGet = (): Promise<{ name: string; password: string } | null> => call("cred_get");
 export const credSave = (name: string, password: string): Promise<void> => call("cred_save", { name, password });
