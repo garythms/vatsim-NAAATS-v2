@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import * as site from "../typescript/site";
   const repo = "garythms/vatsim-NAAATS-v2";
-  const installer = "https://github.com/" + repo + "/releases/download/fdd-windows/FDD-for-Windows-Setup.exe";
+  const installer = "/get/fdd-windows";
   let version: string = "";
   let zipUrl: string = "https://github.com/" + repo + "/releases/tag/latest-build";
   let direct: boolean = false;
@@ -31,7 +31,7 @@
     <div class="opacity-80 mb-6">For controllers using EuroScope on Windows. Allow about 15 minutes. This guide uses <b>FDD for Windows</b>; if you prefer a browser, see "Without the app" at the end.</div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold">FDD for Windows</div>
+      <div class="text-lg font-bold">FDD for Windows (<a class="underline text-sm" href="/windows">what is it?</a>)</div>
       <a href={installer} rel="external" class="inline-block my-2 px-5 py-2 font-bold bg-blue-10 text-black">Download FDD for Windows</a>
       <div class="text-sm opacity-80">The app installs and checks the plugin for you. Your <b>key</b> is not in it: get it from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a> (certified controllers).</div>
     </div>
