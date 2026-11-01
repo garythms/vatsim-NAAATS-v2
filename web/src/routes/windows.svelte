@@ -45,6 +45,7 @@
       <div class="p-3 border-2 border-blue-10 bg-blue-3"><div class="font-bold mb-1">One-time setup</div><div class="text-sm opacity-90">Point it at your EuroScope folder and paste your key once. It checks the plugin, saves the key into <b>vnaaats.cfg</b> for you, and never asks again unless something needs attention.</div></div>
       <div class="p-3 border-2 border-blue-10 bg-blue-3"><div class="font-bold mb-1">Sign in once</div><div class="text-sm opacity-90">Tick <b>Remember me</b> and your sign-in is kept safely in the Windows Credential Manager on your computer, never on our server.</div></div>
       <div class="p-3 border-2 border-blue-10 bg-blue-3"><div class="font-bold mb-1">Its own window</div><div class="text-sm opacity-90">A taskbar icon, and a window you can put on a second monitor, separate from all your browser tabs.</div></div>
+      <div class="p-3 border-2 border-blue-10 bg-blue-3"><div class="font-bold mb-1">VACS call alert</div><div class="text-sm opacity-90">A headphones button in the display flashes, with a pop-up and an Accept button, when VACS is calling you. It is on already; the app shows you the one VACS setting to tick.</div></div>
       <div class="p-3 border-2 border-blue-10 bg-blue-3"><div class="font-bold mb-1">Help built in</div><div class="text-sm opacity-90">The first-time setup shows the how-to video, and the app tells you plainly if a program could not be started and why.</div></div>
     </div>
 
