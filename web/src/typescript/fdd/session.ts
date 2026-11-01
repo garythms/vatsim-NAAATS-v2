@@ -111,18 +111,40 @@ export async function removeFlight(callsign: string): Promise<string> {
 }
 
 // ---- automatic RCL REQ reminder (switch on the server, shown in the controls bar)
-export type RclAuto = { on: boolean; sender: string; inflight: number; error: string };
-export const rclAuto = writable<RclAuto>({ on: false, sender: "", inflight: 0, error: "" });
+export type RclWaiting = { callsign: string; minutes: number | null; fix: string; time: string };
+export type RclAuto = {
+  on: boolean; sender: string; inflight: number; error: string;
+  confirm: boolean;                       // ask the sending controller before anything is typed
+  waiting: RclWaiting[];                  // due, waiting for the controller's answer
+  prompt: boolean;                        // time to ask (at most every 5 minutes)
+  sending: number;                        // released and not yet typed
+  batch: { total: number; done: number; failed: string[] };
+};
+export const rclAuto = writable<RclAuto>({ on: false, sender: "", inflight: 0, error: "", confirm: true, waiting: [], prompt: false, sending: 0, batch: { total: 0, done: 0, failed: [] } });
+export const rclPanelOpen = writable<boolean>(false);
 
 export async function refreshRclAuto(): Promise<void> {
   try {
     const r = await fetch(apiBase + "/rcl/auto", { credentials: "same-origin" });
-    if (r.ok) rclAuto.set(await r.json());
+    if (r.ok) { const d = await r.json(); rclAuto.update((old) => ({ ...old, ...d })); }
   } catch (e) { /* keep the last answer */ }
+}
+
+export async function setRclConfirm(confirm: boolean): Promise<string> {
+  const r = await post("/rcl/auto", { confirm });
+  if (r.ok) { rclAuto.update((old) => ({ ...old, ...r.data })); return ""; }
+  return r.data.error ?? "could not change the setting";
+}
+
+// The answer to "send the reminders now?": send | later | skip
+export async function rclAnswer(action: "send" | "later" | "skip"): Promise<string> {
+  const r = await post("/rcl/auto", { action });
+  if (r.ok) { rclAuto.update((old) => ({ ...old, ...r.data })); return ""; }
+  return r.data.error ?? "could not send the answer";
 }
 
 export async function setRclAuto(on: boolean): Promise<string> {
   const r = await post("/rcl/auto", { on });
-  if (r.ok) { rclAuto.set(r.data); return ""; }
+  if (r.ok) { rclAuto.update((old) => ({ ...old, ...r.data })); return ""; }
   return r.data.error ?? "could not change the setting";
 }
