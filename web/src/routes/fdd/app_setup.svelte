@@ -195,8 +195,8 @@
             {:else}
               <div class="mt-1 opacity-90">The FDD can flash a headphones button and show a pop-up when someone calls you in VACS (needs VACS 2.1.0 or newer). To switch it on:</div>
               <ol class="list-decimal ml-5 mt-1 space-y-0.5 opacity-90">
-                <li>Open <b>VACS</b>, go to the <b>Advanced Settings</b> page and switch on <b>Remote Control</b>. It is off by default.</li>
-                <li>For safety, change the address box under it to <b>127.0.0.1:9600</b>, so only this computer can connect (the default 0.0.0.0:9600 lets any device on your network in, with no password).</li>
+                <li>Open <b>VACS</b>, go to the <b>Advanced Settings</b> page and tick <b>Enable remote control</b>. It is off by default.</li>
+                <li>For safety, change the <b>Listen addr.</b> box under it to <b>127.0.0.1:9600</b>, so only this computer can connect (the default 0.0.0.0:9600 lets any device on your network in, with no password).</li>
                 <li>Come back here and press <b>Check again</b>.</li>
               </ol>
               <button class="mt-2 px-3 py-1 border border-blue-6" on:click={() => vc.configure(true, vc.getPort())}>Check again</button>

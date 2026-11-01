@@ -15,9 +15,12 @@
   import * as esSel from "../../typescript/fdd/esselect";
   import { espicked } from "../../typescript/fdd/esselect";
   import VacsChip from "./vacs_chip.svelte";
+  import RclPanel from "./rcl_panel.svelte";
 
   const { session } = sess;
   const { cpdlcStatus, cpdlcOpen, cpdlcAttention } = cp;
+  const { rclPanelOpen } = sess;
+  $: rclAsk = $rclAuto.prompt && ($session.position ?? "").toUpperCase() === $rclAuto.sender;
   $: cpdlcUnread = cp.unreadTotal($cpdlcStatus);
 
   // Initialisation of data
@@ -32,7 +35,7 @@
     cp.startCpdlcPolling();
     esSel.startEsSelect();
     sess.refreshRclAuto();
-    rclTimer = setInterval(sess.refreshRclAuto, 10000);
+    rclTimer = setInterval(sess.refreshRclAuto, 5000);
 
     // Title
     site.setTitle("Flight Data Display");
@@ -326,6 +329,7 @@
     </div>
     <div class="flex-1"></div>
     <VacsChip />
+    <RclPanel />
     {#if $cpdlcStatus.enabled}
       <button class="px-2 py-0.5 border border-blue-6 {(cpdlcUnread > 0 || $cpdlcAttention.size > 0) && visualOn && tickN >= 0 ? 'nt-flash text-black font-bold' : 'bg-blue-3'}"
         title="Open the CPDLC panel" on:click={() => cpdlcOpen.set(!$cpdlcOpen)}>
@@ -333,10 +337,9 @@
       </button>
     {/if}
     {#if $rclAuto.sender !== "" || $rclAuto.on}
-      <button class="px-2 py-0.5 border border-blue-6 {$rclAuto.on ? 'bg-blue-3' : 'bg-red-700'}" disabled={!sess.canEdit($session)}
-        title={($rclAuto.on ? "Automatic RCL REQ is ON: flights 20 to 45 minutes from oceanic entry (or within 200 nm if they have no times) that have not asked for clearance on natTrak are sent the reminder from " + ($rclAuto.sender || "an oceanic controller's EuroScope (none online right now)") + ". Click to switch off." : "Automatic RCL REQ is OFF. Click to switch on.") + ($rclAuto.error ? " Last problem: " + $rclAuto.error : "")}
-        on:click={toggleRcl}>Auto RCL: {$rclAuto.on ? "ON" : "OFF"}{$rclAuto.on && $rclAuto.sender === "" ? " (no sender)" : ""}</button>
-      {#if rclMsg}<span class="text-yellow-300">{rclMsg}</span>{/if}
+      <button class="px-2 py-0.5 border border-blue-6 {rclAsk && visualOn && tickN >= 0 ? 'nt-flash text-black font-bold' : $rclAuto.on ? 'bg-blue-3' : 'bg-red-700'}"
+        title={($rclAuto.on ? "Automatic RCL REQ is ON: flights 20 to 45 minutes from oceanic entry (or within 200 nm if they have no times) that have not asked for clearance on natTrak are sent the reminder from " + ($rclAuto.sender || "an oceanic controller's EuroScope (none online right now)") + "." + ($rclAuto.confirm ? " The controller is asked before anything is typed." : "") : "Automatic RCL REQ is OFF.") + " Click for details and settings." + ($rclAuto.error ? " Last problem: " + $rclAuto.error : "")}
+        on:click={() => rclPanelOpen.set(!$rclPanelOpen)}>Auto RCL: {$rclAuto.on ? ($rclAuto.confirm && $rclAuto.waiting.length > 0 ? $rclAuto.waiting.length + " waiting" : "ON") : "OFF"}{$rclAuto.on && $rclAuto.sender === "" ? " (no sender)" : ""}</button>
     {/if}
     {#if concOverdueN > 0}
       <span class="px-1 font-bold {visualOn && tickN >= 0 ? 'nt-flash text-black' : 'text-yellow-300'}" title="Concorde flights overdue a position report">&#9201; {concOverdueN} overdue</span>

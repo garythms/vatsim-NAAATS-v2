@@ -140,7 +140,7 @@ static BOOL CALLBACK FindEsWindow(HWND hwnd, LPARAM lParam) {
 
 // Type a line into EuroScope's command line: Home (focuses it), the text, Enter.
 // EuroScope is brought to the front first (the controller has just clicked in the browser). Fails if Windows will not allow that.
-static bool TypeIntoEuroScope(const string& text) {
+static bool TypeIntoEuroScope(const string& text, string& why) {
 	HWND es = NULL;
 	EnumWindows(FindEsWindow, (LPARAM)&es);
 	if (!es) return false;
@@ -156,8 +156,17 @@ static bool TypeIntoEuroScope(const string& text) {
 		fg = GetForegroundWindow();
 		pid = 0;
 		if (fg) GetWindowThreadProcessId(fg, &pid);
-		if (pid != GetCurrentProcessId()) return false;
+		if (pid != GetCurrentProcessId()) { why = "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste"; return false; }
 	}
+	// True while EuroScope is still the window in front. Typing goes to whichever window is in front, so this is checked before every
+	// key press: if the controller clicks into another program (Discord, a browser...) the typing stops at once instead of carrying on there.
+	auto esInFront = [&]() -> bool {
+		HWND f = GetForegroundWindow();
+		DWORD p2 = 0;
+		if (f) GetWindowThreadProcessId(f, &p2);
+		return p2 == GetCurrentProcessId();
+	};
+	const string interrupted = "interrupted - you switched away from EuroScope, so nothing more was typed and the message was NOT sent";
 	// This runs on its own thread with short pauses, so EuroScope's own thread can finish each step (move focus to the
 	// command line, clear it, take the text, run the line) before the next keys arrive. Sending everything in one burst
 	// left old text in the box and glued commands together.
@@ -167,15 +176,22 @@ static bool TypeIntoEuroScope(const string& text) {
 		INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wVk = vk; in.push_back(d);
 		INPUT u = d; u.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(u);
 	};
+	if (!esInFront()) { why = interrupted; return false; }
 	key(VK_HOME); send(in);                       // Home focuses the command line
 	Sleep(300);
+	if (!esInFront()) { why = interrupted; return false; }
 	key(VK_END);                                  // then empty it: End and plenty of Backspaces, whatever was left in it
 	for (int n = 0; n < 300; n++) key(VK_BACK);
 	send(in);
 	Sleep(300);
+	if (!esInFront()) { why = interrupted; return false; }
 	// One character at a time with a short pause: EuroScope shows a dot-command hint while ".msg" is being typed and could
 	// swallow the space that follows it (".msgBAW123 Hello"). Spaces are sent as a real Space key press.
 	for (unsigned char ch : text) {
+		if (!esInFront()) {                       // switched away part-way: stop (the next message clears the command line first)
+			why = interrupted;
+			return false;
+		}
 		if (ch == ' ') {
 			key(VK_SPACE);
 		}
@@ -187,6 +203,7 @@ static bool TypeIntoEuroScope(const string& text) {
 		Sleep(ch == ' ' ? 60 : 10);
 	}
 	Sleep(300);
+	if (!esInFront()) { why = interrupted; return false; }
 	key(VK_RETURN); send(in);
 	return true;
 }
@@ -217,7 +234,8 @@ static volatile LONG TypingBusy = 0;
 static void TypeThread(void* arg) {
 	CTypeJob* job = (CTypeJob*)arg;
 	try {
-		if (TypeIntoEuroScope(job->Text)) {
+		string why = "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste";
+		if (TypeIntoEuroScope(job->Text, why)) {
 			string note = "Sent to EuroScope: " + job->Text.substr(0, 40);
 			if (job->Click) {
 				Sleep(500);                       // EuroScope now waits for a click on the aircraft
@@ -226,7 +244,7 @@ static void TypeThread(void* arg) {
 			}
 			CDataHandler::ReportRemoteResult(job->Id, true, note);
 		}
-		else CDataHandler::ReportRemoteResult(job->Id, false, "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste");
+		else CDataHandler::ReportRemoteResult(job->Id, false, why);
 	}
 	catch (...) { CDataHandler::ReportRemoteResult(job->Id, false, "plugin error while typing"); }
 	Sleep(1200);                                    // leave EuroScope time to run the line before the next one

@@ -64,7 +64,7 @@ log = logging.getLogger("vnaaats")
 NATTRAK_URL = os.environ.get("VNAAATS_NATTRAK_URL", "https://nattrak.vatsim.net/api/tracks")
 REFRESH = int(os.environ.get("VNAAATS_REFRESH_SECONDS", "600"))
 STALE_FLIGHT_SECONDS = 24 * 3600
-SERVER_VERSION = "2.5.2"      # shown at /health so you can tell which version is running
+SERVER_VERSION = "2.6.0"      # shown at /health so you can tell which version is running
 VATSIM_FEED = os.environ.get("VNAAATS_VATSIM_FEED", "https://data.vatsim.net/v3/vatsim-data.json")
 VATSIM_TRANSCEIVERS = os.environ.get("VNAAATS_VATSIM_TRANSCEIVERS", "https://data.vatsim.net/v3/transceivers-data.json")
 FEED_SECONDS = int(os.environ.get("VNAAATS_FEED_SECONDS", "60"))
@@ -1702,6 +1702,25 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(403, {"error": "choose a controlling position first"})
                     if not rcl:
                         return self._send(404, {"error": "automatic RCL REQ is not available on this server"})
+                    act = str(body.get("action", ""))
+                    if act:                                              # the answer to "send the reminders now?"
+                        who = rcl.sender()
+                        if not who or sess["position"].upper() != who:
+                            return self._send(403, {"error": "only %s can answer: their EuroScope types the messages" % (who or "the oceanic controller who is online")})
+                        if act == "send":
+                            rcl.send_now()
+                        elif act == "later":
+                            rcl.later()
+                        elif act == "skip":
+                            rcl.skip()
+                        else:
+                            return self._send(400, {"error": "unknown action"})
+                        log.info("Auto RCL REQ: %s answered %s", sess["position"], act)
+                        return self._send(200, rcl.status())
+                    if "confirm" in body:
+                        rcl.set_confirm(bool(body["confirm"]))
+                        log.info("Auto RCL REQ ask-first switched %s by %s", "ON" if rcl.confirm else "OFF", sess["position"])
+                        return self._send(200, rcl.status())
                     rcl.set_enabled(bool(body.get("on", True)))
                     log.info("Auto RCL REQ switched %s by %s", "ON" if rcl.enabled else "OFF", sess["position"])
                     return self._send(200, rcl.status())

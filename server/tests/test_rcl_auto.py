@@ -20,7 +20,7 @@ class FakeNat:
     def by_callsign(self): return self.d
 
 
-class RclTests(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
         self.store = s.FlightStore(os.path.join(tempfile.mkdtemp(), "f.db"))
         self.q = cm.CommandQueue()
@@ -28,6 +28,7 @@ class RclTests(unittest.TestCase):
         self.t = [datetime(2026, 10, 23, 12, 0, tzinfo=timezone.utc).timestamp()]
         self.dist = [None]
         self.rcl = r.RclAuto(self.store, self.q, self.net, self.nat, lambda route, pos: self.dist[0], ("CZQO", "EGGX"), now=lambda: self.t[0], start=False)
+        self.rcl.confirm = False                                    # these tests are about the automatic path; the confirm path has its own tests below
         self.rec = {"callsign": "BAW1", "route": "A B", "routeEtas": "1230 1300", "trackedBy": ""}
         self.net.flights = [self.rec]
         self.net.pos["BAW1"] = (51.0, -8.0)
@@ -38,6 +39,8 @@ class RclTests(unittest.TestCase):
         if settled and self.rcl.sender_since is None and self.rcl.sender():
             self.rcl.sender_since = self.t[0] - r.START_DELAY_SECONDS - 1     # pretend the session has already settled
 
+
+class RclTests(Base):
     def test_entry_minutes(self):
         self.assertEqual(r.entry_minutes_from_now("1230 1300", 12 * 60), 30)
         self.assertEqual(r.entry_minutes_from_now("0010 0100", 23 * 60 + 50), 20)    # across midnight
@@ -186,3 +189,99 @@ class RclTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConfirmTests(Base):
+    """Same fixtures, with the controller asked first."""
+    def setUp(self):
+        Base.setUp(self)
+        self.rcl.confirm = True
+
+    def test_nothing_is_typed_until_released(self):
+        self.poll()
+        self.assertIsNone(self.rcl.tick())
+        self.assertEqual(self.q.pending_for("CZQO_CTR"), [])
+        st = self.rcl.status()
+        self.assertEqual([w["callsign"] for w in st["waiting"]], ["BAW1"])
+        self.assertEqual(st["waiting"][0]["minutes"], 30)
+        self.assertEqual(st["waiting"][0]["fix"], "A")
+        self.assertEqual(st["waiting"][0]["time"], "1230")
+
+    def test_prompt_is_paced_and_needs_a_sender(self):
+        self.assertFalse(self.rcl.status()["prompt"])                   # nobody online
+        self.poll()
+        self.rcl.tick()
+        self.assertTrue(self.rcl.status()["prompt"])
+        self.rcl.later()
+        self.assertFalse(self.rcl.status()["prompt"])                   # asked again in 5 minutes
+        self.t[0] += r.PROMPT_EVERY_SECONDS + 1
+        self.poll()
+        self.rcl.tick()
+        self.assertTrue(self.rcl.status()["prompt"])
+
+    def test_first_prompt_waits_for_the_start_delay(self):
+        self.poll(settled=False)                                        # session just started
+        self.rcl.tick()
+        self.assertFalse(self.rcl.status()["prompt"])
+        self.assertEqual(self.rcl.status()["waiting"], [])
+
+    def test_send_now_types_released_flights_one_at_a_time(self):
+        self.rec2 = {"callsign": "DLH2", "route": "A B", "routeEtas": "1235 1300", "trackedBy": ""}
+        self.net.flights.append(self.rec2)
+        self.net.pos["DLH2"] = (51.0, -9.0)
+        self.net.pilots["DLH2"] = {"groundspeed": 450}
+        self.poll()
+        self.rcl.tick()
+        self.rcl.send_now()
+        self.assertFalse(self.rcl.status()["prompt"])
+        self.assertEqual(self.rcl.status()["batch"]["total"], 2)
+        self.assertEqual(self.rcl.tick(), "BAW1")
+        self.assertIsNone(self.rcl.tick())                              # one in flight at a time per tick... the second waits for the next tick
+        # the plugin reports the first as done
+        c = self.q.done(1, True, "ok")
+        self.rcl.done(c, True)
+        self.assertEqual(self.rcl.tick(), "DLH2")
+        c = self.q.done(2, True, "ok")
+        self.rcl.done(c, True)
+        b = self.rcl.status()["batch"]
+        self.assertEqual((b["total"], b["done"], b["failed"]), (2, 2, []))
+
+    def test_skip_never_reminds(self):
+        self.poll()
+        self.rcl.tick()
+        self.rcl.skip()
+        self.assertEqual(self.rcl.status()["waiting"], [])
+        self.t[0] += 3600
+        self.poll()
+        self.assertIsNone(self.rcl.tick())
+        self.assertEqual(self.rcl.status()["waiting"], [])
+
+    def test_flight_that_stops_being_due_is_dropped_before_typing(self):
+        self.poll()
+        self.rcl.tick()
+        self.rcl.send_now()
+        self.rec["routeEtas"] = "1215 1300"                             # now only 15 minutes to entry: natTrak would refuse
+        self.assertIsNone(self.rcl.tick())
+        self.assertEqual(self.q.pending_for("CZQO_CTR"), [])
+
+    def test_failure_is_listed_in_the_batch(self):
+        self.poll()
+        self.rcl.tick()
+        self.rcl.send_now()
+        self.assertEqual(self.rcl.tick(), "BAW1")
+        c = self.q.done(1, False, "interrupted")
+        self.rcl.done(c, False, "interrupted")
+        self.assertEqual(self.rcl.status()["batch"]["failed"], ["BAW1"])
+
+    def test_confirm_setting_is_remembered(self):
+        self.rcl.set_confirm(False)
+        again = r.RclAuto(self.store, self.q, self.net, self.nat, lambda route, pos: None, ("CZQO",), now=lambda: self.t[0], start=False)
+        self.assertFalse(again.confirm)
+        self.rcl.set_confirm(True)
+        again = r.RclAuto(self.store, self.q, self.net, self.nat, lambda route, pos: None, ("CZQO",), now=lambda: self.t[0], start=False)
+        self.assertTrue(again.confirm)
+
+    def test_entry_info(self):
+        self.assertEqual(r.entry_info("A B C", "1230 1300 1330", 12 * 60), (30, "A", "1230"))
+        self.assertEqual(r.entry_info("A B C", "-- 1300 1330", 12 * 60), (60, "B", "1300"))
+        self.assertEqual(r.entry_info("A B", "-- --", 0), (None, "", ""))
