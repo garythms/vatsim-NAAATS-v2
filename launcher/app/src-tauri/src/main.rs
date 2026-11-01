@@ -240,7 +240,23 @@ async fn launch(window: WebviewWindow, app: tauri::AppHandle, kind: String) -> R
     if let Some(dir) = p.parent() {
         cmd.current_dir(dir);
     }
-    cmd.spawn().map(|_| ()).map_err(|e| format!("could not start it: {}", e))
+    match cmd.spawn() {
+        Ok(_) => Ok(()),
+        // Some programs (Audio for VATSIM can) ask Windows for administrator rights; starting them directly then fails with error 740.
+        // Opening the file the way Explorer does shows the normal Windows permission prompt instead.
+        Err(e) if e.raw_os_error() == Some(740) => open_like_explorer(&p),
+        Err(e) => Err(format!("could not start it: {}", e)),
+    }
+}
+
+#[cfg(windows)]
+fn open_like_explorer(p: &Path) -> Result<(), String> {
+    Command::new("rundll32").arg("url.dll,FileProtocolHandler").arg(p).spawn().map(|_| ()).map_err(|e| format!("could not start it: {}", e))
+}
+
+#[cfg(not(windows))]
+fn open_like_explorer(_p: &Path) -> Result<(), String> {
+    Err("could not start it: it needs administrator rights".into())
 }
 
 /// Open a web page in the normal browser. Only a few known sites are allowed, so a page cannot make this open anything else.
