@@ -1,6 +1,7 @@
-name: Build vNAAATS app
-# The vNAAATS app (Windows): a window around the web Flight Data Display that can also check/replace the plugin DLL,
-# save the key into vnaaats.cfg and start EuroScope / VACS. Published as the "launcher-test" pre-release (a test build).
+name: Build FDD for Windows
+# FDD for Windows: a window around the web Flight Data Display that can also check/replace the plugin DLL,
+# save the key into vnaaats.cfg and start EuroScope, VACS and the audio client. Published as the "fdd-windows" release
+# (never marked "latest", because the server looks at the latest release for the plugin DLL).
 on:
   push:
     paths: ['launcher/**', '.github/workflows/launcher.yml']
@@ -28,13 +29,14 @@ jobs:
       - name: Build the app
         working-directory: launcher/app/src-tauri
         run: tauri build
-      - name: Publish the test build
+      - name: Publish FDD for Windows
         if: github.event_name == 'push' && (github.ref_name == 'server-and-squawk' || startsWith(github.ref_name, 'feature/launcher'))
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $exe = Get-ChildItem launcher/target/release/bundle/nsis/*.exe | Select-Object -First 1
-          Copy-Item $exe.FullName vNAAATS-app-setup.exe
+          Copy-Item $exe.FullName FDD-for-Windows-Setup.exe
+          gh release delete fdd-windows --yes --cleanup-tag 2>$null
           gh release delete launcher-test --yes --cleanup-tag 2>$null
-          gh release create launcher-test vNAAATS-app-setup.exe --prerelease --target ${{ github.sha }} --title "vNAAATS app (test build)" --notes "Test build of the vNAAATS app (${{ github.sha }}). Not for general use yet."
+          gh release create fdd-windows FDD-for-Windows-Setup.exe --latest=false --target ${{ github.sha }} --title "FDD for Windows" --notes "FDD for Windows: the vNAAATS Flight Data Display in its own window, with a one-time setup for the plugin, your key, EuroScope, VACS and your audio client. Install guide: https://vnaaats.com/guide (build ${{ github.sha }})."

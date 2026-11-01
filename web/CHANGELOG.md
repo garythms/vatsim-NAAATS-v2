@@ -3,6 +3,8 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- FDD for Windows is now a normal release called "FDD for Windows" (download link on the download page and install guide) instead of the "test build".
+- FDD for Windows: the app is now called "FDD for Windows" on the website. The download page puts the app first (plugin-only install under "Not using the app?"), and the install guide is rewritten around the app. The one-time setup is remembered; after that the app opens straight to the display and only asks you when an update is available. The setup shows the how-to video and can be reopened from Settings > App setup.
 - vNAAATS app: programs that do not start by themselves after you choose a position now say why (small notice at the bottom), and are tried again next time; programs that ask Windows for administrator rights (Audio for VATSIM can) now start with the normal Windows permission prompt.
 - vNAAATS app: also installs the vNAAATS font (vNAAATS.ttf) next to the plugin DLL when it is missing, so the EuroScope screen shows the right letters. The plugin pack now includes the font.
 - vNAAATS app: new setup step "Audio client" (Audio for VATSIM or TrackAudio): find its program and it opens by itself when you choose your position, like EuroScope and VACS.
