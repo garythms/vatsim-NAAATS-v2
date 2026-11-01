@@ -91,7 +91,7 @@ function open(): void {
   if (!wanted) return;
   upd((s) => { s.link = "connecting"; });
   let sock: WebSocket;
-  try { sock = new WebSocket("ws://localhost:" + getPort() + "/ws"); } catch (e) { upd((s) => { s.link = "off"; s.error = "blocked"; }); again(); return; }
+  try { sock = new WebSocket("ws://127.0.0.1:" + getPort() + "/ws"); } catch (e) { upd((s) => { s.link = "off"; s.error = "blocked"; }); again(); return; }
   ws = sock;
   sock.onopen = () => {
     delay = 5000;

@@ -52,7 +52,7 @@
       <div class="mb-2 opacity-90">Shows when VACS has an incoming call. It listens to VACS on this computer only; nothing is sent to our server.</div>
       <label class="flex items-center gap-2 mb-2"><input type="checkbox" bind:checked={en} /> Switch the alert on</label>
       <label class="flex items-center gap-2 mb-2">VACS port <input class="w-20 px-1 text-black" bind:value={port} inputmode="numeric" /></label>
-      <div class="mb-2 text-xs opacity-80">In VACS, switch on <b>Remote Control</b> (it is off by default; the default port is 9600). Your browser may ask to allow access to devices on your network: choose Allow.</div>
+      <div class="mb-2 text-xs opacity-80">In VACS (2.1.0 or newer) open <b>Advanced Settings</b> and switch on <b>Remote Control</b>; it is off by default and uses port 9600. For safety set its address to <b>127.0.0.1:9600</b> so only this computer can connect. Your browser may ask to allow access to devices on your network: choose Allow.</div>
       <button class="px-3 py-0.5 font-bold bg-blue-10 text-black" on:click={apply}>Save</button>
       <button class="ml-2 px-3 py-0.5 border border-blue-6" on:click={() => (open = false)}>Close</button>
     </div>

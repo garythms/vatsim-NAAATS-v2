@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import * as app from "../../typescript/fdd/app";
+  import * as vc from "../../typescript/fdd/vacs";
+  const { vacs } = vc;
 
   let show: boolean = false;
   let mode: "full" | "update" = "full";             // full setup, or only the "an update is available" question
@@ -186,6 +188,21 @@
           </div>
           {#if !st.vacs}<div class="text-xs opacity-70 mt-1 break-all">Or open this address yourself: {VACS_URL}</div>{/if}
           <label class="flex items-center gap-2 mt-2 text-sm"><input type="checkbox" bind:checked={autoVacs} on:change={() => app.autoSet("vacs", autoVacs)} /> Open VACS for me when I choose my position</label>
+          <div class="mt-2 p-2 border border-blue-6 text-sm">
+            <b>Incoming call alert in the FDD (optional)</b>
+            {#if $vacs.enabled && $vacs.link === "up"}
+              <div class="text-green-300 mt-1">&#10004; Connected to VACS. You will see incoming VACS calls on the headphones button at the top of the display.</div>
+            {:else}
+              <div class="mt-1 opacity-90">The FDD can flash a headphones button and show a pop-up when someone calls you in VACS (needs VACS 2.1.0 or newer). To switch it on:</div>
+              <ol class="list-decimal ml-5 mt-1 space-y-0.5 opacity-90">
+                <li>Open <b>VACS</b>, go to the <b>Advanced Settings</b> page and switch on <b>Remote Control</b>. It is off by default.</li>
+                <li>For safety, change the address box under it to <b>127.0.0.1:9600</b>, so only this computer can connect (the default 0.0.0.0:9600 lets any device on your network in, with no password).</li>
+                <li>Come back here and press <b>Check again</b>.</li>
+              </ol>
+              <button class="mt-2 px-3 py-1 border border-blue-6" on:click={() => vc.configure(true, vc.getPort())}>Check again</button>
+              <span class="ml-2 text-xs opacity-70">{$vacs.link === "connecting" ? "Trying..." : "Not connected yet. You can skip this and set it up later from the headphones button."}</span>
+            {/if}
+          </div>
         </div>
         <div class={STEP}>
           <b>{st.root ? "6" : "4"}. Audio client (voice with pilots)</b>
