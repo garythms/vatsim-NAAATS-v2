@@ -14,6 +14,7 @@
   import * as cp from "../../typescript/fdd/cpdlc";
   import * as esSel from "../../typescript/fdd/esselect";
   import { espicked } from "../../typescript/fdd/esselect";
+  import VacsChip from "./vacs_chip.svelte";
 
   const { session } = sess;
   const { cpdlcStatus, cpdlcOpen, cpdlcAttention } = cp;
@@ -158,8 +159,17 @@
     addMsg = e ? e : "";
     if (!e) { addCs = ""; dataHandler.setAsel(cs); }
   }
+  let posMenu: boolean = false;
+  // One box for search and add: Enter picks the first match; with no match, and permission to edit, it adds the callsign
+  async function searchAdd(): Promise<void> {
+    if (!search.trim()) return;
+    addCs = search;
+    await addStrip();
+    if (addCs === "") search = "";
+  }
   function searchKey(e: KeyboardEvent): void {
-    if (e.key === "Enter" && groups.length > 0) dataHandler.setAsel(groups[0].rows[0].Callsign);
+    if (e.key === "Enter" && groups.length > 0 && groups[0].rows.length > 0) dataHandler.setAsel(groups[0].rows[0].Callsign);
+    else if (e.key === "Enter" && sess.canEdit($session)) searchAdd();
     if (e.key === "Escape") search = "";
   }
   function setFilter(f: string): void { filter = f; }
@@ -293,13 +303,20 @@
       </div>
     </div>
   </div>
-  <!-- who am I, search, grouping and sorting -->
-  <div class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1 w-full border-b-2 border-blue-10 text-white font-regular text-sm select-none">
-    <div>
+  <!-- row 1: who I am and what is live (VACS, CPDLC, Auto RCL, alerts) -->
+  <div class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1 px-2 pt-1 w-full text-white font-regular text-sm select-none">
+    <div class="relative">
       {#if $session.loggedIn && $session.position}
         <span class="font-bold text-green-300">{$session.position}</span> {$session.name}
-        <button class="ml-1 px-2 py-0 font-bold border border-blue-6 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => sess.choosePosition("")} title="Choose another position">Change</button>
-        <button class="ml-1 px-2 py-0 font-bold border border-blue-6 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={sess.logout}>Sign out</button>
+        <button class="ml-1 px-2 py-0 font-bold border border-blue-6 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => (posMenu = !posMenu)} title="Change position, relief, sign out">Position &#9662;</button>
+        {#if posMenu}
+          <div class="fixed inset-0 z-40" on:click={() => (posMenu = false)}></div>
+          <div class="absolute left-0 top-full mt-1 z-50 min-w-max border-2 border-blue-10 bg-blue-2 shadow-lg">
+            <div class="px-4 py-1 hover:bg-blue-10 hover:text-black hover:cursor-pointer" on:click={() => { posMenu = false; sess.choosePosition(""); }}>Change position</div>
+            <div class="px-4 py-1 hover:bg-blue-10 hover:text-black hover:cursor-pointer" title="Hand all your tracked aircraft to the controller relieving you" on:click={() => { posMenu = false; reliefOpen.set(true); }}>Relief / handover</div>
+            <div class="px-4 py-1 hover:bg-blue-10 hover:text-black hover:cursor-pointer" on:click={() => { posMenu = false; sess.logout(); }}>Sign out</div>
+          </div>
+        {/if}
       {:else if $session.editing}
         <span class="opacity-70">Signed out</span>
         <span class="underline hover:cursor-pointer ml-1" on:click={() => location.reload()}>sign in</span>
@@ -307,25 +324,36 @@
         <span class="opacity-70">Sign-in is not switched on for this server</span>
       {/if}
     </div>
-    {#if sess.canEdit($session)}
-      <input class="px-2 py-0.5 w-28 text-black uppercase" placeholder="Add callsign" bind:value={addCs} on:keydown={(e) => { if (e.key === "Enter") addStrip(); }} title="Add a flight that is on VATSIM by typing its callsign" />
-      <button class="px-2 py-0.5 bg-blue-3 border border-blue-6" on:click={addStrip}>Add</button>
-      {#if Object.keys($hidden).length > 0}
-        <select class="text-black w-28" value="" on:change={(e) => { unhideStrip(e.currentTarget.value); e.currentTarget.value = ""; }} title="Strips you have hidden - pick one to bring it back">
-          <option value="">Hidden ({Object.keys($hidden).length})</option>
-          {#each Object.keys($hidden) as h}<option value={h}>Unhide {h}</option>{/each}
-        </select>
-      {/if}
-      {#if addMsg}<span class="text-yellow-300">{addMsg}</span>{/if}
+    <div class="flex-1"></div>
+    <VacsChip />
+    {#if $cpdlcStatus.enabled}
+      <button class="px-2 py-0.5 border border-blue-6 {(cpdlcUnread > 0 || $cpdlcAttention.size > 0) && visualOn && tickN >= 0 ? 'nt-flash text-black font-bold' : 'bg-blue-3'}"
+        title="Open the CPDLC panel" on:click={() => cpdlcOpen.set(!$cpdlcOpen)}>
+        CPDLC{$cpdlcStatus.connected.length > 0 ? " [" + $cpdlcStatus.connected.length + "]" : ""}{cpdlcUnread > 0 ? " \u2709 " + cpdlcUnread : ""}{$cpdlcAttention.size > 0 ? " new logon" : ""}
+      </button>
     {/if}
-    <input class="px-2 py-0.5 w-48 text-black uppercase" placeholder="Search callsign / fix" bind:value={search} on:keydown={searchKey} />
+    {#if $rclAuto.sender !== "" || $rclAuto.on}
+      <button class="px-2 py-0.5 border border-blue-6 {$rclAuto.on ? 'bg-blue-3' : 'bg-red-700'}" disabled={!sess.canEdit($session)}
+        title={($rclAuto.on ? "Automatic RCL REQ is ON: flights 20 to 45 minutes from oceanic entry (or within 200 nm if they have no times) that have not asked for clearance on natTrak are sent the reminder from " + ($rclAuto.sender || "an oceanic controller's EuroScope (none online right now)") + ". Click to switch off." : "Automatic RCL REQ is OFF. Click to switch on.") + ($rclAuto.error ? " Last problem: " + $rclAuto.error : "")}
+        on:click={toggleRcl}>Auto RCL: {$rclAuto.on ? "ON" : "OFF"}{$rclAuto.on && $rclAuto.sender === "" ? " (no sender)" : ""}</button>
+      {#if rclMsg}<span class="text-yellow-300">{rclMsg}</span>{/if}
+    {/if}
+    {#if concOverdueN > 0}
+      <span class="px-1 font-bold {visualOn && tickN >= 0 ? 'nt-flash text-black' : 'text-yellow-300'}" title="Concorde flights overdue a position report">&#9201; {concOverdueN} overdue</span>
+    {/if}
+    {#if conflictCount > 0}
+      <span class="px-2 py-0.5 border border-yellow-300 text-yellow-300 font-bold" title="Flights with a warning are marked on their strip">&#9888; {conflictCount} alert{conflictCount === 1 ? "" : "s"}</span>
+    {/if}
+    <button class="px-2 py-0.5 font-bold border border-blue-6 bg-blue-3" title="Plugin options (vnaaats.cfg)" on:click={() => settingsOpen.set(true)}>Settings</button>
+  </div>
+  <!-- row 2: how the list is shown (show, group, sort), counts, and search or add -->
+  <div class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1 w-full border-b-2 border-blue-10 text-white font-regular text-sm select-none">
     <label title="Show flights within 60 minutes of oceanic entry, until 15 minutes after the exit (shown faded)">Show
       <select class="text-black" value={windowMode} on:change={(e) => setWindowMode(e.currentTarget.value)}>
         <option value="WINDOW">entry -60 / exit +15 min</option>
         <option value="ALL">all flights</option>
       </select>
     </label>
-    {#if hiddenCount > 0}<span class="opacity-80" title="Hidden by the time window">{hiddenCount} hidden</span>{/if}
     <label>Group
       <select class="text-black" bind:value={groupBy}>
         <option value="TRACK">by track</option>
@@ -342,26 +370,19 @@
         <option value="UPDATED">last changed</option>
       </select>
     </label>
-    <button class="px-2 py-0.5 font-bold border border-blue-6 bg-blue-3" title="Hand all your tracked aircraft to the controller relieving you" on:click={() => reliefOpen.set(true)}>Relief</button>
-    <button class="px-2 py-0.5 font-bold border border-blue-6 bg-blue-3" title="Plugin options (vnaaats.cfg)" on:click={() => settingsOpen.set(true)}>Settings</button>
-    {#if $cpdlcStatus.enabled}
-      <button class="px-2 py-0.5 font-bold border border-blue-6 {(cpdlcUnread > 0 || $cpdlcAttention.size > 0) && visualOn && tickN >= 0 ? 'nt-flash text-black' : 'bg-blue-3'}"
-        title="Open the CPDLC panel" on:click={() => cpdlcOpen.set(!$cpdlcOpen)}>
-        CPDLC{$cpdlcStatus.connected.length > 0 ? " [" + $cpdlcStatus.connected.length + "]" : ""}{cpdlcUnread > 0 ? " \u2709 " + cpdlcUnread : ""}{$cpdlcAttention.size > 0 ? " new logon" : ""}
-      </button>
+    {#if Object.keys($hidden).length > 0}
+      <select class="text-black w-28" value="" on:change={(e) => { unhideStrip(e.currentTarget.value); e.currentTarget.value = ""; }} title="Strips you have hidden - pick one to bring it back">
+        <option value="">Hidden ({Object.keys($hidden).length})</option>
+        {#each Object.keys($hidden) as h}<option value={h}>Unhide {h}</option>{/each}
+      </select>
     {/if}
-    {#if $rclAuto.sender !== "" || $rclAuto.on}
-      <button class="px-2 py-0.5 border border-blue-6 {$rclAuto.on ? 'bg-blue-3' : 'bg-red-700'}" disabled={!sess.canEdit($session)}
-        title={($rclAuto.on ? "Automatic RCL REQ is ON: flights 20 to 45 minutes from oceanic entry (or within 200 nm if they have no times) that have not asked for clearance on natTrak are sent the reminder from " + ($rclAuto.sender || "an oceanic controller's EuroScope (none online right now)") + ". Click to switch off." : "Automatic RCL REQ is OFF. Click to switch on.") + ($rclAuto.error ? " Last problem: " + $rclAuto.error : "")}
-        on:click={toggleRcl}>Auto RCL: {$rclAuto.on ? "ON" : "OFF"}{$rclAuto.on && $rclAuto.sender === "" ? " (no sender)" : ""}</button>
-      {#if rclMsg}<span class="text-yellow-300">{rclMsg}</span>{/if}
-    {/if}
-    <span class="opacity-70">{shownCount} shown</span>
-    {#if concOverdueN > 0}
-      <span class="px-1 font-bold {visualOn && tickN >= 0 ? 'nt-flash text-black' : 'text-yellow-300'}" title="Concorde flights overdue a position report">&#9201; {concOverdueN} overdue</span>
-    {/if}
-    {#if conflictCount > 0}
-      <span class="text-yellow-300 font-bold" title="Flights with a warning are marked on their strip">&#9888; {conflictCount}</span>
+    <div class="flex-1"></div>
+    <span class="opacity-80" title={hiddenCount > 0 ? hiddenCount + " flights are outside the time window" : ""}><b>{shownCount}</b> shown{#if hiddenCount > 0} &middot; <b>{hiddenCount}</b> hidden{/if}</span>
+    {#if addMsg}<span class="text-yellow-300">{addMsg}</span>{/if}
+    <input class="px-2 py-0.5 w-64 text-black uppercase" placeholder={sess.canEdit($session) ? "Search or add: callsign / fix" : "Search callsign / fix"} bind:value={search} on:keydown={searchKey}
+      title="Type to search the list. If the flight is not on the list, press Enter or Add to add a flight that is on VATSIM by its callsign." />
+    {#if sess.canEdit($session)}
+      <button class="px-2 py-0.5 bg-blue-3 border border-blue-6" title="Add this callsign if it is on VATSIM but not on the list" on:click={searchAdd}>Add</button>
     {/if}
   </div>
   <!-- natTrak requests: PENDING (needs action) and CLEARED -->

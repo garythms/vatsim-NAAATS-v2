@@ -3,6 +3,8 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- FDD header tidied: position, relief and sign out now sit in one "Position" menu; VACS, CPDLC, Auto RCL and alerts are status buttons on the top row; Show, Group, Sort and one "Search or add" box are on the second row.
+- New VACS call indicator (headphones button): shows when VACS has an incoming call with a pop-up (Accept or Dismiss) and who you are talking to. It listens to VACS on your own computer only (VACS Remote Control must be switched on, default port 9600); on by default in FDD for Windows, optional in a browser.
 - The PDF user guide is regenerated from the current install guide and user manual.
 - Install guide: more troubleshooting for FDD for Windows (installer blocked, blank window, setup keeps returning, update fails, administrator rights, nothing opened).
 - New "FDD for Windows" page (vnaaats.com/windows): what it is, why use it, Windows requirements and a download button. The home page links to it, and the download everywhere now comes from one stable address on this site (vnaaats.com/get/fdd-windows).
