@@ -1847,6 +1847,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if not logs.token_ok(self.headers.get("X-Admin-Token", ""), self._client_ip()):
                         return self._send(403, {"error": "not allowed"})
                     return self._send(200, logs.view(q.get("me", ""), q.get("level", ""), to_int(q.get("since"), 0), to_int(q.get("limit"), 400)))
+                if p == "/get/fdd-windows":                    # the FDD for Windows installer: one stable address on this site
+                    return self._redirect("https://github.com/%s/releases/download/fdd-windows/FDD-for-Windows-Setup.exe" % os.environ.get("VNAAATS_REPO", "garythms/vatsim-NAAATS-v2"))
                 if p == "/GetTrackSource":
                     return self._send(200, "0", "text/plain")
                 if p == "/GetAllNatTracks":

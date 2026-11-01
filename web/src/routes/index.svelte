@@ -40,9 +40,13 @@ onMount(async () => {
                 hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
                     Access FDD
                 </a>
+                <a href="/windows" class="border-2 rounded px-4 py-2 ml-4 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
+                hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
+                    FDD for Windows
+                </a>
                 <a href="/download" class="border-2 rounded px-4 py-2 ml-4 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
                 hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
-                    Download plugin
+                    Downloads
                 </a>
             </div>
         </div>

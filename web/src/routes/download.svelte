@@ -9,7 +9,7 @@
   let direct: boolean = false;
   let dllUrl: string = "";
   let note: string = "";
-  const installer = "https://github.com/" + repo + "/releases/download/fdd-windows/FDD-for-Windows-Setup.exe";
+  const installer = "/get/fdd-windows";
 
   onMount(async () => {
     site.setTitle("Download FDD for Windows");
@@ -49,7 +49,8 @@
         <li>Remembers your sign-in if you ask it to (kept in the Windows Credential Manager).</li>
         <li>The setup happens once. After that the app opens straight to the display.</li>
       </ul>
-      <a href={installer} rel="external" class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Download FDD for Windows</a>
+      <a href={installer} rel="external" class="inline-block px-5 py-2 mr-2 mb-2 font-bold bg-blue-10 text-black">Download FDD for Windows</a>
+      <a href="/windows" class="inline-block px-5 py-2 mb-2 border-2 border-blue-10">What is it? Requirements</a>
       <div class="text-xs opacity-80 mt-2">Windows 10 or 11. The installer is not code-signed yet, so Windows may say "Windows protected your PC": choose <b>More info</b>, then <b>Run anyway</b>. See the <a class="underline" href="/code-signing">code signing policy</a> and <a class="underline" href="/privacy">privacy and data handling</a>.</div>
       <div class="text-sm mt-4"><b>First time?</b> Follow the <a class="underline" href="/guide">install guide</a>. In short: install the Gander sector package, install FDD for Windows, do the one-time setup, then load the plugin in EuroScope once.</div>
     </div>

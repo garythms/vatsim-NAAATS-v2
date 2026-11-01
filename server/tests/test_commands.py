@@ -87,6 +87,14 @@ class HttpTests(unittest.TestCase):
             self.call("/auth/position", {"position": position}, ck)
         return ck
 
+    def test_fdd_windows_download_redirects(self):
+        import http.client
+        c = http.client.HTTPConnection("127.0.0.1", self.srv.server_port)
+        c.request("GET", "/get/fdd-windows")
+        r = c.getresponse()
+        self.assertEqual(r.status, 302)
+        self.assertTrue(r.getheader("Location").endswith("/releases/download/fdd-windows/FDD-for-Windows-Setup.exe"))
+
     def test_controllers_list(self):
         names = [c["callsign"] for c in self.call("/GetControllers")[1]]
         self.assertEqual(names, ["EGGX_CTR", "EISN_CTR", "NAT_FSS"])      # no tower, no ATIS
