@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- vNAAATS app: programs that do not start by themselves after you choose a position now say why (small notice at the bottom), and are tried again next time; programs that ask Windows for administrator rights (Audio for VATSIM can) now start with the normal Windows permission prompt.
 - vNAAATS app: also installs the vNAAATS font (vNAAATS.ttf) next to the plugin DLL when it is missing, so the EuroScope screen shows the right letters. The plugin pack now includes the font.
 - vNAAATS app: new setup step "Audio client" (Audio for VATSIM or TrackAudio): find its program and it opens by itself when you choose your position, like EuroScope and VACS.
 - CPDLC window: connected aircraft are now a list down the left (with unread counts), the window can be dragged wider or narrower (remembered), standard messages are grouped (Level / Contact / Replies), Unable / Standby / Roger / Reply are proper buttons, and Force log out moved into a "More" menu.

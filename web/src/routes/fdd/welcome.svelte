@@ -5,6 +5,7 @@
   // "Welcome to vNAAATS": a short opening animation with a little tune, played once each time the app is opened.
   let show: boolean = false;
   let out: boolean = false;
+  const { launchNotes } = app;
   let audio: HTMLAudioElement | null = null;
   const KEY = "vnaaats.welcomeSeen";
 
@@ -28,6 +29,13 @@
     setTimeout(finish, 7200);
   });
 </script>
+
+{#if $launchNotes.length}
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[70] max-w-xl px-4 py-3 bg-blue-3 border-2 border-yellow-300 text-white text-sm font-regular shadow-5xl" on:click={() => launchNotes.set([])}>
+    {#each $launchNotes as n}<div>{n}</div>{/each}
+    <div class="mt-1 text-xs opacity-70">Click to close.</div>
+  </div>
+{/if}
 
 {#if show}
   <!-- svelte-ignore a11y-click-events-have-key-events -->

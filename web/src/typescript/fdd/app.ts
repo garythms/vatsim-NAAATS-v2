@@ -44,18 +44,27 @@ export function audioSet(c: AudioChoice): void { try { localStorage.setItem("vna
 export function autoGet(kind: AutoKind): boolean { try { return localStorage.getItem("vnaaats.auto." + kind) !== "0"; } catch (e) { return true; } }
 export function autoSet(kind: AutoKind, on: boolean): void { try { localStorage.setItem("vnaaats.auto." + kind, on ? "1" : "0"); } catch (e) { /* not kept */ } }
 
+// Programs that did not start by themselves after a position was chosen (shown as a small notice)
+import { writable } from "svelte/store";
+export const launchNotes = writable<string[]>([]);
+const PROG_NAME: Record<string, string> = { euroscope: "EuroScope", vacs: "VACS", afv: "Audio for VATSIM", trackaudio: "TrackAudio" };
+
 /** Called after a position is chosen: starts EuroScope, VACS and the chosen audio client once per app session, if ticked and located. */
 export async function autoLaunch(): Promise<void> {
   if (!inApp()) return;
   let st: AppStatus;
   try { st = await status(); } catch (e) { return; }
   const audio = audioGet();
+  const notes: string[] = [];
   for (const k of ["euroscope", "vacs", ...(audio === "none" ? [] : [audio])] as AutoKind[]) {
-    if (!st[k] || !autoGet(k)) continue;
+    if (!autoGet(k)) continue;
+    if (!st[k]) { if (k === audio) notes.push(PROG_NAME[k] + " is not opened: its program has not been chosen yet (setup screen)."); continue; }
     const flag = "vnaaats.launched." + k;
-    try { if (sessionStorage.getItem(flag) === "1") continue; sessionStorage.setItem(flag, "1"); } catch (e) { /* carry on */ }
-    try { await launch(k); } catch (e) { /* the setup screen shows launch errors; here we stay quiet */ }
+    try { if (sessionStorage.getItem(flag) === "1") continue; } catch (e) { /* carry on */ }
+    try { await launch(k); try { sessionStorage.setItem(flag, "1"); } catch (e) { /* carry on */ } }
+    catch (e) { notes.push(PROG_NAME[k] + " did not start: " + errText(e)); }       // not marked as launched, so the next position choice tries again
   }
+  if (notes.length) { launchNotes.set(notes); setTimeout(() => launchNotes.set([]), 15000); }
 }
 
 // The welcome animation tells the setup screen when it has finished
