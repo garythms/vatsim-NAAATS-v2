@@ -9,9 +9,10 @@
   let direct: boolean = false;
   let dllUrl: string = "";
   let note: string = "";
+  const installer = "https://github.com/" + repo + "/releases/download/launcher-test/vNAAATS-app-setup.exe";
 
   onMount(async () => {
-    site.setTitle("Download");
+    site.setTitle("Download FDD for Windows");
     document.body.style.opacity = "100%";
     try {
       const v = await fetch("https://raw.githubusercontent.com/" + repo + "/server-and-squawk/pluginversion.txt");
@@ -33,69 +34,84 @@
 <div class="min-h-screen bg-blue-1 text-white font-web flex flex-col items-center px-4 py-10">
   <div class="max-w-2xl w-full">
     <a href="/" class="underline text-sm opacity-80">&larr; Homepage</a>
-    <h1 class="text-4xl font-bold mt-3 mb-1">vNAAATS V2 plugin - download</h1>
+    <h1 class="text-4xl font-bold mt-3 mb-1">Download vNAAATS</h1>
     <div class="opacity-80 mb-6">Version 2 &ndash; Modernised by Gary Thomas. For EuroScope on Windows.</div>
 
+    <!-- 1. The app: the way most controllers should start -->
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold">Update the plugin{version ? " - " + version : ""}</div>
-      {#if published}<div class="text-sm opacity-80 mb-3">Built {published}</div>{/if}
-      <a href={dllUrl || zipUrl} class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">{dllUrl ? "Download VatsimNAAATS.dll" : direct ? "Download VatsimNAAATS-plugin.zip" : "Open the download page"}</a>
-      {#if note}<div class="text-sm text-yellow-300 mt-2">{note}</div>{/if}
-      <div class="text-sm opacity-80 mt-3">Already installed? Close EuroScope and replace <b>only</b> the DLL. Keep your <b>vnaaats.cfg</b>.</div>
-      <div class="text-sm mt-3"><b>Also needed in the same folder as the DLL:</b></div>
-      <div class="mt-2">
-        <a href="/ICAO_Airlines.txt" rel="external" download class="inline-block px-4 py-1 mr-2 mb-2 border-2 border-blue-10">ICAO_Airlines.txt</a>
-        <a href="/vnaaats.example.cfg" rel="external" download class="inline-block px-4 py-1 mb-2 border-2 border-blue-10">vnaaats.example.cfg</a>
-      </div>
-      <div class="text-sm opacity-80">ICAO_Airlines.txt shows the selected aircraft's radio callsign (e.g. BAW227 (Speedbird)) at the bottom centre of the radar. The example config is for new installs only: rename it to <b>vnaaats.cfg</b> and add your key. Never copy it over an existing vnaaats.cfg.</div>
-    </div>
-
-    <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold mb-2">Video: how to download and use vNAAATS</div>
-      <video class="w-full bg-black" controls preload="metadata" playsinline src="/vNAAATS-intro.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/vNAAATS-intro.mp4">Download it</a>.</video>
-      <div class="text-sm opacity-80 mt-2">About three minutes, with captions. The flights shown are demo data.</div>
+      <div class="text-xs font-bold tracking-wider text-yellow-300 mb-1">RECOMMENDED</div>
+      <div class="text-2xl font-bold">FDD for Windows</div>
+      <p class="opacity-90 my-2">The Flight Data Display in its own window, with a one-time setup that gets everything else ready for you. It is the same display as in your browser, so updates to the display arrive by themselves.</p>
+      <ul class="list-disc ml-6 space-y-1 mb-3 text-sm opacity-90">
+        <li>Checks your plugin, airline list and font and updates them when you say so (you are asked first).</li>
+        <li>Saves your key into <b>vnaaats.cfg</b> so you never edit the file by hand.</li>
+        <li>Opens <b>EuroScope</b>, <b>VACS</b> and your audio client (<b>Audio for VATSIM</b> or <b>TrackAudio</b>) for you once you choose your position.</li>
+        <li>Remembers your sign-in if you ask it to (kept in the Windows Credential Manager).</li>
+        <li>The setup happens once. After that the app opens straight to the display.</li>
+      </ul>
+      <a href={installer} rel="external" class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Download FDD for Windows</a>
+      <div class="text-xs opacity-80 mt-2">Windows 10 or 11. The installer is not code-signed yet, so Windows may say "Windows protected your PC": choose <b>More info</b>, then <b>Run anyway</b>. See the <a class="underline" href="/code-signing">code signing policy</a> and <a class="underline" href="/privacy">privacy and data handling</a>.</div>
+      <div class="text-sm mt-4"><b>First time?</b> Follow the <a class="underline" href="/guide">install guide</a>. In short: install the Gander sector package, install FDD for Windows, do the one-time setup, then load the plugin in EuroScope once.</div>
     </div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold mb-2">Video: loading vNAAATS into EuroScope</div>
       <video class="w-full bg-black" controls preload="metadata" playsinline src="/vNAAATS-install-howto.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/vNAAATS-install-howto.mp4">Download it</a>.</video>
-      <div class="text-sm opacity-80 mt-2">About a minute and a quarter: opening your profile, loading the sector file and plugin, then adding the vNAAATS display and the ASR file.</div>
+      <div class="text-sm opacity-80 mt-2">About a minute and a quarter: opening your profile, loading the sector file and plugin, then adding the vNAAATS display and the ASR file. The app shows this video in its first-time setup too.</div>
     </div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold">User guide (PDF)</div>
-      <div class="text-sm opacity-80 mb-3">The install guide and the full user manual in one file. The same text is on the <a href="https://vnaaats.com/guide" class="underline">install guide</a> and <a href="https://vnaaats.com/manual" class="underline">user manual</a> pages.</div>
-      <a href="/vNAAATS-user-guide.pdf" rel="external" class="inline-block px-5 py-2 mr-2 mb-2 font-bold bg-blue-10 text-black">Open the guide (PDF)</a>
-      <a href="/vNAAATS-user-guide.pdf" rel="external" download class="inline-block px-5 py-2 mb-2 border-2 border-blue-10">Download</a>
-      <details class="mt-2">
-        <summary class="cursor-pointer underline text-sm">Read it on this page</summary>
-        <iframe class="w-full mt-3 bg-white" style="height: 70vh;" title="vNAAATS user guide" src="/vNAAATS-user-guide.pdf#view=FitH"></iframe>
-      </details>
+      <div class="text-lg font-bold mb-2">Video: how to use vNAAATS</div>
+      <video class="w-full bg-black" controls preload="metadata" playsinline src="/vNAAATS-intro.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/vNAAATS-intro.mp4">Download it</a>.</video>
+      <div class="text-sm opacity-80 mt-2">About three minutes, with captions. The flights shown are demo data.</div>
     </div>
 
-    <p class="mb-4 p-3 border-2 border-blue-10 bg-blue-3">First time installing? Use the <a href="https://vnaaats.com/guide" class="underline font-bold">install guide</a>. It has the full first-time pack (plugin, radar screen file, example config, ICAO_Airlines.txt) and the sector file steps.</p>
-    <div class="mb-6 p-4 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold">Gander Oceanic sector package (AeroNav)</div>
-      <p class="opacity-90 my-2">The official sector files, kept up to date each AIRAC by AeroNav. Install it first, then add the plugin from this page and follow the <a href="https://vnaaats.com/guide" class="underline">install guide</a>. You also need your own key from <a class="underline" href="https://ganderoceanic.ca/my/vnaaats">ganderoceanic.ca/my/vnaaats</a>.</p>
-      <a href="https://files.aero-nav.com/EXCXO" rel="external" class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Open files.aero-nav.com/EXCXO</a>
-    </div>
-    <div class="mb-6 p-4 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold">vNAAATS app for Windows (optional, test build)</div>
-      <p class="opacity-90 my-2">A small program that opens the Flight Data Display in its own window. It can check that your plugin and airline list are up to date, save your key into vnaaats.cfg, open EuroScope and VACS for you when you choose your position, and remember your sign-in. You can use the display in a normal browser instead. The installer is not signed yet, so Windows may show a "Windows protected your PC" notice: choose "More info" then "Run anyway". See the <a class="underline" href="/code-signing">code signing policy</a> and <a class="underline" href="/privacy">privacy and data handling</a>.</p>
-      <a href="https://github.com/{repo}/releases/tag/launcher-test" rel="external" class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Get the app installer</a>
-    </div>
-    <a href="/temp-key" style="display:none" aria-hidden="true" tabindex="-1">.</a>
-    <h2 class="text-2xl font-bold mb-2">Updating an existing install</h2>
-    <p class="mb-6 opacity-90">Close EuroScope and replace <b>only VatsimNAAATS.dll</b> with the one you just downloaded. <b>Keep your existing vnaaats.cfg</b> - do not copy the example file over it, or you will lose your key. Make sure it is the DLL EuroScope actually loads (Other SET &gt; Plug-ins shows its folder).</p>
-
-    <p class="mb-6 opacity-90">If it will not load, install the Microsoft Visual C++ 2015-2022 Redistributable (x86). The <a href="https://vnaaats.com/guide" class="underline">install guide</a> has the full steps.</p>
-
+    <!-- 2. What you need -->
     <h2 class="text-2xl font-bold mb-2">What you need</h2>
     <ul class="list-disc ml-6 space-y-1 mb-6">
+      <li>EuroScope, and the official <b>Gander Oceanic sector package</b> from AeroNav (below), which also keeps your AIRAC up to date.</li>
       <li>Your own <b>key</b> for the plugin, and your sign-in for the <a href="/fdd" class="underline">Flight Data Display</a>: both come from your page on the Gander Oceanic website, <a href="https://ganderoceanic.ca/my/vnaaats" class="underline">ganderoceanic.ca/my/vnaaats</a>. They are for controllers who are <b>certified</b>. Keep your key private.</li>
       <li>The display shows nothing until you have signed in and chosen a position, to protect pilot and controller data.</li>
     </ul>
 
+    <div class="mb-6 p-4 border-2 border-blue-10 bg-blue-3">
+      <div class="text-lg font-bold">Gander Oceanic sector package (AeroNav)</div>
+      <p class="opacity-90 my-2">The official sector files, kept up to date each AIRAC by AeroNav. Install it first, then install FDD for Windows (or the plugin by hand, below) and follow the <a href="/guide" class="underline">install guide</a>.</p>
+      <a href="https://files.aero-nav.com/EXCXO" rel="external" class="inline-block px-5 py-2 font-bold bg-blue-10 text-black">Open files.aero-nav.com/EXCXO</a>
+    </div>
+
+    <!-- 3. Without the app -->
+    <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
+      <div class="text-lg font-bold">Not using the app? Install the plugin by hand</div>
+      <p class="text-sm opacity-90 my-2">You can still use the display in any browser at <a href="/fdd" class="underline">vnaaats.com/fdd</a> and install the EuroScope plugin yourself.</p>
+      <details>
+        <summary class="cursor-pointer underline text-sm">Show the plugin downloads{version ? " (version " + version + ")" : ""}</summary>
+        <div class="mt-3">
+          {#if published}<div class="text-sm opacity-80 mb-2">Built {published}</div>{/if}
+          <a href={zipUrl} class="inline-block px-5 py-2 mr-2 mb-2 font-bold bg-blue-10 text-black">{direct ? "Download the plugin pack (zip)" : "Open the download page"}</a>
+          {#if dllUrl}<a href={dllUrl} class="inline-block px-5 py-2 mb-2 border-2 border-blue-10">VatsimNAAATS.dll only</a>{/if}
+          {#if note}<div class="text-sm text-yellow-300 mt-1">{note}</div>{/if}
+          <div class="text-sm opacity-80 mb-3">The pack holds the DLL, the screen file <b>vNAAATS.asr</b>, the airline list, the font, an example config and a README.</div>
+          <div class="text-sm"><b>Also needed in the same folder as the DLL (all in the pack):</b></div>
+          <div class="mt-2">
+            <a href="/ICAO_Airlines.txt" rel="external" download class="inline-block px-4 py-1 mr-2 mb-2 border-2 border-blue-10">ICAO_Airlines.txt</a>
+            <a href="/vNAAATS.ttf" rel="external" download class="inline-block px-4 py-1 mr-2 mb-2 border-2 border-blue-10">vNAAATS.ttf</a>
+            <a href="/vnaaats.example.cfg" rel="external" download class="inline-block px-4 py-1 mb-2 border-2 border-blue-10">vnaaats.example.cfg</a>
+          </div>
+          <div class="text-sm opacity-80">ICAO_Airlines.txt shows the selected aircraft's radio callsign (e.g. BAW227 (Speedbird)) at the bottom centre of the radar. <b>vNAAATS.ttf</b> is the font the radar screen uses; without it the letters look wrong. The example config is for new installs only: rename it to <b>vnaaats.cfg</b> and add your key. Never copy it over an existing vnaaats.cfg.</div>
+          <div class="text-sm mt-3"><b>Updating by hand:</b> close EuroScope and replace <b>only VatsimNAAATS.dll</b>. <b>Keep your existing vnaaats.cfg</b>. Make sure it is the DLL EuroScope actually loads (Other SET &gt; Plug-ins shows its folder). If it will not load, install the Microsoft Visual C++ 2015-2022 Redistributable (x86).</div>
+        </div>
+      </details>
+    </div>
+
+    <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
+      <div class="text-lg font-bold">User guide (PDF)</div>
+      <div class="text-sm opacity-80 mb-3">The install guide and the user manual in one file, for printing or offline. The <a href="/guide" class="underline">install guide</a> and <a href="/manual" class="underline">user manual</a> pages on this site are always the newest, so use them if the two ever differ.</div>
+      <a href="/vNAAATS-user-guide.pdf" rel="external" class="inline-block px-5 py-2 mr-2 mb-2 font-bold bg-blue-10 text-black">Open the guide (PDF)</a>
+      <a href="/vNAAATS-user-guide.pdf" rel="external" download class="inline-block px-5 py-2 mb-2 border-2 border-blue-10">Download</a>
+    </div>
+
+    <a href="/temp-key" style="display:none" aria-hidden="true" tabindex="-1">.</a>
     <p class="text-sm opacity-80">Please report problems at
       <a class="underline" href="https://github.com/{repo}/issues">github.com/{repo}/issues</a>. Source code:
       <a class="underline" href="https://github.com/{repo}">github.com/{repo}</a>.</p>

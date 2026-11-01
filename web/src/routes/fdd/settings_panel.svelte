@@ -2,6 +2,7 @@
   import { fade, fly } from "svelte/transition";
   import * as st from "../../typescript/fdd/settings";
   import * as sess from "../../typescript/fdd/session";
+  import * as app from "../../typescript/fdd/app";
 
   const { settingsOpen } = st;
   const { session } = sess;
@@ -45,6 +46,7 @@
     <div transition:fly={{ y: 24, duration: 220 }} class="w-full max-w-xl max-h-full overflow-y-auto bg-blue-2 border-2 border-blue-10 text-white font-web">
       <div class="flex flex-row justify-between items-center px-3 py-1 bg-blue-3 font-bold">
         <span>Plugin settings (vnaaats.cfg)</span>
+        {#if app.inApp()}<button class="ml-auto mr-2 px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" title="Open the FDD for Windows setup again (folder, key, EuroScope, VACS, audio client)" on:click={() => { settingsOpen.set(false); app.setupOpen.set(true); }}>App setup...</button>{/if}
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => settingsOpen.set(false)}>Close</button>
       </div>
       <div class="m-3 p-2 border-2 border-yellow-300 text-yellow-300 text-sm">

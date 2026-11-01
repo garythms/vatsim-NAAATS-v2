@@ -3,6 +3,8 @@
   import * as app from "../../typescript/fdd/app";
 
   let show: boolean = false;
+  let mode: "full" | "update" = "full";             // full setup, or only the "an update is available" question
+  let firstTime: boolean = true;
   let st: app.AppStatus | null = null;
   let busy: boolean = false;
   let msg: string = "";
@@ -22,14 +24,32 @@
       problem = "";
     } catch (e) { problem = app.errText(e); console.error("vNAAATS app:", e); }
   }
+  // The one-time setup is remembered. After that the screen only appears when something needs attention:
+  // an update (the controller is asked first), or something that stopped being right (folder moved, key gone...).
+  const DONE = "vnaaats.appSetupDone";
+  function isDone(): boolean { try { return localStorage.getItem(DONE) === "1"; } catch (e) { return false; } }
+  function prefs(): void {
+    autoES = app.autoGet("euroscope"); autoVacs = app.autoGet("vacs");
+    audio = app.audioGet(); autoAudio = app.autoGet(audio === "none" ? "afv" : audio);
+  }
   onMount(async () => {
     if (!app.inApp() || seen()) return;
     await app.welcomeDone;
     await refresh();
-    autoES = app.autoGet("euroscope"); autoVacs = app.autoGet("vacs");
-    audio = app.audioGet(); autoAudio = app.autoGet(audio === "none" ? "afv" : audio);
+    prefs();
+    firstTime = !isDone();
+    const basicsOk = !!st && st.root !== null && st.dll_found && st.cfg_has_key;
+    if (!firstTime && basicsOk) {
+      const filesOk = st!.airlines_up_to_date !== false && st!.font_found !== false;       // (not the reactive value: it may not have updated yet)
+      if (!filesOk || st!.up_to_date === false) { mode = "update"; show = true; }       // something to update: ask first
+      else { try { sessionStorage.setItem(SEEN, "1"); } catch (e) { /* fine */ } }      // all good: no screen at all
+      return;
+    }
+    mode = "full";
     show = true;
   });
+  const { setupOpen } = app;
+  $: if ($setupOpen && !show) { mode = "full"; firstTime = false; refresh().then(() => { prefs(); show = true; }); }
 
   $: listOk = !!st && st.airlines_up_to_date !== false && st.font_found !== false;
   $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && listOk && st.cfg_has_key;
@@ -56,17 +76,51 @@
   const getVacs = () => run(() => app.openExternal(VACS_URL, true), "Opening the VACS page in your browser...");
   function done(): void {
     try { sessionStorage.setItem(SEEN, "1"); } catch (e) { /* shown again next time */ }
+    if (ready) { try { localStorage.setItem(DONE, "1"); } catch (e) { /* the setup shows again next time */ } }
     show = false;
+    app.setupOpen.set(false);
   }
+  function notNow(): void { try { sessionStorage.setItem(SEEN, "1"); } catch (e) { /* asked again next time */ } show = false; }
+  let updated: boolean = false;
+  async function doUpdate(): Promise<void> { await update(); updated = !msg.startsWith("✖"); }
   const STEP = "mb-3 p-2 border border-blue-6 bg-blue-4";
   const BTN = "px-3 py-1 font-bold bg-blue-10 text-black";
 </script>
 
-{#if show}
+{#if show && mode === "update"}
+  <div class="fixed inset-0 z-[60] flex items-center justify-center" style="background: rgba(11,27,48,0.92);">
+    <div class="w-[30rem] max-w-full bg-blue-3 border-2 border-blue-10 text-white font-regular p-4">
+      <div class="text-xl font-bold mb-2">An update is available</div>
+      {#if st}
+        <ul class="list-disc ml-5 mb-3 text-sm">
+          {#if st.up_to_date === false}<li>A newer vNAAATS plugin{st.latest_version ? " (" + st.latest_version + ")" : ""}</li>{/if}
+          {#if st.airlines_up_to_date === false}<li>A newer airline list (ICAO_Airlines.txt)</li>{/if}
+          {#if st.font_found === false}<li>The vNAAATS font (vNAAATS.ttf) is missing</li>{/if}
+        </ul>
+      {/if}
+      {#if updated}
+        <div class="mb-3 text-green-300">✔ {msg.replace("Updated: ", "Updated ")}</div>
+        <button class="w-full py-2 font-bold bg-blue-10 text-black" on:click={notNow}>Continue</button>
+      {:else}
+        <div class="mb-3 text-sm opacity-90">Close EuroScope first, then press <b>Update now</b>. Your vnaaats.cfg (and your key) is not touched.</div>
+        {#if msg}<div class="mb-2 text-sm text-yellow-300">{msg}</div>{/if}
+        <div class="flex gap-2">
+          <button class="flex-1 py-2 {BTN}" disabled={busy} on:click={doUpdate}>{busy ? "Updating..." : "Update now"}</button>
+          <button class="flex-1 py-2 border border-blue-6" disabled={busy} on:click={notNow}>Not now</button>
+        </div>
+      {/if}
+    </div>
+  </div>
+{:else if show}
   <div class="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto" style="background: #0b1b30;">
     <div class="w-[34rem] max-w-full max-h-full overflow-y-auto bg-blue-3 border-2 border-blue-10 text-white font-regular p-4">
-      <div class="text-xl font-bold mb-1">vNAAATS setup</div>
-      <div class="mb-3 text-sm opacity-80">A quick check that this computer is ready{st ? " (app " + st.app_version + ")" : ""}.</div>
+      <div class="text-xl font-bold mb-1">FDD for Windows - {firstTime ? "one-time setup" : "setup"}</div>
+      <div class="mb-3 text-sm opacity-80">{firstTime ? "This only needs doing once. Next time the app opens straight to the display and only asks you if an update is needed." : "A quick check that this computer is ready."}{st ? " (app " + st.app_version + ")" : ""}</div>
+      <details class="mb-3 border border-blue-6 bg-blue-4 p-2" open={firstTime}>
+        <summary class="cursor-pointer font-bold text-sm">Watch the how-to video (about a minute): getting vNAAATS working in EuroScope</summary>
+        <video class="w-full mt-2 bg-black" controls preload="none" playsinline src="/vNAAATS-install-howto.mp4">The video could not be played.</video>
+        <button class="mt-2 underline text-xs" on:click={() => app.openExternal("https://vnaaats.com/guide")}>Open the full install guide in your browser</button>
+      </details>
       {#if !st && problem}
         <div class="mb-2 text-yellow-300 text-sm break-words">The app could not check this computer: {problem}</div>
         <div class="flex gap-2">

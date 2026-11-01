@@ -67,6 +67,9 @@ export async function autoLaunch(): Promise<void> {
   if (notes.length) { launchNotes.set(notes); setTimeout(() => launchNotes.set([]), 15000); }
 }
 
+// Opens the setup screen again (from the settings window)
+export const setupOpen = writable<boolean>(false);
+
 // The welcome animation tells the setup screen when it has finished
 let welcomeResolve: () => void = () => {};
 export const welcomeDone: Promise<void> = new Promise<void>((r) => { welcomeResolve = r; });

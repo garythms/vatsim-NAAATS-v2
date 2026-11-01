@@ -13,13 +13,13 @@
     <h1 class="text-4xl font-bold mt-3 mb-1">vNAAATS - code signing policy</h1>
     <div class="opacity-80 mb-6">Last updated 31 October 2026</div>
 
-    <p class="p-4 mb-6 border-2 border-blue-10 bg-blue-3"><b>Status:</b> the vNAAATS app installer is being set up for free code signing. Until that is approved, the installer is not signed and Windows may show a "Windows protected your PC" notice (choose "More info" then "Run anyway"). This page describes how signing will work.</p>
+    <p class="p-4 mb-6 border-2 border-blue-10 bg-blue-3"><b>Status:</b> the FDD for Windows installer is being set up for free code signing. Until that is approved, the installer is not signed and Windows may show a "Windows protected your PC" notice (choose "More info" then "Run anyway"). This page describes how signing will work.</p>
 
     <h2 class="text-2xl font-bold mb-2">Attribution</h2>
     <p class="mb-6 opacity-90">Free code signing provided by <a class="underline" href="https://signpath.io/">SignPath.io</a>, certificate by <a class="underline" href="https://signpath.org/">SignPath Foundation</a>.</p>
 
     <h2 class="text-2xl font-bold mb-2">What is signed</h2>
-    <p class="mb-6 opacity-90">Only the Windows installer and program of the vNAAATS app, built from the public source code at <a class="underline" href="https://github.com/garythms/vatsim-NAAATS-v2">github.com/garythms/vatsim-NAAATS-v2</a> (folder <code>launcher</code>) by the automated GitHub build. Nothing else is signed, and nothing from other projects is signed under this policy.</p>
+    <p class="mb-6 opacity-90">Only the Windows installer and program of FDD for Windows (the vNAAATS app), built from the public source code at <a class="underline" href="https://github.com/garythms/vatsim-NAAATS-v2">github.com/garythms/vatsim-NAAATS-v2</a> (folder <code>launcher</code>) by the automated GitHub build. Nothing else is signed, and nothing from other projects is signed under this policy.</p>
 
     <h2 class="text-2xl font-bold mb-2">Team and roles</h2>
     <ul class="list-disc pl-6 mb-6 space-y-2 opacity-90">
