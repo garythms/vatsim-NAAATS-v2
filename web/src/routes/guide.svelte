@@ -61,6 +61,7 @@
       <li><b>EuroScope</b> - point the app at <b>EuroScope.exe</b>. Leave "Open EuroScope for me when I choose my position" ticked.</li>
       <li><b>VACS</b> and <b>Audio client</b> (both optional) - point the app at the program. Each has a tick to open it for you after you choose your position.</li>
     </ol>
+    <p class="mb-3 opacity-90"><b>VACS call alert (optional):</b> to see incoming VACS calls on the headphones button in the FDD, open <b>VACS</b> (version 2.1.0 or newer), go to <b>Advanced Settings</b> and switch on <b>Remote Control</b>. For safety, change the address box beneath it to <b>127.0.0.1:9600</b>, so only your own computer can connect: the default lets any device on your network connect, with no password. The app then shows a green tick, and the headphones button flashes with a pop-up when someone calls you.</p>
     <p class="mb-6 opacity-90">When every line is green, press <b>Continue</b>. If the plugin DLL is not in your folder yet, get the plugin pack from the <a class="underline" href="/download">download page</a> (open "Not using the app?"), put <b>VatsimNAAATS.dll</b> in EXOCO\Plugins\vNAAATS, and run the setup again.</p>
 
     <h2 class="text-2xl font-bold mb-2">4. Load the plugin in EuroScope (once)</h2>
@@ -99,6 +100,7 @@
       <li><b>"Update now" fails:</b> close EuroScope first. Windows will not let the app replace a plugin that EuroScope has open. The message shown tells you which file it could not write.</li>
       <li><b>A program says it "needs administrator rights" when the app opens it:</b> open it yourself once, or right-click the app and choose <b>Run as administrator</b>. Some audio clients ask Windows for this.</li>
       <li><b>I chose a position but nothing opened:</b> the programs are only opened for lines you ticked in <b>Settings &gt; App setup</b>, once per session. A notice at the bottom of the display says if one failed.</li>
+      <li><b>The headphones (VACS) button stays grey:</b> in VACS open <b>Advanced Settings</b> and make sure <b>Remote Control</b> is on, VACS is running, and the port matches the one in the headphones button (default 9600). Your browser or Windows may ask whether the FDD may reach devices on your network: choose Allow.</li>
       <li><b>The app says the plugin or font is missing or old:</b> close EuroScope and press <b>Update now</b> in the setup. If it cannot write the file, check EuroScope really is closed and that the folder is not read-only.</li>
       <li><b>The radar screen shows wrong letters:</b> <b>vNAAATS.ttf</b> is missing from the plugin folder. The app's <b>Update now</b> installs it.</li>
       <li><b>EuroScope, VACS or the audio client did not open by itself:</b> a small notice at the bottom of the display says why. Check the program is chosen in <b>Settings &gt; App setup</b>.</li>
