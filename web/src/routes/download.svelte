@@ -9,7 +9,7 @@
   let direct: boolean = false;
   let dllUrl: string = "";
   let note: string = "";
-  const installer = "https://github.com/" + repo + "/releases/download/launcher-test/vNAAATS-app-setup.exe";
+  const installer = "https://github.com/" + repo + "/releases/download/fdd-windows/FDD-for-Windows-Setup.exe";
 
   onMount(async () => {
     site.setTitle("Download FDD for Windows");

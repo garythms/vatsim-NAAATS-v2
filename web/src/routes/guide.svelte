@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import * as site from "../typescript/site";
   const repo = "garythms/vatsim-NAAATS-v2";
-  const installer = "https://github.com/" + repo + "/releases/download/launcher-test/vNAAATS-app-setup.exe";
+  const installer = "https://github.com/" + repo + "/releases/download/fdd-windows/FDD-for-Windows-Setup.exe";
   let version: string = "";
   let zipUrl: string = "https://github.com/" + repo + "/releases/tag/latest-build";
   let direct: boolean = false;
