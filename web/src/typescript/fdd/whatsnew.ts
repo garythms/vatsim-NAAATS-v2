@@ -12,9 +12,10 @@ export const NOTES: Note[] = [
     date: "1 November 2026",
     items: [
       { title: "Tidier top of the display", text: "Change position, Relief and Sign out are now in one Position menu. VACS, CPDLC, Auto RCL and the alerts count are buttons at the top right, and Show, Group, Sort and one Search or add box are on the second row." },
-      { title: "VACS call alert", text: "A headphones button flashes and shows a pop-up when someone calls you in VACS, with Accept and Dismiss. It needs Remote Control switched on in VACS (Advanced Settings).", action: "vacs" },
+      { title: "VACS call alert", text: "A headphones button flashes and shows a pop-up when someone calls you in VACS, with Accept and Dismiss. It needs "Enable remote control" ticked in VACS (Advanced Settings).", action: "vacs" },
       { title: "FDD for Windows", text: "The new Windows app keeps the plugin, airline list and font up to date for you, saves your key into vnaaats.cfg, and opens EuroScope, VACS and your audio client when you choose your position. No more manual .dll downloads or .cfg editing.", action: "windows" },
       { title: "CPDLC window", text: "Connected aircraft are a list on the left, the window can be made wider or narrower, and the standard messages are grouped (Level, Contact, Replies)." },
+      { title: "Auto RCL asks first", text: "The reminders to pilots are no longer typed without warning. The controller who sends them is asked first, with the list of aircraft and their entry times, and is told to keep EuroScope in front until they are sent. At most every 5 minutes." },
       { title: "Untracked aircraft", text: "Aircraft whose controller has logged off now show as untracked, so the menu offers Track instead of Update." },
     ],
   },
