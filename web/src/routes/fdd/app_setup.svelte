@@ -31,7 +31,7 @@
     show = true;
   });
 
-  $: listOk = !!st && st.airlines_up_to_date !== false;
+  $: listOk = !!st && st.airlines_up_to_date !== false && st.font_found !== false;
   $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && listOk && st.cfg_has_key;
 
   async function run(f: () => Promise<unknown>, ok: string = ""): Promise<void> {
@@ -86,12 +86,13 @@
             <b>2. The vNAAATS plugin</b>
             {#if !st.dll_found}
               <div class="text-yellow-300 text-sm">VatsimNAAATS.dll was not found in that folder. Put it in EXOCO/Plugins/vNAAATS, or choose another folder.</div>
-            {:else if st.up_to_date === true && st.airlines_up_to_date !== false}
-              <div class="text-green-300 text-sm">✔ Plugin{st.latest_version ? " " + st.latest_version : ""} and airline list are up to date</div>
-            {:else if st.up_to_date === false || st.airlines_up_to_date === false}
+            {:else if st.up_to_date === true && listOk}
+              <div class="text-green-300 text-sm">✔ Plugin{st.latest_version ? " " + st.latest_version : ""}, airline list and font are up to date</div>
+            {:else if st.up_to_date === false || !listOk}
               <div class="text-yellow-300 text-sm">
                 {#if st.up_to_date === false}A newer plugin{st.latest_version ? " (" + st.latest_version + ")" : ""} is available.{/if}
                 {#if st.airlines_up_to_date === false}{st.airlines_found ? "A newer" : "No"} airline list (ICAO_Airlines.txt){st.airlines_found ? " is available" : " is installed"}.{/if}
+                {#if st.font_found === false}The vNAAATS font (vNAAATS.ttf) is not in the plugin folder, so the screen would show the wrong letters.{/if}
                 Close EuroScope first, then update.
               </div>
               <button class="{BTN} mt-1" disabled={busy} on:click={update}>Update now</button>

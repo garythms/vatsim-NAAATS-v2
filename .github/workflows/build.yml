@@ -44,6 +44,7 @@ jobs:
           Copy-Item VatsimNAAATS/vnaaats.example.cfg pkg/
           Copy-Item VatsimNAAATS/README.txt pkg/
           Copy-Item VatsimNAAATS/ICAO_Airlines.txt pkg/
+          Copy-Item VatsimNAAATS/vNAAATS.ttf pkg/
           Copy-Item VatsimNAAATS/vNAAATS.asr pkg/
           Compress-Archive -Path pkg/* -DestinationPath VatsimNAAATS-plugin.zip -Force
       - name: Publish release

@@ -1352,7 +1352,7 @@ def validate_edit(body):
 # ----------------------------------------------------------------------------- http
 MIME = {".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".json": "application/json",
         ".png": "image/png", ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".ico": "image/x-icon",
-        ".webmanifest": "application/manifest+json", ".woff": "font/woff", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json", ".mp4": "video/mp4", ".pdf": "application/pdf", ".zip": "application/zip"}
+        ".webmanifest": "application/manifest+json", ".woff": "font/woff", ".ttf": "font/ttf", ".woff2": "font/woff2", ".txt": "text/plain", ".map": "application/json", ".mp4": "video/mp4", ".pdf": "application/pdf", ".zip": "application/zip"}
 
 
 def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None, logs=None):
@@ -1869,6 +1869,11 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         try:                                  # the airline list the website serves (the app installs it next to the DLL)
                             with open(os.path.join(web_dir, "ICAO_Airlines.txt"), "rb") as fh:
                                 out["airlinesSha256"] = hashlib.sha256(fh.read()).hexdigest()
+                        except (OSError, TypeError):
+                            pass
+                        try:                                  # the plugin's font (vNAAATS.ttf): the app installs it next to the DLL when it is missing
+                            with open(os.path.join(web_dir, "vNAAATS.ttf"), "rb") as fh:
+                                out["fontSha256"] = hashlib.sha256(fh.read()).hexdigest()
                         except (OSError, TypeError):
                             pass
                         return self._send(200, out)
