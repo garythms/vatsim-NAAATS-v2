@@ -3,6 +3,8 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- The PDF user guide is regenerated from the current install guide and user manual.
+- Install guide: more troubleshooting for FDD for Windows (installer blocked, blank window, setup keeps returning, update fails, administrator rights, nothing opened).
 - New "FDD for Windows" page (vnaaats.com/windows): what it is, why use it, Windows requirements and a download button. The home page links to it, and the download everywhere now comes from one stable address on this site (vnaaats.com/get/fdd-windows).
 - FDD for Windows is now a normal release called "FDD for Windows" (download link on the download page and install guide) instead of the "test build".
 - FDD for Windows: the app is now called "FDD for Windows" on the website. The download page puts the app first (plugin-only install under "Not using the app?"), and the install guide is rewritten around the app. The one-time setup is remembered; after that the app opens straight to the display and only asks you when an update is available. The setup shows the how-to video and can be reopened from Settings > App setup.

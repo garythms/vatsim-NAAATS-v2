@@ -93,6 +93,12 @@
 
     <h2 class="text-2xl font-bold mb-2">If something goes wrong</h2>
     <ul class="list-disc ml-6 space-y-2 mb-6">
+      <li><b>The installer will not run, or Windows blocks it:</b> choose <b>More info</b> then <b>Run anyway</b> on the "Windows protected your PC" screen. If your antivirus quarantines it, restore it and add an exception: the installer is not code-signed yet (see the <a class="underline" href="/code-signing">code signing policy</a>). No administrator rights are needed.</li>
+      <li><b>The app opens to a blank or white window, or says it cannot reach vnaaats.com:</b> check your internet connection and that a firewall or VPN is not blocking <b>vnaaats.com</b>, then close and reopen the app. If it still stays blank, install the free <b>Microsoft WebView2 Runtime</b> from Microsoft and try again (Windows 11 already has it).</li>
+      <li><b>The setup screen keeps coming back:</b> a red line in the setup says what is missing (usually the folder, key or plugin). Fix that line and press <b>Continue</b>. It only returns to full setup if the basics are no longer in place.</li>
+      <li><b>"Update now" fails:</b> close EuroScope first. Windows will not let the app replace a plugin that EuroScope has open. The message shown tells you which file it could not write.</li>
+      <li><b>A program says it "needs administrator rights" when the app opens it:</b> open it yourself once, or right-click the app and choose <b>Run as administrator</b>. Some audio clients ask Windows for this.</li>
+      <li><b>I chose a position but nothing opened:</b> the programs are only opened for lines you ticked in <b>Settings &gt; App setup</b>, once per session. A notice at the bottom of the display says if one failed.</li>
       <li><b>The app says the plugin or font is missing or old:</b> close EuroScope and press <b>Update now</b> in the setup. If it cannot write the file, check EuroScope really is closed and that the folder is not read-only.</li>
       <li><b>The radar screen shows wrong letters:</b> <b>vNAAATS.ttf</b> is missing from the plugin folder. The app's <b>Update now</b> installs it.</li>
       <li><b>EuroScope, VACS or the audio client did not open by itself:</b> a small notice at the bottom of the display says why. Check the program is chosen in <b>Settings &gt; App setup</b>.</li>
