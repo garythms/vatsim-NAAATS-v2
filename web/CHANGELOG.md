@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- New "What's new" box: shown once per announced release after sign-in (and any time from Settings > What's new). Notes live in src/typescript/fdd/whatsnew.ts; add an entry at the top for a release worth announcing. Display version 2.6.0.
 - VACS call alert: the app setup now explains how to switch on Remote Control in VACS (Advanced Settings, address 127.0.0.1:9600 recommended) and shows a green tick when connected; added to the install guide and troubleshooting.
 - FDD header tidied: position, relief and sign out now sit in one "Position" menu; VACS, CPDLC, Auto RCL and alerts are status buttons on the top row; Show, Group, Sort and one "Search or add" box are on the second row.
 - New VACS call indicator (headphones button): shows when VACS has an incoming call with a pop-up (Accept or Dismiss) and who you are talking to. It listens to VACS on your own computer only (VACS Remote Control must be switched on, default port 9600); on by default in FDD for Windows, optional in a browser.
