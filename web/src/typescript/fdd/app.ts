@@ -7,7 +7,7 @@ export type AppStatus = {
   app_version: string; root: string | null; euroscope: string | null; vacs: string | null; afv: string | null; trackaudio: string | null;
   dll_found: boolean; dll_path: string | null; dll_sha: string | null;
   latest_version: string | null; latest_sha: string | null; up_to_date: boolean | null;
-  airlines_found: boolean; airlines_up_to_date: boolean | null;
+  airlines_found: boolean; airlines_up_to_date: boolean | null; font_found?: boolean;
   cfg_exists: boolean; cfg_has_key: boolean; error: string | null;
 };
 

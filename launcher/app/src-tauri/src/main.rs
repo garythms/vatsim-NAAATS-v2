@@ -70,6 +70,7 @@ struct Status {
     up_to_date: Option<bool>,
     airlines_found: bool,
     airlines_up_to_date: Option<bool>,
+    font_found: bool,
     cfg_exists: bool,
     cfg_has_key: bool,
     error: Option<String>,
@@ -94,6 +95,7 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
         up_to_date: None,
         airlines_found: false,
         airlines_up_to_date: None,
+        font_found: false,
         cfg_exists: false,
         cfg_has_key: false,
         error: None,
@@ -109,6 +111,7 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
         if let Some(dir) = dll.parent() {
             airlines_local = std::fs::read(dir.join("ICAO_Airlines.txt")).ok().map(|b| vnaaats_core::sha256_hex(&b));
             st.airlines_found = airlines_local.is_some();
+            st.font_found = dir.join("vNAAATS.ttf").is_file();           // the plugin loads this font from its own folder
             let c = vnaaats_core::read_cfg(dir);
             st.cfg_exists = c.exists;
             st.cfg_has_key = c.has_key;
@@ -157,6 +160,15 @@ async fn update_plugin(window: WebviewWindow, app: tauri::AppHandle) -> Result<S
             let bytes = http_get("/ICAO_Airlines.txt", 5 * 1024 * 1024)?;
             vnaaats_core::replace_file(&list, &bytes, want)?;
             done.push("airline list".to_string());
+        }
+    }
+    // the vNAAATS font goes next to the DLL (the plugin loads it from there); an existing one is left alone
+    if let Some(want) = info["fontSha256"].as_str() {
+        let font = dir.join("vNAAATS.ttf");
+        if !font.is_file() {
+            let bytes = http_get("/vNAAATS.ttf", 2 * 1024 * 1024)?;
+            vnaaats_core::replace_file(&font, &bytes, want)?;
+            done.push("vNAAATS font".to_string());
         }
     }
     let sha = info["sha256"].as_str().ok_or("the server did not say which plugin is the latest")?.to_string();
