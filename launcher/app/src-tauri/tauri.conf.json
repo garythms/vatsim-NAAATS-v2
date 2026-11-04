@@ -43,7 +43,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg3MUUzQ0Y3QkI5MDJEQTQKUldTa0xaQzc5endlaDFZN2g4ZEV3cUZiMVBHYkovVU11Wjl3NlIvMnhVQjVzbFBxeTF2NzFyc2gK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZGMTU5NUYzNURDOTBCRkQKUldUOUM4bGQ4NVVWYnlQV1NSR1Z3ZVVuRjF0dncyUHVTd2FLaWg4YzgzMjdWdjZ5a0xueVJXSEUK",
       "endpoints": [
         "https://github.com/garythms/vatsim-NAAATS-v2/releases/download/fdd-windows/latest.json"
       ],
