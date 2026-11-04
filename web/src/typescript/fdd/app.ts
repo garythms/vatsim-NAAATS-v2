@@ -43,6 +43,13 @@ export const natTrakSignedIn = async (): Promise<boolean> => { try { return !!(a
 /** Opens natTrak in the app window: the sign-in page if the controller has not signed in yet, else the pending list. */
 export async function natTrakOpen(): Promise<void> { await natTrakWindow(!(await natTrakSignedIn())); }
 
+// "Show the setup screen again the next time FDD for Windows starts" (to change the audio client, say). The setup screen only appears
+// at start-up for a first-time user, so this puts the controller back in that state.
+export function setupAgainSet(on: boolean): void {
+  try { if (on) localStorage.removeItem("vnaaats.appSetupDone"); else localStorage.setItem("vnaaats.appSetupDone", "1"); } catch (e) { /* not kept */ }
+}
+export function setupAgainGet(): boolean { try { return localStorage.getItem("vnaaats.appSetupDone") !== "1"; } catch (e) { return false; } }
+
 // Settings for opening the programs automatically once a position is chosen (kept in this app's own storage)
 export type AutoKind = ProgKind;
 // Which audio client the controller uses: "afv" (Audio for VATSIM), "trackaudio" or "none"
