@@ -258,7 +258,8 @@ class AutomationTests(unittest.TestCase):
     def test_near_oceanic(self):
         tracks = [{"route": [{"latitude": 52, "longitude": -15}, {"latitude": 52, "longitude": -30}]}]
         self.assertTrue(c.near_oceanic(52, -10, tracks))            # about 185 nm from the entry
-        self.assertFalse(c.near_oceanic(51.5, -0.1, tracks))        # London
+        self.assertTrue(c.near_oceanic(51.5, -0.1, tracks))         # London, about 550 nm
+        self.assertFalse(c.near_oceanic(55.7, 37.6, tracks))        # Moscow
         self.assertIsNone(c.near_oceanic(52, -10, []))
 
     def connect(self, **kw):

@@ -49,7 +49,7 @@ RCL_REPEAT_SECONDS = 1800          # a second request from the same aircraft ins
 MSG_TOO_FAR = "UNABLE. CONTACT CONTROLLER ON VOICE 20 MILES BEFORE OCEANIC ENTRY POINT"
 MSG_UNICOM = "THERE IS NO FURTHER ATC AVAILABLE. SERVICE TERMINATED. MONITOR ADVISORY ON 122.800"
 LOGOFF_TEXT = "LOGOFF"          # UNVERIFIED against the live Hoppie network: what the ground sends to log a pilot off
-NEAR_OCEANIC_NM = 250            # pilots further than this from the oceanic airspace are refused a CPDLC logon
+NEAR_OCEANIC_NM = 1000           # pilots further than this from the oceanic airspace are refused a CPDLC logon
 RELEASE_SECONDS = 180            # how long a "release the tag" request stays visible to the plugin
 PENDING_SECONDS = 1800           # a handoff/UNICOM waiting for the pilot's WILCO is forgotten after this
 
