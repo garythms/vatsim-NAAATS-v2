@@ -9,6 +9,7 @@ Only hashes are stored here, so a copy of the database does not leak working key
 A nightly call to /admin/member/sync with the CIDs that are still certified revokes everyone else.
 """
 import hashlib
+import os
 import hmac
 import re
 import secrets
@@ -157,6 +158,15 @@ class RosterWatch:
         self.fetch = fetch or self._http
         self.lock = threading.Lock()
         self.ok_cids, self.updated, self.error = None, None, ""
+        self.extra_file = os.environ.get("VNAAATS_ROSTER_EXTRA", "/var/lib/vnaaats/roster-extra.txt")
+
+    def extra(self):
+        """CIDs added by hand (one per line, # for notes) for certified controllers the roster feed leaves out."""
+        try:
+            with open(self.extra_file, encoding="utf-8") as f:
+                return {re.sub(r"\D", "", ln.split("#")[0]) for ln in f if re.sub(r"\D", "", ln.split("#")[0])}
+        except OSError:
+            return set()
 
     @staticmethod
     def _http_get(url):
@@ -190,17 +200,20 @@ class RosterWatch:
             stale = self.ok_cids is None or self.now() - (self.updated or 0) > 3600
         if stale:
             self.refresh()
+        c = re.sub(r"\D", "", str(cid))
+        if c in self.extra():
+            return True
         with self.lock:
             if self.ok_cids is None:
                 return None
-            return re.sub(r"\D", "", str(cid)) in self.ok_cids
+            return c in self.ok_cids
 
     def revoke_dropped(self):
         """Withdraw keys of members no longer certified. Returns the CIDs revoked."""
         if not self.refresh():
             return []
         with self.lock:
-            ok = set(self.ok_cids)
+            ok = set(self.ok_cids) | self.extra()
         live = [m["cid"] for m in self.members.listing() if not m["revoked"] and not m["manual"]]
         gone = [c for c in live if c not in ok]
         if live and len(gone) > len(live) * self.MAX_REVOKE_FRACTION and len(gone) > 2:

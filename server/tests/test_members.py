@@ -119,6 +119,17 @@ class RosterTests(unittest.TestCase):
         self.assertTrue(self.r.eligible("101"))           # certified but not active: still allowed
         self.assertFalse(self.r.eligible("999"))          # not on the roster
 
+    def test_extra_cids_file(self):
+        f = os.path.join(tempfile.mkdtemp(), "extra.txt")
+        self.r.extra_file = f
+        self.assertFalse(self.r.eligible("916618"))       # the feed leaves him out and there is no file
+        open(f, "w").write("# certified but missing from the feed\n916618  # Alec\n\n12345\n")
+        self.assertTrue(self.r.eligible("916618"))
+        self.assertTrue(self.r.eligible("12345"))
+        self.assertFalse(self.r.eligible("555555"))
+        self.m.issue("916618", "Alec")                    # a roster sync does not withdraw a listed CID
+        self.assertEqual(self.r.revoke_dropped(), [])
+
     def test_unreachable_roster_is_unknown(self):
         def boom(): raise OSError("down")
         r = mb.RosterWatch(self.m, "x", fetch=boom)

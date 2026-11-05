@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Roster check: the Gander roster feed was leaving out some certified controllers (188 in the feed, 246 on the roster page), so they were told they were not certified. The server now also reads /var/lib/vnaaats/roster-extra.txt (one CID per line, # for notes): a CID listed there counts as certified, and a roster sync never withdraws its key.
 - Temporary keys and passwords from the temporary key page now last 90 days (was 7), the same as keys from the Gander Oceanic website.
 - Temporary key page: now says up front that Gander Oceanic certified controllers get their key from their Gander Oceanic profile (ganderoceanic.ca/my/vnaaats), and that controllers endorsed by VATSIM UK or NYACC follow the instructions on the page.
 - Temporary key page (/temp-key): it now also checks the Gander Oceanic roster. A CID that is not certified is refused ("this CID is not certified on the Gander Oceanic roster"), and if the roster cannot be read it says to try again in a few minutes (before, only the shared passphrase was checked).
