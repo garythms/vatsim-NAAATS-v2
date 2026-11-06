@@ -598,8 +598,12 @@ void CRadarDisplay::RunRemoteCommands()
 				CTypeJob* job = new CTypeJob{ cmd.Text, cmd.Id };
 				if (cmd.Type == "contactme" && CDataHandler::AutoClick) {
 					// where the aircraft is on this radar (worked out here, on EuroScope's own thread)
+					// EuroScope waits for a click on the callsign of the tag, so click that when the tag was drawn just now
+					CRect area0(GetRadarArea());
+					auto cp = CAcTargets::CallsignPoints.find(cmd.Callsign);
+					if (cp != CAcTargets::CallsignPoints.end() && clock() - cp->second.second < 3000 && area0.PtInRect(cp->second.first)) { job->Click = true; job->Px = cp->second.first; }
 					CRadarTarget tgt = plugin->RadarTargetSelect(cmd.Callsign.c_str());
-					if (tgt.IsValid()) {
+					if (!job->Click && tgt.IsValid()) {
 						POINT px = ConvertCoordFromPositionToPixel(tgt.GetPosition().GetPosition());
 						CRect area(GetRadarArea());
 						if (area.PtInRect(px)) { job->Click = true; job->Px = px; }
