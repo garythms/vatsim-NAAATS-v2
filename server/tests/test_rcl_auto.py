@@ -76,7 +76,7 @@ class RclTests(Base):
         self.assertFalse(self.rcl.due(self.rec))                        # parked
         self.net.pilots["BAW1"] = {"groundspeed": 150, "altitude": 200}
         self.assertFalse(self.rcl.due(self.rec))                        # on its take-off run
-        self.net.pilots["BAW1"] = {"groundspeed": 250, "altitude": 3000}
+        self.net.pilots["BAW1"] = {"groundspeed": 250, "altitude": 12000}
         self.assertTrue(self.rcl.due(self.rec))                         # airborne
         self.net.pilots["BAW1"] = {"groundspeed": 450}
         self.nat.d["BAW1"] = {"status": "PENDING"}
