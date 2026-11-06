@@ -50,6 +50,7 @@ INFLIGHT_SECONDS = 90          # the command is given this long to come back bef
 PROMPT_EVERY_SECONDS = 300    # the FDD asks about the waiting flights at most this often
 STALL_SECONDS = 60            # released flights with nothing in flight and no progress for this long: the batch is abandoned
 BY = "AUTO"
+TELEX_BY = "Auto RCL telex"      # the red star set by a telex; the EuroScope message may still follow it
 
 
 def entry_minutes_from_now(route_etas, now_utc_minute):
@@ -253,8 +254,9 @@ class RclAuto:
     def due(self, rec, now_dt=None):
         """True when this flight should get the reminder now."""
         cs = str(rec.get("callsign", "")).upper()
-        if not cs or rec.get("ntSent"):
-            return False
+        sent = rec.get("ntSent")
+        if not cs or (sent and (not isinstance(sent, dict) or sent.get("by") != TELEX_BY)):
+            return False                                    # reminded already (a telex alone does not count: telex_stage decides about that)
         if self.natrak and cs in self.natrak.by_callsign():
             return False
         by = str(rec.get("trackedBy", "")).upper()
@@ -351,6 +353,10 @@ class RclAuto:
                     with self.store.lock:
                         self.store.db.execute("INSERT OR REPLACE INTO rcl_telex VALUES (?, ?)", (cs, t))
                         self.store.db.commit()
+                    try:
+                        self.store.mark_nt(cs, TELEX_BY, True, item[1])             # the red star on the strip
+                    except Exception:
+                        log.exception("could not mark the telex on %s", cs)
                     log.info("Auto RCL REQ telex sent to %s (online on Hoppie); EuroScope message follows after %d s if no request", cs, TELEX_WAIT_SECONDS)
                 elif cs in online:
                     continue                                        # more than TELEX_PER_TICK this tick: the rest next time

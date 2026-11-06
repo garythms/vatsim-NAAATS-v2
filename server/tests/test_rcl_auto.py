@@ -359,6 +359,7 @@ class TelexTests(Base):
         self.assertEqual([x[0] for x in self.st.sent], ["BAW1"])
         self.assertTrue(self.st.sent[0][1].startswith("Hello, you will soon be entering oceanic"))
         self.assertEqual(self.q.pending_for("CZQO_CTR"), [])
+        self.assertTrue(self.store.get("BAW1")["ntSent"])                    # the red star shows for a telex too
         self.t[0] += 30
         self.poll()
         self.assertIsNone(self.rcl.tick())                                   # still waiting for the pilot
@@ -370,8 +371,11 @@ class TelexTests(Base):
         self.rcl.tick()
         self.t[0] += r.TELEX_WAIT_SECONDS + 1
         self.poll()
-        self.assertEqual(self.rcl.tick(), "BAW1")                            # typed into EuroScope after the wait
+        self.assertEqual(self.rcl.tick(), "BAW1")                            # typed into EuroScope after the wait, even though the star is set
         self.assertEqual(len(self.st.sent), 1)
+        c = self.q.done(1, True, "ok")
+        self.rcl.done(c, True)
+        self.assertEqual(self.store.get("BAW1")["ntSent"]["by"], "Auto RCL REQ")
 
     def test_pilot_that_answers_is_left_alone(self):
         self.st.online.add("BAW1")
