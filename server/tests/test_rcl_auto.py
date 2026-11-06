@@ -117,7 +117,7 @@ class RclTests(Base):
             c = self.q.done(n + 1, False, "autotype is off")
             self.rcl.done(c, False, "autotype is off")
             self.assertIsNone(self.rcl.tick())                          # waits before trying again
-            self.t[0] += r.RETRY_SECONDS + 1
+            self.t[0] += r.RETRY_FAIL_SECONDS + 1
             self.poll()
         self.assertIsNone(self.rcl.tick())
         self.assertFalse(self.rcl.already_sent("BAW1"))
@@ -335,3 +335,96 @@ class StuckTests(Base):
         self.assertEqual(self.q.pending_for("CZQO_CTR"), [])           # never handed to the plugin
         self.assertEqual(self.rcl.status()["sending"], 0)
 
+
+
+class FakeStation:
+    def __init__(self): self.online, self.sent, self.asked, self.fail, self.down = set(), [], set(), False, False
+    def ping_online(self, calls): return None if self.down else {c for c in calls if c in self.online}
+    def send_telex(self, cs, text, by=""):
+        if self.fail: raise RuntimeError("Hoppie refused the telex")
+        self.sent.append((cs, text, by))
+    def asked_rcl(self, cs): return cs in self.asked
+
+
+class TelexTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.st = FakeStation()
+        self.rcl.hoppie = lambda sender: self.st
+
+    def test_pilot_online_on_hoppie_gets_a_telex_and_nothing_is_typed(self):
+        self.st.online.add("BAW1")
+        self.poll()
+        self.assertIsNone(self.rcl.tick())
+        self.assertEqual([x[0] for x in self.st.sent], ["BAW1"])
+        self.assertTrue(self.st.sent[0][1].startswith("Hello, you will soon be entering oceanic"))
+        self.assertEqual(self.q.pending_for("CZQO_CTR"), [])
+        self.t[0] += 30
+        self.poll()
+        self.assertIsNone(self.rcl.tick())                                   # still waiting for the pilot
+        self.assertEqual(len(self.st.sent), 1)                               # and no second telex
+
+    def test_no_answer_falls_back_to_euroscope(self):
+        self.st.online.add("BAW1")
+        self.poll()
+        self.rcl.tick()
+        self.t[0] += r.TELEX_WAIT_SECONDS + 1
+        self.poll()
+        self.assertEqual(self.rcl.tick(), "BAW1")                            # typed into EuroScope after the wait
+        self.assertEqual(len(self.st.sent), 1)
+
+    def test_pilot_that_answers_is_left_alone(self):
+        self.st.online.add("BAW1")
+        self.poll()
+        self.rcl.tick()
+        self.st.asked.add("BAW1")
+        self.t[0] += r.TELEX_WAIT_SECONDS + 1
+        self.poll()
+        self.assertIsNone(self.rcl.tick())
+        self.assertEqual(self.q.pending_for("CZQO_CTR"), [])
+
+    def test_not_on_hoppie_goes_straight_to_euroscope(self):
+        self.poll()
+        self.assertEqual(self.rcl.tick(), "BAW1")
+        self.assertEqual(self.st.sent, [])
+
+    def test_hoppie_unreachable_or_refusing_falls_back(self):
+        self.st.online.add("BAW1")
+        self.st.down = True
+        self.poll()
+        self.assertEqual(self.rcl.tick(), "BAW1")
+        self.rcl.stop()
+        self.rcl.tries.clear()
+        self.st.down, self.st.fail = False, True
+        self.poll()
+        self.assertEqual(self.rcl.tick(), "BAW1")                            # refused telex: type it
+
+    def test_no_station_signed_in_means_euroscope_as_before(self):
+        self.rcl.hoppie = lambda sender: None
+        self.poll()
+        self.assertEqual(self.rcl.tick(), "BAW1")
+
+    def test_telex_is_remembered_across_a_restart(self):
+        self.st.online.add("BAW1")
+        self.poll()
+        self.rcl.tick()
+        again = r.RclAuto(self.store, self.q, self.net, self.nat, lambda route, pos: None, ("CZQO", "EGGX"), now=lambda: self.t[0], start=False, hoppie=lambda s: self.st)
+        again.confirm = False
+        again.note_poll("CZQO_CTR")
+        again.sender_since = self.t[0] - r.START_DELAY_SECONDS - 1
+        self.assertIsNone(again.tick())
+        self.assertEqual(len(self.st.sent), 1)                               # no second telex
+
+    def test_failed_typing_is_retried_in_a_minute(self):
+        self.rcl.hoppie = None
+        self.poll()
+        self.assertEqual(self.rcl.tick(), "BAW1")
+        c = self.q.done(1, False, "Windows would not let the plugin bring EuroScope to the front")
+        self.rcl.done(c, False, "Windows would not let the plugin bring EuroScope to the front")
+        self.assertIn("front", self.rcl.status()["error"])
+        self.t[0] += r.RETRY_FAIL_SECONDS - 5
+        self.poll()
+        self.assertIsNone(self.rcl.tick())
+        self.t[0] += 10
+        self.poll()
+        self.assertEqual(self.rcl.tick(), "BAW1")
