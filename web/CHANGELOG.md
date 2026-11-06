@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- New page vnaaats.com/access, "Get access": who can have access, the four steps (get your key, install FDD for Windows or use a browser, paste the key once, connect to VATSIM on an oceanic position), the positions that open the display, and what to do if the key is not known. It has its own button on the homepage and is first in the Pages menu. Server deploy needed (web files).
 - Auto RCL now sends the reminder as a Hoppie telex first when the pilot is online on the Hoppie network (it needs no CPDLC logon and no typing in EuroScope; it does need one oceanic controller signed in to CPDLC on the FDD). If the pilot has not asked for clearance 3 minutes later, or is not on Hoppie, the EuroScope message goes as before. A failed reminder is retried after a minute (was five), up to five tries, and the button shows a "!" with the reason when the last one failed. A flight on the ground (under 100 kt) or below 10,000 ft is never reminded. Server deploy needed.
 - Plugin: Auto RCL typing now tries harder to bring EuroScope to the front (up to four attempts), so "click on EuroScope" is needed much less. New experiment backgroundtype=1 in vnaaats.cfg types without needing EuroScope in front at all. Plugin update needed.
 - Plugin: a route drawn by right-clicking a callsign is now erased after 10 seconds (routeseconds=N in vnaaats.cfg changes it, 0 keeps it until you click again). Plugin update needed.

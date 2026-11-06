@@ -5,6 +5,7 @@ import * as site from "../typescript/site";
 
 let pagesOpen: boolean = false;
 const pages: { href: string; label: string }[] = [
+    { href: "/access", label: "Get access" },
     { href: "/fdd", label: "Flight Data Display" },
     { href: "/windows", label: "FDD for Windows" },
     { href: "/download", label: "Downloads" },
@@ -52,6 +53,10 @@ onMount(async () => {
                 <a href="/windows" class="border-2 rounded px-4 py-2 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-100 transition duration-500 
                 hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
                     FDD for Windows
+                </a>
+                <a href="/access" class="border-2 rounded px-4 py-2 ml-4 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
+                hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
+                    Get access
                 </a>
                 <a href="/download" class="border-2 rounded px-4 py-2 ml-4 hover:cursor-pointer scale-100 bg-blue-5 bg-opacity-0 transition duration-500 
                 hover:scale-110 hover:bg-opacity-100 font-bitmap font-normal tracking-wider text-lg">
