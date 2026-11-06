@@ -11,6 +11,7 @@
       heading: "Getting started",
       note: "",
       videos: [
+        { src: "/training/vNAAATS-howto-5-FDD-for-Windows.mp4", title: "FDD for Windows, the One Fits All Program", text: "What the app does, why it is better than a browser, installing it (including the Windows SmartScreen message), the one-time setup and how updates work." },
         { src: "/vNAAATS-install-howto.mp4", title: "Loading vNAAATS into EuroScope", text: "About a minute and a quarter: opening your profile, loading the sector file and plugin, then adding the vNAAATS display and the ASR file." },
         { src: "/vNAAATS-intro.mp4", title: "How to use vNAAATS", text: "About three minutes, with captions. An overview of the display. The flights shown are demo data." },
       ],
