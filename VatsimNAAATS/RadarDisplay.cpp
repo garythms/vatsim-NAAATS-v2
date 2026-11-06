@@ -267,11 +267,17 @@ static bool ClickRadarPoint(POINT clientPt) {
 	if (!ClientToScreen(w, &sp)) return false;
 	POINT back; GetCursorPos(&back);
 	g_ignoreClicksUntil = clock() + 1500;
+	// a small move first so EuroScope sees the pointer arrive over the aircraft, then the click with the button set in cfg (contactbutton)
+	SetCursorPos(sp.x - 2, sp.y - 2);
+	Sleep(80);
 	SetCursorPos(sp.x, sp.y);
-	Sleep(120);
-	mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-	Sleep(50);
-	mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+	Sleep(200);
+	DWORD down = MOUSEEVENTF_LEFTDOWN, up = MOUSEEVENTF_LEFTUP;
+	if (CDataHandler::ContactButton == 1) { down = MOUSEEVENTF_MIDDLEDOWN; up = MOUSEEVENTF_MIDDLEUP; }
+	else if (CDataHandler::ContactButton == 2) { down = MOUSEEVENTF_RIGHTDOWN; up = MOUSEEVENTF_RIGHTUP; }
+	mouse_event(down, 0, 0, 0, 0);
+	Sleep(60);
+	mouse_event(up, 0, 0, 0, 0);
 	Sleep(250);
 	SetCursorPos(back.x, back.y);
 	return true;
