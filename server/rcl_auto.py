@@ -37,6 +37,7 @@ OCA_WEST_LON = -53.0           # Gander OCA western edge / Shanwick OCA eastern 
 OCA_EAST_LON = -15.0
 OCA_MIN_LAT = 43.0
 OCA_MAX_LAT = 72.0
+MIN_AIRBORNE_ALT = 1000        # feet: below this the flight is on the ground or only just off it
 MIN_GROUNDSPEED = 100          # knots: a parked or taxiing aircraft is not due
 TICK_SECONDS = 10
 POLLER_FRESH_SECONDS = 15      # a plugin that asked for commands this recently is "online"
@@ -274,6 +275,9 @@ class RclAuto:
         gs = pilot.get("groundspeed")
         if isinstance(gs, (int, float)) and gs < MIN_GROUNDSPEED:
             return False
+        alt = pilot.get("altitude")
+        if isinstance(alt, (int, float)) and 0 < alt < MIN_AIRBORNE_ALT:
+            return False                                    # still on the ground (the take-off run is faster than MIN_GROUNDSPEED) or just lifting off
         if cs in self.baseline:
             return False
         if oca_state(pos, rec.get("direction") if isinstance(rec.get("direction"), bool) else None) != "before":
