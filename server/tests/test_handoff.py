@@ -33,6 +33,15 @@ class HandoffTests(unittest.TestCase):
     def test_unknown_exit_fix_gives_nothing(self):
         self.assertIsNone(h.hint([("A", 50, -20), ("ZZZZZ", 50, -10)], (50, -15), SHANNON))
 
+    def test_short_code_of_the_online_position(self):
+        r = h.hint([("46/50", 46, -50), ("ALLRY", 46, -52.5)], (46, -52), [{"callsign": "CZQM_CTR", "frequency": "132.200"}, {"callsign": "CZQX_CTR", "frequency": "132.100"}])
+        self.assertEqual(h.CODES.get("CZQM_CTR"), "QM")
+        self.assertEqual([o["callsign"] for o in r["online"]], ["CZQX_CTR", "CZQM_CTR"])   # Gander Domestic first, Moncton as the stand-in
+        r2 = h.hint([("46/50", 46, -50), ("ALLRY", 46, -52.5)], (46, -52), [{"callsign": "CZQM_CTR", "frequency": "132.200"}])
+        self.assertEqual((r2["controller"], r2["code"], r2["unicom"]), ("CZQM_CTR", "QM", False))
+        r3 = h.hint([("46/50", 46, -50), ("ALLRY", 46, -52.5)], (46, -52), [{"callsign": "CZQX_APP", "frequency": "1"}])
+        self.assertTrue(r3["unicom"])                                                        # approach is not a handoff target
+
     def test_gander_domestic_exit(self):
         r = h.hint([("46/50", 46, -50), ("ALLRY", 46, -52.5)], (46, -52), [{"callsign": "CZQX_CTR", "frequency": "132.1"}])
         self.assertEqual((r["facility"], r["controller"]), ("CZQX", "CZQX_CTR"))

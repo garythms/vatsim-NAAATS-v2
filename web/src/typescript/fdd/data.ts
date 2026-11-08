@@ -39,7 +39,7 @@ interface JsonAcObj {
   source?: string;
   cpdlc?: boolean;
   distNm?: number | null;
-  handoff?: { facility: string; fix: string; nm: number; name: string; soon: boolean; controller: string; frequency: string; unicom: boolean } | null;
+  handoff?: { facility: string; fix: string; nm: number; name: string; soon: boolean; controller: string; frequency: string; code?: string; unicom: boolean; online?: { callsign: string; code: string; frequency: string }[] } | null;
   ntSent?: boolean;
   cmAt?: number;
   manual?: any;

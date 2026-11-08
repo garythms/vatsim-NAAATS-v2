@@ -3,7 +3,18 @@
 The exit-point lists come from the Shanwick & Gander Oceanic Control Procedures (Figure 8 for the Shanwick OCA, Figure 17 for the Gander OCA).
 A flight that crosses 30W between the two oceanic areas is handed to the other oceanic centre there. Edit EXIT_FACILITY if the boundaries change.
 """
+import json
 import math
+import os
+
+def _load_codes():
+    """callsign -> EuroScope short code (the position id in the sector file's [POSITIONS], e.g. CZQM_CTR -> QM). Made from the .ese."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "position_codes.json"), encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+CODES = _load_codes()
 
 SOON_NM = 50                    # "hand off soon" prompt distance
 MAX_OFF_ROUTE_NM = 150          # further than this from the filed route and we do not guess
@@ -11,8 +22,8 @@ CROSS_LON = -30.0               # Shanwick / Gander boundary
 
 # facility -> callsign prefixes of the positions that cover it
 FACILITY = {
-    "EGPX": ("EGPX", "SCO"), "BIRD": ("BIRD",), "EISN": ("EISN",), "LFRR": ("LFRR", "LFXX"), "LECM": ("LECM",),
-    "LPPO": ("LPPO",), "LPPC": ("LPPC",), "KZWY": ("KZWY",), "CZQX": ("CZQX", "CZQM"), "CZUL": ("CZUL", "MTL"),
+    "EGPX": ("EGPX", "SCO_"), "BIRD": ("BIRD",), "EISN": ("EISN",), "LFRR": ("LFRR", "LFXX"), "LECM": ("LECM",),
+    "LPPO": ("LPPO",), "LPPC": ("LPPC",), "KZWY": ("KZWY", "NY_"), "CZQX": ("CZQX", "CZQM"), "CZUL": ("CZUL", "MTL_"),
     "CZEG": ("CZEG",), "BGGL": ("BGGL",), "EGGX": ("EGGX", "GGX"), "CZQO": ("CZQO", "ZQO"),
 }
 NAMES = {"EGPX": "Scottish", "BIRD": "Reykjavik", "EISN": "Shannon", "LFRR": "Brest", "LECM": "Madrid", "LPPO": "Santa Maria", "LPPC": "Lisboa",
@@ -94,10 +105,14 @@ def next_handoff(points, pos):
     return {"facility": fac, "fix": fix, "nm": int(round(nm))}
 
 def pick_online(facility, controllers):
-    """The online positions that cover this facility (callsigns), best first."""
+    """The online control positions that cover this facility (callsigns), the facility's own positions before stand-ins, then by callsign."""
     pre = FACILITY.get(facility, ())
-    out = [c for c in controllers if str(c.get("callsign", "")).upper().startswith(pre) and not str(c.get("callsign", "")).upper().endswith("_ATIS")]
-    return sorted(out, key=lambda c: c["callsign"])
+    out = []
+    for c in controllers:
+        cs = str(c.get("callsign", "")).upper()
+        if cs.startswith(pre) and cs.endswith(("_CTR", "_FSS")):
+            out.append((min(i for i, x in enumerate(pre) if cs.startswith(x)), cs, c))
+    return [c for _, _, c in sorted(out, key=lambda t: (t[0], t[1]))]
 
 def hint(points, pos, controllers):
     """Everything the display needs for one flight, or None."""
@@ -105,7 +120,10 @@ def hint(points, pos, controllers):
     if not nh:
         return None
     online = pick_online(nh["facility"], controllers)
+    def code(c):
+        return CODES.get(str(c["callsign"]).upper(), "")
     nh.update({"name": NAMES.get(nh["facility"], nh["facility"]), "soon": nh["nm"] <= SOON_NM,
                "controller": online[0]["callsign"] if online else "", "frequency": online[0].get("frequency", "") if online else "",
-               "unicom": not online})
+               "code": code(online[0]) if online else "", "unicom": not online,
+               "online": [{"callsign": c["callsign"], "code": code(c), "frequency": c.get("frequency", "")} for c in online[:6]]})
     return nh
