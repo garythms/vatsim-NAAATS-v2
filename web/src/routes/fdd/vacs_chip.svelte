@@ -97,7 +97,7 @@
                 <div class="flex items-center gap-2 py-1 border-b border-blue-6">
                   <span class="w-5 text-center font-bold {e.dir === 'in' ? (e.result === 'missed' ? 'text-red-300' : 'text-green-300') : 'text-blue-10'}" title={e.dir === "in" ? "Incoming" : "Outgoing"}>{e.dir === "in" ? (e.result === "missed" ? "✕" : "↙") : "↗"}</span>
                   <div class="flex-1 min-w-0">
-                    <div class="truncate"><b>{name(e)}</b>{#if e.prio} <span class="text-red-300 text-xs font-bold">PRIORITY</span>{/if}</div>
+                    <div class="truncate"><b>{name(e)}</b>{#if e.prio} <span class="ml-1 text-red-300 text-xs font-bold">PRIORITY</span>{/if}</div>
                     <div class="text-xs opacity-75 truncate">{e.who && e.who !== name(e) ? e.who + " · " : ""}{e.cid ? "CID " + e.cid : ""}</div>
                   </div>
                   <div class="text-right text-xs">
