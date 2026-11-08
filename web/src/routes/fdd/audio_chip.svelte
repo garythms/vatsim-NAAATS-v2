@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { showFlightPlan } from "../../typescript/fdd/selectac";
   import { onMount, onDestroy } from "svelte";
   import * as t from "../../typescript/fdd/trackaudio";
   import * as dataHandler from "../../typescript/fdd/data";
@@ -17,7 +18,14 @@
   function agoText(s: number): string { return s < 60 ? s + "s ago" : s < 3600 ? Math.floor(s / 60) + " min ago" : Math.floor(s / 3600) + " h ago"; }
   $: rxPilot = $ta.rx && !t.isAtc($ta.rx.who) ? $ta.rx : null;      // a controller's call is not "received" by you
   $: text = !$ta.enabled ? "Audio" : $ta.link !== "up" ? "TrackAudio offline" : rxPilot ? "RX: " + rxPilot.who : $ta.tx ? "TX" : last ? "Last RX: " + last.who + " " + agoText(ago) : "TrackAudio";
-  function select(who: string): void { if (who && who !== "You") dataHandler.setAsel(who); }
+  let notOnDisplay: string = "";
+  let notTimer: any;
+  function select(who: string): void {
+    if (!who || who === "You") return;
+    notOnDisplay = showFlightPlan(who) ? "" : who + " is not on the flight list, so there is no flight plan to show.";
+    clearTimeout(notTimer);
+    if (notOnDisplay) notTimer = setTimeout(() => (notOnDisplay = ""), 5000);
+  }
   async function pop(): Promise<void> { await popOut("audio"); open = false; }
 </script>
 
@@ -55,12 +63,13 @@
         <div class="flex flex-row items-center justify-between px-3 py-1.5 border-b border-blue-4">
           <span class="flex flex-row items-center gap-2">
             <span class="px-1 text-xs border {h.mine ? 'border-blue-6' : t.isAtc(h.who) ? 'border-blue-10 text-blue-10' : 'border-green-300 text-green-300'}">{h.mine ? "TX" : t.isAtc(h.who) ? "ATC" : "RX"}</span>
-            {#if h.mine}<b>You</b>{:else if t.isAtc(h.who)}<b>{h.who}</b>{:else}<button class="font-bold underline" title="Select this aircraft" on:click={() => select(h.who)}>{h.who}</button>{/if}
+            {#if h.mine}<b>You</b>{:else if t.isAtc(h.who)}<b>{h.who}</b>{:else}<button class="font-bold underline" title="Show the flight plan" on:click={() => select(h.who)}>{h.who}</button>{/if}
             {#if h.freq}<span class="text-xs opacity-70">{h.freq}</span>{/if}
           </span>
           <span class="text-xs opacity-80">{t.hhmmss(h.ts)} - {h.secs}s</span>
         </div>
       {/each}
+      {#if notOnDisplay}<div class="px-3 py-2 text-yellow-300 text-xs">{notOnDisplay}</div>{/if}
       {#if $ta.history.length === 0}<div class="px-3 py-3 opacity-70">Nothing heard yet.</div>{/if}
     </div>
     {#if $ta.enabled}
