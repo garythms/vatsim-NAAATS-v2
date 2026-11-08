@@ -34,11 +34,12 @@
 
   $: ringing = $vacs.ringing;
   $: showPop = !!ringing && $vacs.dismissed !== ringing.callId;
-  $: state = !$vacs.enabled ? "disabled" : ringing ? "ring" : $vacs.call ? "call" : $vacs.link === "up" ? "up" : "off";
+  $: state = !$vacs.enabled ? "disabled" : ringing ? "ring" : $vacs.call ? "call" : $vacs.link === "up" ? ($vacs.busy ? "busy" : "up") : "off";
   $: text = state === "disabled" ? "VACS" : state === "ring" ? "Call: " + (ringing!.callsign || ringing!.from) : state === "call" ? "In call" + ($vacs.call!.with ? ": " + $vacs.call!.with : "")
-    : state === "up" ? ($vacs.onPosition ? "VACS" : "VACS (no position)") : "VACS offline";
+    : state === "busy" ? "VACS: Busy" : state === "up" ? ($vacs.onPosition ? "VACS" : "VACS (no position)") : "VACS offline";
   $: tip = state === "disabled" ? "VACS call alert is switched off. Click to set it up."
     : state === "off" ? "Cannot reach VACS. Switch on Remote Control in VACS (Settings) and check the port. Click for help."
+    : state === "busy" ? "Busy is on: incoming calls are declined automatically. Click to turn it off."
     : state === "up" ? ($vacs.onPosition ? "Connected to VACS. Incoming calls show here. Click for the call log and to call someone." : "Connected to VACS, but VACS is not connected to a position yet.")
     : "";
   $: missed = $vacs.log.filter((e) => e.dir === "in" && e.result === "missed" && now - e.at < 3600_000).length;
@@ -49,7 +50,7 @@
 </script>
 
 <div class="relative inline-block">
-  <button class="tbtn border {state === 'ring' ? (blink ? 'bg-red-600 border-red-300 text-white font-bold' : 'bg-blue-3 border-red-300 font-bold') : state === 'call' ? 'bg-blue-3 border-blue-10 text-blue-10 font-bold' : state === 'up' ? 'bg-blue-3 border-blue-6' : 'bg-blue-3 border-blue-6 opacity-60'}"
+  <button class="tbtn border {state === 'ring' ? (blink ? 'bg-red-600 border-red-300 text-white font-bold' : 'bg-blue-3 border-red-300 font-bold') : state === 'call' ? 'bg-blue-3 border-blue-10 text-blue-10 font-bold' : state === 'up' ? 'bg-blue-3 border-blue-6' : state === 'busy' ? 'bg-yellow-600 border-yellow-300 text-black font-bold' : 'bg-blue-3 border-blue-6 opacity-60'}"
     title={tip} on:click={() => { open = !open; if (open && $vacs.link !== "up") tab = "setup"; else if (open && tab === "setup") tab = "calls"; }} aria-label="VACS call indicator">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={state === "up" ? "#7fe0a2" : "currentColor"} stroke-width="2" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3" /><rect x="3" y="14" width="4" height="6" rx="1.5" /><rect x="17" y="14" width="4" height="6" rx="1.5" /></svg>
     <span>{text}</span>
@@ -67,8 +68,9 @@
         Rang at {ringing ? hhmmss(ringing.at) : ""} ({ringing ? Math.max(0, Math.round((now - ringing.at) / 1000)) : 0} s ago)
       </div>
       <button class="mr-2 mt-2 px-3 py-0.5 font-bold bg-green-300 text-black" on:click={v.accept}>Accept</button>
+      <button class="mr-2 mt-2 px-3 py-0.5 font-bold bg-red-600 text-white" title="Turns the call away" on:click={v.decline}>Decline</button>
       <button class="mt-2 px-3 py-0.5 border border-blue-6" on:click={v.dismiss}>Dismiss</button>
-      <div class="mt-1 text-xs opacity-70">Dismiss only hides this box; the call keeps ringing in VACS.</div>
+      <div class="mt-1 text-xs opacity-70">Decline turns the call away. Dismiss only hides this box; the call keeps ringing in VACS.</div>
     </div>
   {/if}
 
@@ -83,6 +85,13 @@
 
       {#if tab === "calls"}
         <div class="p-3">
+          <div class="mb-2 p-2 border border-blue-6 flex items-center gap-2 {$vacs.busy ? 'bg-yellow-600 text-black' : ''}">
+            <div class="flex-1"><b>Busy</b> <span class="text-xs">{$vacs.busy ? "On: new calls are declined automatically" : "Off: calls ring as normal"}</span></div>
+            <button class="px-2 py-0.5 font-bold border {$vacs.busy ? 'border-black' : 'border-blue-6'}" on:click={() => v.setBusy(!$vacs.busy)}>{$vacs.busy ? "Turn off" : "Turn on"}</button>
+          </div>
+          {#if $vacs.busy}
+            <label class="flex items-center gap-2 mb-2 text-xs"><input type="checkbox" checked={$vacs.busyPrio} on:change={(e) => v.setBusy(true, e.currentTarget.checked)} /> Still ring me for priority calls</label>
+          {/if}
           {#if $vacs.call}
             <div class="mb-2 p-2 border border-blue-10 bg-blue-3 flex items-center">
               <div class="flex-1"><b>In call{$vacs.call.with ? " with " + $vacs.call.with : ""}</b>{#if $vacs.call.since} <span class="font-mono">{dur(now - $vacs.call.since)}</span>{/if}</div>
@@ -95,14 +104,14 @@
             <div class="max-h-72 overflow-y-auto">
               {#each $vacs.log as e (e.callId)}
                 <div class="flex items-center gap-2 py-1 border-b border-blue-6">
-                  <span class="w-5 text-center font-bold {e.dir === 'in' ? (e.result === 'missed' ? 'text-red-300' : 'text-green-300') : 'text-blue-10'}" title={e.dir === "in" ? "Incoming" : "Outgoing"}>{e.dir === "in" ? (e.result === "missed" ? "✕" : "↙") : "↗"}</span>
+                  <span class="w-5 text-center font-bold {e.dir === 'in' ? (e.result === 'missed' || e.result === 'declined' ? 'text-red-300' : 'text-green-300') : 'text-blue-10'}" title={e.dir === "in" ? "Incoming" : "Outgoing"}>{e.dir === "in" ? (e.result === "missed" || e.result === "declined" ? "✕" : "↙") : "↗"}</span>
                   <div class="flex-1 min-w-0">
                     <div class="truncate"><b>{name(e)}</b>{#if e.prio} <span class="ml-1 text-red-300 text-xs font-bold">PRIORITY</span>{/if}</div>
                     <div class="text-xs opacity-75 truncate">{e.who && e.who !== name(e) ? e.who + " · " : ""}{e.cid ? "CID " + e.cid : ""}</div>
                   </div>
                   <div class="text-right text-xs">
                     <div class="font-mono">{hhmm(e.at)}</div>
-                    <div class="opacity-80">{e.result === "ringing" ? "ringing" : e.result === "answered" ? "in call" : e.answeredAt ? dur((e.endedAt || now) - e.answeredAt) : e.result}</div>
+                    <div class="opacity-80">{e.result === "ringing" ? "ringing" : e.result === "declined" ? "declined" : e.result === "answered" ? "in call" : e.answeredAt ? dur((e.endedAt || now) - e.answeredAt) : e.result}</div>
                   </div>
                   {#if e.cid && e.cid !== ""}<button class="px-1.5 py-0.5 border border-blue-6 text-xs" title="Call back" disabled={!$vacs.onPosition || !!$vacs.call || !!$vacs.ringing} on:click={() => v.dial(e.cid)}>Call</button>{/if}
                 </div>

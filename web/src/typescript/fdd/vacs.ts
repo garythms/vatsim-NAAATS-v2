@@ -13,7 +13,7 @@ export type LogEntry = {
   at: number;                                // when it started ringing / when we placed it (ms)
   answeredAt: number;                        // 0 = not answered
   endedAt: number;                           // 0 = still going
-  result: "ringing" | "answered" | "missed" | "no answer" | "ended";
+  result: "ringing" | "answered" | "missed" | "no answer" | "ended" | "declined";
 };
 export type Online = { cid: string; callsign: string; position: string; freq: string };
 export type VacsState = {
@@ -27,6 +27,8 @@ export type VacsState = {
   log: LogEntry[];                           // newest first, kept in this browser only
   online: Online[];                          // everyone VACS says is online, for the Call list
   callError: string;                         // why the last call-out failed, if it did
+  busy: boolean;                             // Busy: new calls are declined automatically
+  busyPrio: boolean;                         // ...except priority calls, which still ring
 };
 
 const KEY = "vnaaats.vacs";
@@ -38,6 +40,8 @@ export function isEnabled(): boolean { const v = lsGet(KEY); return v === null ?
 export function getPort(): number { const n = parseInt(lsGet(PORT) ?? "", 10); return n > 0 && n < 65536 ? n : 9600; }
 
 const LOGKEY = "vnaaats.vacsLog";
+const BUSYKEY = "vnaaats.vacsBusy";
+const BUSYPRIOKEY = "vnaaats.vacsBusyPrio";
 function loadLog(): LogEntry[] {
   try {
     const a = JSON.parse(lsGet(LOGKEY) ?? "[]");
@@ -48,7 +52,7 @@ function loadLog(): LogEntry[] {
 }
 function saveLog(l: LogEntry[]): void { lsSet(LOGKEY, JSON.stringify(l.slice(0, 30))); }
 
-export const vacs = writable<VacsState>({ enabled: false, link: "off", onPosition: false, ringing: null, call: null, dismissed: "", error: "", log: loadLog(), online: [], callError: "" });
+export const vacs = writable<VacsState>({ enabled: false, link: "off", onPosition: false, ringing: null, call: null, dismissed: "", error: "", log: loadLog(), online: [], callError: "", busy: lsGet(BUSYKEY) === "1", busyPrio: lsGet(BUSYPRIOKEY) !== "0" });
 const upd = (f: (s: VacsState) => void) => vacs.update((s) => { f(s); return { ...s }; });
 
 let ws: WebSocket | null = null;
@@ -105,6 +109,13 @@ function handle(name: string, p: any): void {
       const w = who(String(p.source?.clientId ?? ""), String(p.source?.positionId ?? p.source?.stationId ?? ""));
       calls.set(p.callId, from);
       const now = Date.now();
+      const st = get(vacs);
+      if (st.busy && !(p.prio && st.busyPrio) && !st.call) {
+        // Busy: turn the call away without ringing; it is logged as declined
+        send({ type: "invoke", id: "n" + nextId++, cmd: "signaling_end_call", args: { callId: p.callId } });
+        logStart({ callId: p.callId, dir: "in", who: from, cid: w.cid, callsign: w.callsign, prio: !!p.prio, at: now, answeredAt: 0, endedAt: now, result: "declined" });
+        break;
+      }
       upd((s) => { s.ringing = { callId: p.callId, from, prio: !!p.prio, cid: w.cid, callsign: w.callsign, at: now }; });
       logStart({ callId: p.callId, dir: "in", who: from, cid: w.cid, callsign: w.callsign, prio: !!p.prio, at: now, answeredAt: 0, endedAt: 0, result: "ringing" });
       break;
@@ -244,6 +255,18 @@ export function dial(cid: string, prio: boolean = false): void {
 export function hangup(): void {
   const c = get(vacs).call;
   if (c) send({ type: "invoke", id: "n" + nextId++, cmd: "signaling_end_call", args: { callId: c.callId } });
+}
+/** Turns a ringing call away. VACS has no "reject" command, so this asks it to end the call; if VACS ignores that the call keeps ringing there. */
+export function decline(): void {
+  const r = get(vacs).ringing;
+  if (!r) return;
+  send({ type: "invoke", id: "n" + nextId++, cmd: "signaling_end_call", args: { callId: r.callId } });
+  upd((s) => { if (s.ringing?.callId === r.callId) s.ringing = null; });
+  logChange(r.callId, (e) => { if (!e.endedAt) { e.endedAt = Date.now(); e.result = "declined"; } });
+}
+export function setBusy(on: boolean, prioThrough: boolean = get(vacs).busyPrio): void {
+  lsSet(BUSYKEY, on ? "1" : "0"); lsSet(BUSYPRIOKEY, prioThrough ? "1" : "0");
+  upd((s) => { s.busy = on; s.busyPrio = prioThrough; });
 }
 export function clearLog(): void { upd((s) => { s.log = []; saveLog([]); }); }
 export function accept(): void {
