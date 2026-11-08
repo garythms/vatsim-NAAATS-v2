@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Hand off soon: the server works out each flight's next boundary from the filed route (the exit fix, or the 30W line between Shanwick and Gander) using the exit points in the Shanwick & Gander procedures. Within 50 nm a yellow "HO 37" tag appears beside the callsign on the strip (hover for the fix, the next sector and who is online), and the aircraft menu's Transfer tab shows the same line and pre-selects that controller if they are online. With nobody online it says send to UNICOM. Flights with an unrecognised exit fix, or far from their route, get no tag. Server deploy needed.
 - Auto RCL history: the Auto RCL panel now has a History list (newest first, UTC time) showing for each aircraft when the telex was sent, whether the pilot answered or did not reply, when the EuroScope message was queued and typed, and any failure. Kept for two days. Server deploy needed.
 - VACS: a telephone "ring ring" sounds once when a call comes in (not for calls turned away by Busy). Turn it off, or test it, in the VACS Setup tab. Browsers only allow sound after you have clicked anywhere on the page once. Server deploy needed (web files).
 - Plugin: the update check now asks vnaaats.com (/pluginversion) instead of GitHub, which fixes the "Could not fetch version info" certificate error some computers showed. If the check cannot be done it is only written to the log as a warning, with no message in EuroScope and no Discord alert. Plugin update needed.
