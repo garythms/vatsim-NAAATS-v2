@@ -1,5 +1,7 @@
 <script lang="ts">
   import { showFlightPlan } from "../../typescript/fdd/selectac";
+  import { fly } from "svelte/transition";
+  import { ms } from "../../typescript/fdd/motion";
   import { onMount, onDestroy } from "svelte";
   import * as t from "../../typescript/fdd/trackaudio";
   import * as dataHandler from "../../typescript/fdd/data";
@@ -36,7 +38,7 @@
     <span class="inline-block shrink-0 w-2 h-2 rounded-full {$ta.link === 'up' ? 'bg-green-300' : 'bg-gray-400'}"></span><span class="truncate">{text}</span>
   </button>
   {#if open}
-    <div class="absolute left-0 top-full mt-1 z-50 w-80 max-w-[95vw] border-2 border-blue-10 bg-blue-2 text-white shadow-lg font-regular text-sm">
+    <div transition:fly={{ y: -6, duration: ms(140) }} class="absolute left-0 top-full mt-1 z-50 w-80 max-w-[95vw] border-2 border-blue-10 bg-blue-2 text-white shadow-lg font-regular text-sm">
       <svelte:self standalone={true} />
     </div>
   {/if}

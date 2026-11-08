@@ -1,5 +1,8 @@
 <script lang="ts">
   import { showFlightPlan } from "../../typescript/fdd/selectac";
+  import { fade, fly } from "svelte/transition";
+  import { flip } from "svelte/animate";
+  import { ms } from "../../typescript/fdd/motion";
   import { onMount, onDestroy } from "svelte";
   import * as sess from "../../typescript/fdd/session";
   import * as cp from "../../typescript/fdd/cpdlc";
@@ -63,10 +66,10 @@
     &#8644; Handoff: {soonest ? soonest.callsign : ""}{$handoffCards.length > 1 ? " +" + ($handoffCards.length - 1) : ""}
   </button>
   {#if open}
-    <div class="fixed inset-0 z-40" on:click={() => (open = false)}></div>
+    <div transition:fade={{ duration: ms(120) }} class="fixed inset-0 z-40" on:click={() => (open = false)}></div>
     <div class="fixed right-3 z-50 flex flex-col gap-2 w-96 max-w-[95vw] max-h-[70vh] overflow-y-auto font-web text-white" style="top: 13rem;" role="dialog" aria-label="Handoff messages">
       {#each $handoffCards as c (c.callsign + c.kind)}
-        <div class="bg-blue-2 border-2 border-yellow-300 shadow-lg" role="alertdialog" aria-label="Handoff {c.callsign}">
+        <div animate:flip={{ duration: ms(200) }} in:fly={{ x: 28, duration: ms(240) }} out:fade={{ duration: ms(160) }} class="bg-blue-2 border-2 border-yellow-300 shadow-lg" role="alertdialog" aria-label="Handoff {c.callsign}">
           <div class="px-3 py-1 bg-yellow-300 text-black font-bold flex items-center">
             <span>{c.kind === "near" ? "Handoff soon" : "Leaving oceanic airspace"}: <button class="underline" title="Show the flight plan" on:click={() => showFlightPlan(c.callsign)}>{c.callsign}</button></span>
             <button class="ml-auto px-2 text-xs border border-black" on:click={() => h.dismissCard(c)} aria-label="Dismiss">Dismiss</button>
