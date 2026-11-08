@@ -339,7 +339,10 @@
   <!-- row 1: who I am and what is live (VACS, CPDLC, Auto RCL, alerts) -->
   <div class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1 px-2 pt-1 w-full text-white font-regular text-sm select-none">
     <div class="relative">
-      {#if $session.loggedIn && $session.position}
+      {#if $session.loggedIn && $session.position === "ADMIN"}
+        <span class="font-bold text-yellow-300">Admin view, read only</span>
+        <button class="ml-1 px-2 py-0 font-bold border border-blue-6 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => sess.logout()}>Sign out</button>
+      {:else if $session.loggedIn && $session.position}
         <span class="font-bold text-green-300">{$session.position}</span> {$session.name}
         <button class="ml-1 px-2 py-0 font-bold border border-blue-6 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={() => (posMenu = !posMenu)} title="Change position, relief, sign out">Position &#9662;</button>
         {#if posMenu}
