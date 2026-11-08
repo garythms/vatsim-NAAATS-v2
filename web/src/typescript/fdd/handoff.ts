@@ -5,17 +5,69 @@
  */
 import { writable, get } from "svelte/store";
 import * as dataHandler from "./data";
+import * as acmenu from "./acmenu";
+import * as cp from "./cpdlc";
 
 export const NEAR_NM = 30;       // pop up with the controllers online
 export const LEAVE_NM = 3;       // nobody online: pop up at the boundary
 const CLEAR_NM = 45;             // an aircraft this far from the boundary again is forgotten (so a later approach can alert again)
 
-export type HandoffCard = { callsign: string; kind: "near" | "leaving"; nm: number; fix: string; name: string; cpdlc: boolean; online: { callsign: string; code: string; frequency: string }[] };
+export type HandoffCard = { callsign: string; kind: "near" | "leaving"; nm: number; fix: string; name: string; cpdlc: boolean; online: { callsign: string; code: string; frequency: string }[]; error?: string };
 export const handoffCards = writable<HandoffCard[]>([]);
 export const handoffSoundOn = writable<boolean>((() => { try { return localStorage.getItem("vnaaats.handoffSound") !== "off"; } catch (e) { return true; } })());
 export function setHandoffSound(on: boolean): void {
   handoffSoundOn.set(on);
   try { localStorage.setItem("vnaaats.handoffSound", on ? "on" : "off"); } catch (e) { /* not saved */ }
+}
+
+/*
+ *  Auto handoff (switch on the toolbar, off by default, remembered on this computer). For aircraft you track that are on CPDLC:
+ *   - at the chosen distance from the boundary, with a position online to take it: the transfer is sent for you (the plugin also sends the pilot
+ *     "CONTACT <station> ON <frequency>");
+ *   - at the boundary with nobody online: the UNICOM message is sent, and the tag is released when the pilot answers (as the UNICOM button does).
+ *  Each action is tried ONCE per aircraft. If it fails, the card comes up with the error so you can do it by hand. It only runs while this
+ *  display is open and signed in to your position.
+ */
+export type AutoSetting = { on: boolean; nm: number };
+function loadAuto(): AutoSetting {
+  try { const v = JSON.parse(localStorage.getItem("vnaaats.autoHandoff") ?? ""); return { on: !!v.on, nm: [10, 20, 30, 40, 50].includes(v.nm) ? v.nm : NEAR_NM }; } catch (e) { return { on: false, nm: NEAR_NM }; }
+}
+export const handoffAuto = writable<AutoSetting>(loadAuto());
+export function setHandoffAuto(on: boolean, nm: number = get(handoffAuto).nm): void {
+  handoffAuto.set({ on, nm });
+  try { localStorage.setItem("vnaaats.autoHandoff", JSON.stringify({ on, nm })); } catch (e) { /* not saved */ }
+}
+const AUTOKEY = "vnaaats.autoHandoffTried";
+function triedBefore(key: string): boolean {       // shared by every tab of this browser, so two open displays do not both act
+  try {
+    const now = Date.now();
+    const o: Record<string, number> = JSON.parse(localStorage.getItem(AUTOKEY) ?? "{}");
+    Object.keys(o).forEach((k) => { if (now - o[k] > 3 * 3600 * 1000) delete o[k]; });
+    if (o[key]) return true;
+    o[key] = now;
+    localStorage.setItem(AUTOKEY, JSON.stringify(o));
+    return false;
+  } catch (e) { return autoMem.has(key) ? true : (autoMem.add(key), false); }
+}
+const autoMem = new Set<string>();
+const autoFailed = new Map<string, string>();     // callsign -> why the automatic action failed (its card then shows)
+export const autoLog = writable<string>("");      // last automatic action, shown beside the switch
+
+async function autoTransfer(cs: string, to: { callsign: string; frequency: string }): Promise<void> {
+  const id = await acmenu.queueCommand({ type: "transfer", callsign: cs, target: to.callsign, freq: to.frequency });
+  if (typeof id === "string") { autoFailed.set(cs, id); autoLog.set("Auto handoff of " + cs + " failed: " + id); return; }
+  for (let i = 0; i < 10; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const s = await acmenu.commandState(id);
+    if (s.state === "ok") { autoLog.set("Auto handoff: " + cs + " transferred to " + to.callsign); return; }
+    if (s.state === "failed") { autoFailed.set(cs, s.msg); autoLog.set("Auto handoff of " + cs + " failed: " + s.msg); return; }
+  }
+  autoFailed.set(cs, "EuroScope did not answer. Hand off in EuroScope instead.");
+  autoLog.set("Auto handoff of " + cs + ": EuroScope did not answer");
+}
+async function autoUnicom(cs: string): Promise<void> {
+  const e = await cp.sendUnicom(cs);
+  if (e) { autoFailed.set(cs, e); autoLog.set("Auto UNICOM for " + cs + " failed: " + e); } else autoLog.set("Auto handoff: " + cs + " sent to UNICOM (tag is released when the pilot answers)");
 }
 
 const done = new Set<string>();      // callsign|kind already shown (or dismissed)
@@ -54,10 +106,17 @@ export function update(position: string): void {
       if (!h || String(ac.TrackedBy ?? "").toUpperCase() !== me) return;
       seen.add(ac.Callsign);
       if (h.nm > CLEAR_NM) { done.delete(ac.Callsign + "|near"); done.delete(ac.Callsign + "|leaving"); return; }
-      const kind = !h.unicom && h.nm <= NEAR_NM ? "near" : h.unicom && h.nm <= LEAVE_NM ? "leaving" : null;
+      const auto = get(handoffAuto);
+      const nearAt = auto.on ? Math.max(auto.nm, NEAR_NM) : NEAR_NM;       // the card still comes at 30 nm or earlier if auto is set further out
+      const kind = !h.unicom && h.nm <= nearAt ? "near" : h.unicom && h.nm <= LEAVE_NM ? "leaving" : null;
       if (!kind) return;
       const key = ac.Callsign + "|" + kind;
-      cards.push({ callsign: ac.Callsign, kind, nm: h.nm, fix: h.fix, name: h.name, cpdlc: !!ac.Cpdlc, online: h.online ?? [] });
+      if (auto.on && ac.Cpdlc && !autoFailed.has(ac.Callsign)) {
+        if (kind === "near" && h.nm <= auto.nm && h.online?.length) { if (!triedBefore("T|" + ac.Callsign)) void autoTransfer(ac.Callsign, h.online[0]); return; }
+        if (kind === "leaving") { if (!triedBefore("U|" + ac.Callsign)) void autoUnicom(ac.Callsign); return; }
+        if (kind === "near") return;                                       // waiting for the chosen distance: no card yet
+      }
+      cards.push({ callsign: ac.Callsign, kind, nm: h.nm, fix: h.fix, name: h.name, cpdlc: !!ac.Cpdlc, online: h.online ?? [], error: autoFailed.get(ac.Callsign) });
       if (!done.has(key)) { done.add(key); chime(); }
     }));
   }
