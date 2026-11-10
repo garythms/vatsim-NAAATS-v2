@@ -12,6 +12,7 @@
     { file: "vNAAATS-howto-3-natTrak.mp4", title: "3. How to use natTrak through the FDD", text: "The pending and cleared lists, Prepare in natTrak, RCL processed and Send reclearance." },
     { file: "vNAAATS-howto-4-VACS-TrackAudio.mp4", title: "4. VACS and TrackAudio in FDD for Windows", text: "What VACS and TrackAudio are, setting up VACS remote control, answering VACS calls, who spoke last, and the transmitting-aircraft highlight." },
     { file: "vNAAATS-howto-5-FDD-for-Windows.mp4", title: "5. FDD for Windows, the One Fits All Program", text: "What the app does, why it is better than a browser, installing it, the one-time setup and updates." },
+    { file: "vNAAATS-howto-7-Handoff.mp4", title: "7. The handoff helper", text: "A helping hand, not a way to take control: the flashing Handoff reminder, Transfer, Hand off to UNICOM, Auto handoff, and the Shanwick and Gander boundary at 30W. Most useful in busy periods when entry traffic is loading into the Nat region." },
   ];
 </script>
 
