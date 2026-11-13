@@ -152,6 +152,50 @@ pub fn replace_file(dest: &Path, bytes: &[u8], expected_sha: &str) -> Result<(),
     Ok(())
 }
 
+/// Unpack a sector pack zip into `dest`, replacing files of the same name. Returns how many files were written.
+/// Paths that try to leave `dest` ("../x", absolute paths) are refused, and `vnaaats.cfg` (the controller's own key and settings) is never touched.
+/// Each file is written beside its target and renamed into place, so a locked file stops the update with a plain message instead of leaving half a file.
+pub fn extract_pack(zip_path: &Path, dest: &Path) -> Result<usize, String> {
+    let file = fs::File::open(zip_path).map_err(|e| format!("could not open the download: {}", e))?;
+    let mut zip = zip::ZipArchive::new(file).map_err(|_| "the download is not a valid zip file".to_string())?;
+    // check every name first so a bad zip changes nothing
+    for i in 0..zip.len() {
+        let f = zip.by_index(i).map_err(|e| e.to_string())?;
+        if f.enclosed_name().is_none() {
+            return Err("the zip contains an unsafe file path, so it was not installed".into());
+        }
+    }
+    let mut written = 0;
+    for i in 0..zip.len() {
+        let mut f = zip.by_index(i).map_err(|e| e.to_string())?;
+        let rel = f.enclosed_name().ok_or("unsafe path")?;
+        let target = dest.join(&rel);
+        if f.is_dir() {
+            fs::create_dir_all(&target).map_err(|e| e.to_string())?;
+            continue;
+        }
+        if rel.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case(CFG_NAME)).unwrap_or(false) {
+            continue;
+        }
+        if let Some(parent) = target.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut tmp_name = target.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+        tmp_name.push(".new");
+        let tmp = target.with_file_name(tmp_name);
+        {
+            let mut out = fs::File::create(&tmp).map_err(|e| format!("could not write {}: {}", rel.display(), e))?;
+            std::io::copy(&mut f, &mut out).map_err(|e| format!("could not write {}: {}", rel.display(), e))?;
+        }
+        if let Err(e) = fs::rename(&tmp, &target) {
+            let _ = fs::remove_file(&tmp);
+            return Err(format!("could not replace {} - close EuroScope and try again ({})", rel.display(), e));
+        }
+        written += 1;
+    }
+    Ok(written)
+}
+
 pub fn is_exe(path: &Path) -> bool {
     path.is_file() && path.extension().map(|e| e.to_string_lossy().eq_ignore_ascii_case("exe")).unwrap_or(false)
 }
@@ -329,5 +373,52 @@ mod tests {
         replace_dll(&dll, &new, &sha256_hex(&new).to_uppercase()).unwrap();
         assert_eq!(fs::read(&dll).unwrap(), new);
         assert!(!d.path().join("VatsimNAAATS.dll.new").exists());
+    }
+
+    fn make_zip(dir: &Path, entries: &[(&str, &str)]) -> PathBuf {
+        use std::io::Write;
+        let p = dir.join("pack.zip");
+        let mut w = zip::ZipWriter::new(fs::File::create(&p).unwrap());
+        let opt = zip::write::SimpleFileOptions::default();
+        for (n, c) in entries {
+            w.start_file(*n, opt).unwrap();
+            w.write_all(c.as_bytes()).unwrap();
+        }
+        w.finish().unwrap();
+        p
+    }
+
+    #[test]
+    fn extract_pack_replaces_files_and_keeps_cfg() {
+        let t = tempfile::tempdir().unwrap();
+        let dest = t.path().join("sector");
+        fs::create_dir_all(dest.join("Plugins")).unwrap();
+        fs::write(dest.join("Plugins").join(CFG_NAME), "key=mine").unwrap();
+        fs::write(dest.join("EXCXO.sct"), "old").unwrap();
+        let z = make_zip(t.path(), &[("EXCXO.sct", "new"), ("Plugins/vnaaats.cfg", "key=theirs"), ("Plugins/Sub/a.txt", "a")]);
+        assert_eq!(extract_pack(&z, &dest).unwrap(), 2);
+        assert_eq!(fs::read_to_string(dest.join("EXCXO.sct")).unwrap(), "new");
+        assert_eq!(fs::read_to_string(dest.join("Plugins").join(CFG_NAME)).unwrap(), "key=mine");
+        assert_eq!(fs::read_to_string(dest.join("Plugins/Sub/a.txt")).unwrap(), "a");
+        assert!(!dest.join("EXCXO.sct.new").exists());
+    }
+
+    #[test]
+    fn extract_pack_refuses_paths_outside_the_folder() {
+        let t = tempfile::tempdir().unwrap();
+        let dest = t.path().join("sector");
+        fs::create_dir_all(&dest).unwrap();
+        let z = make_zip(t.path(), &[("ok.txt", "x"), ("../evil.txt", "x")]);
+        assert!(extract_pack(&z, &dest).is_err());
+        assert!(!dest.join("ok.txt").exists());          // nothing was written
+        assert!(!t.path().join("evil.txt").exists());
+    }
+
+    #[test]
+    fn extract_pack_rejects_a_non_zip() {
+        let t = tempfile::tempdir().unwrap();
+        let p = t.path().join("x.zip");
+        fs::write(&p, "not a zip").unwrap();
+        assert!(extract_pack(&p, t.path()).is_err());
     }
 }

@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: the sector pack now updates from the app. When the display opens and a newer pack is on the project's "sector-pack" GitHub release, the update screen lists it and Update now installs it into the EXOCO folder (never touching vnaaats.cfg). Updating the plugin or the sector pack while EuroScope is open now stops with "close EuroScope first". Needs the new app build; the web page change is static only.
+
 ## 2.8.0 - 2026-11-10
 - Training page: new how-to video 6, The oceanic clearance (RCL) process (about 3.5 minutes, narrated, with music): modernising oceanic across the NAT Region, the reminder and the red star, pilots without CPDLC, the new buttons, Prepare in natTrak, RCL processed or reclearance, the contact message at the entry point, and NO REPLY.
 - Training page: new how-to video 7, The handoff helper (about 2 minutes, narrated, with music). It explains that handoff is a helping hand and a reminder, not a way to take control, especially in busy periods when entry traffic is loading into the Nat region.

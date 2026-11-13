@@ -44,7 +44,7 @@
     const basicsOk = !!st && st.root !== null && st.dll_found && st.cfg_has_key;
     if (!firstTime && basicsOk) {
       const filesOk = st!.airlines_up_to_date !== false && st!.font_found !== false;       // (not the reactive value: it may not have updated yet)
-      if (!filesOk || st!.up_to_date === false) { mode = "update"; show = true; }       // something to update: ask first
+      if (!filesOk || st!.up_to_date === false || st!.sector_up_to_date === false) { mode = "update"; show = true; }       // something to update: ask first
       else { try { sessionStorage.setItem(SEEN, "1"); } catch (e) { /* fine */ } }      // all good: no screen at all
       return;
     }
@@ -55,7 +55,7 @@
   $: if ($setupOpen && !show) { mode = "full"; firstTime = false; refresh().then(() => { prefs(); show = true; }); }
 
   $: listOk = !!st && st.airlines_up_to_date !== false && st.font_found !== false;
-  $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && listOk && st.cfg_has_key;
+  $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && listOk && st.sector_up_to_date !== false && st.cfg_has_key;
 
   async function run(f: () => Promise<unknown>, ok: string = ""): Promise<void> {
     busy = true; msg = "";
@@ -64,7 +64,13 @@
     busy = false;
   }
   const folder = () => run(() => app.pickFolder());
-  const update = () => run(async () => { const v = await app.updatePlugin(); msg = "Updated: " + v + "."; });
+  // The plugin first (if it or its files need it), then the sector pack. Both need EuroScope closed; the app says so if it is open.
+  const update = () => run(async () => {
+    const parts: string[] = [];
+    if (st && (st.up_to_date === false || st.airlines_up_to_date === false || st.font_found === false)) parts.push(await app.updatePlugin());
+    if (st && st.sector_up_to_date === false) parts.push(await app.updateSector());
+    msg = "Updated: " + (parts.join(" and ") || "everything is up to date") + ".";
+  });
   const saveKey = () => run(async () => { await app.saveKey(key); sess.rememberKey(key); key = ""; }, "Key saved.");
   const VACS_URL = "https://vacs.network/";
   const pick = (k: app.ProgKind) => run(async () => {
@@ -99,12 +105,14 @@
           {#if st.up_to_date === false}<li>A newer vNAAATS plugin{st.latest_version ? " (" + st.latest_version + ")" : ""}</li>{/if}
           {#if st.airlines_up_to_date === false}<li>A newer airline list (ICAO_Airlines.txt)</li>{/if}
           {#if st.font_found === false}<li>The vNAAATS font (vNAAATS.ttf) is missing</li>{/if}
+          {#if st.sector_up_to_date === false}<li>A newer sector pack{st.sector_name ? " (" + st.sector_name + ")" : ""}</li>{/if}
         </ul>
       {/if}
       {#if updated}
         <div class="mb-3 text-green-300">✔ {msg.replace("Updated: ", "Updated ")}</div>
         <button class="w-full py-2 font-bold bg-blue-10 text-black" on:click={notNow}>Continue</button>
       {:else}
+        {#if st && st.euroscope_running}<div class="mb-2 text-sm text-yellow-300">EuroScope is open. Close it first, then press <b>Update now</b>.</div>{/if}
         <div class="mb-3 text-sm opacity-90">Close EuroScope first, then press <b>Update now</b>. Your vnaaats.cfg (and your key) is not touched.</div>
         {#if msg}<div class="mb-2 text-sm text-yellow-300">{msg}</div>{/if}
         <div class="flex gap-2">
@@ -157,6 +165,17 @@
               <div class="text-yellow-300 text-sm">Could not check for the latest plugin{st.error ? ": " + st.error : ""}.</div>
             {/if}
           </div>
+          {#if st.sector_up_to_date !== null && st.sector_up_to_date !== undefined}
+            <div class={STEP}>
+              <b>Sector pack</b>
+              {#if st.sector_up_to_date}
+                <div class="text-green-300 text-sm">✔ Sector pack{st.sector_name ? " " + st.sector_name : ""} is up to date</div>
+              {:else}
+                <div class="text-yellow-300 text-sm">A newer sector pack{st.sector_name ? " (" + st.sector_name + ")" : ""} is available. Close EuroScope first, then update.</div>
+                <button class="{BTN} mt-1" disabled={busy} on:click={update}>Update now</button>
+              {/if}
+            </div>
+          {/if}
           {#if st.dll_found}
             <div class={STEP}>
               <b>3. Your key</b>
