@@ -152,8 +152,15 @@ pub fn replace_file(dest: &Path, bytes: &[u8], expected_sha: &str) -> Result<(),
     Ok(())
 }
 
+/// Files that hold a controller's own choices (EuroScope profile with login details, screen layout, voice setup).
+/// A sector pack installs them only when the controller does not have them yet; they are never overwritten.
+fn is_personal(rel: &Path) -> bool {
+    let name = rel.file_name().map(|n| n.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+    name.ends_with(".prf") || ["screen layout.txt", "vccs.txt", "voicechannels.txt"].contains(&name.as_str())
+}
+
 /// Unpack a sector pack zip into `dest`, replacing files of the same name. Returns how many files were written.
-/// Paths that try to leave `dest` ("../x", absolute paths) are refused, and `vnaaats.cfg` (the controller's own key and settings) is never touched.
+/// Paths that try to leave `dest` ("../x", absolute paths) are refused, and `vnaaats.cfg` (the controller's own key and settings) is never touched. Personal files (see `is_personal`) are not overwritten.
 /// Each file is written beside its target and renamed into place, so a locked file stops the update with a plain message instead of leaving half a file.
 pub fn extract_pack(zip_path: &Path, dest: &Path) -> Result<usize, String> {
     let file = fs::File::open(zip_path).map_err(|e| format!("could not open the download: {}", e))?;
@@ -176,6 +183,9 @@ pub fn extract_pack(zip_path: &Path, dest: &Path) -> Result<usize, String> {
         }
         if rel.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case(CFG_NAME)).unwrap_or(false) {
             continue;
+        }
+        if target.exists() && is_personal(&rel) {
+            continue;                           // the controller's own settings are only installed when they have none
         }
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
@@ -401,6 +411,21 @@ mod tests {
         assert_eq!(fs::read_to_string(dest.join("Plugins").join(CFG_NAME)).unwrap(), "key=mine");
         assert_eq!(fs::read_to_string(dest.join("Plugins/Sub/a.txt")).unwrap(), "a");
         assert!(!dest.join("EXCXO.sct.new").exists());
+    }
+
+    #[test]
+    fn extract_pack_keeps_personal_settings_but_installs_them_when_missing() {
+        let t = tempfile::tempdir().unwrap();
+        let dest = t.path().join("sector");
+        fs::create_dir_all(dest.join("EXCXO/Settings")).unwrap();
+        fs::write(dest.join("EXCXO/Settings/Screen Layout.txt"), "mine").unwrap();
+        fs::write(dest.join("EXCXO.prf"), "my login").unwrap();
+        let z = make_zip(t.path(), &[("EXCXO/Settings/Screen Layout.txt", "pack"), ("EXCXO.prf", "pack"), ("EXCXO/Settings/General.txt", "pack"), ("EXCXO/Settings/VCCS.txt", "pack")]);
+        extract_pack(&z, &dest).unwrap();
+        assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/Screen Layout.txt")).unwrap(), "mine");
+        assert_eq!(fs::read_to_string(dest.join("EXCXO.prf")).unwrap(), "my login");
+        assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/General.txt")).unwrap(), "pack");
+        assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/VCCS.txt")).unwrap(), "pack");   // missing, so installed
     }
 
     #[test]
