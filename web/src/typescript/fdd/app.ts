@@ -9,7 +9,7 @@ export type AppStatus = {
   latest_version: string | null; latest_sha: string | null; up_to_date: boolean | null;
   airlines_found: boolean; airlines_up_to_date: boolean | null; font_found?: boolean;
   cfg_exists: boolean; cfg_has_key: boolean; error: string | null;
-  euroscope_running?: boolean; sector_name?: string | null; sector_up_to_date?: boolean | null;
+  euroscope_running?: boolean; sector_name?: string | null; sector_up_to_date?: boolean | null; key_status?: string | null;
 };
 
 function tauri(): any { try { return (window as any).__TAURI__; } catch (e) { return null; } }

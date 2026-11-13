@@ -48,6 +48,24 @@ pub struct CfgInfo {
     pub server: String,
 }
 
+/// The key saved in vnaaats.cfg (None when there is no file, no key line, or it still holds the placeholder).
+pub fn read_key(dir: &Path) -> Option<String> {
+    let text = fs::read_to_string(dir.join(CFG_NAME)).ok()?;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('#') {
+            continue;
+        }
+        if let Some((k, v)) = line.split_once('=') {
+            if k.trim() == "key" {
+                let v = clean_key(v);
+                return if v.is_empty() || v == PLACEHOLDER { None } else { Some(v) };
+            }
+        }
+    }
+    None
+}
+
 pub fn read_cfg(dir: &Path) -> CfgInfo {
     let mut info = CfgInfo { exists: false, has_key: false, server: DEFAULT_SERVER.to_string() };
     let Ok(text) = fs::read_to_string(dir.join(CFG_NAME)) else { return info };
@@ -531,6 +549,16 @@ mod tests {
         assert_eq!(pack_dest(&z, &inside).unwrap(), t.path().join("data"));
         let parent = t.path().join("data");
         assert_eq!(pack_dest(&z, &parent).unwrap(), parent);
+    }
+
+    #[test]
+    fn reads_the_saved_key() {
+        let d = tempfile::tempdir().unwrap();
+        assert_eq!(read_key(d.path()), None);
+        fs::write(d.path().join(CFG_NAME), "# key=ignored\r\nserver=x\r\nkey=PASTE_YOUR_API_KEY_HERE\r\n").unwrap();
+        assert_eq!(read_key(d.path()), None);
+        fs::write(d.path().join(CFG_NAME), "# key=ignored\r\nserver=x\r\nkey = 1234567.abc \r\n").unwrap();
+        assert_eq!(read_key(d.path()), Some("1234567.abc".to_string()));
     }
 
     #[test]

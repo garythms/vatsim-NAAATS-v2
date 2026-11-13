@@ -64,6 +64,19 @@ fn sector_latest() -> Result<(String, String, String), String> {
     Ok((url, a["name"].as_str().unwrap_or("sector pack").to_string(), id))
 }
 
+/// Ask the server whether this key is accepted. "ok", or why not ("unknown", "expired", "revoked").
+/// None when it cannot be told (offline, or an older server without the check): the app then does not warn.
+fn key_check(key: &str) -> Option<String> {
+    match ureq::get(&format!("{}/KeyCheck", SITE)).query("code", key).timeout(std::time::Duration::from_secs(15)).call() {
+        Ok(_) => Some("ok".to_string()),
+        Err(ureq::Error::Status(401, resp)) => {
+            let v: serde_json::Value = serde_json::from_reader(resp.into_reader()).ok()?;
+            v["reason"].as_str().map(String::from)
+        }
+        Err(_) => None,
+    }
+}
+
 fn euroscope_running(saved: &Saved) -> bool {
     let name = saved.euroscope.as_deref().and_then(|p| Path::new(p).file_name().map(|n| n.to_string_lossy().to_string())).unwrap_or_else(|| "EuroScope.exe".to_string());
     is_running(&name)
@@ -99,6 +112,7 @@ struct Status {
     euroscope_running: bool,
     sector_name: Option<String>,
     sector_up_to_date: Option<bool>,    // None when it cannot be checked
+    key_status: Option<String>,         // "ok", "unknown", "expired", "revoked"; None when there is no key or the server cannot say
     error: Option<String>,
 }
 
@@ -127,6 +141,7 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
         euroscope_running: euroscope_running(&saved),
         sector_name: None,
         sector_up_to_date: None,
+        key_status: None,
         error: None,
     };
     if saved.root.is_some() {
@@ -150,6 +165,11 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
             let c = vnaaats_core::read_cfg(dir);
             st.cfg_exists = c.exists;
             st.cfg_has_key = c.has_key;
+            if c.has_key {
+                if let Some(k) = vnaaats_core::read_key(dir) {
+                    st.key_status = key_check(&k);
+                }
+            }
         }
     }
     match http_get("/plugin/latest.json", 4096).and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).map_err(|e| e.to_string())) {
