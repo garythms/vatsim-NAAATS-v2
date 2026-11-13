@@ -44,7 +44,7 @@
   }
   onMount(async () => {
     if (!app.inApp() || seen()) return;
-    await app.welcomeDone;
+    await app.splashDone;
     await refresh();
     prefs();
     firstTime = !isDone();

@@ -105,6 +105,11 @@ let welcomeResolve: () => void = () => {};
 export const welcomeDone: Promise<void> = new Promise<void>((r) => { welcomeResolve = r; });
 export function finishWelcome(): void { welcomeResolve(); }
 
+// The "all systems go" screen after the welcome animation; the start screen and update question wait for it
+let splashResolve: () => void = () => {};
+export const splashDone: Promise<void> = new Promise<void>((r) => { splashResolve = r; });
+export function finishSplash(): void { splashResolve(); }
+
 // The saved sign-in (kept in the Windows Credential Manager)
 export const credGet = (): Promise<{ name: string; password: string } | null> => call("cred_get");
 export const credSave = (name: string, password: string): Promise<void> => call("cred_save", { name, password });
