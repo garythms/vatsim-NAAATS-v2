@@ -25,8 +25,11 @@ NATMSG = ("Hello, you will soon be entering oceanic airspace. Please send your o
           "between 90 and 30 minutes before your oceanic entry point, and include the highest level you can accept (MAX FL). Squawk 2000 at the oceanic entry point.")
 
 # The Auto RCL version: says it is automated and points to the website (the manual RCL REQ button keeps the plain NATMSG above)
-NATMSG_AUTO = ("*THIS IS AN AUTOMATED MESSAGE* You will soon be entering oceanic airspace. Please send your oceanic clearance request (RCL) by CPDLC, or via nattrak.vatsim.net, "
-               "between 90 and 30 minutes before your oceanic entry point, and include the highest level you can accept (MAX FL). Squawk 2000 at the oceanic entry point. "
+NATMSG_AUTO = ("*THIS IS AN AUTOMATED MESSAGE* - Your flight plan has you entering the NAT Oceanic Airspace. "
+               "You are required to send a request for oceanic clearance (RCL), between 90 and 30 minutes before your oceanic entry point. "
+               "Include in this request the highest flight level you can accept (MAX FL). "
+               "This can be sent via CPDLC, or via nattrak.vatsim.net. "
+               "Set Squawk 2000 at the oceanic entry point and contact oceanic controller with your Callsign FL MACH and SELCAL code on first contact. "
                "Further details and assistance can be found at https://ganderoceanic.ca/")
 
 
