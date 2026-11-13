@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
-  // The NAT tracks in force now, or the next ones to come, for the homepage (from the public /api/status)
+  // The NAT tracks in use now, or the next ones to come, for the homepage (from the public /api/status)
   type Track = { id: string; direction: string; route: string[]; levels: number[]; validFrom: number | null; validTo: number | null };
   type Group = { dir: string; label: string; state: "now" | "next"; from: number; to: number; tracks: Track[]; next: { from: number; to: number } | null };
 
@@ -59,14 +59,14 @@
 {#if loaded && groups.length}
   <div class="flex flex-col items-center bg-blue-1 px-6 py-10 font-web" id="nat-tracks">
     <div class="text-center text-3xl font-bitmap font-semibold tracking-wider select-none">NAT tracks</div>
-    <div class="mt-2 mb-6 text-center text-lg opacity-80">The tracks in force now, or the next to come into force. Times are Zulu.</div>
+    <div class="mt-2 mb-6 text-center text-lg opacity-80">The tracks in use now, or the next to come into use. Times are Zulu.</div>
     <div class="flex flex-row flex-wrap justify-center gap-6 w-full max-w-5xl">
       {#each groups as g}
         <div class="flex-1 min-w-[18rem] border-2 rounded shadow-5xl bg-blue-0 p-4 {g.state === 'now' ? 'border-green-400' : 'border-yellow-300'}">
           <div class="flex flex-row items-center justify-between mb-3">
             <div class="text-xl font-bitmap tracking-wider">{g.label}</div>
             <div class="text-sm px-2 py-0.5 rounded-full border {g.state === 'now' ? 'border-green-400 text-green-300' : 'border-yellow-300 text-yellow-200'}">
-              {g.state === "now" ? "In force now" : "Upcoming"}
+              {g.state === "now" ? "In use now" : "Upcoming"}
             </div>
           </div>
           <div class="text-sm opacity-80 mb-3">
