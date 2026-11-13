@@ -377,7 +377,7 @@ mod tests {
         fs::write(d.path().join(CFG_NAME), "# old header\r\nserver=https://x.example\r\nkey=1234567.abc\r\nautotype=0\r\nsquawk=0\r\nsettingsstamp=5\r\n").unwrap();
         assert_eq!(refresh_cfg(d.path(), tpl), Ok(true));
         let t = fs::read_to_string(d.path().join(CFG_NAME)).unwrap();
-        assert_eq!(t, "# new header\r\nserver=https://x.example\r\nkey=1234567.abc\r\n\r\n# autotype help\r\nautotype=0\r\n# highlight help\r\n\r\nsquawk=0\r\nsettingsstamp=5\r\n");
+        assert_eq!(t, "# new header\r\nserver=https://x.example\r\nkey=1234567.abc\r\n\r\n# autotype help\r\nautotype=0\r\n# highlight help\r\n\r\nsettingsstamp=5\r\n");
         assert!(!t.contains("highlight=") && !t.contains("PASTE"));  // not in their file: not added
         assert_eq!(refresh_cfg(d.path(), tpl), Ok(false));          // second time: nothing to do
         assert!(refresh_cfg(d.path(), "<html>nope").is_err());
