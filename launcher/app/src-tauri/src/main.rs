@@ -242,7 +242,7 @@ async fn update_sector(window: WebviewWindow, app: tauri::AppHandle) -> Result<S
             return Err("the sector pack download was empty".into());
         }
     }
-    let result = vnaaats_core::extract_pack(&tmp, Path::new(&root));
+    let result = vnaaats_core::pack_dest(&tmp, Path::new(&root)).and_then(|dest| vnaaats_core::extract_pack(&tmp, &dest));
     let _ = std::fs::remove_file(&tmp);
     let count = result?;
     saved.sector_id = Some(id);
