@@ -2510,6 +2510,11 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                 if p == "/api/status":                        # public health summary for the status page: no keys, names or flight plans
                     with cache.lock:
                         tracks = {"count": len(cache.tracks), "updated": cache.updated, "error": cache.error}
+                        nat_tracks = [{"id": t["id"], "direction": "west" if t.get("direction") == 1 else "east" if t.get("direction") == 2 else "",
+                                       "route": [r["name"] for r in t.get("route", [])], "levels": t.get("flightLevels", []),
+                                       "validFrom": int(t["validFrom"]) if str(t.get("validFrom", "")).isdigit() else None,
+                                       "validTo": int(t["validTo"]) if str(t.get("validTo", "")).isdigit() else None}
+                                      for t in cache.tracks]
                     feed = {"enabled": bool(network), "updated": None, "error": None, "oceanicFlights": 0, "pilotsOnline": 0}
                     atc = []
                     if network:
@@ -2523,7 +2528,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         except Exception:
                             pass
                     return self._send(200, {"version": SERVER_VERSION, "now": time.time(), "uptimeSeconds": int(time.time() - STARTED_AT),
-                                            "tracks": tracks, "feed": feed, "atc": atc, "cpdlc": cp,
+                                            "tracks": tracks, "natTracks": nat_tracks, "feed": feed, "atc": atc, "cpdlc": cp,
                                             "flightsOnDisplay": len(store.all_flights()), "sectorPack": sector_pack_info()})
                 if p == "/unresolved":
                     with cache.lock:

@@ -3,6 +3,7 @@ import { onMount } from "svelte";
  
 import * as site from "../typescript/site";
 import StatusPill from "../props/status_pill.svelte";
+import NatTracks from "../props/nat_tracks.svelte";
 
 let pagesOpen: boolean = false;
 let heroVideo: HTMLVideoElement;
@@ -104,6 +105,7 @@ onMount(async () => {
         </svg>
         </div>
     </div>
+    <NatTracks />
     <div class="flex flex-col items-center bg-blue-0 px-6 py-14 font-web" id="see-it">
         <div class="text-center 2xl:text-5xl xl:text-4xl text-3xl font-bitmap font-semibold tracking-wider select-none">
             See it in action

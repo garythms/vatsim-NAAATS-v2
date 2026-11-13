@@ -123,6 +123,12 @@ class T(unittest.TestCase):
         self.assertEqual(d["atc"], [])
         self.assertFalse(d["cpdlc"]["enabled"])
         self.assertIsNone(d["sectorPack"])
+        nt = {t["id"]: t for t in d["natTracks"]}                        # for the homepage "NAT tracks" card
+        self.assertEqual(set(nt), {"V", "A"})
+        self.assertEqual((nt["V"]["direction"], nt["A"]["direction"]), ("east", "west"))
+        self.assertEqual((nt["V"]["validFrom"], nt["V"]["validTo"]), (1792458000, 1792483200))
+        self.assertEqual(nt["V"]["levels"], [34000, 35000])
+        self.assertEqual(nt["V"]["route"][-1], "GISTI")
         self.assertNotIn(KEY, body)
 
     def test_nattrak_placeholder(self):
