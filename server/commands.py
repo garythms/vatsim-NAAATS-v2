@@ -24,6 +24,11 @@ RELIEF_CPDLC_TEXT = "THERE IS A CONTROLLER CHANGE IN PROGRESS WHICH REQUIRES YOU
 NATMSG = ("Hello, you will soon be entering oceanic airspace. Please send your oceanic clearance request (RCL) by CPDLC, or via nattrak.vatsim.net, "
           "between 90 and 30 minutes before your oceanic entry point, and include the highest level you can accept (MAX FL). Squawk 2000 at the oceanic entry point.")
 
+# The Auto RCL version: says it is automated and points to the website (the manual RCL REQ button keeps the plain NATMSG above)
+NATMSG_AUTO = ("*THIS IS AN AUTOMATED MESSAGE* You will soon be entering oceanic airspace. Please send your oceanic clearance request (RCL) by CPDLC, or via nattrak.vatsim.net, "
+               "between 90 and 30 minutes before your oceanic entry point, and include the highest level you can accept (MAX FL). Squawk 2000 at the oceanic entry point. "
+               "Further details and assistance can be found at https://ganderoceanic.ca/")
+
 
 PLAN_ICAO = re.compile(r"[A-Z0-9]{3,4}")
 PLAN_AC = re.compile(r"[A-Z0-9/\-]{1,30}")
@@ -116,7 +121,7 @@ def clean_command(body):
     elif typ == "contactme":
         args = {"text": ".contactme"}        # EuroScope's .contactme takes no callsign: it acts on the selected aircraft (the plugin selects it first)
     elif typ == "natmsg":
-        args = {"text": ".msg " + cs + " " + NATMSG}
+        args = {"text": ".msg " + cs + " " + (NATMSG_AUTO if body.get("auto") else NATMSG)}
     elif typ in ("planget", "highlight", "takeover"):      # highlight: the plugin circles the aircraft in white for a few seconds
         args = {}
     elif typ == "planset":
