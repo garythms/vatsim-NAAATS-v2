@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Display: Auto handoff is off for everyone, and switching it on now shows a warning every time: "This feature is experimental and cannot be relied upon. It is your responsibility as the controller that aircraft are handed off at the correct position to the correct controller callsign." Anyone who had it on will find it off and must accept the warning to turn it on again.
+
 ## 2.9.7 - 2026-11-17
 - Display: sending Climb, Descend or Maintain with a flight level from the CPDLC window also changes the level on the aircraft's strip. Expect climb does not.
 - Display: in the natTrak Information window a cleared aircraft's Status box is green again (it was drawn dark), and when natTrak sends no estimating time the Estimation shows the aircraft's own route time at that fix, the same time the route line shows.
