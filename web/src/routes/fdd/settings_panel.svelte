@@ -4,6 +4,7 @@
   import * as sess from "../../typescript/fdd/session";
   import * as app from "../../typescript/fdd/app";
   import { whatsNewOpen } from "../../typescript/fdd/whatsnew";
+  import QRCode from "qrcode";
   let setupAgain = app.inApp() && app.setupAgainGet();
 
   const { settingsOpen } = st;
@@ -22,6 +23,24 @@
     { key: "remotelog", label: "Send problems to the vNAAATS server", help: "Warnings and errors go to the server so faults can be found quickly (never your key).", choices: [{ v: "1", t: "Warnings and errors" }, { v: "2", t: "Everything" }, { v: "0", t: "Off" }] },
   ];
 
+  // Tablet mode: a link and QR code, good for 5 minutes and one use, that open the display on a tablet as this controller
+  let tabletUrl: string = "";
+  let tabletQr: string = "";
+  let tabletMsg: string = "";
+  let tabletBusy: boolean = false;
+  let tabletLeft: number = 0;
+  let tabletTimer: any = null;
+  async function makeTabletLink(): Promise<void> {
+    tabletBusy = true; tabletMsg = ""; tabletUrl = ""; tabletQr = "";
+    const r = await st.tabletLink();
+    tabletBusy = false;
+    if (typeof r === "string") { tabletMsg = r; return; }
+    tabletUrl = r.url;
+    try { tabletQr = await QRCode.toDataURL(r.url, { margin: 1, width: 220 }); } catch (e) { /* the link below still works */ }
+    tabletLeft = r.seconds;
+    clearInterval(tabletTimer);
+    tabletTimer = setInterval(() => { tabletLeft -= 1; if (tabletLeft <= 0) { clearInterval(tabletTimer); tabletUrl = ""; tabletQr = ""; tabletMsg = "That link has expired. Make a new one."; } }, 1000);
+  }
   let values: Record<string, string> = {};
   let keyChoice: string = "home";      // "home" or "other"
   let recording: boolean = false;
@@ -112,6 +131,23 @@
             <button class="ml-2 underline" on:click={() => { app.setupAgainSet(false); setupAgain = app.setupAgainGet(); }}>Cancel</button>
           {:else}
             <button class="px-3 py-1 font-bold bg-blue-10 text-black" on:click={() => { app.setupAgainSet(true); setupAgain = app.setupAgainGet(); }}>Change audio client at next start</button>
+          {/if}
+        </div>
+      {/if}
+      {#if app.inApp() && $session.loggedIn}
+        <div class="mx-3 mb-3 p-2 border border-blue-6 bg-blue-3 text-sm">
+          <div class="font-bold">Tablet or iPad mode</div>
+          <div class="text-xs opacity-80 mb-2">Use the display on a tablet or second screen, signed in as you with your position. Press the button, then scan the code with the tablet's camera or type the link into its browser. The link works once and lasts 5 minutes. EuroScope and the plugin stay on this computer.</div>
+          <button class="px-3 py-1 font-bold bg-blue-10 text-black" disabled={tabletBusy} on:click={makeTabletLink}>{tabletBusy ? "Making the link..." : tabletUrl ? "Make a new link" : "Show link and QR code"}</button>
+          {#if tabletMsg}<div class="mt-2 text-yellow-300">{tabletMsg}</div>{/if}
+          {#if tabletUrl}
+            <div class="mt-2 flex flex-row flex-wrap items-center gap-3">
+              {#if tabletQr}<img src={tabletQr} alt="QR code for the tablet link" width="220" height="220" class="bg-white" />{/if}
+              <div class="flex-1 min-w-0">
+                <div class="break-all select-all">{tabletUrl}</div>
+                <div class="text-xs opacity-80 mt-1">Expires in {Math.floor(tabletLeft / 60)}:{String(tabletLeft % 60).padStart(2, "0")}</div>
+              </div>
+            </div>
           {/if}
         </div>
       {/if}

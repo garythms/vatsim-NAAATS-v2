@@ -101,6 +101,7 @@ SLURPER_URL = os.environ.get("VNAAATS_SLURPER", "https://slurper.vatsim.net")   
 NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattrak.vatsim.net/api/plugins")
 SESSION_COOKIE = "vnaaats_session"
 SESSION_SECONDS = 12 * 3600
+TABLET_CODE_SECONDS = 300
 DISCONNECT_SECONDS = int(os.environ.get("VNAAATS_DISCONNECT_SECONDS", "3600"))     # a key sign-in is closed this long after the controller leaves VATSIM
 DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS"
 EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
@@ -1235,6 +1236,7 @@ class Auth:
         self.sessions = {}        # token -> {cid, name, via, position, expires}
         self.states = {}          # oauth state -> expires
         self.failures = {}        # ip -> [timestamps of failed password attempts]
+        self.tablet = {}          # one-time tablet link code -> {session fields, expires}
 
     @property
     def connect_enabled(self):
@@ -1244,8 +1246,31 @@ class Auth:
     def enabled(self):
         return bool(self.password) or self.connect_enabled
 
+    def make_tablet_code(self, token):
+        """A one-time code (valid 5 minutes) that signs a tablet or second screen in as the same controller and position."""
+        with self.lock:
+            s = self.sessions.get(token or "")
+            if not s or s["expires"] < time.time() or s.get("via") == "admin":
+                return None
+            code = secrets.token_urlsafe(16)
+            self.tablet[code] = {"cid": s["cid"], "name": s["name"], "via": s["via"], "position": s["position"], "keyExpires": s.get("keyExpires", 0), "expires": time.time() + TABLET_CODE_SECONDS}
+            return code
+
+    def use_tablet_code(self, code):
+        """Spends the code (it works once). Returns a new session token, or None."""
+        with self.lock:
+            rec = self.tablet.pop(code or "", None)
+        if not rec or rec["expires"] < time.time():
+            return None
+        token = self.create_session(rec["cid"], rec["name"], rec["via"], key_expires=rec["keyExpires"])
+        if rec["position"]:
+            self.set_position(token, rec["position"])
+        return token
+
     def _clean(self):
         now = time.time()
+        for c in [c for c, r in self.tablet.items() if r["expires"] < now]:
+            del self.tablet[c]
         for t in [t for t, s in self.sessions.items() if s["expires"] < now]:
             del self.sessions[t]
         for t in [t for t, e in self.states.items() if e < now]:
@@ -1781,6 +1806,15 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     auth.set_position(token, pos)
                     log.info("Key sign-in: CID %s as %s", cid, pos)
                     return self._send_cookie(200, self._status(auth.get(token)), token)
+                if p == "/auth/tablet-link":                   # FDD for Windows: a link for a tablet or second screen, opened once within 5 minutes
+                    tok = self._token()
+                    code = auth.make_tablet_code(tok)
+                    if not code:
+                        return self._send(401, {"error": "sign in first"})
+                    base = auth.public_url or (("https" if secure_cookie else "http") + "://" + (self.headers.get("Host") or "vnaaats.com"))
+                    s_ = auth.get(tok) or {}
+                    log.info("Tablet link made for CID %s", s_.get("cid", "?"))
+                    return self._send(200, {"url": base + "/t/" + code, "seconds": TABLET_CODE_SECONDS})
                 if p == "/auth/password":
                     ip = self._client_ip()
                     if not auth.password and not (members and members.any()):
@@ -2449,6 +2483,16 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     return self._send(200, st.messages(q.get("callsign") or None, to_int(q.get("after"), 0)))
                 if p == "/auth/status":
                     return self._send(200, self._status(self._session()))
+                if p.startswith("/t/") and len(p) > 3:         # a tablet link: spend the code, sign in, open the display
+                    ip = self._client_ip()
+                    if auth.throttled(ip):
+                        return self._send(429, "Too many wrong tries - wait 5 minutes.", "text/plain")
+                    token = auth.use_tablet_code(p[3:])
+                    if not token:
+                        auth.record_failure(ip)
+                        return self._send(410, "This link has expired or was already used. Make a new one in FDD for Windows (Settings, Tablet mode).", "text/plain")
+                    log.info("Tablet signed in from %s", ip)
+                    return self._redirect("/fdd", token)
                 if p == "/auth/login":
                     if not auth.connect_enabled:
                         return self._send(404, {"error": "VATSIM login is not set up"})
