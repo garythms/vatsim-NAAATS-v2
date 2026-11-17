@@ -24,9 +24,9 @@
         <a class="inline-block px-4 py-2 font-bold bg-blue-10 text-black" href="/get-key">Get your API key</a>
       </li>
       <li class="p-4 border-2 border-blue-10 bg-blue-3">
-        <div class="font-bold text-lg mb-1">2. Install FDD for Windows (or use a browser)</div>
-        <p class="mb-2">FDD for Windows is the recommended way: it brings the display, EuroScope, VACS and your audio together in one app and updates itself. A browser works too, for example on an iPad.</p>
-        <a class="underline mr-4" href="/windows">FDD for Windows</a><a class="underline mr-4" href="/fdd">Use in a browser</a><a class="underline" href="/guide">Install guide</a>
+        <div class="font-bold text-lg mb-1">2. Install FDD for Windows</div>
+        <p class="mb-2">FDD for Windows is the recommended way: it brings the display, EuroScope, VACS and your audio together in one app and updates itself. The display no longer works in a web browser. For a tablet or iPad, use Tablet or iPad mode from the app.</p>
+        <a class="underline mr-4" href="/windows">FDD for Windows</a><a class="underline mr-4" href="/tablet">Tablet or iPad use</a><a class="underline" href="/guide">Install guide</a>
       </li>
       <li class="p-4 border-2 border-blue-10 bg-blue-3">
         <div class="font-bold text-lg mb-1">3. Paste your key once</div>

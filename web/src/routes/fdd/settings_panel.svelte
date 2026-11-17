@@ -93,6 +93,7 @@
     askChecked = true;
     const r = await st.loadSettings();
     if (typeof r === "string" || r.settings?.contactkey !== undefined) return;
+    if (r.settings?.chatcontact !== "0") return;       // Contact Me by chat (the default) needs no key: only ask when that is switched off
     if (app.inApp()) {     // FDD for Windows already asked and saved the answer in vnaaats.cfg: keep it on the server too, no need to ask again
       try { const a = await app.status(); if (a.cfg_contact_key) { await st.saveSettings({ contactkey: String(a.cfg_contact_key) }); return; } } catch (e) { /* ask below */ }
     }
@@ -157,6 +158,7 @@
       {#if !$session.loggedIn}
         <div class="m-3 opacity-80">Sign in first.</div>
       {:else if loaded}
+        {#if values.chatcontact === "0"}
         <div class="mx-3 mb-3 p-2 border-2 {firstTime ? 'border-yellow-300' : 'border-blue-6'} bg-blue-3">
           <div class="font-bold">Contact Me key in EuroScope</div>
           <div class="text-xs opacity-80 mb-2">Contact Me works by pressing one key while the mouse rests on the callsign. EuroScope uses Home unless you changed it. Have you changed the Home key (Contact Me) in EuroScope?</div>
@@ -172,6 +174,7 @@
           {/if}
           {#if firstTime}<div class="text-xs text-yellow-300 mt-2">Press Save to keep this choice.</div>{/if}
         </div>
+        {/if}
         {#each options as o}
           <div class="mx-3 mb-3">
             <div class="flex flex-row justify-between items-center">
