@@ -47,7 +47,16 @@
     if (natApp && !natOld) app.natTrakWindow(!natSigned).catch(() => { natOld = true; dataHandler.openNatTrak(); });
     else dataHandler.openNatTrak();
   }
+  // Closing the page (tablet / browser): ask first. FDD for Windows asks with its own box (it says the position is vacated after 3 minutes).
+  let curPos: string = "";
+  $: curPos = $session.position ?? "";
+  function leaving(e: BeforeUnloadEvent): void {
+    if (natApp || !curPos) return;
+    e.preventDefault();
+    e.returnValue = "Are you sure you want to quit? Your position will be vacated within 3 minutes if you do not reopen FDD and sign back in.";
+  }
   onMount(async () => {
+    window.addEventListener("beforeunload", leaving);
     if (natApp) { void natCheck(); natTimer = setInterval(natCheck, 2000); }
     // Bye bye homepage
     site.setSiteSection(2);
@@ -72,6 +81,7 @@
     if (rclMsg) setTimeout(() => (rclMsg = ""), 6000);
   }
   onDestroy(async () => {
+    if (typeof window !== "undefined") window.removeEventListener("beforeunload", leaving);
     if (natTimer) clearInterval(natTimer);
     if (rclTimer) clearInterval(rclTimer);
     esSel.stopEsSelect();

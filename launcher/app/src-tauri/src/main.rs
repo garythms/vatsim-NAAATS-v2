@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 const SITE: &str = "https://vnaaats.com";
 
@@ -608,6 +608,20 @@ async fn cred_forget(window: WebviewWindow) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .on_window_event(|window, event| {
+            // Closing the main window asks first: the server vacates the position 3 minutes after the display goes quiet
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let w = window.clone();
+                    window.app_handle().dialog()
+                        .message("Are you sure you want to quit?\n\nYour position will be vacated within 3 minutes if you do not reopen FDD and sign back in. After 3 minutes you are signed out of FDD and CPDLC, unless another controller has taken over or the position was handed off.")
+                        .title("Quit FDD for Windows?")
+                        .buttons(MessageDialogButtons::OkCancelCustom("Quit".to_string(), "Stay".to_string()))
+                        .show(move |quit| { if quit { let _ = w.destroy(); } });
+                }
+            }
+        })
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
         .run(tauri::generate_context!())
