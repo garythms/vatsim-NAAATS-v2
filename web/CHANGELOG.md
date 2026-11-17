@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.9.3 - 2026-11-17
 - Display: after signing in, the Settings window opens by itself, with the Contact Me key question highlighted, until the controller has pressed Save with an answer (Home or their own key). The answer is stored on the server and your EuroScope writes it into vnaaats.cfg (contactkey) within about 2 minutes; restart EuroScope for it to take effect. No plugin update needed.
 
 ## 2.9.2 - 2026-11-17
