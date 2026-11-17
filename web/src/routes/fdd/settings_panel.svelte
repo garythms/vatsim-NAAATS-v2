@@ -16,6 +16,7 @@
   const options: Opt[] = [
     { key: "autotype", label: "Auto-type into EuroScope", help: "The FDD buttons for SELCAL, Contact Me and the natTrak message type the command into EuroScope for you.", choices: yesNo },
     { key: "autoclick", label: "Click the aircraft after Contact Me", help: "After typing .contactme, the plugin also clicks the aircraft so the message is sent.", choices: yesNo },
+    { key: "chatcontact", label: "Contact Me by chat message", help: "The plugin selects the aircraft, types .chat and the callsign, then types \"Please contact me on\" and your frequency in the same command line. If you turn this off, the Contact Me key below is used.", choices: yesNo },
     { key: "homecontact", label: "Contact Me with the Contact Me key", help: "The plugin empties the command line, rests the mouse on the callsign and presses the Contact Me key (Home unless you changed it, see below), which EuroScope answers by sending Contact Me. Off goes back to typing .contactme and clicking.", choices: yesNo },
     { key: "homefocus", label: "Press Home before typing", help: "Leave this Off. It is the old way of starting a typed command; it makes EuroScope write .contactme into the command line and can send a stray Contact Me. Turn it On only if typing stops working.", choices: yesNo },
     { key: "pastemessage", label: "Paste long messages instead of typing them", help: "Auto RCL and the natTrak message are pasted with Ctrl+V after the callsign, about 1 second instead of 6 to 8. Your copied text is put back afterwards. Turn it Off if the message does not appear in EuroScope.", choices: [{ v: "1", t: "On" }, { v: "0", t: "Off" }] },
@@ -78,7 +79,7 @@
     error = ""; saved = false; loaded = false;
     const r = await st.loadSettings();
     if (typeof r === "string") { error = r; return; }
-    values = { autotype: "1", autoclick: "1", pastemessage: "1", homecontact: "1", contactkey: "36", homefocus: "0", highlight: "1", retrack: "1", remotelog: "1", ...(r.defaults ?? {}), ...r.settings };
+    values = { autotype: "1", autoclick: "1", pastemessage: "1", chatcontact: "1", homecontact: "1", contactkey: "36", homefocus: "0", highlight: "1", retrack: "1", remotelog: "1", ...(r.defaults ?? {}), ...r.settings };
     firstTime = r.settings?.contactkey === undefined;
     keyChoice = values.contactkey === "36" || !values.contactkey ? "home" : "other";
     recording = false;
