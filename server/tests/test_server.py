@@ -1097,6 +1097,27 @@ class AdminFddTests(unittest.TestCase):
         self.assertEqual(self._post("/auth/position", {"position": "ADMIN"})[0], 400)
 
 
+class VacateTests(unittest.TestCase):
+    def test_silent_controller_with_a_position_is_signed_out_after_the_limit(self):
+        a = s.Auth({"VNAAATS_FDD_PASSWORD": "pw", "VNAAATS_POSITIONS": "CZQO_CTR"})
+        tok = a.create_session("1", "Gary T", "key")
+        a.set_position(tok, "CZQO_CTR")
+        t0 = a.sessions[tok]["seen"]
+        self.assertEqual(a.reap_idle(now=t0 + 179), [])                 # still inside 3 minutes
+        a.touch(tok)                                                    # the display came back
+        self.assertEqual(a.reap_idle(now=a.sessions[tok]["seen"] + 179), [])
+        gone = a.reap_idle(now=a.sessions[tok]["seen"] + 181)
+        self.assertEqual([g[0] for g in gone], [tok])
+        self.assertEqual(gone[0][1]["position"], "CZQO_CTR")
+        self.assertIsNone(a.get(tok))
+
+    def test_session_without_a_position_is_left_alone(self):
+        a = s.Auth({"VNAAATS_FDD_PASSWORD": "pw"})
+        tok = a.create_session("1", "Gary T", "key")
+        self.assertEqual(a.reap_idle(now=a.sessions[tok]["seen"] + 9999), [])
+        self.assertIsNotNone(a.get(tok))
+
+
 class TabletLinkTests(unittest.TestCase):
     def test_code_signs_in_once_as_the_same_controller(self):
         a = s.Auth({"VNAAATS_FDD_PASSWORD": "pw", "VNAAATS_POSITIONS": "CZQO_CTR"})

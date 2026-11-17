@@ -102,6 +102,7 @@ NATTRAK_PLUGIN_URL = os.environ.get("VNAAATS_NATTRAK_PLUGIN_URL", "https://nattr
 SESSION_COOKIE = "vnaaats_session"
 SESSION_SECONDS = 12 * 3600
 TABLET_CODE_SECONDS = 300
+VACATE_SECONDS = int(os.environ.get("VNAAATS_VACATE_SECONDS", "180"))                # a controller whose FDD has been silent this long is signed out of the position (FDD and CPDLC)
 DISCONNECT_SECONDS = int(os.environ.get("VNAAATS_DISCONNECT_SECONDS", "3600"))     # a key sign-in is closed this long after the controller leaves VATSIM
 DEFAULT_POSITIONS = "CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS"
 EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
@@ -1305,8 +1306,29 @@ class Auth:
         token = secrets.token_urlsafe(32)
         with self.lock:
             self._clean()
-            self.sessions[token] = {"cid": cid, "name": name, "via": via, "position": "", "expires": time.time() + SESSION_SECONDS, "keyExpires": key_expires}
+            self.sessions[token] = {"cid": cid, "name": name, "via": via, "position": "", "expires": time.time() + SESSION_SECONDS, "keyExpires": key_expires, "seen": time.time()}
         return token
+
+    def touch(self, token):
+        """The controller's display just talked to the server (the FDD asks for data every few seconds while it is open)."""
+        with self.lock:
+            s = self.sessions.get(token or "")
+            if s:
+                s["seen"] = time.time()
+
+    def reap_idle(self, now=None, seconds=None):
+        """Sign out controllers who hold a position but whose display has been silent for VACATE_SECONDS (they closed FDD and did not
+        reopen it). Returns [(token, session)] of those removed, so the caller can stop their CPDLC station and free the position.
+        A session that no longer holds a position (changed position, handed off, taken over) is not touched here."""
+        now = time.time() if now is None else now
+        limit = VACATE_SECONDS if seconds is None else seconds
+        gone = []
+        with self.lock:
+            for token, s in list(self.sessions.items()):
+                if s.get("position") and now - s.get("seen", now) > limit:
+                    gone.append((token, dict(s)))
+                    del self.sessions[token]
+        return gone
 
     def get(self, token):
         with self.lock:
@@ -1347,6 +1369,7 @@ class Auth:
             if not s:
                 return False
             s["position"] = position
+            s["seen"] = time.time()
             return True
 
     def logout(self, token):
@@ -1679,6 +1702,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
             return c[SESSION_COOKIE].value if SESSION_COOKIE in c else ""
 
         def _session(self):
+            auth.touch(self._token())
             return auth.get(self._token())
 
         def _set_cookie(self, token, max_age=SESSION_SECONDS):
@@ -2678,6 +2702,16 @@ def main():
                                    stations=cpdlc_mod.parse_stations(os.environ.get("VNAAATS_CPDLC_STATIONS", "")),
                                    is_session_alive=lambda t: auth.get(t) is not None)
         threading.Thread(target=lambda: [cpdlc.reap() or time.sleep(30) for _ in iter(int, 1)], daemon=True).start()
+        def vacate_loop():                                 # FDD closed and not reopened within 3 minutes: sign the controller out of FDD and CPDLC
+            while True:
+                time.sleep(20)
+                try:
+                    for token, sess in auth.reap_idle():
+                        cpdlc.stop(token)
+                        log.info("Position %s (%s) vacated: no FDD for %d seconds", sess.get("position"), sess.get("name"), VACATE_SECONDS)
+                except Exception:
+                    log.exception("vacate check failed")
+        threading.Thread(target=vacate_loop, daemon=True).start()
         log.info("CPDLC is available: each controller signs in with their own Hoppie code")
     else:
         log.info("CPDLC is OFF (VNAAATS_CPDLC=off)")
