@@ -202,7 +202,7 @@ static bool TypeIntoEuroScopeBackground(const string& text, string& why) {
 // Type a line into EuroScope's command line: Home (focuses it), the text, Enter.
 // EuroScope is brought to the front first (the controller has just clicked in the browser). Fails if Windows will not allow that.
 static bool ClickEsFreq(HWND es, string& why);   // defined below, with the other clicks
-static bool TypeIntoEuroScope(const string& text, string& why, bool clickFreq = false) {
+static bool TypeIntoEuroScope(const string& text, string& why, bool clickFreq = false, bool pasteWhole = false) {
 	HWND es = NULL;
 	EnumWindows(FindEsWindow, (LPARAM)&es);
 	if (!es) return false;
@@ -267,7 +267,8 @@ static bool TypeIntoEuroScope(const string& text, string& why, bool clickFreq = 
 	// pastemessage=1: a long ".msg CALLSIGN text" line is typed only as far as ".msg CALLSIGN " and the text is pasted with Ctrl+V
 	// (about 1 second instead of 6 to 8). The clipboard is put back afterwards. If the text cannot be put on the clipboard it is typed.
 	string head = text, tail;
-	if (CDataHandler::PasteMessage && text.size() > 100 && text.rfind(".msg ", 0) == 0) {
+	if (CDataHandler::PasteMessage && pasteWhole) { head.clear(); tail = text; }   // Contact Me chat lines: the whole line is pasted
+	else if (CDataHandler::PasteMessage && text.size() > 100 && text.rfind(".msg ", 0) == 0) {
 		size_t sp = text.find(' ', 5);
 		if (sp != string::npos && sp + 1 < text.size()) { head = text.substr(0, sp + 1); tail = text.substr(sp + 1); }
 	}
@@ -443,10 +444,10 @@ static void TypeThread(void* arg) {
 		bool typedOk = false;
 		if (!job->ChatMsg.empty()) {
 			// chatcontact=1: open a private chat with the pilot (.chat CALLSIGN + Enter), then type the Contact Me message into the same command line
-			typedOk = TypeIntoEuroScope(".chat " + job->Callsign, why);
+			typedOk = TypeIntoEuroScope(".chat " + job->Callsign, why, false, true);
 			if (typedOk) {
 				Sleep(900);                       // EuroScope opens the chat and keeps the command line
-				typedOk = TypeIntoEuroScope(job->ChatMsg, why);
+				typedOk = TypeIntoEuroScope(job->ChatMsg, why, false, true);
 			}
 			if (typedOk) {
 				CDataHandler::ReportRemoteResult(job->Id, true, "Contact Me chat message sent to " + job->Callsign + " (EuroScope gives no confirmation)");
