@@ -30,12 +30,12 @@ export function setHandoffSound(on: boolean): void {
  */
 export type AutoSetting = { on: boolean; nm: number };
 function loadAuto(): AutoSetting {
-  try { const v = JSON.parse(localStorage.getItem("vnaaats.autoHandoff") ?? ""); return { on: !!v.on, nm: [10, 20, 30, 40, 50].includes(v.nm) ? v.nm : NEAR_NM }; } catch (e) { return { on: false, nm: NEAR_NM }; }
+  try { const v = JSON.parse(localStorage.getItem("vnaaats.autoHandoff2") ?? ""); return { on: !!v.on, nm: [10, 20, 30, 40, 50].includes(v.nm) ? v.nm : NEAR_NM }; } catch (e) { return { on: false, nm: NEAR_NM }; }
 }
 export const handoffAuto = writable<AutoSetting>(loadAuto());
 export function setHandoffAuto(on: boolean, nm: number = get(handoffAuto).nm): void {
   handoffAuto.set({ on, nm });
-  try { localStorage.setItem("vnaaats.autoHandoff", JSON.stringify({ on, nm })); } catch (e) { /* not saved */ }
+  try { localStorage.setItem("vnaaats.autoHandoff2", JSON.stringify({ on, nm })); } catch (e) { /* not saved */ }
 }
 const AUTOKEY = "vnaaats.autoHandoffTried";
 function triedBefore(key: string): boolean {       // shared by every tab of this browser, so two open displays do not both act

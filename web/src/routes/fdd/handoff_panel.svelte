@@ -48,11 +48,24 @@
     busy[c.callsign] = false; busy = busy; note = note;
     if (!e) h.dismissCard(c);
   }
+  let warnAuto: boolean = false;       // the "experimental" warning shown every time Auto handoff is switched on
 </script>
 
 <button class="tbtn border {$handoffAuto.on ? 'bg-blue-3 border-blue-6' : 'bg-blue-3 border-red-400 text-red-200'}" disabled={!sess.canEdit($session)}
   title={"Auto handoff is " + ($handoffAuto.on ? "ON" : "OFF") + ". On: for aircraft you track that are on CPDLC, the transfer is sent for you " + $handoffAuto.nm + " nm from the boundary when a position is online to take it; with nobody online the UNICOM message is sent at the boundary and the tag is released when the pilot answers. Needs this display to stay open. " + ($autoLog || "")}
-  on:click={() => h.setHandoffAuto(!$handoffAuto.on)}><span class="inline-block w-2 h-2 rounded-full {$handoffAuto.on ? 'bg-green-300' : 'bg-red-400'}"></span>Auto handoff: {$handoffAuto.on ? "ON" : "OFF"}</button>
+  on:click={() => ($handoffAuto.on ? h.setHandoffAuto(false) : (warnAuto = true))}><span class="inline-block w-2 h-2 rounded-full {$handoffAuto.on ? 'bg-green-300' : 'bg-red-400'}"></span>Auto handoff: {$handoffAuto.on ? "ON" : "OFF"}</button>
+{#if warnAuto}
+  <div class="fixed inset-0 z-[70] flex items-center justify-center bg-black bg-opacity-60 font-web text-white" role="alertdialog" aria-labelledby="auto-warn-title" aria-describedby="auto-warn-text">
+    <div class="max-w-md w-[92vw] p-5 bg-blue-3 border-2 border-yellow-300">
+      <div id="auto-warn-title" class="text-lg font-bold text-yellow-300 mb-2">&#9888; Auto handoff is experimental</div>
+      <p id="auto-warn-text" class="mb-4">This feature is experimental and cannot be relied upon. It is your responsibility as the controller that aircraft are handed off at the correct position to the correct controller callsign.</p>
+      <div class="flex flex-row justify-end gap-3">
+        <button class="px-3 py-1 border-2 border-blue-6 bg-blue-3 hover:bg-blue-4" on:click={() => (warnAuto = false)}>Cancel</button>
+        <button class="px-3 py-1 font-bold bg-yellow-300 text-black" on:click={() => { warnAuto = false; h.setHandoffAuto(true); }}>I understand, turn it on</button>
+      </div>
+    </div>
+  </div>
+{/if}
 {#if $handoffAuto.on}
   <select class="tbtn border border-blue-6 bg-blue-3 text-white" value={String($handoffAuto.nm)} title="Distance from the boundary at which the transfer is sent" on:change={(e) => h.setHandoffAuto(true, parseInt(e.currentTarget.value, 10))}>
     {#each [10, 20, 30, 40, 50] as n}<option value={String(n)}>{n} nm</option>{/each}
