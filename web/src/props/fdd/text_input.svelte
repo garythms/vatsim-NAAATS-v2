@@ -19,7 +19,7 @@
   {#if inputType == 1}
     <input
       type="number"
-      class="text-base appearance-none px-1 h-6 bg-blue-2 {inputForeColour} {backColour}
+      class="text-base appearance-none px-1 h-6 {backColour ? '' : 'bg-blue-2'} {inputForeColour} {backColour}
           border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6
           focus:outline-none focus:border-green-300 {width}"
       bind:value={value}
@@ -29,7 +29,7 @@
     {:else if inputType == 2}
     <input
     type="password"
-    class="text-base appearance-none px-1 h-6 bg-blue-2 {inputForeColour} {backColour}
+    class="text-base appearance-none px-1 h-6 {backColour ? '' : 'bg-blue-2'} {inputForeColour} {backColour}
         border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6
         focus:outline-none focus:border-green-300 {width}"
     bind:value={value}
@@ -39,7 +39,7 @@
     {:else}
     <input
     type="text"
-    class="text-base appearance-none px-1 h-6 bg-blue-2 {inputForeColour} {backColour}
+    class="text-base appearance-none px-1 h-6 {backColour ? '' : 'bg-blue-2'} {inputForeColour} {backColour}
         border-2 border-l-blue-0 border-t-blue-0 border-r-blue-6 border-b-blue-6
         focus:outline-none focus:border-green-300 {width}"
     bind:value={value}
