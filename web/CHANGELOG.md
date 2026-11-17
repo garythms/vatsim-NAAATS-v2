@@ -4,8 +4,9 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 
 ## Unreleased
 - Plugin: the plugin no longer presses the Home key before typing a command. On an empty command line EuroScope answers Home by writing ".contactme" into it (the stray .contactme you saw before every Auto RCL), and with the mouse over a detailed tag Home sends Contact Me to that aircraft straight away. The line is still emptied with End and Backspaces first. homefocus=1 (Settings button on the FDD) brings the old Home press back if typing stops working. Plugin update needed.
-- Plugin: new experimental way to send Contact Me, homecontact=1 (Settings button on the FDD: "Contact Me with the Home key"): the plugin rests the mouse on the callsign and presses Home, which EuroScope answers by running .contactme on that aircraft, with no typing and no click. EuroScope gives no confirmation, so the FDD says "sent" without proof. Plugin update needed.
-- Display: the Settings window has the two new switches.
+- Plugin: Contact Me is now sent with the Contact Me key for everyone: the plugin empties the command line (End and Backspaces), rests the mouse on the callsign and presses Home, which EuroScope answers by running .contactme on that aircraft, with no typing and no click. EuroScope gives no confirmation, so the FDD says "sent" without proof. homecontact=0 goes back to typing .contactme and clicking. Plugin update needed.
+- Plugin: if you changed the Home key (Contact Me) in EuroScope, the plugin presses your key instead (contactkey=<Windows key code> in vnaaats.cfg). Plugin update needed.
+- Display: the Settings window asks "Have you changed the Home key (Contact Me) in EuroScope?"; if yes, Record key saves the key you press. It also has the new switches.
 
 ## 2.9.1 - 2026-11-13
 - Plugin: Auto RCL now clicks 131.900 in EuroScope's channel list (bottom left of the window) before it types the message, so the message goes out on that channel. The spot is rclfreqclick=x,y in vnaaats.cfg (pixels from the left and bottom of the EuroScope window, default 25,67; rclfreqclick=0 turns it off). Not used with backgroundtype=1. Plugin update needed.

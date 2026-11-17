@@ -340,7 +340,7 @@ static bool ClickEsFreq(HWND es, string& why) {
 
 struct CTypeJob { string Text; int Id; bool Click = false; bool ClickFreq = false; bool HomeContact = false; POINT Px = { 0, 0 }; string Callsign; bool TagClick = false; };
 static volatile LONG TypingBusy = 0;
-// homecontact=1: Contact Me without typing or clicking. Empty the command line, rest the mouse on the callsign so EuroScope opens the
+// homecontact=1 (the default): Contact Me without typing or clicking. Empty the command line, rest the mouse on the callsign so EuroScope opens the
 // detailed tag, then press Home: EuroScope runs .contactme on the aircraft whose detailed tag is open. The result cannot be confirmed.
 static bool ContactByHomeKey(const CTypeJob* job, string& why) {
 	HWND es = NULL;
@@ -374,10 +374,10 @@ static bool ContactByHomeKey(const CTypeJob* job, string& why) {
 	SetCursorPos(sp.x, sp.y);
 	Sleep(700);                                    // EuroScope opens the detailed tag when the mouse rests on it
 	if (!esInFront()) { SetCursorPos(back.x, back.y); why = interrupted; return false; }
-	key(VK_HOME); SendInput((UINT)in.size(), in.data(), sizeof(INPUT)); in.clear();
+	key((WORD)CDataHandler::ContactKey); SendInput((UINT)in.size(), in.data(), sizeof(INPUT)); in.clear();   // Home unless the controller remapped it in EuroScope
 	Sleep(500);
 	SetCursorPos(back.x, back.y);
-	CLogger::Log(CLogType::NORM, "Contact Me with the Home key on " + job->Callsign + " (mouse rested at screen " + to_string(sp.x) + "," + to_string(sp.y) + ")", "ContactByHomeKey");
+	CLogger::Log(CLogType::NORM, "Contact Me with key code " + to_string(CDataHandler::ContactKey) + " on " + job->Callsign + " (mouse rested at screen " + to_string(sp.x) + "," + to_string(sp.y) + ")", "ContactByHomeKey");
 	return true;
 }
 

@@ -72,7 +72,8 @@ class CDataHandler
 	static int RouteSeconds; // routeseconds=10 (default): a route drawn with a right click on a tag is erased after this many seconds (0 = stays until clicked again)
 	static int ContactButton; // contactbutton=left|middle|right: the mouse button the plugin clicks the aircraft with (match your EuroScope ASEL button)
 	static bool HomeFocus; // homefocus=1: press Home before typing (old behaviour; EuroScope puts .contactme in an empty command line, and Home on a detailed tag sends Contact Me). Default off
-	static bool HomeContact; // homecontact=1: Contact Me by hovering the callsign and pressing Home (EuroScope runs .contactme on the detailed tag) instead of typing and clicking. Default off
+	static int ContactKey; // contactkey=<Windows key code>: the key EuroScope uses for Contact Me on a detailed tag. 36 (Home) unless the controller changed it in EuroScope
+	static bool HomeContact; // homecontact=1: Contact Me by hovering the callsign and pressing Home (EuroScope runs .contactme on the detailed tag) instead of typing and clicking. Default on
 	static bool AutoClick; // autoclick=1 (default): after typing .contactme, click the aircraft for you
 	static bool Highlight; // highlight=1 (default): circle the aircraft in white when it is clicked on the FDD
 	static bool AutoType; // autotype=1: type .selcal / .contactme / .msg into EuroScope when the FDD asks
