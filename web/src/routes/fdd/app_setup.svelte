@@ -48,7 +48,7 @@
     await refresh();
     prefs();
     firstTime = !isDone();
-    const basicsOk = !!st && st.root !== null && st.dll_found && st.cfg_has_key;
+    const basicsOk = !!st && st.root !== null && st.dll_found && st.cfg_has_key && !!st.cfg_contact_key;   // (setup is shown until the Contact Me key question is answered)
     if (!firstTime && basicsOk) {
       const filesOk = st!.airlines_up_to_date !== false && st!.font_found !== false;       // (not the reactive value: it may not have updated yet)
       const keyBad = ["unknown", "expired", "revoked"].includes(st!.key_status ?? "");
@@ -69,7 +69,7 @@
   $: allGood = !!st && pluginOk && sectorOk && !keyBad;
   // the programs the "Yes" button will open (ticked on the setup screen and located)
   $: toOpen = !st ? [] : ([["euroscope", "EuroScope"], ["vacs", "VACS"], ...(audio === "none" ? [] : [[audio, AUDIO_NAME[audio]]])] as string[][]).filter(([k]) => app.autoGet(k as app.AutoKind) && !!(st as any)[k]).map(([, n]) => n);
-  $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && listOk && st.sector_up_to_date !== false && st.cfg_has_key && !keyBad;
+  $: ready = !!st && st.root !== null && st.dll_found && st.up_to_date === true && listOk && st.sector_up_to_date !== false && st.cfg_has_key && !!st.cfg_contact_key && !keyBad;
 
   async function run(f: () => Promise<unknown>, ok: string = ""): Promise<void> {
     busy = true; msg = "";
@@ -86,6 +86,25 @@
     msg = "Updated: " + (parts.join(" and ") || "everything is up to date") + ".";
   });
   const saveKey = () => run(async () => { await app.saveKey(key); sess.rememberKey(key); key = ""; }, "Key saved.");
+  // The Contact Me key: Home unless the controller changed it in EuroScope. The answer goes into vnaaats.cfg (contactkey=) before EuroScope starts.
+  let keyChoice: "home" | "other" = "home";
+  let recording: boolean = false;
+  let recorded: number = 0;
+  const keyNames: Record<number, string> = { 8: "Backspace", 9: "Tab", 13: "Enter", 19: "Pause", 20: "Caps Lock", 27: "Esc", 32: "Space", 33: "Page Up", 34: "Page Down", 35: "End", 36: "Home", 37: "Left", 38: "Up", 39: "Right", 40: "Down", 45: "Insert", 46: "Delete", 144: "Num Lock", 145: "Scroll Lock" };
+  function keyName(code: number): string {
+    if (keyNames[code]) return keyNames[code];
+    if ((code >= 48 && code <= 57) || (code >= 65 && code <= 90)) return String.fromCharCode(code);
+    if (code >= 112 && code <= 135) return "F" + (code - 111);
+    if (code >= 96 && code <= 105) return "Numpad " + (code - 96);
+    return "key code " + code;
+  }
+  function onRecord(e: KeyboardEvent): void {
+    if (!recording) return;
+    e.preventDefault(); e.stopPropagation();
+    if (e.keyCode >= 1 && e.keyCode <= 254) recorded = e.keyCode;
+    recording = false;
+  }
+  const saveContactKey = () => run(() => app.saveContactKey(keyChoice === "home" ? 36 : recorded), "Contact Me key saved.");
   const VACS_URL = "https://vacs.network/";
   const pick = (k: app.ProgKind) => run(async () => {
     msg = "A file window should open (it can appear behind this one)...";
@@ -120,6 +139,8 @@
   const STEP = "mb-3 p-2 border border-blue-6 bg-blue-4";
   const BTN = "px-3 py-1 font-bold bg-blue-10 text-black";
 </script>
+
+<svelte:window on:keydown|capture={onRecord} />
 
 {#if show && mode === "update"}
   <div class="fixed inset-0 z-[60] flex items-center justify-center" style="background: rgba(11,27,48,0.92);">
@@ -261,6 +282,25 @@
             </div>
           {/if}
           {#if st.dll_found}
+            <div class={STEP}>
+              <b>Contact Me key in EuroScope</b>
+              {#if st.cfg_contact_key}
+                <div class="text-green-300 text-sm">✔ Saved: {keyName(st.cfg_contact_key)}</div>
+              {:else}
+                <div class="text-yellow-300 text-sm">Contact Me works by pressing one key while the mouse rests on the callsign. EuroScope uses Home unless you changed it. Have you changed the Home key (Contact Me) in EuroScope?</div>
+                <div class="flex flex-row flex-wrap items-center gap-3 mt-1 text-sm">
+                  <label><input type="radio" name="setupkey" checked={keyChoice === "home"} on:change={() => (keyChoice = "home")} /> No, it is still Home</label>
+                  <label><input type="radio" name="setupkey" checked={keyChoice === "other"} on:change={() => { keyChoice = "other"; recording = true; }} /> Yes, I use another key</label>
+                </div>
+                {#if keyChoice === "other"}
+                  <div class="mt-1 flex flex-row items-center gap-3 text-sm">
+                    <button class="px-3 py-1 border border-blue-6" on:click={() => (recording = true)}>{recording ? "Press the key now..." : "Record key"}</button>
+                    <span>{recorded ? "Recorded: " + keyName(recorded) : "No key recorded yet"}</span>
+                  </div>
+                {/if}
+                <button class="{BTN} mt-2" disabled={busy || (keyChoice === "other" && !recorded)} on:click={saveContactKey}>Save</button>
+              {/if}
+            </div>
             <div class={STEP}>
               <b>3. Your key</b>
               {#if st.cfg_has_key}

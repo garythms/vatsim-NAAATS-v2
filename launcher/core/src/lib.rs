@@ -46,6 +46,7 @@ pub struct CfgInfo {
     pub exists: bool,
     pub has_key: bool,
     pub server: String,
+    pub contact_key: Option<u32>,   // contactkey= (Windows key code of the Contact Me key); None until the controller has answered
 }
 
 /// The key saved in vnaaats.cfg (None when there is no file, no key line, or it still holds the placeholder).
@@ -67,7 +68,7 @@ pub fn read_key(dir: &Path) -> Option<String> {
 }
 
 pub fn read_cfg(dir: &Path) -> CfgInfo {
-    let mut info = CfgInfo { exists: false, has_key: false, server: DEFAULT_SERVER.to_string() };
+    let mut info = CfgInfo { exists: false, has_key: false, server: DEFAULT_SERVER.to_string(), contact_key: None };
     let Ok(text) = fs::read_to_string(dir.join(CFG_NAME)) else { return info };
     info.exists = true;
     for line in text.lines() {
@@ -81,6 +82,8 @@ pub fn read_cfg(dir: &Path) -> CfgInfo {
                 info.has_key = true;
             } else if k == "server" && !v.is_empty() {
                 info.server = v.to_string();
+            } else if k == "contactkey" {
+                info.contact_key = v.parse::<u32>().ok().filter(|n| (1..=254).contains(n));
             }
         }
     }
@@ -130,6 +133,37 @@ pub fn set_cfg_key(dir: &Path, key: &str) -> Result<(), String> {
     }
     if !done {
         out.push(format!("key={}", key));
+    }
+    let text = out.join(eol) + eol;
+    let tmp = dir.join("vnaaats.cfg.tmp");
+    fs::write(&tmp, text).map_err(|e| format!("could not write vnaaats.cfg: {}", e))?;
+    fs::rename(&tmp, &path).map_err(|e| format!("could not save vnaaats.cfg: {}", e))
+}
+
+/// Put `contactkey=<code>` into vnaaats.cfg: the Windows key code of the key EuroScope uses for Contact Me (36 = Home).
+/// Replaces an existing line or adds one; every other line is kept as it was.
+pub fn set_cfg_contact_key(dir: &Path, code: u32) -> Result<(), String> {
+    if !(1..=254).contains(&code) {
+        return Err("that is not a key code the plugin can press".into());
+    }
+    let path = dir.join(CFG_NAME);
+    let old = fs::read_to_string(&path).unwrap_or_default();
+    let eol = if old.contains("\r\n") || old.is_empty() { "\r\n" } else { "\n" };
+    let mut out: Vec<String> = Vec::new();
+    let mut done = false;
+    for line in old.lines() {
+        let t = line.trim_start();
+        if !t.starts_with('#') && t.split_once('=').map(|(k, _)| k.trim() == "contactkey").unwrap_or(false) {
+            if !done {
+                out.push(format!("contactkey={}", code));
+                done = true;
+            }
+        } else {
+            out.push(line.to_string());
+        }
+    }
+    if !done {
+        out.push(format!("contactkey={}", code));
     }
     let text = out.join(eol) + eol;
     let tmp = dir.join("vnaaats.cfg.tmp");
@@ -590,5 +624,22 @@ mod tests {
         let p = t.path().join("x.zip");
         fs::write(&p, "not a zip").unwrap();
         assert!(extract_pack(&p, t.path()).is_err());
+    }
+
+    #[test]
+    fn contact_key_is_saved_read_and_replaced() {
+        let d = tempfile::tempdir().unwrap();
+        assert_eq!(read_cfg(d.path()).contact_key, None);
+        std::fs::write(d.path().join(CFG_NAME), "key=1234567.abcdefghijkl\r\n# contactkey=99\r\nautotype=1\r\n").unwrap();
+        assert_eq!(read_cfg(d.path()).contact_key, None);
+        set_cfg_contact_key(d.path(), 36).unwrap();
+        assert_eq!(read_cfg(d.path()).contact_key, Some(36));
+        set_cfg_contact_key(d.path(), 46).unwrap();
+        let text = std::fs::read_to_string(d.path().join(CFG_NAME)).unwrap();
+        assert_eq!(text.matches("contactkey=46").count(), 1);
+        assert!(text.contains("# contactkey=99") && text.contains("autotype=1") && text.contains("key=1234567.abcdefghijkl"));
+        assert!(text.contains("\r\n"));
+        assert!(set_cfg_contact_key(d.path(), 0).is_err());
+        assert!(set_cfg_contact_key(d.path(), 255).is_err());
     }
 }
