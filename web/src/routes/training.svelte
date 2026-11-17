@@ -14,6 +14,7 @@
     { file: "vNAAATS-howto-5-FDD-for-Windows.mp4", title: "5. FDD for Windows, the One Fits All Program", text: "What the app does, why it is better than a browser, installing it, the one-time setup and updates." },
     { file: "vNAAATS-howto-6-RCL-process.mp4", title: "6. The oceanic clearance (RCL) process", text: "How vNAAATS modernises oceanic traffic controlled across the NAT Region, and how a request for oceanic clearance travels from the pilot to the controller and back: the reminder and the red star, pilots without CPDLC, the new buttons, RCL processed and reclearance, the contact message at the entry point, and what to do when there is no reply." },
     { file: "vNAAATS-howto-7-Handoff.mp4", title: "7. The handoff helper", text: "A helping hand, not a way to take control: the flashing Handoff reminder, Transfer, Hand off to UNICOM, Auto handoff, and the Shanwick and Gander boundary at 30W. Most useful in busy periods when entry traffic is loading into the Nat region." },
+    { file: "vNAAATS-howto-8-Tablet-iPad.mp4", title: "8. Tablet and iPad mode", text: "How FDD for Windows gives you a one-time link and QR code that open the display on a tablet or iPad, signed in as you, while EuroScope stays on your Windows computer." },
   ];
 </script>
 

@@ -79,7 +79,7 @@
 
     <div class={CARD}>
       <div class="font-bold mb-1">iPad or tablet?</div>
-      <div class="text-sm opacity-90">In FDD for Windows open Settings and press <b>Tablet or iPad mode</b>. It shows a link and a QR code that open the display on the tablet, signed in as you. EuroScope and the plugin stay on your Windows computer.</div>
+      <div class="text-sm opacity-90">In FDD for Windows open Settings and press <b>Tablet or iPad mode</b>. It shows a link and a QR code that open the display on the tablet, signed in as you. EuroScope and the plugin stay on your Windows computer. <a class="underline" href="/tablet">Watch the video</a>.</div>
     </div>
 
     <p class="text-sm opacity-80">Independent community project, not run or endorsed by VATSIM. <a class="underline" href="/guide">Install guide</a> &middot; <a class="underline" href="/manual">User manual</a> &middot; <a class="underline" href="/privacy">Privacy and data handling</a> &middot; <a class="underline" href="/code-signing">Code signing policy</a>.</p>
