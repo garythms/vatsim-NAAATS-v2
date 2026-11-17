@@ -79,7 +79,7 @@ RCL_SEND = os.environ.get("VNAAATS_CPDLC_RCL_SEND", "off").lower() == "on"      
 RCL_KEEP_SECONDS = 6 * 3600        # a request stays in the list this long unless dismissed
 RCL_REPEAT_SECONDS = 1800          # a second request from the same aircraft inside this time updates the first
 MSG_TOO_FAR = "UNABLE. CONTACT CONTROLLER ON VOICE 20 MILES BEFORE OCEANIC ENTRY POINT"
-MSG_SQUAWK = "SQUAWK 2000 WITHIN 10 MINS OF ENTERING OCA"      # sent to every pilot who is accepted onto CPDLC (the plugin no longer sets the code itself)
+MSG_SQUAWK = "SQUAWK 2000 WITHIN 10 MINS AFTER THE OCEANIC ENTRY POINT"      # sent to every pilot who is accepted onto CPDLC (the plugin no longer sets the code itself)
 SQUAWK_MSG = os.environ.get("VNAAATS_CPDLC_SQUAWK_MSG", "off").lower() == "on"      # off: the squawk instruction now comes with the "fly current flight plan" message after the request is processed
 MSG_UNICOM = "THERE IS NO FURTHER ATC AVAILABLE. SERVICE TERMINATED. MONITOR ADVISORY ON 122.800"
 LOGOFF_TEXT = "LOGOFF"          # UNVERIFIED against the live Hoppie network: what the ground sends to log a pilot off
