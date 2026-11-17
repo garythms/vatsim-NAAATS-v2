@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.9.9 - 2026-11-17
 - Website: two new cards on the homepage Features & Toolsets, natTrak and CPDLC Oceanic Requests for Clearances (RCLs) and TrackAudio, filling the grid.
 
 ## 2.9.8 - 2026-11-17
