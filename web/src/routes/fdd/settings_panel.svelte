@@ -14,12 +14,40 @@
   const options: Opt[] = [
     { key: "autotype", label: "Auto-type into EuroScope", help: "The FDD buttons for SELCAL, Contact Me and the natTrak message type the command into EuroScope for you.", choices: yesNo },
     { key: "autoclick", label: "Click the aircraft after Contact Me", help: "After typing .contactme, the plugin also clicks the aircraft so the message is sent.", choices: yesNo },
+    { key: "homecontact", label: "Contact Me with the Contact Me key", help: "The plugin empties the command line, rests the mouse on the callsign and presses the Contact Me key (Home unless you changed it, see below), which EuroScope answers by sending Contact Me. Off goes back to typing .contactme and clicking.", choices: yesNo },
+    { key: "homefocus", label: "Press Home before typing", help: "Leave this Off. It is the old way of starting a typed command; it makes EuroScope write .contactme into the command line and can send a stray Contact Me. Turn it On only if typing stops working.", choices: yesNo },
     { key: "highlight", label: "Circle the aircraft when clicked here", help: "Clicking an aircraft on the FDD circles it in white in EuroScope for 3 seconds.", choices: yesNo },
     { key: "retrack", label: "Re-track aircraft automatically", help: "After a crash, a lost connection or a pilot reconnecting within 5 minutes, track the aircraft again.", choices: yesNo },
     { key: "remotelog", label: "Send problems to the vNAAATS server", help: "Warnings and errors go to the server so faults can be found quickly (never your key).", choices: [{ v: "1", t: "Warnings and errors" }, { v: "2", t: "Everything" }, { v: "0", t: "Off" }] },
   ];
 
   let values: Record<string, string> = {};
+  let keyChoice: string = "home";      // "home" or "other"
+  let recording: boolean = false;
+  let firstTime: boolean = false;      // no Contact Me key has been saved yet
+  const keyNames: Record<number, string> = { 8: "Backspace", 9: "Tab", 13: "Enter", 19: "Pause", 20: "Caps Lock", 27: "Esc", 32: "Space", 33: "Page Up", 34: "Page Down", 35: "End", 36: "Home", 37: "Left", 38: "Up", 39: "Right", 40: "Down", 45: "Insert", 46: "Delete", 144: "Num Lock", 145: "Scroll Lock" };
+  function keyName(code: number): string {
+    if (keyNames[code]) return keyNames[code];
+    if (code >= 48 && code <= 57) return String.fromCharCode(code);
+    if (code >= 65 && code <= 90) return String.fromCharCode(code);
+    if (code >= 112 && code <= 135) return "F" + (code - 111);
+    if (code >= 96 && code <= 105) return "Numpad " + (code - 96);
+    return "key code " + code;
+  }
+  function onRecord(e: KeyboardEvent): void {
+    if (!recording) return;
+    e.preventDefault(); e.stopPropagation();
+    const c = e.keyCode;
+    if (c >= 1 && c <= 254) { values.contactkey = String(c); values = values; }
+    recording = false;
+  }
+  function chooseKey(v: string): void {
+    keyChoice = v;
+    if (v === "home") values.contactkey = "36";
+    else if (values.contactkey === "36") { values.contactkey = ""; recording = true; }
+    else recording = true;
+    values = values;
+  }
   let loaded: boolean = false;
   let error: string = "";
   let saved: boolean = false;
@@ -29,7 +57,10 @@
     error = ""; saved = false; loaded = false;
     const r = await st.loadSettings();
     if (typeof r === "string") { error = r; return; }
-    values = { autotype: "1", autoclick: "1", highlight: "1", retrack: "1", remotelog: "1", ...(r.defaults ?? {}), ...r.settings };
+    values = { autotype: "1", autoclick: "1", homecontact: "1", contactkey: "36", homefocus: "0", highlight: "1", retrack: "1", remotelog: "1", ...(r.defaults ?? {}), ...r.settings };
+    firstTime = r.settings?.contactkey === undefined;
+    keyChoice = values.contactkey === "36" || !values.contactkey ? "home" : "other";
+    recording = false;
     loaded = true;
   }
   $: if ($settingsOpen) load();
@@ -41,6 +72,8 @@
     saved = error === "";
   }
 </script>
+
+<svelte:window on:keydown|capture={onRecord} />
 
 {#if $settingsOpen}
   <div transition:fade={{ duration: 180 }} class="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60" on:click|self={() => settingsOpen.set(false)}>
@@ -71,6 +104,21 @@
       {#if !$session.loggedIn}
         <div class="m-3 opacity-80">Sign in first.</div>
       {:else if loaded}
+        <div class="mx-3 mb-3 p-2 border-2 {firstTime ? 'border-yellow-300' : 'border-blue-6'} bg-blue-3">
+          <div class="font-bold">Contact Me key in EuroScope</div>
+          <div class="text-xs opacity-80 mb-2">Contact Me works by pressing one key while the mouse rests on the callsign. EuroScope uses Home unless you changed it. Have you changed the Home key (Contact Me) in EuroScope?</div>
+          <div class="flex flex-row flex-wrap items-center gap-3">
+            <label><input type="radio" name="keychoice" checked={keyChoice === "home"} on:change={() => chooseKey("home")} /> No, it is still Home</label>
+            <label><input type="radio" name="keychoice" checked={keyChoice === "other"} on:change={() => chooseKey("other")} /> Yes, I use another key</label>
+          </div>
+          {#if keyChoice === "other"}
+            <div class="mt-2 flex flex-row items-center gap-3">
+              <button class="px-3 py-1 font-bold bg-blue-10 text-black" on:click={() => (recording = true)}>{recording ? "Press the key now..." : "Record key"}</button>
+              <span class="text-sm">{values.contactkey ? "Recorded: " + keyName(Number(values.contactkey)) : "No key recorded yet"}</span>
+            </div>
+          {/if}
+          {#if firstTime}<div class="text-xs text-yellow-300 mt-2">Press Save to keep this choice.</div>{/if}
+        </div>
         {#each options as o}
           <div class="mx-3 mb-3">
             <div class="flex flex-row justify-between items-center">

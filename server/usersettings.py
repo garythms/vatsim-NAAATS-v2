@@ -12,6 +12,9 @@ import time
 OPTIONS = {
     "autotype":  {"values": ("0", "1"), "default": "0"},
     "autoclick": {"values": ("0", "1"), "default": "1"},
+    "homefocus": {"values": ("0", "1"), "default": "0"},     # press Home before typing (old behaviour)
+    "homecontact": {"values": ("0", "1"), "default": "1"},   # Contact Me by hovering the callsign and pressing the Contact Me key (Home)
+    "contactkey": {"values": tuple(str(n) for n in range(1, 255)), "default": "36"},   # Windows key code of the key EuroScope uses for Contact Me (36 = Home)
     "highlight": {"values": ("0", "1"), "default": "1"},
     "retrack":   {"values": ("0", "1"), "default": "1"},
     "remotelog": {"values": ("0", "1", "2"), "default": "1"},
@@ -28,7 +31,7 @@ def clean(raw):
             return None, "unknown setting: %s" % str(k)[:30]
         v = str(v).strip()
         if v not in OPTIONS[k]["values"]:
-            return None, "%s must be one of %s" % (k, ", ".join(OPTIONS[k]["values"]))
+            return None, "%s must be %s" % (k, "a key code from 1 to 254" if k == "contactkey" else "one of " + ", ".join(OPTIONS[k]["values"]))
         out[k] = v
     return out, None
 

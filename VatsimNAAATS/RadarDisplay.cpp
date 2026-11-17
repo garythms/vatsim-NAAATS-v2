@@ -231,10 +231,15 @@ static bool TypeIntoEuroScope(const string& text, string& why, bool clickFreq = 
 		INPUT u = d; u.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(u);
 	};
 	if (!esInFront()) { why = interrupted; return false; }
-	key(VK_HOME); send(in);                       // Home focuses the command line
-	Sleep(300);
-	if (!esInFront()) { why = interrupted; return false; }
-	key(VK_END);                                  // then empty it: End and plenty of Backspaces, whatever was left in it
+	// Home is NOT pressed by default: on an empty command line EuroScope answers Home by putting ".contactme" into it, and if the mouse is
+	// over a tag that has gone detailed, Home runs .contactme on that aircraft straight away (a stray Contact Me to a pilot).
+	// homefocus=1 in vnaaats.cfg brings the old Home press back.
+	if (CDataHandler::HomeFocus) {
+		key(VK_HOME); send(in);
+		Sleep(300);
+		if (!esInFront()) { why = interrupted; return false; }
+	}
+	key(VK_END);                                  // empty the command line: End and plenty of Backspaces (harmless on an empty line), whatever was left in it
 	for (int n = 0; n < 300; n++) key(VK_BACK);
 	send(in);
 	Sleep(300);
@@ -333,18 +338,60 @@ static bool ClickEsFreq(HWND es, string& why) {
 	return true;
 }
 
-struct CTypeJob { string Text; int Id; bool Click = false; bool ClickFreq = false; POINT Px = { 0, 0 }; string Callsign; bool TagClick = false; };
+struct CTypeJob { string Text; int Id; bool Click = false; bool ClickFreq = false; bool HomeContact = false; POINT Px = { 0, 0 }; string Callsign; bool TagClick = false; };
 static volatile LONG TypingBusy = 0;
+// homecontact=1 (the default): Contact Me without typing or clicking. Empty the command line, rest the mouse on the callsign so EuroScope opens the
+// detailed tag, then press Home: EuroScope runs .contactme on the aircraft whose detailed tag is open. The result cannot be confirmed.
+static bool ContactByHomeKey(const CTypeJob* job, string& why) {
+	HWND es = NULL;
+	EnumWindows(FindEsWindow, (LPARAM)&es);
+	if (!es) return false;
+	if (!BringEsToFront(es)) { why = "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste"; return false; }
+	auto esInFront = [&]() -> bool {
+		HWND f = GetForegroundWindow();
+		DWORD p2 = 0;
+		if (f) GetWindowThreadProcessId(f, &p2);
+		return p2 == GetCurrentProcessId();
+	};
+	const string interrupted = "interrupted - you switched away from EuroScope, so nothing was sent";
+	HWND w = g_radarWnd;
+	if (!w || !IsWindow(w)) { why = "the plugin has not yet seen your mouse over the EuroScope radar - move the mouse over the radar once and try again"; return false; }
+	POINT sp = job->Px;
+	if (!ClientToScreen(w, &sp)) { why = "Windows could not work out where the aircraft is on screen"; return false; }
+	HWND hit = WindowFromPoint(sp);
+	DWORD hitPid = 0; if (hit) GetWindowThreadProcessId(hit, &hitPid);
+	if (!hit || hitPid != GetCurrentProcessId()) { why = "another window is covering that spot on the screen, so the mouse could not rest on the tag"; return false; }
+	if (!esInFront()) { why = interrupted; return false; }
+	vector<INPUT> in;
+	auto key = [&](WORD vk) { INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wVk = vk; in.push_back(d); INPUT u = d; u.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(u); };
+	key(VK_END);                                   // empty the command line first: with text in it, Home only moves the cursor
+	for (int n = 0; n < 300; n++) key(VK_BACK);
+	SendInput((UINT)in.size(), in.data(), sizeof(INPUT)); in.clear();
+	Sleep(300);
+	POINT back; GetCursorPos(&back);
+	SetCursorPos(sp.x - 2, sp.y - 2);
+	Sleep(80);
+	SetCursorPos(sp.x, sp.y);
+	Sleep(700);                                    // EuroScope opens the detailed tag when the mouse rests on it
+	if (!esInFront()) { SetCursorPos(back.x, back.y); why = interrupted; return false; }
+	key((WORD)CDataHandler::ContactKey); SendInput((UINT)in.size(), in.data(), sizeof(INPUT)); in.clear();   // Home unless the controller remapped it in EuroScope
+	Sleep(500);
+	SetCursorPos(back.x, back.y);
+	CLogger::Log(CLogType::NORM, "Contact Me with key code " + to_string(CDataHandler::ContactKey) + " on " + job->Callsign + " (mouse rested at screen " + to_string(sp.x) + "," + to_string(sp.y) + ")", "ContactByHomeKey");
+	return true;
+}
+
 static void TypeThread(void* arg) {
 	CTypeJob* job = (CTypeJob*)arg;
 	try {
 		string why = "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste";
 		// Record every line the plugin types into EuroScope (first 60 characters), so a stray line in the command box can be traced
-		CLogger::Log(CLogType::NORM, string("Typing into EuroScope (command #") + to_string(job->Id) + (job->ClickFreq ? ", RCL message" : "") + "): " + job->Text.substr(0, 60), "TypeThread");
-		bool typedOk = CDataHandler::BackgroundType ? TypeIntoEuroScopeBackground(job->Text, why) : TypeIntoEuroScope(job->Text, why, job->ClickFreq);
+		CLogger::Log(CLogType::NORM, string("Typing into EuroScope (command #") + to_string(job->Id) + (job->ClickFreq ? ", RCL message" : "") + (job->HomeContact ? ", Contact Me by Home key" : "") + "): " + job->Text.substr(0, 60), "TypeThread");
+		bool typedOk = job->HomeContact ? ContactByHomeKey(job, why) : CDataHandler::BackgroundType ? TypeIntoEuroScopeBackground(job->Text, why) : TypeIntoEuroScope(job->Text, why, job->ClickFreq);
 		if (typedOk) {
 			bool failed = false;
 			string note = string(CDataHandler::BackgroundType ? "Sent to EuroScope (background): " : "Sent to EuroScope: ") + job->Text.substr(0, 40);
+			if (job->HomeContact) note = "Contact Me sent to " + job->Callsign + " with the Home key on its tag (EuroScope gives no confirmation)";
 			if (job->Click) {
 				Sleep(500);                       // EuroScope now waits for a click on the aircraft
 				bool clicked = false, confirmed = !job->TagClick;   // a click on the aircraft symbol cannot be confirmed, only one on the tag
@@ -666,7 +713,7 @@ void CRadarDisplay::RunRemoteCommands()
 				InterlockedExchange(&TypingBusy, 1);
 				CTypeJob* job = new CTypeJob{ cmd.Text, cmd.Id };
 				job->ClickFreq = (cmd.Type == "natmsg");          // Auto RCL / RCL REQ: click 131.900 before typing
-				if (cmd.Type == "contactme" && CDataHandler::AutoClick) {
+				if (cmd.Type == "contactme" && (CDataHandler::AutoClick || CDataHandler::HomeContact)) {
 					// where the aircraft is on this radar (worked out here, on EuroScope's own thread)
 					// EuroScope waits for a click on the callsign of the tag, so click that when the tag was drawn just now
 					CRect area0(GetRadarArea());
@@ -680,6 +727,8 @@ void CRadarDisplay::RunRemoteCommands()
 						if (area.PtInRect(px)) { job->Click = true; job->Px = px; }
 					}
 				}
+				if (job->Click && CDataHandler::HomeContact) { job->HomeContact = true; job->Click = false; }   // hover + Home instead of typing and clicking
+				else if (job->Click && !CDataHandler::AutoClick) job->Click = false;
 				_beginthread(TypeThread, 0, (void*)job);   // the thread reports the result
 			}
 			else if (cmd.Type == "highlight") {
