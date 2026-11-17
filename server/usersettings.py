@@ -15,6 +15,7 @@ OPTIONS = {
     "homefocus": {"values": ("0", "1"), "default": "0"},     # press Home before typing (old behaviour)
     "homecontact": {"values": ("0", "1"), "default": "1"},   # Contact Me by hovering the callsign and pressing the Contact Me key (Home)
     "contactkey": {"values": tuple(str(n) for n in range(1, 255)), "default": "36"},   # Windows key code of the key EuroScope uses for Contact Me (36 = Home)
+    "pastemessage": {"values": ("0", "1"), "default": "1"},   # paste long .msg lines with Ctrl+V instead of typing them
     "highlight": {"values": ("0", "1"), "default": "1"},
     "retrack":   {"values": ("0", "1"), "default": "1"},
     "remotelog": {"values": ("0", "1", "2"), "default": "1"},

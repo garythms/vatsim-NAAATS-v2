@@ -74,6 +74,7 @@ class CDataHandler
 	static bool HomeFocus; // homefocus=1: press Home before typing (old behaviour; EuroScope puts .contactme in an empty command line, and Home on a detailed tag sends Contact Me). Default off
 	static int ContactKey; // contactkey=<Windows key code>: the key EuroScope uses for Contact Me on a detailed tag. 36 (Home) unless the controller changed it in EuroScope
 	static bool HomeContact; // homecontact=1: Contact Me by hovering the callsign and pressing Home (EuroScope runs .contactme on the detailed tag) instead of typing and clicking. Default on
+	static bool PasteMessage; // pastemessage=1: long .msg lines are pasted with Ctrl+V instead of typed. Default on
 	static bool AutoClick; // autoclick=1 (default): after typing .contactme, click the aircraft for you
 	static bool Highlight; // highlight=1 (default): circle the aircraft in white when it is clicked on the FDD
 	static bool AutoType; // autotype=1: type .selcal / .contactme / .msg into EuroScope when the FDD asks
