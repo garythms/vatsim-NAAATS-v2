@@ -66,6 +66,16 @@
   }
   $: if ($settingsOpen) load();
 
+  // Until a controller has saved an answer to the Contact Me key question, open this window once per sign-in
+  let askChecked: boolean = false;
+  async function askIfUnanswered(): Promise<void> {
+    askChecked = true;
+    const r = await st.loadSettings();
+    if (typeof r !== "string" && r.settings?.contactkey === undefined) settingsOpen.set(true);
+  }
+  $: if ($session.loggedIn && !askChecked) askIfUnanswered();
+  $: if (!$session.loggedIn) askChecked = false;
+
   async function save(): Promise<void> {
     busy = true; error = ""; saved = false;
     error = await st.saveSettings(values);
