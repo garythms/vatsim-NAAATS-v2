@@ -13,6 +13,9 @@
   const { cpdlcStatus } = cp;
 
   let tab: string = "track";
+  let hopOnline: boolean = false;
+  let telexText: string = "";
+  let telexMsg: string = "";
   let lastCs: string = "";
   let level: string = "";
   let mach: string = "";
@@ -37,6 +40,8 @@
   function openFor(cs: string): void {
     ac = dataHandler.getAircraft(cs);
     tab = "track"; note = ""; copied = ""; busy = false; wallopText = ""; pickedCtrl = "";
+    hopOnline = false; telexText = ""; telexMsg = "";
+    if (cs && !cp.isConnected(cs)) cp.hoppieOnline(cs).then((h) => { if (cs === callsign) hopOnline = h.online === true && !h.cpdlc; });   // ask Hoppie first: the TELEX tab only appears if the pilot is online there
     level = ac && ac.AssignedLevel ? String(ac.AssignedLevel) : "";
     mach = ac && ac.AssignedMach ? String(ac.AssignedMach).padStart(3, "0") : "";
     selcal = ac && ac.Selcal && ac.Selcal !== "N/A" ? String(ac.Selcal) : "";
@@ -148,8 +153,16 @@
     ac = dataHandler.getAircraft(callsign);
     busy = false;
   }
+  async function doTelex(): Promise<void> {
+    if (!telexText.trim() || busy) return;
+    busy = true; telexMsg = "";
+    const e = await cp.sendTelex(callsign, telexText);
+    busy = false;
+    if (e) { telexMsg = "\u2716 " + e; if (/not online/.test(e)) hopOnline = false; }
+    else { telexMsg = "\u2714 Telex sent to " + callsign; telexText = ""; }
+  }
   $: onCpdlc = !!callsign && cp.isConnected(callsign);
-  $: tabs = [["track", trackedByMe ? "Update" : "Track"], ["transfer", "Transfer"], ["untrack", "Release Tag"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["scratch", "Note"], ["contact", "Contact Me"], ["nt", "RCL REQ"], ["remove", "Hide"]] as [string, string][];
+  $: tabs = [["track", trackedByMe ? "Update" : "Track"], ["transfer", "Transfer"], ["untrack", "Release Tag"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ...(hopOnline && !onCpdlc ? [["telex", "TELEX"]] : []), ["scratch", "Note"], ["contact", "Contact Me"], ["nt", "RCL REQ"], ["remove", "Hide"]] as [string, string][];
   $: trackedByMe = !!ac && !!ac.TrackedBy && !!$session.position && String(ac.TrackedBy).toUpperCase() === $session.position.toUpperCase();
   $: trackId = ac && ac.Track ? String(ac.Track) : "";
   $: blockLevel = trackId ? (dataHandler.currentNatTracks.get(trackId)?.BlockLevel ?? "") : "";
@@ -237,6 +250,11 @@
             <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(true)}>I have sent it - mark with red *</button>
             {#if ac && ac.NtSent}<button class="px-2 py-1 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(false)}>Remove mark</button>{/if}
           </div>
+        {:else if tab === "telex"}
+          <div class="text-xs opacity-80 mb-1">{callsign} is online on Hoppie but not logged on to CPDLC. A plain TELEX goes to them (capital letters, numbers and . , / : + - only; long messages are split).</div>
+          <textarea class="w-full text-black px-2 py-1" rows="3" maxlength="800" bind:value={telexText} placeholder="Message to the pilot"></textarea>
+          <button class="px-2 py-1 mt-1 {BTN}" disabled={busy || !telexText.trim() || !canEdit} on:click={doTelex}>Send TELEX</button>
+          {#if telexMsg}<div class="text-sm mt-1 {telexMsg.charAt(0) === '\u2714' ? 'text-green-300' : 'text-yellow-300'}">{telexMsg}</div>{/if}
         {:else if tab === "cpdlc"}
           {#if onCpdlc}
             <button class="px-2 py-1 {BTN}" on:click={openCpdlc}>Open CPDLC for {callsign}</button>

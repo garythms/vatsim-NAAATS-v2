@@ -100,6 +100,18 @@ export async function loadFreetexts(): Promise<void> {
   } catch (e) { /* keep the built-in buttons */ }
 }
 
+// Is this aircraft online on Hoppie (and not on CPDLC)? true / false, or null when Hoppie or the CPDLC sign-in cannot answer.
+export async function hoppieOnline(callsign: string): Promise<{ online: boolean | null; cpdlc: boolean }> {
+  const r = await post("/cpdlc/hoppie-check", { callsign });
+  return r.ok ? { online: r.data.online ?? null, cpdlc: !!r.data.cpdlc } : { online: null, cpdlc: false };
+}
+// Send a plain TELEX (the server asks Hoppie again first). Returns an error message, or "" when sent.
+export async function sendTelex(callsign: string, text: string): Promise<string> {
+  const r = await post("/cpdlc/telex", { callsign, text });
+  if (r.ok) { refreshCpdlc(); return ""; }
+  return r.data.error ?? "telex failed";
+}
+
 export async function sendUnicom(callsign: string): Promise<string> {
   const r = await post("/cpdlc/unicom", { callsign });
   if (r.ok) { refreshCpdlc(); return ""; }
