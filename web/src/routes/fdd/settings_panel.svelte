@@ -4,7 +4,8 @@
   import * as sess from "../../typescript/fdd/session";
   import * as app from "../../typescript/fdd/app";
   import { whatsNewOpen } from "../../typescript/fdd/whatsnew";
-  import QRCode from "qrcode";
+  // @ts-ignore (plain JavaScript, vendored)
+  import qrcode from "../../typescript/vendor/qrcode-generator.js";
   let setupAgain = app.inApp() && app.setupAgainGet();
 
   const { settingsOpen } = st;
@@ -36,7 +37,7 @@
     tabletBusy = false;
     if (typeof r === "string") { tabletMsg = r; return; }
     tabletUrl = r.url;
-    try { tabletQr = await QRCode.toDataURL(r.url, { margin: 1, width: 220 }); } catch (e) { /* the link below still works */ }
+    try { const q = qrcode(0, "M"); q.addData(r.url); q.make(); tabletQr = q.createDataURL(6, 4); } catch (e) { /* the link below still works */ }
     tabletLeft = r.seconds;
     clearInterval(tabletTimer);
     tabletTimer = setInterval(() => { tabletLeft -= 1; if (tabletLeft <= 0) { clearInterval(tabletTimer); tabletUrl = ""; tabletQr = ""; tabletMsg = "That link has expired. Make a new one."; } }, 1000);
