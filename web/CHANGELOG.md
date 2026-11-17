@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.9.7 - 2026-11-17
 - Display: sending Climb, Descend or Maintain with a flight level from the CPDLC window also changes the level on the aircraft's strip. Expect climb does not.
 - Display: in the natTrak Information window a cleared aircraft's Status box is green again (it was drawn dark), and when natTrak sends no estimating time the Estimation shows the aircraft's own route time at that fix, the same time the route line shows.
 - Server: when the plugin has given times for only some route points (for example the entry fix but not the lat/long points), the missing times are worked out from the pilot's position and speed instead of being left blank. Times the plugin or a controller set are never changed. Server deploy needed.
