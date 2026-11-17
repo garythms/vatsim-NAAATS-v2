@@ -12,6 +12,16 @@
   $: natTrakData = {callsign: "",status: "--",  nat: "--", fix: "--", level: -1,
   mach: -1, estimating_time: "--", clearance_issued: "--", extra_info: "--"};
   
+  // natTrak often has no estimating time ("" or ":"). Then use the aircraft's own route time at the same fix (the time the route line shows).
+  function estimation(d: NatTrakData, ac: Aircraft | null): string {
+    const t = (d.estimating_time ?? "").replace(/[:\s-]/g, "");
+    if (t.length > 0) return d.estimating_time;
+    if (!ac || !d.fix) return "";
+    const i = (ac.Route ?? []).findIndex((r) => String(r).trim().toUpperCase() === d.fix.trim().toUpperCase());
+    const v = i >= 0 ? (ac.RouteEtas ?? [])[i] : "";
+    return v ? String(v) : "";
+  }
+
   // Component updater (50ms)
   setInterval(() => {
     asel = dataHandler.asel;
@@ -37,7 +47,7 @@
     <TextInput identifier="level" label="Level" isDisabled={true} value={natTrakData.callsign != "" ? natTrakData.level.toString() : "--"} width="w-6/7" widthWhole="w-1/4"></TextInput>
     <TextInput identifier="mach" label="Mach" isDisabled={true} value={natTrakData.callsign != "" ? "M0" + natTrakData.mach.toString() : "--"} width="w-5/7" widthWhole="w-1/4"></TextInput>
     <TextInput identifier="fix" label="Fix" isDisabled={true} value="{natTrakData.callsign != "" ? utils.formatWaypoint(natTrakData.fix) : "--"}" width="w-5/7" widthWhole="w-1/4"></TextInput>
-    <TextInput identifier="est" label="Estimation"isDisabled={true} value="{natTrakData.callsign != "" ? natTrakData.estimating_time : "--"}" width="w-6/7" widthWhole="w-1/4"></TextInput>
+    <TextInput identifier="est" label="Estimation"isDisabled={true} value="{natTrakData.callsign != "" ? estimation(natTrakData, asel) : "--"}" width="w-6/7" widthWhole="w-1/4"></TextInput>
   </div>
   <div class="justify-start pt-4 pr-6">
     <TextInput identifier="info" label="Extra Information" isDisabled={true} value="{natTrakData.callsign != "" ? (natTrakData.extra_info ?? "NONE") : "--"}" width="w-full"></TextInput>
