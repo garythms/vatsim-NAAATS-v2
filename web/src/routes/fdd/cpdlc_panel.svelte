@@ -194,10 +194,17 @@
   async function send(): Promise<void> {
     if (!text.trim() || !shown) return;
     busy = true;
-    const err = await cp.sendUplink(shown, text, ra, replyTo ? replyTo.min : null);
+    // CLIMB / DESCEND TO AND MAINTAIN FLxxx, or MAINTAIN FLxxx: the strip's level follows the clearance (EXPECT CLIMB does not change it)
+    const lm = /^(?:CLIMB TO AND MAINTAIN|DESCEND TO AND MAINTAIN|MAINTAIN)\s+@?FL(\d{2,3})@?\s*$/i.exec(text.trim());
+    const target = shown;
+    const err = await cp.sendUplink(target, text, ra, replyTo ? replyTo.min : null);
     busy = false;
     sendOk = err === "";
     sendMsg = err === "" ? "Sent" : err;
+    if (err === "" && lm && !replyTo) {
+      const e2 = await sess.editFlight(target, { level: parseInt(lm[1], 10) });
+      sendMsg = e2 === "" ? "Sent - level on the strip is now FL" + parseInt(lm[1], 10) : "Sent, but the strip level was not changed: " + e2;
+    }
     if (err === "") { text = ""; replyTo = null; lvlVerb = null; lvlPick = 0; refresh(); }
     setTimeout(() => (sendMsg = ""), 5000);
   }
