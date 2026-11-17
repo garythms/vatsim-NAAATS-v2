@@ -1913,7 +1913,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if cpdlc:
                         cpdlc.stop(self._token())                  # a new position means a different CPDLC station
                     return self._send(200, self._status(self._session()))
-                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom", "/cpdlc/force-logout", "/cpdlc/disconnect", "/cpdlc/rcl-dismiss", "/cpdlc/rcl-preview", "/cpdlc/rcl-send"):
+                if p in ("/cpdlc/send", "/cpdlc/seen", "/cpdlc/logon", "/cpdlc/logoff", "/cpdlc/unicom", "/cpdlc/force-logout", "/cpdlc/disconnect", "/cpdlc/rcl-dismiss", "/cpdlc/rcl-preview", "/cpdlc/rcl-send", "/cpdlc/hoppie-check", "/cpdlc/telex"):
                     if not cpdlc:
                         return self._send(404, {"error": "CPDLC is not switched on"})
                     sess = self._session()
@@ -1944,6 +1944,27 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(409, {"error": "enter your Hoppie code first to sign in to CPDLC"})
                     if p == "/cpdlc/seen":
                         st.mark_seen(str(body.get("callsign", "")))
+                        return self._send(200, {"ok": True})
+                    if p in ("/cpdlc/hoppie-check", "/cpdlc/telex"):
+                        # TELEX for an aircraft that is online on Hoppie but not logged on to CPDLC. Hoppie is asked first, every time.
+                        cs = str(body.get("callsign", "")).strip().upper()
+                        if not re.fullmatch(r"[A-Z0-9]{2,8}", cs):
+                            return self._send(400, {"error": "bad callsign"})
+                        if st.is_connected(cs):
+                            return self._send(200, {"online": True, "cpdlc": True})
+                        online = st.ping_online([cs])
+                        if p == "/cpdlc/hoppie-check":
+                            return self._send(200, {"online": None if online is None else cs in online, "cpdlc": False})
+                        if online is None:
+                            return self._send(502, {"error": "Hoppie could not be asked, so the telex was not sent. Try again in a moment."})
+                        if cs not in online:
+                            return self._send(409, {"error": "%s is not online on Hoppie, so the telex was not sent." % cs})
+                        try:
+                            st.send_telex(cs, str(body.get("text", "")), by="%s (%s)" % (sess["position"], sess["name"]))
+                        except ValueError as e:
+                            return self._send(400, {"error": str(e)})
+                        except RuntimeError as e:
+                            return self._send(502, {"error": str(e)})
                         return self._send(200, {"ok": True})
                     if p == "/cpdlc/rcl-dismiss":
                         try:

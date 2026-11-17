@@ -9,6 +9,7 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 - Server: CPDLC messages that name Moncton now say MONCTON CENTRE (for example CONTACT MONCTON CENTRE ON 132.200), not Moncton Control. Other stations still say Control. Server deploy needed.
 - Display: the Contact Me key question (in Settings and in the FDD for Windows setup screen) is no longer asked while Contact Me by chat is on, which is the default. It only shows if a controller turns chat off.
 - Website: the install guide, download page, access page and manual now say the display no longer works in a web browser (FDD for Windows, or Tablet or iPad mode).
+- Display and server: the aircraft menu has a TELEX tab for an aircraft that is online on Hoppie but not logged on to CPDLC. Hoppie is asked first when the menu opens, and again when the telex is sent; the tab does not appear if the pilot is offline, already on CPDLC, or you are not signed in to CPDLC. Server deploy needed.
 
 ## 2.9.6 - 2026-11-17
 - Plugin: Contact Me now opens a chat with the pilot: the plugin selects the aircraft, types `.chat CALLSIGN` and presses Enter, then types "Please contact me on <your frequency>." and presses Enter. This replaces the Home key method by default (`chatcontact=1`; turn it off in Settings to go back). Both lines are pasted with Ctrl+V. Server and plugin update needed.

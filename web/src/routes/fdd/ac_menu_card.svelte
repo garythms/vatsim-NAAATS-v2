@@ -13,6 +13,11 @@
   const { cpdlcStatus } = cp;
 
   let tab: string = "track";
+  let hopOnline: boolean = false;
+  let hopUnknown: boolean = false;       // Hoppie could not be asked (for example you are not signed in to CPDLC)
+  let hopChecked: boolean = false;       // Hoppie has answered (true / false / could not be asked)
+  let telexText: string = "";
+  let telexMsg: string = "";
   let lastCs: string = "";
   let level: string = "";
   let mach: string = "";
@@ -37,6 +42,8 @@
   function openFor(cs: string): void {
     ac = dataHandler.getAircraft(cs);
     tab = "track"; note = ""; copied = ""; busy = false; wallopText = ""; pickedCtrl = "";
+    hopOnline = false; hopChecked = false; hopUnknown = false; telexText = ""; telexMsg = "";
+    if (cs && !cp.isConnected(cs)) cp.hoppieOnline(cs).then((h) => { if (cs === callsign) { hopOnline = h.online === true && !h.cpdlc; hopUnknown = h.online === null; hopChecked = true; } });   // ask Hoppie first: the TELEX tab only appears if the pilot is online there
     level = ac && ac.AssignedLevel ? String(ac.AssignedLevel) : "";
     mach = ac && ac.AssignedMach ? String(ac.AssignedMach).padStart(3, "0") : "";
     selcal = ac && ac.Selcal && ac.Selcal !== "N/A" ? String(ac.Selcal) : "";
@@ -148,8 +155,25 @@
     ac = dataHandler.getAircraft(callsign);
     busy = false;
   }
+  async function doTelex(): Promise<void> {
+    if (!telexText.trim() || busy) return;
+    busy = true; telexMsg = "";
+    const e = await cp.sendTelex(callsign, telexText);
+    busy = false;
+    if (e) { telexMsg = "\u2716 " + e; if (/not online/.test(e)) hopOnline = false; }
+    else { telexMsg = "\u2714 Telex sent to " + callsign; telexText = ""; }
+  }
   $: onCpdlc = !!callsign && cp.isConnected(callsign);
-  $: tabs = [["track", trackedByMe ? "Update" : "Track"], ["transfer", "Transfer"], ["untrack", "Release Tag"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ["scratch", "Note"], ["contact", "Contact Me"], ["nt", "RCL REQ"], ["remove", "Hide"]] as [string, string][];
+  // The badges on the top line: who the pilot is talking to, natTrak status, and the datalink they can be reached on
+  $: comm = ac?.Comm ?? null;
+  $: atcLabel = comm ? (comm.kind === "unicom" ? "UNICOM" : (comm.by || "ATC")) + (comm.freq ? " " + comm.freq : "") : "ATC: NONE";
+  $: atcClass = !comm ? "bg-blue-2 text-white" : comm.kind === "unicom" ? "bg-yellow-300 text-black" : "bg-green-400 text-black";
+  $: ntStatus = (() => { ac; const d: any = dataHandler.natTrakData.get((callsign ?? "").toUpperCase()); return d && d.status ? String(d.status).toUpperCase() : ""; })();
+  $: ntLabel = ntStatus ? "natTrak " + ntStatus : "natTrak: NO DATA";
+  $: ntClass = ntStatus === "CLEARED" ? "bg-green-400 text-black" : ntStatus === "PENDING" ? "bg-yellow-300 text-black" : ntStatus ? "bg-blue-2 text-white" : "bg-red-600 text-white";
+  $: dlLabel = onCpdlc ? "CPDLC" : hopOnline ? "TELEX" : hopUnknown ? "DATALINK UNKNOWN" : hopChecked ? "NO DATALINK" : "DATALINK...";
+  $: dlClass = onCpdlc ? "bg-green-400 text-black" : hopOnline ? "bg-yellow-300 text-black" : hopChecked && !hopUnknown ? "bg-red-600 text-white" : "bg-blue-2 text-white";
+  $: tabs = [["track", trackedByMe ? "Update" : "Track"], ["transfer", "Transfer"], ["untrack", "Release Tag"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ...(hopOnline && !onCpdlc ? [["telex", "TELEX"]] : []), ["scratch", "Note"], ["contact", "Contact Me"], ["nt", "RCL REQ"], ["remove", "Hide"]] as [string, string][];
   $: trackedByMe = !!ac && !!ac.TrackedBy && !!$session.position && String(ac.TrackedBy).toUpperCase() === $session.position.toUpperCase();
   $: trackId = ac && ac.Track ? String(ac.Track) : "";
   $: blockLevel = trackId ? (dataHandler.currentNatTracks.get(trackId)?.BlockLevel ?? "") : "";
@@ -158,7 +182,12 @@
 
 <div class="w-full mb-3 bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 52rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
-        <span>Aircraft menu - {callsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}{blockLevel ? " - Block " + blockLevel : ""}</span></span>
+        <span class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
+          <span>Aircraft menu - {callsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}{blockLevel ? " - Block " + blockLevel : ""}</span></span>
+          <span class="px-2 text-sm font-bold border border-black {atcClass}" title="Who the pilot is talking to on VATSIM">{atcLabel}</span>
+          <span class="px-2 text-sm font-bold border border-black {ntClass}" title="natTrak clearance status">{ntLabel}</span>
+          <span class="px-2 text-sm font-bold border border-black {dlClass}" title="How the pilot can be reached by datalink: CPDLC, TELEX (online on Hoppie only) or none">{dlLabel}</span>
+        </span>
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={close}>Close</button>
       </div>
       <div class="p-3">
@@ -237,6 +266,11 @@
             <button class="px-2 py-1 mr-2 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(true)}>I have sent it - mark with red *</button>
             {#if ac && ac.NtSent}<button class="px-2 py-1 mb-1 {BTN}" disabled={!canEdit} on:click={() => ntMark(false)}>Remove mark</button>{/if}
           </div>
+        {:else if tab === "telex"}
+          <div class="text-xs opacity-80 mb-1">{callsign} is online on Hoppie but not logged on to CPDLC. A plain TELEX goes to them (capital letters, numbers and . , / : + - only; long messages are split).</div>
+          <textarea class="w-full text-black px-2 py-1" rows="3" maxlength="800" bind:value={telexText} placeholder="Message to the pilot"></textarea>
+          <button class="px-2 py-1 mt-1 {BTN}" disabled={busy || !telexText.trim() || !canEdit} on:click={doTelex}>Send TELEX</button>
+          {#if telexMsg}<div class="text-sm mt-1 {telexMsg.charAt(0) === '\u2714' ? 'text-green-300' : 'text-yellow-300'}">{telexMsg}</div>{/if}
         {:else if tab === "cpdlc"}
           {#if onCpdlc}
             <button class="px-2 py-1 {BTN}" on:click={openCpdlc}>Open CPDLC for {callsign}</button>
