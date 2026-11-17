@@ -8,6 +8,7 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 - Website: the homepage no longer has a "Use in a browser" button; the FDD for Windows page explains tablet mode instead. Browser sign-in itself still works.
 - App: FDD for Windows asks "Have you changed the Home key (Contact Me) in EuroScope?" on its setup screen and writes contactkey into vnaaats.cfg before EuroScope starts; setup stays on screen until it is answered. The answer is also kept on the server. FDD for Windows update needed.
 - Display: the green talker box (TrackAudio) now fades out over 5 seconds after an aircraft stops transmitting, and several aircraft can have their box at the same time: when a second aircraft calls, the first one keeps its box instead of losing it.
+- Display: the tablet QR code is now drawn by a small vendored generator instead of an npm package.
 
 ## 2.9.3 - 2026-11-17
 - Display: after signing in, the Settings window opens by itself, with the Contact Me key question highlighted, until the controller has pressed Save with an answer (Home or their own key). The answer is stored on the server and your EuroScope writes it into vnaaats.cfg (contactkey) within about 2 minutes; restart EuroScope for it to take effect. No plugin update needed.
