@@ -7,8 +7,6 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 - Display: new "Tablet or iPad mode" in the Settings window of FDD for Windows. It shows a link and QR code (one use, 5 minutes) that open the display on a tablet or second screen signed in as you, with your position. Server deploy needed.
 - Website: the homepage no longer has a "Use in a browser" button; the FDD for Windows page explains tablet mode instead. Browser sign-in itself still works.
 - App: FDD for Windows asks "Have you changed the Home key (Contact Me) in EuroScope?" on its setup screen and writes contactkey into vnaaats.cfg before EuroScope starts; setup stays on screen until it is answered. The answer is also kept on the server. FDD for Windows update needed.
-
-## Unreleased
 - Display: the green talker box (TrackAudio) now fades out over 5 seconds after an aircraft stops transmitting, and several aircraft can have their box at the same time: when a second aircraft calls, the first one keeps its box instead of losing it.
 
 ## 2.9.3 - 2026-11-17
