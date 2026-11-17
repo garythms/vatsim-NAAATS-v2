@@ -6,6 +6,9 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 - Server: the RCL reply messages (RCL processed and Send reclearance) now say "SQUAWK 2000 WITHIN 10 MINS AFTER THE OCEANIC ENTRY POINT" and "CONTACT <GANDER, SHANWICK or NAT FSS> AT OCEANIC ENTRY POINT WITH CALLSIGN ONLY" (the pilot calls at the entry point with the callsign only, after listening, instead of 5 minutes before with level, Mach and SELCAL). Wording suggested by Patrick Hrusa. The same squawk wording is now used in the CPDLC logon reply, the RCL REQ message and the Auto RCL message. The Auto RCL message also now tells the pilot to contact the oceanic controller at the oceanic entry point with the callsign only. Server deploy needed (and a display release for the RCL REQ button).
 - App: FDD for Windows asks "Have you changed the Home key (Contact Me) in EuroScope?" on its setup screen and writes contactkey into vnaaats.cfg before EuroScope starts; setup stays on screen until it is answered. The answer is also kept on the server. FDD for Windows update needed.
 
+## Unreleased
+- Display: the green talker box (TrackAudio) now fades out over 5 seconds after an aircraft stops transmitting, and several aircraft can have their box at the same time: when a second aircraft calls, the first one keeps its box instead of losing it.
+
 ## 2.9.3 - 2026-11-17
 - Display: after signing in, the Settings window opens by itself, with the Contact Me key question highlighted, until the controller has pressed Save with an answer (Home or their own key). The answer is stored on the server and your EuroScope writes it into vnaaats.cfg (contactkey) within about 2 minutes; restart EuroScope for it to take effect. No plugin update needed.
 
