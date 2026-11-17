@@ -131,6 +131,10 @@ let timer: any = null;
 export function unreadTotal(s: CpdlcStatus): number {
   return Object.values(s.unread ?? {}).reduce((a, b) => a + b, 0);
 }
+// Unread initial ROGERs (the pilot's answer to the automated "CPDLC contact" message): they play the sound but never flash
+export function quietTotal(s: CpdlcStatus): number {
+  return Object.values((s as any).quiet ?? {}).reduce((a: number, b: any) => a + Number(b), 0);
+}
 
 export async function refreshCpdlc(): Promise<void> {
   try {
@@ -138,7 +142,7 @@ export async function refreshCpdlc(): Promise<void> {
     if (!r.ok) return;
     const s: CpdlcStatus = await r.json();
     cpdlcStatus.set(s);
-    const total = unreadTotal(s);
+    const total = unreadTotal(s) + quietTotal(s);   // the sound counts every new message, the flashing (unread) leaves out the initial ROGER
     const rclIds = new Set<number>((s.rclRequests ?? []).map((r) => r.id));
     const newRcl = knownRcl !== null && [...rclIds].some((id) => !knownRcl!.has(id));
     knownRcl = rclIds;

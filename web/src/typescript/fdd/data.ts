@@ -514,6 +514,12 @@ export function isNatTrakIgnored(callsign: string): boolean {
   return /^ENOB/i.test(ac.TrackedBy ?? "") || (ac.Comm?.kind === "oceanic" && /^ENOB/i.test(ac.Comm?.by ?? ""));
 }
 
+// A natTrak request is waiting (even one already acknowledged or present when the display opened): the strip shows RCL REQ
+export function isNatTrakPending(callsign: string): boolean {
+  const cs: string = callsign.toUpperCase();
+  return natTrakData.get(cs)?.status === "PENDING" && !isNatTrakIgnored(cs);
+}
+
 export function isNatTrakAlert(callsign: string): boolean {
   const cs: string = callsign.toUpperCase();
   const d = natTrakData.get(cs);

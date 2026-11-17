@@ -137,6 +137,20 @@ class StationTests(unittest.TestCase):
         st.send("BAW123", "ROGER", ra="NE")
         self.assertEqual(st.unread(), {})
 
+    def test_initial_roger_sounds_but_does_not_flash(self):
+        hop, st = make()
+        hop.queue = [("BAW123", "/data2/5//Y/REQUEST LOGON")]
+        st.poll_once()
+        up = st.send("BAW123", c.entry_contact_text("CZQO"), ra="R")
+        hop.queue = [("BAW123", "/data2/6/%d/N/ROGER" % up["min"])]
+        st.poll_once()
+        self.assertEqual(st.unread(), {})                                # no flashing
+        self.assertEqual(st.quiet(), {"BAW123": 1})                      # but counted for the sound
+        self.assertEqual(st.status()["quiet"], {"BAW123": 1})
+        hop.queue = [("BAW123", "/data2/7//Y/REQUEST LEVEL FL380")]      # anything else still flashes
+        st.poll_once()
+        self.assertEqual(st.unread(), {"BAW123": 1})
+
     def test_manual_accept_waits(self):
         hop, st = make(auto=False)
         hop.queue = [("DLH1", "/data2/2//Y/REQUEST LOGON")]

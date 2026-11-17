@@ -23,7 +23,8 @@
   export let isEquipped: boolean;
   export let tango: string = "";       // Shanwick Tango route id (T9 ...): the fixes row is shown with the id, like random routings
   export let faded: boolean = false;   // handed off / past its exit point: drawn dimmed
-  export let alert: boolean = false; // natTrak request waiting for action: flash
+  export let alert: boolean = false; // natTrak request waiting for action: the callsign flashes (not the whole strip)
+  export let rclReq: boolean = false; // natTrak request waiting for action: shows RCL REQ on the strip
   //export let state: string;
   //export let relevant: boolean;
   export let trackedBy: string;
@@ -113,11 +114,11 @@
       </div>
     </div>
   {/if}
-  <div class="strip-grid w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {alert || cpdlcAlert || concOverdue ? 'nt-flash' : ''} text-black hover:cursor-default" style="--cols: {cols};"
+  <div class="strip-grid relative w-full h-8 {colour} {isActive ? 'bg-opacity-75' : ''} {cpdlcAlert || concOverdue ? 'nt-flash' : ''} text-black hover:cursor-default" style="--cols: {cols};"
     on:mousedown={stripMouseDown}
     on:mouseup={stripMouseUp}
     on:mouseleave={stripMouseUp}>
-    <div class="flex flex-row items-center whitespace-nowrap overflow-hidden pl-2 hover:cursor-pointer select-none {cmState === 'yellow' ? 'bg-yellow-300' : cmState === 'red' ? 'bg-red-600 text-white' : ''}" title={cmState === "yellow" ? "Contact me sent at " + cmZ(cmAt) + " - waiting for the pilot" : cmState === "red" ? "Contact me sent at " + cmZ(cmAt) + " (over 20 minutes ago) and nobody is tracking this flight" : "Click for the aircraft menu"} on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); openMenu(callsign); }}>
+    <div class="flex flex-row items-center whitespace-nowrap overflow-hidden pl-2 hover:cursor-pointer select-none {alert ? 'nt-flash' : ''} {cmState === 'yellow' ? 'bg-yellow-300' : cmState === 'red' ? 'bg-red-600 text-white' : ''}" title={cmState === "yellow" ? "Contact me sent at " + cmZ(cmAt) + " - waiting for the pilot" : cmState === "red" ? "Contact me sent at " + cmZ(cmAt) + " (over 20 minutes ago) and nobody is tracking this flight" : "Click for the aircraft menu"} on:click|stopPropagation={() => { dataHandler.setAsel(callsign); dataHandler.ackNatTrak(callsign); openMenu(callsign); }}>
       {(cpdlc ? "[" + callsign + "]" : callsign) + (!isEquipped ? "*" : "")}{#if handoff && handoff.soon}<span class="ml-1 px-1 font-bold bg-yellow-300 text-black border border-black" style="font-size: 0.7em; line-height: 1.3;" title={"Hand off soon: " + handoff.nm + " nm to " + handoff.fix + ", next is " + handoff.name + (handoff.unicom ? " (nobody online: UNICOM)" : " - " + handoff.controller + " " + handoff.frequency)}>HO {handoff.nm}nm &rarr; {handoff.unicom ? "UNICOM" : (handoff.code || handoff.controller)}</span>{/if}{#if ntSent}<span class="text-red-600 font-bold pl-0.5" style="font-size: 1.5em; line-height: 0.6;" title="natTrak reminder sent to the pilot">*</span>{/if}{#if warning}<span class="text-red-600 pl-1">&#9888;</span>{/if}{#if recentlyChanged}<span class="pl-1">&#9998;</span>{/if}
     </div>
     <div class="whitespace-nowrap overflow-hidden select-none" style="font-size: 0.88em;">{departure}/{arrival}</div>
@@ -126,7 +127,7 @@
     {#each Array(cols) as _, i}
       <div class="select-none">{routeEtas[i] !== undefined && routeEtas[i] != "--" ? routeEtas[i] : ""}</div>
     {/each}
-    <div class="whitespace-nowrap select-none">{type}</div>
+    <div class="relative whitespace-nowrap select-none">{type}{#if rclReq}<span class="absolute px-1 font-bold bg-yellow-300 text-black border border-black" style="font-size: 0.7em; line-height: 1.3; right: 100%; margin-right: 0.5em; top: 50%; transform: translateY(-50%); z-index: 3;" title="Oceanic clearance request waiting on natTrak">RCL REQ</span>{/if}</div>
     <div class="flex items-center justify-center select-none">
         {#if trackedBy === "NATTRAK"}
           <span title={clearanceTip} class="inline-flex" aria-label="Clearance processed on natTrak">

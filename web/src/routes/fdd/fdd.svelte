@@ -571,6 +571,7 @@
             trackedBy={ac.TrackedBy}
             isEquipped={ac.IsEquipped}
             alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
+            rclReq={tickN >= 0 && dataHandler.isNatTrakPending(ac.Callsign)}
             ntSent={ac.NtSent}
             handoff={ac.Handoff ?? null}
             cmAt={ac.ContactMeAt ?? 0}
