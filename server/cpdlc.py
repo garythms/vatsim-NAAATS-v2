@@ -322,7 +322,17 @@ class CpdlcStation:
     def unread(self):
         with self.lock:
             # only aircraft that are connected now: nothing can be done about a message from one that is not
-            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages WHERE station=? AND seen=0 GROUP BY callsign", (self.client.station,))
+            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages m WHERE station=? AND seen=0 AND NOT (%s) GROUP BY callsign" % self._INITIAL_ROGER, (self.client.station,))
+                    if c in self.connected}
+
+    # The pilot's ROGER to our automated "THIS IS AN AUTOMATED MESSAGE TO CONFIRM CPDLC CONTACT WITH ..." message: it makes a sound but never flashes
+    _INITIAL_ROGER = ("m.dir='DOWN' AND UPPER(TRIM(m.text))='ROGER' AND m.mrn IN (SELECT u.min FROM cpdlc_messages u WHERE u.station=m.station AND u.callsign=m.callsign "
+                      "AND u.dir='UP' AND u.text LIKE 'THIS IS AN AUTOMATED MESSAGE TO CONFIRM CPDLC CONTACT%')")
+
+    def quiet(self):
+        """Unread initial ROGERs per connected aircraft: counted for the sound, not for the flashing."""
+        with self.lock:
+            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages m WHERE station=? AND seen=0 AND (%s) GROUP BY callsign" % self._INITIAL_ROGER, (self.client.station,))
                     if c in self.connected}
 
     def _set_connected(self, callsign, yes):
@@ -350,7 +360,7 @@ class CpdlcStation:
             unread = self.unread()
             conn = [{"callsign": c, "since": v["since"], "unread": unread.get(c, 0)} for c, v in sorted(self.connected.items())]
             return {"enabled": True, "station": self.client.station, "autoAccept": self.auto_accept, "connected": conn,
-                    "unread": unread, "lastPoll": self.last_poll, "error": self.error, "rclRequests": self.rcl_requests(), "rclSend": RCL_SEND}
+                    "unread": unread, "quiet": self.quiet(), "lastPoll": self.last_poll, "error": self.error, "rclRequests": self.rcl_requests(), "rclSend": RCL_SEND}
 
     # --- oceanic clearance requests received by CPDLC (to be entered on natTrak by a controller)
     def rcl_requests(self):
