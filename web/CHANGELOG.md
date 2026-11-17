@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.9.4 - 2026-11-17
 - Server: the RCL reply messages (RCL processed and Send reclearance) now say "SQUAWK 2000 WITHIN 10 MINS AFTER THE OCEANIC ENTRY POINT" and "CONTACT <GANDER, SHANWICK or NAT FSS> AT OCEANIC ENTRY POINT WITH CALLSIGN ONLY" (the pilot calls at the entry point with the callsign only, after listening, instead of 5 minutes before with level, Mach and SELCAL). Wording suggested by Patrick Hrusa. The same squawk wording is now used in the CPDLC logon reply, the RCL REQ message and the Auto RCL message. The Auto RCL message also now tells the pilot to contact the oceanic controller at the oceanic entry point with the callsign only. Server deploy needed (and a display release for the RCL REQ button).
 - Display: new "Tablet or iPad mode" in the Settings window of FDD for Windows. It shows a link and QR code (one use, 5 minutes) that open the display on a tablet or second screen signed in as you, with your position. Server deploy needed.
 - Website: the homepage no longer has a "Use in a browser" button; the FDD for Windows page explains tablet mode instead. Browser sign-in itself still works.
