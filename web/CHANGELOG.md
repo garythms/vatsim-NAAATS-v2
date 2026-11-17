@@ -5,6 +5,7 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 ## Unreleased
 - Display: sending Climb, Descend or Maintain with a flight level from the CPDLC window also changes the level on the aircraft's strip. Expect climb does not.
 - Display: in the natTrak Information window a cleared aircraft's Status box is green again (it was drawn dark), and when natTrak sends no estimating time the Estimation shows the aircraft's own route time at that fix, the same time the route line shows.
+- Server: when the plugin has given times for only some route points (for example the entry fix but not the lat/long points), the missing times are worked out from the pilot's position and speed instead of being left blank. Times the plugin or a controller set are never changed. Server deploy needed.
 
 ## 2.9.6 - 2026-11-17
 - Plugin: Contact Me now opens a chat with the pilot: the plugin selects the aircraft, types `.chat CALLSIGN` and presses Enter, then types "Please contact me on <your frequency>." and presses Enter. This replaces the Home key method by default (`chatcontact=1`; turn it off in Settings to go back). Both lines are pasted with Ctrl+V. Server and plugin update needed.

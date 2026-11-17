@@ -1190,11 +1190,17 @@ class NetworkTraffic:
         with self.cache.lock:
             fixes = dict(self.cache.fixes)
         for f in flights:                                  # no plugin times yet: work them out from the pilot's position and speed
-            if all(x == "--" for x in str(f.get("routeEtas", "")).split()):
+            have = str(f.get("routeEtas", "")).split()
+            if ("--" in have or not have) and not f.get("etaWeb"):
                 est = estimate_etas(f.get("route", ""), pilots.get(f["callsign"]) or {}, fixes)
                 if est:
-                    f["routeEtas"] = " ".join(est)
-                    f["etaCalc"] = True
+                    if len(have) != len(est):
+                        have = ["--"] * len(est)
+                    # fill only the gaps (lat/long points the plugin gave no time for); times the plugin or a controller set are kept
+                    filled = [h if h != "--" else e for h, e in zip(have, est)]
+                    if filled != have:
+                        f["routeEtas"] = " ".join(filled)
+                        f["etaCalc"] = True
         if not self.natrak:
             return flights
         clearances = self.natrak.by_callsign()
