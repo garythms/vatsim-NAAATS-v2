@@ -246,20 +246,73 @@ static bool TypeIntoEuroScope(const string& text, string& why, bool clickFreq = 
 	if (!esInFront()) { why = interrupted; return false; }
 	// One character at a time with a short pause: EuroScope shows a dot-command hint while ".msg" is being typed and could
 	// swallow the space that follows it (".msgBAW123 Hello"). Spaces are sent as a real Space key press.
-	for (unsigned char ch : text) {
-		if (!esInFront()) {                       // switched away part-way: stop (the next message clears the command line first)
-			why = interrupted;
-			return false;
+	auto typeChars = [&](const string& chars) -> bool {
+		for (unsigned char ch : chars) {
+			if (!esInFront()) {                   // switched away part-way: stop (the next message clears the command line first)
+				why = interrupted;
+				return false;
+			}
+			if (ch == ' ') {
+				key(VK_SPACE);
+			}
+			else {
+				INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wScan = ch; d.ki.dwFlags = KEYEVENTF_UNICODE; in.push_back(d);
+				INPUT u = d; u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP; in.push_back(u);
+			}
+			send(in);
+			Sleep(ch == ' ' ? 60 : 10);
 		}
-		if (ch == ' ') {
-			key(VK_SPACE);
+		return true;
+	};
+	// pastemessage=1: a long ".msg CALLSIGN text" line is typed only as far as ".msg CALLSIGN " and the text is pasted with Ctrl+V
+	// (about 1 second instead of 6 to 8). The clipboard is put back afterwards. If the text cannot be put on the clipboard it is typed.
+	string head = text, tail;
+	if (CDataHandler::PasteMessage && text.size() > 100 && text.rfind(".msg ", 0) == 0) {
+		size_t sp = text.find(' ', 5);
+		if (sp != string::npos && sp + 1 < text.size()) { head = text.substr(0, sp + 1); tail = text.substr(sp + 1); }
+	}
+	if (!typeChars(head)) return false;
+	if (!tail.empty()) {
+		string saved; bool hadText = false;
+		bool ok = false;
+		if (OpenClipboard(NULL)) {
+			HANDLE h = GetClipboardData(CF_UNICODETEXT);
+			if (h) { const wchar_t* w = (const wchar_t*)GlobalLock(h); if (w) { int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, NULL, 0, NULL, NULL); if (n > 1) { saved.assign(n - 1, 0); WideCharToMultiByte(CP_UTF8, 0, w, -1, &saved[0], n, NULL, NULL); } hadText = true; GlobalUnlock(h); } }
+			int wn = MultiByteToWideChar(CP_UTF8, 0, tail.c_str(), -1, NULL, 0);
+			HGLOBAL g = GlobalAlloc(GMEM_MOVEABLE, (size_t)wn * sizeof(wchar_t));
+			if (g) {
+				wchar_t* d = (wchar_t*)GlobalLock(g);
+				if (d) { MultiByteToWideChar(CP_UTF8, 0, tail.c_str(), -1, d, wn); GlobalUnlock(g); EmptyClipboard(); ok = SetClipboardData(CF_UNICODETEXT, g) != NULL; }
+				if (!ok) GlobalFree(g);
+			}
+			CloseClipboard();
+		}
+		if (ok) {
+			if (!esInFront()) { why = interrupted; return false; }
+		}
+		if (!ok) {
+			CLogger::Log(CLogType::WARN, "pastemessage: could not use the clipboard, typing the message instead", "TypeIntoEuroScope");
+			if (!typeChars(tail)) return false;
 		}
 		else {
-			INPUT d = {}; d.type = INPUT_KEYBOARD; d.ki.wScan = ch; d.ki.dwFlags = KEYEVENTF_UNICODE; in.push_back(d);
-			INPUT u = d; u.ki.dwFlags = KEYEVENTF_UNICODE | KEYEVENTF_KEYUP; in.push_back(u);
+			in.clear();
+			INPUT c = {}; c.type = INPUT_KEYBOARD; c.ki.wVk = VK_CONTROL; in.push_back(c);
+			INPUT v = {}; v.type = INPUT_KEYBOARD; v.ki.wVk = 'V'; in.push_back(v);
+			INPUT vu = v; vu.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(vu);
+			INPUT cu = c; cu.ki.dwFlags = KEYEVENTF_KEYUP; in.push_back(cu);
+			send(in);
+			Sleep(300);                           // let EuroScope take the paste before the clipboard is changed back
+			if (OpenClipboard(NULL)) {
+				EmptyClipboard();
+				if (hadText) {
+					int wn = MultiByteToWideChar(CP_UTF8, 0, saved.c_str(), -1, NULL, 0);
+					HGLOBAL g = GlobalAlloc(GMEM_MOVEABLE, (size_t)wn * sizeof(wchar_t));
+					if (g) { wchar_t* d = (wchar_t*)GlobalLock(g); if (d) { MultiByteToWideChar(CP_UTF8, 0, saved.c_str(), -1, d, wn); GlobalUnlock(g); if (!SetClipboardData(CF_UNICODETEXT, g)) GlobalFree(g); } else GlobalFree(g); }
+				}
+				CloseClipboard();
+			}
+			CLogger::Log(CLogType::NORM, "Pasted " + to_string(tail.size()) + " characters with Ctrl+V after \"" + head + "\"", "TypeIntoEuroScope");
 		}
-		send(in);
-		Sleep(ch == ' ' ? 60 : 10);
 	}
 	Sleep(300);
 	if (!esInFront()) { why = interrupted; return false; }
