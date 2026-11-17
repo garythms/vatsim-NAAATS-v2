@@ -50,6 +50,8 @@ string CDataHandler::SettingsUrl = "";
 long long CDataHandler::SettingsStamp = 0;
 volatile long CDataHandler::SettingsBusy = 0;
 volatile long CDataHandler::SettingsMessagePending = 0;
+bool CDataHandler::HomeFocus = false;
+bool CDataHandler::HomeContact = false;
 bool CDataHandler::AutoClick = true;
 int CDataHandler::ContactButton = 0;   // 0 left, 1 middle, 2 right
 int CDataHandler::RouteSeconds = 10;
@@ -89,6 +91,8 @@ void CDataHandler::LoadSettings() {
 		else if (k == "autotype") AutoType = (v == "1");
 		else if (k == "retrack") Retrack = (v != "0");
 		else if (k == "autoclick") AutoClick = (v != "0");
+		else if (k == "homefocus") HomeFocus = (v == "1");
+		else if (k == "homecontact") HomeContact = (v == "1");
 		else if (k == "contactbutton") ContactButton = (v == "middle" ? 1 : (v == "right" ? 2 : 0));
 		else if (k == "rclfreqclick") {
 			if (v == "0") RclFreqClick = false;
@@ -1133,7 +1137,7 @@ void CDataHandler::FetchSettings(void* args) {
 				long long stamp = j.contains("stamp") && j["stamp"].is_number() ? j["stamp"].get<long long>() : 0;
 				if (stamp > SettingsStamp && j.contains("settings") && j["settings"].is_object() && !j["settings"].empty()) {
 					// Only these options can be changed from the FDD (never the key or the server address)
-					static const char* allowed[] = { "autotype", "autoclick", "highlight", "retrack", "squawk", "remotelog" };
+					static const char* allowed[] = { "autotype", "autoclick", "homefocus", "homecontact", "highlight", "retrack", "squawk", "remotelog" };
 					map<string, string> want;
 					for (const char* name : allowed) {
 						if (j["settings"].contains(name)) {

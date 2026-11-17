@@ -14,6 +14,8 @@
   const options: Opt[] = [
     { key: "autotype", label: "Auto-type into EuroScope", help: "The FDD buttons for SELCAL, Contact Me and the natTrak message type the command into EuroScope for you.", choices: yesNo },
     { key: "autoclick", label: "Click the aircraft after Contact Me", help: "After typing .contactme, the plugin also clicks the aircraft so the message is sent.", choices: yesNo },
+    { key: "homecontact", label: "Contact Me with the Home key (experimental)", help: "Instead of typing .contactme and clicking, the plugin rests the mouse on the callsign and presses Home, which EuroScope answers by sending Contact Me. Try it if the normal way does not work for you.", choices: yesNo },
+    { key: "homefocus", label: "Press Home before typing", help: "Leave this Off. It is the old way of starting a typed command; it makes EuroScope write .contactme into the command line and can send a stray Contact Me. Turn it On only if typing stops working.", choices: yesNo },
     { key: "highlight", label: "Circle the aircraft when clicked here", help: "Clicking an aircraft on the FDD circles it in white in EuroScope for 3 seconds.", choices: yesNo },
     { key: "retrack", label: "Re-track aircraft automatically", help: "After a crash, a lost connection or a pilot reconnecting within 5 minutes, track the aircraft again.", choices: yesNo },
     { key: "remotelog", label: "Send problems to the vNAAATS server", help: "Warnings and errors go to the server so faults can be found quickly (never your key).", choices: [{ v: "1", t: "Warnings and errors" }, { v: "2", t: "Everything" }, { v: "0", t: "Off" }] },
@@ -29,7 +31,7 @@
     error = ""; saved = false; loaded = false;
     const r = await st.loadSettings();
     if (typeof r === "string") { error = r; return; }
-    values = { autotype: "1", autoclick: "1", highlight: "1", retrack: "1", remotelog: "1", ...(r.defaults ?? {}), ...r.settings };
+    values = { autotype: "1", autoclick: "1", homecontact: "0", homefocus: "0", highlight: "1", retrack: "1", remotelog: "1", ...(r.defaults ?? {}), ...r.settings };
     loaded = true;
   }
   $: if ($settingsOpen) load();

@@ -10,6 +10,14 @@ class UserSettingsTests(unittest.TestCase):
         self.t = [5000.0]
         self.u = us.UserSettings(self.store, now=lambda: self.t[0])
 
+    def test_home_options_are_known_and_off_by_default(self):
+        rec, err = self.u.set("123", {"homecontact": "1", "homefocus": "0"})
+        self.assertIsNone(err)
+        self.assertEqual(rec["settings"]["homecontact"], "1")
+        import usersettings
+        self.assertEqual(usersettings.OPTIONS["homefocus"]["default"], "0")
+        self.assertEqual(usersettings.OPTIONS["homecontact"]["default"], "0")
+
     def test_nothing_chosen_yet(self):
         self.assertEqual(self.u.get("123"), {"settings": {}, "stamp": 0})
 

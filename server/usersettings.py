@@ -12,6 +12,8 @@ import time
 OPTIONS = {
     "autotype":  {"values": ("0", "1"), "default": "0"},
     "autoclick": {"values": ("0", "1"), "default": "1"},
+    "homefocus": {"values": ("0", "1"), "default": "0"},     # press Home before typing (old behaviour)
+    "homecontact": {"values": ("0", "1"), "default": "0"},   # Contact Me by hovering the callsign and pressing Home
     "highlight": {"values": ("0", "1"), "default": "1"},
     "retrack":   {"values": ("0", "1"), "default": "1"},
     "remotelog": {"values": ("0", "1", "2"), "default": "1"},
