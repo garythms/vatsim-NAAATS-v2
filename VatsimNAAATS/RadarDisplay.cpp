@@ -391,7 +391,7 @@ static bool ClickEsFreq(HWND es, string& why) {
 	return true;
 }
 
-struct CTypeJob { string Text; int Id; bool Click = false; bool ClickFreq = false; bool HomeContact = false; POINT Px = { 0, 0 }; string Callsign; bool TagClick = false; };
+struct CTypeJob { string Text; int Id; bool Click = false; bool ClickFreq = false; bool HomeContact = false; string ChatMsg; POINT Px = { 0, 0 }; string Callsign; bool TagClick = false; };
 static volatile LONG TypingBusy = 0;
 // homecontact=1 (the default): Contact Me without typing or clicking. Empty the command line, rest the mouse on the callsign so EuroScope opens the
 // detailed tag, then press Home: EuroScope runs .contactme on the aircraft whose detailed tag is open. The result cannot be confirmed.
@@ -440,7 +440,23 @@ static void TypeThread(void* arg) {
 		string why = "Windows would not let the plugin bring EuroScope to the front - click on EuroScope and try again, or use Copy and paste";
 		// Record every line the plugin types into EuroScope (first 60 characters), so a stray line in the command box can be traced
 		CLogger::Log(CLogType::NORM, string("Typing into EuroScope (command #") + to_string(job->Id) + (job->ClickFreq ? ", RCL message" : "") + (job->HomeContact ? ", Contact Me by Home key" : "") + "): " + job->Text.substr(0, 60), "TypeThread");
-		bool typedOk = job->HomeContact ? ContactByHomeKey(job, why) : CDataHandler::BackgroundType ? TypeIntoEuroScopeBackground(job->Text, why) : TypeIntoEuroScope(job->Text, why, job->ClickFreq);
+		bool typedOk = false;
+		if (!job->ChatMsg.empty()) {
+			// chatcontact=1: open a private chat with the pilot (.chat CALLSIGN + Enter), then type the Contact Me message into the same command line
+			typedOk = TypeIntoEuroScope(".chat " + job->Callsign, why);
+			if (typedOk) {
+				Sleep(900);                       // EuroScope opens the chat and keeps the command line
+				typedOk = TypeIntoEuroScope(job->ChatMsg, why);
+			}
+			if (typedOk) {
+				CDataHandler::ReportRemoteResult(job->Id, true, "Contact Me chat message sent to " + job->Callsign + " (EuroScope gives no confirmation)");
+				Sleep(1200);
+				InterlockedExchange(&TypingBusy, 0);
+				delete job;
+				return;
+			}
+		}
+		else typedOk = job->HomeContact ? ContactByHomeKey(job, why) : CDataHandler::BackgroundType ? TypeIntoEuroScopeBackground(job->Text, why) : TypeIntoEuroScope(job->Text, why, job->ClickFreq);
 		if (typedOk) {
 			bool failed = false;
 			string note = string(CDataHandler::BackgroundType ? "Sent to EuroScope (background): " : "Sent to EuroScope: ") + job->Text.substr(0, 40);
@@ -780,8 +796,17 @@ void CRadarDisplay::RunRemoteCommands()
 						if (area.PtInRect(px)) { job->Click = true; job->Px = px; }
 					}
 				}
-				if (job->Click && CDataHandler::HomeContact) { job->HomeContact = true; job->Click = false; }   // hover + Home instead of typing and clicking
-				else if (job->Click && !CDataHandler::AutoClick) job->Click = false;
+				if (cmd.Type == "contactme" && CDataHandler::ChatContact && !cmd.Callsign.empty() && cmd.Callsign.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") == string::npos) {
+					// chatcontact=1 (default): the aircraft is selected (yellow) above; open a chat with it and type the message there
+					char fb[16] = "131.900";
+					CController me = plugin->ControllerMyself();
+					if (me.IsValid() && me.GetPrimaryFrequency() > 100.0) snprintf(fb, sizeof(fb), "%.3f", me.GetPrimaryFrequency());
+					job->Callsign = cmd.Callsign;
+					job->ChatMsg = string("Please contact me on ") + fb + ".";
+					job->Click = false; job->HomeContact = false;
+				}
+				else if (job->Click && CDataHandler::HomeContact) { job->HomeContact = true; job->Click = false; }   // hover + Home instead of typing and clicking
+				if (job->ChatMsg.empty() && !job->HomeContact && job->Click && !CDataHandler::AutoClick) job->Click = false;
 				_beginthread(TypeThread, 0, (void*)job);   // the thread reports the result
 			}
 			else if (cmd.Type == "highlight") {
