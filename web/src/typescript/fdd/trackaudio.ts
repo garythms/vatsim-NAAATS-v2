@@ -41,8 +41,24 @@ export function setScroll(on: boolean): void {
   scrollOn.set(on);
 }
 try { window.addEventListener("storage", (e) => { if (e.key === SC_KEY) scrollOn.set(loadSc()); }); } catch (e) { /* no window */ }
-// Who is on the air right now (live) or just was (live = false, so the box can fade out)
-export const talker = writable<{ who: string; live: boolean }>({ who: "", live: false });
+// Everyone who is on the air right now (live) or just was (live = false, so the box fades out). Several aircraft can be here at once:
+// a second aircraft calling never takes the first one's box away. An aircraft is dropped from the list after its fade (FADE_SECONDS).
+export const FADE_SECONDS = 5;
+export type Talker = { live: boolean; ended: number };
+export const talkers = writable<Record<string, Talker>>({});
+const dropTimers: Record<string, any> = {};
+function talkerLive(who: string): void {
+  if (!who) return;
+  clearTimeout(dropTimers[who]);
+  talkers.update((m) => ({ ...m, [who]: { live: true, ended: 0 } }));
+}
+function talkerEnded(who: string): void {
+  if (!who) return;
+  talkers.update((m) => ({ ...m, [who]: { live: false, ended: Date.now() } }));
+  clearTimeout(dropTimers[who]);
+  dropTimers[who] = setTimeout(() => talkers.update((m) => { const n = { ...m }; if (n[who] && !n[who].live) delete n[who]; return n; }), FADE_SECONDS * 1000 + 500);
+}
+function allEnded(): void { for (const who of Object.keys(get(talkers))) if (get(talkers)[who].live) talkerEnded(who); }
 
 export const ta = writable<TaState>({ enabled: false, link: "off", rx: null, tx: false, history: [] });
 
@@ -66,14 +82,14 @@ export function handle(raw: string): void {
   const now = Date.now() / 1000;
   if (type === "kRxBegin") {
     upd((s) => { s.rx = { who: String(v.callsign ?? "?").toUpperCase(), freq: mhz(v.pFrequencyHz), since: now }; });
-    talker.set({ who: String(v.callsign ?? "").toUpperCase(), live: true });
+    talkerLive(String(v.callsign ?? "").toUpperCase());
   } else if (type === "kRxEnd") {
     const cur = get(ta).rx;
     const who = String(v.callsign ?? cur?.who ?? "?").toUpperCase();
     const freq = mhz(v.pFrequencyHz) || cur?.freq || "";
     const since = cur && cur.who === who ? cur.since : now;
     upd((s) => { s.rx = null; });
-    talker.set({ who, live: false });
+    talkerEnded(who);
     addTalk({ who, mine: false, freq, ts: since, secs: Math.max(1, Math.round(now - since)) });
   } else if (type === "kTxBegin") {
     txSince = now;
@@ -92,7 +108,7 @@ function connect(): void {
   } catch (e) { schedule(); return; }
   ws.onopen = () => upd((s) => { s.link = "up"; });
   ws.onmessage = (e) => { if (typeof e.data === "string") handle(e.data); };
-  ws.onclose = () => { upd((s) => { s.link = "off"; s.rx = null; s.tx = false; }); talker.update((t) => ({ who: t.who, live: false })); schedule(); };
+  ws.onclose = () => { upd((s) => { s.link = "off"; s.rx = null; s.tx = false; }); allEnded(); schedule(); };
   ws.onerror = () => { try { ws?.close(); } catch (e) { /* closing */ } };
 }
 function schedule(): void { if (running) { clearTimeout(retry); retry = setTimeout(connect, 5000); } }

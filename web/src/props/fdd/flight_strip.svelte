@@ -4,7 +4,7 @@
   import * as utils from "../../typescript/fdd/utils";
   import * as dataHandler from "../../typescript/fdd/data";
   import { openMenu } from "../../typescript/fdd/acmenu";
-  import { talker, highlightOn, scrollOn } from "../../typescript/fdd/trackaudio";
+  import { talkers, highlightOn, scrollOn } from "../../typescript/fdd/trackaudio";
 
   // Elements for spread prop
   export let callsign: string;
@@ -81,12 +81,13 @@
     isActive = true;
   }
   // TrackAudio: this aircraft is transmitting (solid green box) or just stopped (the box fades out)
-  $: sameTalker = $talker.who !== "" && $talker.who === callsign.toUpperCase();
+  $: mine = $talkers[callsign.toUpperCase()];
+  $: sameTalker = !!mine;
   $: isTalker = $highlightOn && sameTalker;
-  $: talking = isTalker && $talker.live;
+  $: talking = isTalker && !!mine?.live;
   let stripEl: HTMLElement;
   // bring the row into view when this aircraft starts transmitting (nearest: does nothing if it is already visible)
-  $: if (sameTalker && $talker.live && $scrollOn && stripEl) stripEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  $: if (sameTalker && mine?.live && $scrollOn && stripEl) stripEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
   function stripMouseUp(): void {
     isActive = false;
   }
@@ -144,12 +145,12 @@
   :global(.strip-in) { animation: stripin 0.35s ease-out; }
   @keyframes -global-stripin { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
   @media (prefers-reduced-motion: reduce) { :global(.strip-in) { animation: none; } }
-  /* TrackAudio talker box: solid while the aircraft is transmitting, then fades out over a couple of seconds */
+  /* TrackAudio talker box: solid while the aircraft is transmitting, then fades out over 5 seconds */
   :global(.ta-box) { position: relative; }
   :global(.ta-box)::before {
     content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 6;
     border: 4px solid #5cff7a; box-shadow: 0 0 10px #5cff7a, inset 0 0 6px #5cff7a;
-    opacity: 0; transition: opacity 2.5s ease-out;
+    opacity: 0; transition: opacity 5s ease-out;
   }
   :global(.ta-live)::before { opacity: 1; transition: none; }
   /* Aircraft picked in EuroScope: a thick black ring with a white inner edge (stands out on blue and on yellow strips)
