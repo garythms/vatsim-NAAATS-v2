@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Website: two new cards on the homepage Features & Toolsets, natTrak and CPDLC Oceanic Requests for Clearances (RCLs) and TrackAudio, filling the grid.
+
 ## 2.9.8 - 2026-11-17
 - Display: Auto handoff is off for everyone, and switching it on now shows a warning every time: "This feature is experimental and cannot be relied upon. It is your responsibility as the controller that aircraft are handed off at the correct position to the correct controller callsign." Anyone who had it on will find it off and must accept the warning to turn it on again.
 - Display: a natTrak request no longer flashes the whole strip. Only the callsign flashes, and a yellow RCL REQ badge shows beside the aircraft type for as long as the request is pending.

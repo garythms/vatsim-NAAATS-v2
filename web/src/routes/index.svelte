@@ -205,6 +205,20 @@ onMount(async () => {
                     <div class="font-normal text-base opacity-80">Message pilots from the FDD. Auto RCL reminders ask first.</div>
                 </div>
             </a>
+            <a href="/manual#nattrak" class="flex justify-center items-stretch scale-100 transition duration-500 hover:scale-105">
+                <div class="flex flex-col justify-center items-center w-full p-5 min-h-56 text-center shadow-5xl bg-blue-1 border-2 border-blue-1 rounded">
+                    <div class="2xl:text-3xl xl:text-2xl">natTrak and CPDLC Oceanic Requests for Clearances (RCLs)</div>
+                    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="90" height="90" viewBox="0 0 24 24" class="py-4 fill-current text-white" aria-hidden="true"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z" /></svg>
+                    <div class="font-normal text-base opacity-80">Requests from natTrak and CPDLC show on the strip with an RCL REQ badge, and the cleared status is on the aircraft menu.</div>
+                </div>
+            </a>
+            <a href="/manual#topbar" class="flex justify-center items-stretch scale-100 transition duration-500 hover:scale-105">
+                <div class="flex flex-col justify-center items-center w-full p-5 min-h-56 text-center shadow-5xl bg-blue-1 border-2 border-blue-1 rounded">
+                    <div class="2xl:text-3xl xl:text-2xl">TrackAudio</div>
+                    <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="90" height="90" viewBox="0 0 24 24" class="py-4 fill-current text-white" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" /></svg>
+                    <div class="font-normal text-base opacity-80">A green box on the strip shows who is transmitting and fades after 5 seconds. Two aircraft can show at once.</div>
+                </div>
+            </a>
         </div>
     </div>
     <div class="flex flex-row h-1/14 justify-evenly items-center font-web font-semibold overflow-hidden bg-blue-0" >
