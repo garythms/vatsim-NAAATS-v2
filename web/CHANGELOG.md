@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Server: the RCL reply messages (RCL processed and Send reclearance) now say "SQUAWK 2000 10MIN AFTER THE OCEANIC ENTRY POINT" and "CONTACT <GANDER, SHANWICK or NAT FSS> AT OCEANIC ENTRY POINT WITH CALLSIGN ONLY" (the pilot calls at the entry point with the callsign only, after listening, instead of 5 minutes before with level, Mach and SELCAL). Wording suggested by Patrick Hrusa. Server deploy needed.
 - App: FDD for Windows asks "Have you changed the Home key (Contact Me) in EuroScope?" on its setup screen and writes contactkey into vnaaats.cfg before EuroScope starts; setup stays on screen until it is answered. The answer is also kept on the server. FDD for Windows update needed.
 
 ## 2.9.3 - 2026-11-17
