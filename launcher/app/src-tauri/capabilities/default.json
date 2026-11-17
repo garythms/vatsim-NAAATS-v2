@@ -12,6 +12,7 @@
     "allow-update-sector",
     "allow-refresh-cfg",
     "allow-save-key",
+    "allow-save-contact-key",
     "allow-pick-exe",
     "allow-launch",
     "allow-open-url",

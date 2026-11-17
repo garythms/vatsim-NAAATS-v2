@@ -109,6 +109,7 @@ struct Status {
     font_found: bool,
     cfg_exists: bool,
     cfg_has_key: bool,
+    cfg_contact_key: Option<u32>,       // contactkey= in vnaaats.cfg; None until answered
     euroscope_running: bool,
     sector_name: Option<String>,
     sector_up_to_date: Option<bool>,    // None when it cannot be checked
@@ -138,6 +139,7 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
         font_found: false,
         cfg_exists: false,
         cfg_has_key: false,
+        cfg_contact_key: None,
         euroscope_running: euroscope_running(&saved),
         sector_name: None,
         sector_up_to_date: None,
@@ -165,6 +167,7 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
             let c = vnaaats_core::read_cfg(dir);
             st.cfg_exists = c.exists;
             st.cfg_has_key = c.has_key;
+            st.cfg_contact_key = c.contact_key;
             if c.has_key {
                 if let Some(k) = vnaaats_core::read_key(dir) {
                     st.key_status = key_check(&k);
@@ -287,6 +290,16 @@ async fn save_key(window: WebviewWindow, app: tauri::AppHandle, key: String) -> 
     let dll = vnaaats_core::find_plugin_dll(Path::new(&root), 6).ok_or("VatsimNAAATS.dll was not found in that folder")?;
     vnaaats_core::set_cfg_key(dll.parent().ok_or("bad folder")?, &key)
 }
+
+#[tauri::command]
+async fn save_contact_key(window: WebviewWindow, app: tauri::AppHandle, code: u32) -> Result<(), String> {
+    check_origin(&window)?;
+    let root = load(&app).root.ok_or("choose your EXOCO folder first")?;
+    let dll = vnaaats_core::find_plugin_dll(Path::new(&root), 6).ok_or("VatsimNAAATS.dll was not found in that folder")?;
+    vnaaats_core::set_cfg_contact_key(dir_of(&dll)?, code)
+}
+
+fn dir_of(dll: &Path) -> Result<&Path, String> { dll.parent().ok_or_else(|| "bad folder".to_string()) }
 
 fn kind_ok(kind: &str) -> Result<(), String> {
     if ["euroscope", "vacs", "afv", "trackaudio"].contains(&kind) { Ok(()) } else { Err("unknown program".into()) }
@@ -596,7 +609,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }

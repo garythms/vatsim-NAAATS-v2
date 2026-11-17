@@ -71,7 +71,11 @@
   async function askIfUnanswered(): Promise<void> {
     askChecked = true;
     const r = await st.loadSettings();
-    if (typeof r !== "string" && r.settings?.contactkey === undefined) settingsOpen.set(true);
+    if (typeof r === "string" || r.settings?.contactkey !== undefined) return;
+    if (app.inApp()) {     // FDD for Windows already asked and saved the answer in vnaaats.cfg: keep it on the server too, no need to ask again
+      try { const a = await app.status(); if (a.cfg_contact_key) { await st.saveSettings({ contactkey: String(a.cfg_contact_key) }); return; } } catch (e) { /* ask below */ }
+    }
+    settingsOpen.set(true);
   }
   $: if ($session.loggedIn && !askChecked) askIfUnanswered();
   $: if (!$session.loggedIn) askChecked = false;
