@@ -28,7 +28,7 @@
   <div class="max-w-2xl w-full">
     <a href="https://vnaaats.com/" class="underline text-sm opacity-80">&larr; Homepage</a>
     <h1 class="text-4xl font-bold mt-3 mb-1">vNAAATS V2 - first-time install guide</h1>
-    <div class="opacity-80 mb-6">For controllers using EuroScope on Windows. Allow about 15 minutes. This guide uses <b>FDD for Windows</b>; if you prefer a browser, see "Without the app" at the end.</div>
+    <div class="opacity-80 mb-6">For controllers using EuroScope on Windows. Allow about 15 minutes. This guide uses <b>FDD for Windows</b>. The display no longer works in a web browser. To install only the plugin by hand, see "Plugin by hand" at the end.</div>
 
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="text-lg font-bold">FDD for Windows (<a class="underline text-sm" href="/windows">what is it?</a>)</div>
@@ -123,8 +123,8 @@
       <li><b>Still stuck:</b> send <b>vNAAATS.log</b> to the Gander Oceanic team.</li>
     </ul>
 
-    <h2 class="text-2xl font-bold mb-2">Without the app</h2>
-    <p class="mb-3 opacity-90">You can use the display in any browser at <a class="underline" href="/fdd">vnaaats.com/fdd</a> and install the plugin by hand. Get the plugin pack from the <a class="underline" href="/download">download page</a>{version ? " (version " + version + ")" : ""}{direct ? "" : ""}: <a class="underline" href={zipUrl}>VatsimNAAATS-plugin.zip</a>. Unzip it somewhere you will remember. Put <b>VatsimNAAATS.dll</b>, <b>ICAO_Airlines.txt</b>, <b>vNAAATS.ttf</b> and your <b>vnaaats.cfg</b> in the <b>same folder</b>. For the config, rename <b>vnaaats.example.cfg</b> to <b>vnaaats.cfg</b>, open it in Notepad, set <b>server=https://vnaaats.com</b> and paste your <b>key=</b>. Then follow steps 4 and 5 above.</p>
+    <h2 class="text-2xl font-bold mb-2">Plugin by hand</h2>
+    <p class="mb-3 opacity-90">The display needs FDD for Windows (a web browser no longer works). To install just the plugin by hand, get the plugin pack from the <a class="underline" href="/download">download page</a>{version ? " (version " + version + ")" : ""}{direct ? "" : ""}: <a class="underline" href={zipUrl}>VatsimNAAATS-plugin.zip</a>. Unzip it somewhere you will remember. Put <b>VatsimNAAATS.dll</b>, <b>ICAO_Airlines.txt</b>, <b>vNAAATS.ttf</b> and your <b>vnaaats.cfg</b> in the <b>same folder</b>. For the config, rename <b>vnaaats.example.cfg</b> to <b>vnaaats.cfg</b>, open it in Notepad, set <b>server=https://vnaaats.com</b> and paste your <b>key=</b>. Then follow steps 4 and 5 above.</p>
     <p class="mb-6 opacity-90"><b>Updating by hand:</b> close EuroScope and replace <b>only VatsimNAAATS.dll</b>. Keep your existing vnaaats.cfg and your saved screen. Do not copy the example config over it or you will lose your key.</p>
 
     <p class="text-sm opacity-80">Independent community project, not run or endorsed by VATSIM.

@@ -41,7 +41,7 @@
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="text-xs font-bold tracking-wider text-yellow-300 mb-1">RECOMMENDED</div>
       <div class="text-2xl font-bold">FDD for Windows</div>
-      <p class="opacity-90 my-2">The Flight Data Display in its own window, with a one-time setup that gets everything else ready for you. It is the same display as in your browser, so updates to the display arrive by themselves.</p>
+      <p class="opacity-90 my-2">The Flight Data Display in its own window, with a one-time setup that gets everything else ready for you. The display arrives and updates by itself. It no longer works in a web browser; for a tablet or iPad, open Tablet or iPad mode in the app's Settings.</p>
       <ul class="list-disc ml-6 space-y-1 mb-3 text-sm opacity-90">
         <li>Checks your plugin, airline list and font and updates them when you say so (you are asked first).</li>
         <li>Saves your key into <b>vnaaats.cfg</b> so you never edit the file by hand.</li>
@@ -89,8 +89,8 @@
 
     <!-- 3. Without the app -->
     <div class="p-5 mb-6 border-2 border-blue-10 bg-blue-3">
-      <div class="text-lg font-bold">Not using the app? Install the plugin by hand</div>
-      <p class="text-sm opacity-90 my-2">You can still use the display in any browser at <a href="/fdd" class="underline">vnaaats.com/fdd</a> and install the EuroScope plugin yourself.</p>
+      <div class="text-lg font-bold">Plugin only: install it by hand</div>
+      <p class="text-sm opacity-90 my-2">You can install the EuroScope plugin yourself. The display itself needs FDD for Windows: using it in a web browser is no longer supported.</p>
       <details>
         <summary class="cursor-pointer underline text-sm">Show the plugin downloads{version ? " (version " + version + ")" : ""}</summary>
         <div class="mt-3">

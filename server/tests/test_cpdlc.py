@@ -359,6 +359,7 @@ class AutomationTests(unittest.TestCase):
         self.assertEqual(c.station_display_name("EISN_CTR"), "Shannon Control")
         self.assertEqual(c.station_display_name("EGPX_N_CTR"), "Scottish Control")
         self.assertEqual(c.station_display_name("NAT_FSS"), "Shanwick and Gander Radio")
+        self.assertEqual(c.station_display_name("CZQM_CTR"), "Moncton Centre")
         self.assertEqual(c.station_display_name("LFRR_CTR"), "Brest Control")
         self.assertTrue(any("UNICOM" in f["ra"] for f in c.FREETEXTS))
 

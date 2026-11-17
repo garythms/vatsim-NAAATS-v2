@@ -125,11 +125,16 @@ def friendly_name(raw):
     return " ".join(out)
 
 
+STATION_NAME_OVERRIDES = {"CZQM": "Moncton Centre"}      # Moncton calls itself Centre, not Control; the others stay as the TopSky list has them
+
+
 def station_display_name(callsign):
     """EuroScope controller callsign (EISN_CTR, NAT_FSS, EGPX_N_CTR ...) -> the full station name for pilots."""
     cs = (callsign or "").strip().upper()
     prefix = cs.split("_")[0]
     code = CALLSIGN_ALIASES.get(prefix, prefix)
+    if code in STATION_NAME_OVERRIDES:
+        return STATION_NAME_OVERRIDES[code]
     if code in STATION_NAMES:
         return friendly_name(STATION_NAMES[code])
     if prefix in STATION_SHORT:
