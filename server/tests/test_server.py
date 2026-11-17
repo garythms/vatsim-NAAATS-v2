@@ -1095,3 +1095,28 @@ class AdminFddTests(unittest.TestCase):
     def test_page_and_position(self):
         self.assertIn(b"Admin token", urllib.request.urlopen(self.base + "/admin/fdd").read())
         self.assertEqual(self._post("/auth/position", {"position": "ADMIN"})[0], 400)
+
+
+class TabletLinkTests(unittest.TestCase):
+    def test_code_signs_in_once_as_the_same_controller(self):
+        a = s.Auth({"VNAAATS_FDD_PASSWORD": "pw", "VNAAATS_POSITIONS": "CZQO_CTR"})
+        tok = a.create_session("1234567", "Gary T", "key")
+        a.set_position(tok, "CZQO_CTR")
+        code = a.make_tablet_code(tok)
+        self.assertTrue(code)
+        new = a.use_tablet_code(code)
+        self.assertTrue(new) and self.assertNotEqual(new, tok)
+        got = a.get(new)
+        self.assertEqual((got["cid"], got["name"], got["position"], got["via"]), ("1234567", "Gary T", "CZQO_CTR", "key"))
+        self.assertIsNone(a.use_tablet_code(code))            # works once
+
+    def test_expired_unknown_and_admin(self):
+        a = s.Auth({"VNAAATS_FDD_PASSWORD": "pw"})
+        tok = a.create_session("1", "x", "password")
+        code = a.make_tablet_code(tok)
+        a.tablet[code]["expires"] = 0
+        self.assertIsNone(a.use_tablet_code(code))
+        self.assertIsNone(a.use_tablet_code("nope"))
+        self.assertIsNone(a.make_tablet_code("no-such-session"))
+        adm = a.create_session("ADMIN", "Admin", "admin")
+        self.assertIsNone(a.make_tablet_code(adm))

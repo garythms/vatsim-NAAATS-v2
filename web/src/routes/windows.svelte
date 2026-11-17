@@ -78,8 +78,8 @@
     </ol>
 
     <div class={CARD}>
-      <div class="font-bold mb-1">Prefer a browser?</div>
-      <div class="text-sm opacity-90">The display works in any browser at <a class="underline" href="/fdd">vnaaats.com/fdd</a>. You then install the EuroScope plugin yourself: see the <a class="underline" href="/download">downloads page</a>.</div>
+      <div class="font-bold mb-1">iPad or tablet?</div>
+      <div class="text-sm opacity-90">In FDD for Windows open Settings and press <b>Tablet or iPad mode</b>. It shows a link and a QR code that open the display on the tablet, signed in as you. EuroScope and the plugin stay on your Windows computer.</div>
     </div>
 
     <p class="text-sm opacity-80">Independent community project, not run or endorsed by VATSIM. <a class="underline" href="/guide">Install guide</a> &middot; <a class="underline" href="/manual">User manual</a> &middot; <a class="underline" href="/privacy">Privacy and data handling</a> &middot; <a class="underline" href="/code-signing">Code signing policy</a>.</p>

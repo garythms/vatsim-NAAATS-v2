@@ -27,3 +27,12 @@ export async function saveSettings(settings: Record<string, string>): Promise<st
     return r.ok ? "" : (d.error ?? "could not save the settings");
   } catch (e) { return "cannot reach the server"; }
 }
+
+// FDD for Windows: a one-time link (and QR code) that opens the display on a tablet or second screen as the same controller
+export async function tabletLink(): Promise<{ url: string; seconds: number } | string> {
+  try {
+    const r = await fetch(apiBase + "/auth/tablet-link", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", credentials: "same-origin" });
+    const d = await r.json().catch(() => ({}));
+    return r.ok ? d : (d.error ?? "could not make the link");
+  } catch (e) { return "cannot reach the server"; }
+}
