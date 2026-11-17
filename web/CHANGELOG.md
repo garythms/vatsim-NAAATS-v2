@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.9.2 - 2026-11-17
 - Plugin: the plugin no longer presses the Home key before typing a command. On an empty command line EuroScope answers Home by writing ".contactme" into it (the stray .contactme you saw before every Auto RCL), and with the mouse over a detailed tag Home sends Contact Me to that aircraft straight away. The line is still emptied with End and Backspaces first. homefocus=1 (Settings button on the FDD) brings the old Home press back if typing stops working. Plugin update needed.
 - Plugin: Contact Me is now sent with the Contact Me key for everyone: the plugin empties the command line (End and Backspaces), rests the mouse on the callsign and presses Home, which EuroScope answers by running .contactme on that aircraft, with no typing and no click. EuroScope gives no confirmation, so the FDD says "sent" without proof. homecontact=0 goes back to typing .contactme and clicking. Plugin update needed.
 - Plugin: if you changed the Home key (Contact Me) in EuroScope, the plugin presses your key instead (contactkey=<Windows key code> in vnaaats.cfg). Plugin update needed.
