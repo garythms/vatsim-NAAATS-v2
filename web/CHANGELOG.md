@@ -2,8 +2,8 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
-- Contact Me now opens a chat with the pilot: the plugin selects the aircraft, types `.chat CALLSIGN` and presses Enter, then types "Please contact me on <your frequency>." and presses Enter. This replaces the Home key method by default (`chatcontact=1`; turn it off in Settings to go back).
+## 2.9.6 - 2026-11-17
+- Plugin: Contact Me now opens a chat with the pilot: the plugin selects the aircraft, types `.chat CALLSIGN` and presses Enter, then types "Please contact me on <your frequency>." and presses Enter. This replaces the Home key method by default (`chatcontact=1`; turn it off in Settings to go back). Both lines are pasted with Ctrl+V. Server and plugin update needed.
 
 ## 2.9.5 - 2026-11-17
 - Website: new page vnaaats.com/tablet with the tablet and iPad mode video (video 8 on the training and videos pages). The homepage Flight Data Display card is now "Tablet or iPad use" and links to it.
