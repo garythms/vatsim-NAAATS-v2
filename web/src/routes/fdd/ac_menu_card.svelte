@@ -14,6 +14,8 @@
 
   let tab: string = "track";
   let hopOnline: boolean = false;
+  let hopUnknown: boolean = false;       // Hoppie could not be asked (for example you are not signed in to CPDLC)
+  let hopChecked: boolean = false;       // Hoppie has answered (true / false / could not be asked)
   let telexText: string = "";
   let telexMsg: string = "";
   let lastCs: string = "";
@@ -40,8 +42,8 @@
   function openFor(cs: string): void {
     ac = dataHandler.getAircraft(cs);
     tab = "track"; note = ""; copied = ""; busy = false; wallopText = ""; pickedCtrl = "";
-    hopOnline = false; telexText = ""; telexMsg = "";
-    if (cs && !cp.isConnected(cs)) cp.hoppieOnline(cs).then((h) => { if (cs === callsign) hopOnline = h.online === true && !h.cpdlc; });   // ask Hoppie first: the TELEX tab only appears if the pilot is online there
+    hopOnline = false; hopChecked = false; hopUnknown = false; telexText = ""; telexMsg = "";
+    if (cs && !cp.isConnected(cs)) cp.hoppieOnline(cs).then((h) => { if (cs === callsign) { hopOnline = h.online === true && !h.cpdlc; hopUnknown = h.online === null; hopChecked = true; } });   // ask Hoppie first: the TELEX tab only appears if the pilot is online there
     level = ac && ac.AssignedLevel ? String(ac.AssignedLevel) : "";
     mach = ac && ac.AssignedMach ? String(ac.AssignedMach).padStart(3, "0") : "";
     selcal = ac && ac.Selcal && ac.Selcal !== "N/A" ? String(ac.Selcal) : "";
@@ -162,6 +164,15 @@
     else { telexMsg = "\u2714 Telex sent to " + callsign; telexText = ""; }
   }
   $: onCpdlc = !!callsign && cp.isConnected(callsign);
+  // The badges on the top line: who the pilot is talking to, natTrak status, and the datalink they can be reached on
+  $: comm = ac?.Comm ?? null;
+  $: atcLabel = comm ? (comm.kind === "unicom" ? "UNICOM" : (comm.by || "ATC")) + (comm.freq ? " " + comm.freq : "") : "ATC: NONE";
+  $: atcClass = !comm ? "bg-blue-2 text-white" : comm.kind === "unicom" ? "bg-yellow-300 text-black" : "bg-green-400 text-black";
+  $: ntStatus = (() => { ac; const d: any = dataHandler.natTrakData.get((callsign ?? "").toUpperCase()); return d && d.status ? String(d.status).toUpperCase() : ""; })();
+  $: ntLabel = ntStatus ? "natTrak " + ntStatus : "natTrak: NO DATA";
+  $: ntClass = ntStatus === "CLEARED" ? "bg-green-400 text-black" : ntStatus === "PENDING" ? "bg-yellow-300 text-black" : ntStatus ? "bg-blue-2 text-white" : "bg-red-600 text-white";
+  $: dlLabel = onCpdlc ? "CPDLC" : hopOnline ? "TELEX" : hopUnknown ? "DATALINK UNKNOWN" : hopChecked ? "NO DATALINK" : "DATALINK...";
+  $: dlClass = onCpdlc ? "bg-green-400 text-black" : hopOnline ? "bg-yellow-300 text-black" : hopChecked && !hopUnknown ? "bg-red-600 text-white" : "bg-blue-2 text-white";
   $: tabs = [["track", trackedByMe ? "Update" : "Track"], ["transfer", "Transfer"], ["untrack", "Release Tag"], ["selcal", "SELCAL"], ["cpdlc", "CPDLC"], ...(hopOnline && !onCpdlc ? [["telex", "TELEX"]] : []), ["scratch", "Note"], ["contact", "Contact Me"], ["nt", "RCL REQ"], ["remove", "Hide"]] as [string, string][];
   $: trackedByMe = !!ac && !!ac.TrackedBy && !!$session.position && String(ac.TrackedBy).toUpperCase() === $session.position.toUpperCase();
   $: trackId = ac && ac.Track ? String(ac.Track) : "";
@@ -171,7 +182,12 @@
 
 <div class="w-full mb-3 bg-blue-3 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-0 border-b-blue-0 text-white font-regular" style="max-width: 52rem;">
       <div class="flex flex-row justify-between items-center px-3 py-2 bg-blue-4 font-bold select-none">
-        <span>Aircraft menu - {callsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}{blockLevel ? " - Block " + blockLevel : ""}</span></span>
+        <span class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
+          <span>Aircraft menu - {callsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}{blockLevel ? " - Block " + blockLevel : ""}</span></span>
+          <span class="px-2 text-sm font-bold border border-black {atcClass}" title="Who the pilot is talking to on VATSIM">{atcLabel}</span>
+          <span class="px-2 text-sm font-bold border border-black {ntClass}" title="natTrak clearance status">{ntLabel}</span>
+          <span class="px-2 text-sm font-bold border border-black {dlClass}" title="How the pilot can be reached by datalink: CPDLC, TELEX (online on Hoppie only) or none">{dlLabel}</span>
+        </span>
         <button class="px-3 py-0.5 text-sm font-bold border-2 border-blue-10 bg-blue-4 hover:bg-blue-10 hover:text-black" on:click={close}>Close</button>
       </div>
       <div class="p-3">
