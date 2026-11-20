@@ -85,6 +85,23 @@
     if (st && st.sector_up_to_date === false) parts.push(await app.updateSector());
     msg = "Updated: " + (parts.join(" and ") || "everything is up to date") + ".";
   });
+  // "Your details": the name, CID, rating and password EuroScope's Connect dialog asks for, saved into the EuroScope profile
+  let pf: app.ProfileInfo | null = null;
+  let pfName = ""; let pfCid = ""; let pfRating = 4; let pfPass = "";
+  async function loadDetails(): Promise<void> {
+    try {
+      pf = await app.profileGet();
+      pfName = pf.realname; pfCid = pf.certificate; pfRating = pf.rating ?? 4; pfPass = "";
+    } catch (e) { pf = null; }
+  }
+  $: if (st && st.dll_found && !pf) loadDetails();
+  const saveDetails = () => run(async () => {
+    const n = await app.profileSave(pfName, pfCid, pfRating, pfPass);
+    pfPass = "";
+    await loadDetails();
+    msg = "Saved to " + n + " EuroScope profile" + (n === 1 ? "" : "s") + ". They will be filled in the next time you open EuroScope.";
+  });
+  $: keyDays = app.keyDaysLeft(st?.key_expires);
   const saveKey = () => run(async () => { await app.saveKey(key); sess.rememberKey(key); key = ""; }, "Key saved.");
   // The Contact Me key: Home unless the controller changed it in EuroScope. The answer goes into vnaaats.cfg (contactkey=) before EuroScope starts.
   let keyChoice: "home" | "other" = "home";
@@ -286,11 +303,39 @@
               <b>3. Your key</b>
               {#if st.cfg_has_key}
                 <div class="text-green-300 text-sm">✔ A key is saved in vnaaats.cfg</div>
+                {#if keyDays !== null && !keyBad}
+                  <div class="text-sm {keyDays < 7 ? 'text-red-300' : keyDays < 14 ? 'text-yellow-300' : 'text-green-300'}">
+                    {keyDays < 0 ? "Your key has run out." : keyDays === 0 ? "Your key runs out today." : "Your key runs out in " + keyDays + " day" + (keyDays === 1 ? "" : "s") + "."}
+                    {#if keyDays < 14}<button class="underline ml-1" on:click={getKey}>Get a new key</button>{/if}
+                  </div>
+                {/if}
               {:else}
                 <div class="text-yellow-300 text-sm">No key in vnaaats.cfg yet. Get your API key at vnaaats.com/get-key and paste it here.</div>
                 <form class="flex gap-2 mt-1" on:submit|preventDefault={saveKey}>
                   <input class="flex-1 px-2 py-1 text-black" placeholder="1234567.abc..." bind:value={key} autocomplete="off" />
                   <button class={BTN} disabled={busy || !key}>Save</button>
+                </form>
+              {/if}
+            </div>
+          {/if}
+          {#if st.dll_found && pf}
+            <div class={STEP}>
+              <b>Your details for EuroScope</b>
+              {#if pf.profiles === 0}
+                <div class="text-yellow-300 text-sm">No EuroScope profile that uses vNAAATS was found yet. Update the sector pack first, then come back here.</div>
+              {:else}
+                <div class="text-sm opacity-80">These fill in EuroScope's Connect dialog. They are saved only in your EuroScope profile{pf.profiles === 1 ? "" : "s"} on this computer, and are kept when the sector pack updates.</div>
+                <form class="mt-2 grid gap-1 text-sm" on:submit|preventDefault={saveDetails}>
+                  <label>Real name <input class="w-full px-2 py-1 text-black" bind:value={pfName} autocomplete="off" /></label>
+                  <label>CID <input class="w-full px-2 py-1 text-black" bind:value={pfCid} inputmode="numeric" autocomplete="off" /></label>
+                  <label>Controller rating
+                    <select class="w-full px-2 py-1 text-black" bind:value={pfRating}>
+                      {#each app.RATINGS as r}<option value={r[0]}>{r[1]}</option>{/each}
+                    </select>
+                  </label>
+                  <label>VATSIM password <input class="w-full px-2 py-1 text-black" type="password" bind:value={pfPass} placeholder={pf.has_password ? "saved - leave blank to keep it" : "not saved yet"} autocomplete="new-password" /></label>
+                  <button class="{BTN} mt-1" disabled={busy || !pfName || !pfCid || pf.euroscope_running}>Save</button>
+                  {#if pf.euroscope_running}<div class="text-yellow-300">Close EuroScope first. It rewrites its profile when it closes.</div>{/if}
                 </form>
               {/if}
             </div>

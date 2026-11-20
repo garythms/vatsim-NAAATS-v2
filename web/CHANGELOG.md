@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: a new "Your details for EuroScope" box in the app setup screen. Enter your real name, CID, controller rating and VATSIM password once and the app writes them into your EuroScope profile, so EuroScope's Connect dialog is filled in. They stay there when the sector pack updates. The password is saved only in the profile file, never sent anywhere. The key step now also shows how many days your key has left. FDD for Windows update needed. Server deploy needed for the days-left line (the server now tells the app when a key runs out).
+
 ## 2.10.3 - 2026-11-20
 - FDD for Windows: updating the sector pack now renames the Gander positions in a controller's own VoiceChannels.txt from CZQO_CTR (and CZQO_A_CTR to CZQO_H_CTR) to CZQO_FSS, for the CZQO_FSS trial. That file was never replaced by an update, so it kept the old names. Every other line in it is left as it was. FDD for Windows update needed.
 

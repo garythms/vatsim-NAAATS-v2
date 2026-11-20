@@ -66,14 +66,17 @@ fn sector_latest() -> Result<(String, String, String), String> {
 
 /// Ask the server whether this key is accepted. "ok", or why not ("unknown", "expired", "revoked").
 /// None when it cannot be told (offline, or an older server without the check): the app then does not warn.
-fn key_check(key: &str) -> Option<String> {
+fn key_check(key: &str) -> (Option<String>, Option<i64>) {
     match ureq::get(&format!("{}/KeyCheck", SITE)).query("code", key).timeout(std::time::Duration::from_secs(15)).call() {
-        Ok(_) => Some("ok".to_string()),
-        Err(ureq::Error::Status(401, resp)) => {
-            let v: serde_json::Value = serde_json::from_reader(resp.into_reader()).ok()?;
-            v["reason"].as_str().map(String::from)
+        Ok(resp) => {
+            let v: Option<serde_json::Value> = serde_json::from_reader(resp.into_reader()).ok();
+            (Some("ok".to_string()), v.and_then(|v| v["expires"].as_i64()))      // older servers do not say when the key runs out
         }
-        Err(_) => None,
+        Err(ureq::Error::Status(401, resp)) => {
+            let v: Option<serde_json::Value> = serde_json::from_reader(resp.into_reader()).ok();
+            (v.and_then(|v| v["reason"].as_str().map(String::from)), None)
+        }
+        Err(_) => (None, None),
     }
 }
 
@@ -114,6 +117,7 @@ struct Status {
     sector_name: Option<String>,
     sector_up_to_date: Option<bool>,    // None when it cannot be checked
     key_status: Option<String>,         // "ok", "unknown", "expired", "revoked"; None when there is no key or the server cannot say
+    key_expires: Option<i64>,           // when the key runs out (unix seconds); None when the server does not say
     error: Option<String>,
 }
 
@@ -144,6 +148,7 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
         sector_name: None,
         sector_up_to_date: None,
         key_status: None,
+        key_expires: None,
         error: None,
     };
     if saved.root.is_some() {
@@ -170,7 +175,9 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
             st.cfg_contact_key = c.contact_key;
             if c.has_key {
                 if let Some(k) = vnaaats_core::read_key(dir) {
-                    st.key_status = key_check(&k);
+                    let (status, expires) = key_check(&k);
+                    st.key_status = status;
+                    st.key_expires = expires;
                 }
             }
         }
@@ -297,6 +304,46 @@ async fn save_contact_key(window: WebviewWindow, app: tauri::AppHandle, code: u3
     let root = load(&app).root.ok_or("choose your EXOCO folder first")?;
     let dll = vnaaats_core::find_plugin_dll(Path::new(&root), 6).ok_or("VatsimNAAATS.dll was not found in that folder")?;
     vnaaats_core::set_cfg_contact_key(dir_of(&dll)?, code)
+}
+
+#[derive(Serialize)]
+struct ProfileInfo {
+    profiles: usize,                    // how many EuroScope profiles load vNAAATS
+    realname: String,
+    certificate: String,
+    rating: Option<u32>,
+    has_password: bool,
+    euroscope_running: bool,
+}
+
+#[tauri::command]
+async fn profile_get(window: WebviewWindow, app: tauri::AppHandle) -> Result<ProfileInfo, String> {
+    check_origin(&window)?;
+    let saved = load(&app);
+    let root = saved.root.clone().ok_or("choose your EXOCO folder first")?;
+    let found = vnaaats_core::find_vnaaats_profiles(Path::new(&root));
+    let first = found.first().map(|p| vnaaats_core::read_profile_details(p)).transpose()?.unwrap_or_default();
+    Ok(ProfileInfo { profiles: found.len(), realname: first.realname, certificate: first.certificate, rating: first.rating, has_password: first.has_password, euroscope_running: euroscope_running(&saved) })
+}
+
+/// Write the details into every EuroScope profile that loads vNAAATS. The password goes only into those profile files (where EuroScope keeps it), never anywhere else.
+#[tauri::command]
+async fn profile_save(window: WebviewWindow, app: tauri::AppHandle, name: String, cid: String, rating: u32, password: String) -> Result<usize, String> {
+    check_origin(&window)?;
+    let saved = load(&app);
+    if euroscope_running(&saved) {
+        return Err("close EuroScope first. It rewrites its profile when it closes and would undo the change".into());
+    }
+    let root = saved.root.clone().ok_or("choose your EXOCO folder first")?;
+    vnaaats_core::check_profile_details(&name, &cid, rating, &password)?;
+    let found = vnaaats_core::find_vnaaats_profiles(Path::new(&root));
+    if found.is_empty() {
+        return Err("no EuroScope profile that uses vNAAATS was found next to your EXCXO folder".into());
+    }
+    for p in &found {
+        vnaaats_core::write_profile_details(p, &name, &cid, rating, &password)?;
+    }
+    Ok(found.len())
 }
 
 fn dir_of(dll: &Path) -> Result<&Path, String> { dll.parent().ok_or_else(|| "bad folder".to_string()) }
@@ -623,7 +670,7 @@ fn main() {
             }
         })
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }
