@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.8 - 2026-11-20
 - FDD for Windows: after the EXCXO folder was deleted, Update now still said VatsimNAAATS.dll was not found, because the sector pack unpack always skipped the plugin. It now puts the pack's plugin in when there is none (an existing plugin is still left for the plugin check), then brings it to the latest. FDD for Windows update needed.
 
 ## 2.10.7 - 2026-11-20
