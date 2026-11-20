@@ -3,7 +3,6 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
-## Unreleased
 - Display and guide: the setup screen and guide said "EXOCO folder"; they now say "EXCXO-vNAAATS folder" (and the plugin path EXCXO-vNAAATS\Plugins\vNAAATS).
 - Gander Radio trial: from 20 November 2026 until 1 January 2027 Gander (CZQO) may control as CZQO_FSS instead of CZQO_CTR (same frequency, sector and CPDLC). vNAAATS treats CZQO_FSS like CZQO_CTR, and CZQO_FSS is added to the opening position list and the EuroScope short codes. Server deploy needed. If /etc/vnaaats.env sets VNAAATS_POSITIONS, add CZQO_FSS there too.
 - Server: new Discord "who is online" board. One embed with the vNAAATS logo, edited in place, listing the Gander/Shanwick controllers on VATSIM (CZQO, CZQX, EGGX, NAT, BIRD). Switched on by adding `VNAAATS_ONLINE_WEBHOOK=<webhook url>` to /etc/vnaaats.env; does nothing without it. Server deploy needed.
