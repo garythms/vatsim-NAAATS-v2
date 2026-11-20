@@ -4,6 +4,7 @@
   import * as sess from "../../typescript/fdd/session";
   import * as vc from "../../typescript/fdd/vacs";
   import config from "../../config.json";
+  import StartupDetails from "./startup_details.svelte";
   const { vacs } = vc;
 
   let show: boolean = false;
@@ -15,6 +16,7 @@
   let key: string = "";
   let autoES: boolean = true;
   let autoVacs: boolean = true;
+  let detailsMissing: boolean = false;              // name or CID blank in the EuroScope profile: asked for before anything opens
   let audio: app.AudioChoice = "none";
   let autoAudio: boolean = true;
 
@@ -52,7 +54,9 @@
     if (!firstTime && basicsOk) {
       const filesOk = st!.airlines_up_to_date !== false && st!.font_found !== false;       // (not the reactive value: it may not have updated yet)
       const keyBad = ["unknown", "expired", "revoked"].includes(st!.key_status ?? "");
-      mode = (!filesOk || st!.up_to_date === false || st!.sector_up_to_date === false || keyBad) ? "update" : "ready";   // something to fix: ask first; all good: "ready to open?"
+      let blank = false;
+      try { const p = await app.profileGet(); blank = p.profiles > 0 && (!p.realname.trim() || !p.certificate.trim()); } catch (e) { /* no profile yet */ }
+      mode = (blank || !filesOk || st!.up_to_date === false || st!.sector_up_to_date === false || keyBad) ? "update" : "ready";   // something to fix: ask first; all good: "ready to open?"
       show = true;
       return;
     }
@@ -163,6 +167,7 @@
   <div class="fixed inset-0 z-[60] flex items-center justify-center" style="background: rgba(11,27,48,0.92);">
     <div class="w-[30rem] max-w-full bg-blue-3 border-2 border-blue-10 text-white font-regular p-4">
       <div class="text-xl font-bold mb-2">{updated ? "Updated" : "Before you start"}</div>
+      <StartupDetails bind:missing={detailsMissing} />
       {#if keyBad}
         <div class="mb-3 p-2 border-2 border-red-400 text-sm">
           <b class="text-red-300">API key update is required.</b> Your key {KEY_WHY[st?.key_status ?? "unknown"] ?? "is not accepted"}. The FDD will not work with EuroScope without a working key.
@@ -203,6 +208,7 @@
   <div class="fixed inset-0 z-[60] flex items-center justify-center" style="background: rgba(11,27,48,0.92);">
     <div class="w-[30rem] max-w-full bg-blue-3 border-2 border-blue-10 text-white font-regular p-4">
       <div class="text-xl font-bold mb-2">{allGood ? "You are up to date" : "Check before you start"}</div>
+      <StartupDetails bind:missing={detailsMissing} />
       {#if st}
         <ul class="mb-3 text-sm space-y-1">
           <li class={pluginOk ? "text-green-300" : "text-yellow-300"}>{pluginOk ? "✔ Plugin" + (st.latest_version ? " " + st.latest_version : "") + " and airline list are the latest" : "⚠ The plugin or its files are not up to date"}</li>
@@ -230,7 +236,7 @@
       {#if toOpen.length}
         <div class="mb-3 text-sm">{allGood ? "No updates are needed." : "Some things above need attention."} Ready to open {toOpen.join(", ")} now?</div>
         <div class="flex gap-2">
-          <button class="flex-1 py-2 {BTN}" disabled={busy} on:click={openNow}>{busy ? "Opening..." : allGood ? "Yes, open now" : "Open anyway"}</button>
+          <button class="flex-1 py-2 {BTN}" disabled={busy || detailsMissing} on:click={openNow}>{busy ? "Opening..." : allGood ? "Yes, open now" : "Open anyway"}</button>
           <button class="flex-1 py-2 border border-blue-6" disabled={busy} on:click={later}>Not now</button>
         </div>
       {:else}
