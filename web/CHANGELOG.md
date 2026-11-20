@@ -3,6 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Display and guide: the setup screen and guide said "EXOCO folder"; they now say "EXCXO-vNAAATS folder" (and the plugin path EXCXO-vNAAATS\Plugins\vNAAATS).
 - Gander Radio trial: from 20 November 2026 until 1 January 2027 Gander (CZQO) may control as CZQO_FSS instead of CZQO_CTR (same frequency, sector and CPDLC). vNAAATS treats CZQO_FSS like CZQO_CTR, and CZQO_FSS is added to the opening position list and the EuroScope short codes. Server deploy needed. If /etc/vnaaats.env sets VNAAATS_POSITIONS, add CZQO_FSS there too.
 
 ## 2.9.9 - 2026-11-17

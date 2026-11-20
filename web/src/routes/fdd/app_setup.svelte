@@ -242,15 +242,15 @@
         <div>Checking...</div>
       {:else}
         <div class={STEP}>
-          <b>1. Your EXOCO folder</b>
+          <b>1. Your EXCXO-vNAAATS folder</b>
           {#if st.root}<div class="text-sm opacity-80 break-all">{st.root}</div>{/if}
-          <button class="{BTN} mt-1" disabled={busy} on:click={folder}>{st.root ? "Choose a different folder" : "Choose your EXOCO folder"}</button>
+          <button class="{BTN} mt-1" disabled={busy} on:click={folder}>{st.root ? "Choose a different folder" : "Choose your EXCXO-vNAAATS folder"}</button>
         </div>
         {#if st.root}
           <div class={STEP}>
             <b>2. The vNAAATS plugin</b>
             {#if !st.dll_found}
-              <div class="text-yellow-300 text-sm">VatsimNAAATS.dll was not found in that folder. Put it in EXOCO/Plugins/vNAAATS, or choose another folder.</div>
+              <div class="text-yellow-300 text-sm">VatsimNAAATS.dll was not found in that folder. Put it in EXCXO-vNAAATS/Plugins/vNAAATS, or choose another folder.</div>
             {:else if st.up_to_date === true && listOk}
               <div class="text-green-300 text-sm">✔ Plugin{st.latest_version ? " " + st.latest_version : ""}, airline list and font are up to date</div>
             {:else if st.up_to_date === false || !listOk}
