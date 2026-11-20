@@ -41,7 +41,7 @@
     <h2 class="text-2xl font-bold mb-2">Positions that open the display</h2>
     <ul class="list-disc pl-5 space-y-1 mb-6">
       <li><b>NAT_FSS</b> - the oceanic bandbox, with <b>NAT_I_FSS</b> for instructors and <b>NAT__FSS</b> for a relief taking over</li>
-      <li><b>CZQO_</b> (Gander Radio and Delivery), including the extra positions CZQO_A to CZQO_L and a relief CZQO__CTR</li>
+      <li><b>CZQO_</b> (Gander Radio and Delivery), including the extra positions CZQO_A to CZQO_L and a relief CZQO__CTR. Until 1 January 2027 Gander Radio is on trial as <b>CZQO_FSS</b> instead of CZQO_CTR (same frequency and sector); both work here</li>
       <li><b>EGGX_</b> (Shanwick Radio and Delivery), including the extra positions EGGX_A to EGGX_L and a relief EGGX__CTR</li>
     </ul>
 

@@ -95,7 +95,7 @@
     <h2 class="text-2xl font-bold mb-2">6. Every day after that</h2>
     <ol class="list-decimal ml-6 space-y-1 mb-3">
       <li>Open <b>FDD for Windows</b>. It opens <b>EuroScope</b>, <b>VACS</b> and your audio client for you (each only if ticked in setup) and shows <b>Awaiting an active VATSIM connection</b>.</li>
-      <li>In EuroScope, connect to VATSIM as your oceanic position (for example NAT_FSS, CZQO_CTR or EGGX_CTR) and open your saved vNAAATS screen.</li>
+      <li>In EuroScope, connect to VATSIM as your oceanic position (for example NAT_FSS, CZQO_FSS or EGGX_CTR) and open your saved vNAAATS screen.</li>
       <li>Within a few seconds the display opens by itself on that position. There is no sign-in or position to choose: your key and your live VATSIM connection are the sign-in. You are then asked about natTrak, which has to be signed in to each session.</li>
       <li>If an update is available the app tells you and asks before it downloads anything. Close EuroScope first, then press <b>Update now</b>. Your <b>vnaaats.cfg</b> and key are never touched.</li>
     </ol>

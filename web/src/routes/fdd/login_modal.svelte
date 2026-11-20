@@ -105,7 +105,7 @@
       {#if !$session.loggedIn}
           {#if savedKeyText}
             <div class="mb-2 text-lg font-bold text-yellow-300">Awaiting an active VATSIM connection</div>
-            <div class="mb-3 text-sm opacity-90">Connect to VATSIM in EuroScope on your oceanic position (for example NAT_FSS, CZQO_CTR or EGGX_CTR). The display opens by itself, on that position, as soon as you are connected.</div>
+            <div class="mb-3 text-sm opacity-90">Connect to VATSIM in EuroScope on your oceanic position (for example NAT_FSS, CZQO_FSS or EGGX_CTR). The display opens by itself, on that position, as soon as you are connected.</div>
             {#if keyError}<div class="mb-3 text-sm text-yellow-300">{keyError}</div>{/if}
             <div class="text-sm mb-1 opacity-80">{waiting ? "Checking every few seconds..." : "Stopped."}</div>
             <button class="mt-2 mr-4 text-sm underline opacity-80" on:click={forgetKey}>Use a different key</button>
