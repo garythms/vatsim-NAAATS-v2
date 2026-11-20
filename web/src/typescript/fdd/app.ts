@@ -9,7 +9,7 @@ export type AppStatus = {
   latest_version: string | null; latest_sha: string | null; up_to_date: boolean | null;
   airlines_found: boolean; airlines_up_to_date: boolean | null; font_found?: boolean;
   cfg_exists: boolean; cfg_has_key: boolean; cfg_contact_key?: number | null; error: string | null;
-  euroscope_running?: boolean; sector_name?: string | null; sector_up_to_date?: boolean | null; key_status?: string | null;
+  euroscope_running?: boolean; sector_name?: string | null; sector_up_to_date?: boolean | null; key_status?: string | null; key_expires?: number | null;
 };
 
 function tauri(): any { try { return (window as any).__TAURI__; } catch (e) { return null; } }
@@ -25,6 +25,15 @@ export const refreshCfg = (): Promise<boolean> => call("refresh_cfg");
 export const updatePlugin = (): Promise<string> => call("update_plugin");
 export const updateSector = (): Promise<string> => call("update_sector");
 export const saveContactKey = (code: number): Promise<void> => call("save_contact_key", { code });
+export type ProfileInfo = { profiles: number; realname: string; certificate: string; rating: number | null; has_password: boolean; euroscope_running: boolean };
+export const profileGet = (): Promise<ProfileInfo> => call<ProfileInfo>("profile_get");
+export const profileSave = (name: string, cid: string, rating: number, password: string): Promise<number> => call("profile_save", { name, cid, rating, password });
+/** EuroScope's own numbers for the controller ratings (Enroute Controller is 4). */
+export const RATINGS: [number, string][] = [[0, "Observer"], [1, "Student 1 (S1)"], [2, "Student 2 (S2)"], [3, "Student 3 (S3)"], [4, "Controller 1 (C1)"], [6, "Controller 3 (C3)"], [7, "Instructor 1 (I1)"], [9, "Instructor 3 (I3)"], [10, "Supervisor (SUP)"], [11, "Administrator (ADM)"]];
+/** Whole days until a key runs out (0 on its last day, negative once it has), or null when that is not known. */
+export function keyDaysLeft(expires: number | null | undefined, now: number = Date.now()): number | null {
+  return expires && expires > 0 ? Math.floor((expires * 1000 - now) / 86400000) : null;
+}
 export const saveKey = (key: string): Promise<void> => call("save_key", { key });
 export type ProgKind = "euroscope" | "vacs" | "afv" | "trackaudio";
 export const pickExe = (kind: ProgKind): Promise<string | null> => call("pick_exe", { kind });

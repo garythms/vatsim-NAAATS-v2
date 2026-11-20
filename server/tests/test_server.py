@@ -585,7 +585,9 @@ class KeySignInTest(unittest.TestCase):
                     return r.status, json.loads(r.read().decode())
             except urllib.error.HTTPError as e:
                 return e.code, json.loads(e.read().decode())
-        self.assertEqual(ask(out["key"]), (200, {"ok": True}))
+        st, body = ask(out["key"])
+        self.assertEqual((st, body["ok"]), (200, True))
+        self.assertGreater(body["expires"], time.time() + 80 * 86400)    # the app shows how many days are left
         self.assertEqual(ask("1700077.nope"), (401, {"ok": False, "reason": "unknown"}))
         self.assertEqual(ask(""), (401, {"ok": False, "reason": "unknown"}))
         self.auth.failures.clear()                                        # wrong tries count toward the shared lock-out; do not leak into other tests

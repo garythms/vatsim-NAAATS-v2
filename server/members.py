@@ -115,6 +115,15 @@ class MemberKeys:
         self._touch(cid)
         return cid, ""
 
+    def key_expires(self, code):
+        """When a good key runs out (unix seconds), or 0 if the key is not a member key."""
+        m = re.fullmatch(r"(\d{1,9})\.[A-Za-z0-9_\-]{16,64}", str(self.clean_key(code) or ""))
+        if not m:
+            return 0
+        with self.store.lock:
+            row = self.store.db.execute("SELECT expires FROM members WHERE cid=?", (m.group(1),)).fetchone()
+        return int(row[0]) if row else 0
+
     def _touch(self, cid):
         t = self.now()
         with self.lock:
