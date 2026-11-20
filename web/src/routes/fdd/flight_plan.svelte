@@ -24,8 +24,8 @@
     const fixes = text.trim().toUpperCase().split(/\s+/).filter((f) => f !== "");
     if (fixes.length === 0) return "Type the route fixes separated by spaces, e.g. 52/50 52/40";
     for (const f of fixes) {
-      if (/^\d{2}\/\d{2}$/.test(f) || /^[A-Z]{3,5}$/.test(f)) continue;
-      if (/\d/.test(f)) return f + " is not accepted - write latitude/longitude as two numbers / two numbers, e.g. 51/20 (not 51N20W)";
+      if (/^\d{2}(30)?\/\d{2}$/.test(f) || /^[A-Z]{3,5}$/.test(f)) continue;
+      if (/\d/.test(f)) return f + " is not accepted - write latitude/longitude as two numbers / two numbers, e.g. 51/20 or 5130/20 for a half degree (not 51N20W)";
       return f + " is not a fix name (3-5 letters, or two numbers / two numbers like 51/20)";
     }
     return "";
