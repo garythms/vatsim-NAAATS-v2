@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: updating the sector pack now renames the Gander positions in a controller's own VoiceChannels.txt from CZQO_CTR (and CZQO_A_CTR to CZQO_H_CTR) to CZQO_FSS, for the CZQO_FSS trial. That file was never replaced by an update, so it kept the old names. Every other line in it is left as it was. FDD for Windows update needed.
+
 ## 2.10.2 - 2026-11-20
 - Server: automatic RCL reminders (and the entry time shown on strips) now work for flights that file their oceanic points as 51N050W or 5130N04000W instead of 51/50 or 5130/40. Those points were not recognised when placing a flight on its route, so such a flight had no entry estimate and no distance and was never reminded in time (DLH521 and FDX2 on 20 November 2026). Server deploy needed.
 

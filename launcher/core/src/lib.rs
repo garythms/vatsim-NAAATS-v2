@@ -230,6 +230,41 @@ fn patch_prf_sector(existing: &Path, pack_prf: &str) -> Result<(), String> {
     fs::write(existing, lines.join(eol) + eol).map_err(|e| format!("could not update your EuroScope profile: {}", e))
 }
 
+/// Gander Radio is trialled as CZQO_FSS until 1 January 2027. An existing VoiceChannels.txt is the controller's own file and is
+/// not replaced, so rename the Gander positions in it (CZQO_CTR, CZQO_A_CTR ... CZQO_H_CTR) and leave every other line as it was.
+fn migrate_voice_channels(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find("CZQO") {
+        out.push_str(&rest[..i]);
+        let after = &rest[i + 4..];
+        let mid = match after.as_bytes() {
+            [b'_', l, b'_', ..] if (b'A'..=b'H').contains(l) => 2,
+            _ => 0,
+        };
+        if after[mid..].starts_with("_CTR") {
+            out.push_str(&rest[i..i + 4 + mid]);
+            out.push_str("_FSS");
+            rest = &after[mid + 4..];
+        } else {
+            out.push_str("CZQO");
+            rest = after;
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn patch_voice_channels(existing: &Path) -> Result<(), String> {
+    let old = fs::read(existing).map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&old).into_owned();
+    let new = migrate_voice_channels(&text);
+    if new == text {
+        return Ok(());
+    }
+    fs::write(existing, new).map_err(|e| format!("could not update your voice channel list: {}", e))
+}
+
 /// Where a pack should be unpacked. The zip holds a top-level folder (such as EXCXO) next to its .sct, .ese and .prf files.
 /// If the folder the controller chose IS that folder, the pack goes in its parent, so it does not end up as EXCXO/EXCXO.
 pub fn pack_dest(zip_path: &Path, root: &Path) -> Result<PathBuf, String> {
@@ -311,6 +346,9 @@ pub fn extract_pack(zip_path: &Path, dest: &Path) -> Result<usize, String> {
                 let mut pack_text = String::new();
                 f.read_to_string(&mut pack_text).ok();
                 patch_prf_sector(&target, &pack_text)?;
+            }
+            if rel.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case("voicechannels.txt")).unwrap_or(false) {
+                patch_voice_channels(&target)?;
             }
             continue;                           // the controller's own settings are only installed when they have none
         }
@@ -557,6 +595,29 @@ mod tests {
         assert_eq!(fs::read_to_string(dest.join("EXCXO.prf")).unwrap(), "my login");
         assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/General.txt")).unwrap(), "pack");
         assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/VCCS.txt")).unwrap(), "pack");   // missing, so installed
+    }
+
+    #[test]
+    fn existing_voice_channels_get_the_fss_names_and_keep_everything_else() {
+        let before = "VOICE\r\nAG:CZQO_CTR Gander Radio:131.700:Gander:CZQO_CTR\r\nAG:CZQO_H_CTR Gander Radio:131.075:novoice:CZQO_H_CTR\r\nAG:CZQM_CTR Moncton:132.200:novoice:CZQM_CTR\r\nAG:CZQO_DEL Gander Oceanic:128.700:novoice:CZQO_DEL\r\nAG:CZQO_X_CTR other:1:x:CZQO_X_CTR\r\n";
+        let after = migrate_voice_channels(before);
+        assert!(after.contains("AG:CZQO_FSS Gander Radio:131.700:Gander:CZQO_FSS\r\n"));
+        assert!(after.contains("AG:CZQO_H_FSS Gander Radio:131.075:novoice:CZQO_H_FSS\r\n"));
+        assert!(after.contains("AG:CZQM_CTR Moncton:132.200:novoice:CZQM_CTR"));
+        assert!(after.contains("AG:CZQO_DEL Gander Oceanic"));
+        assert!(after.contains("CZQO_X_CTR"));                  // not a Gander position
+        assert_eq!(migrate_voice_channels(&after), after);      // nothing left to change
+    }
+
+    #[test]
+    fn extract_pack_renames_gander_in_an_existing_voice_channel_list_but_keeps_the_rest() {
+        let t = tempfile::tempdir().unwrap();
+        let dest = t.path().join("sector");
+        fs::create_dir_all(dest.join("EXCXO/Settings")).unwrap();
+        fs::write(dest.join("EXCXO/Settings/VoiceChannels.txt"), "AG:CZQO_CTR Gander Radio:131.700:mine:CZQO_CTR\nAG:EGGX_CTR Shanwick:1:mine:EGGX_CTR\n").unwrap();
+        let z = make_zip(t.path(), &[("EXCXO/Settings/VoiceChannels.txt", "pack")]);
+        extract_pack(&z, &dest).unwrap();
+        assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/VoiceChannels.txt")).unwrap(), "AG:CZQO_FSS Gander Radio:131.700:mine:CZQO_FSS\nAG:EGGX_CTR Shanwick:1:mine:EGGX_CTR\n");
     }
 
     #[test]
