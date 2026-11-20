@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.7 - 2026-11-20
 - FDD for Windows: the "Your details" boxes no longer ask for your VATSIM password. Name, CID and rating are still saved to your EuroScope profile. A password already saved in the profile is left as it is. Web change only, no app update needed.
 
 ## 2.10.6 - 2026-11-20
