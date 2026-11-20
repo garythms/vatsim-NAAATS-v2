@@ -3,8 +3,10 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+## Unreleased
 - Display and guide: the setup screen and guide said "EXOCO folder"; they now say "EXCXO-vNAAATS folder" (and the plugin path EXCXO-vNAAATS\Plugins\vNAAATS).
 - Gander Radio trial: from 20 November 2026 until 1 January 2027 Gander (CZQO) may control as CZQO_FSS instead of CZQO_CTR (same frequency, sector and CPDLC). vNAAATS treats CZQO_FSS like CZQO_CTR, and CZQO_FSS is added to the opening position list and the EuroScope short codes. Server deploy needed. If /etc/vnaaats.env sets VNAAATS_POSITIONS, add CZQO_FSS there too.
+- Server: new Discord "who is online" board. One embed with the vNAAATS logo, edited in place, listing the Gander/Shanwick controllers on VATSIM (CZQO, CZQX, EGGX, NAT, BIRD). Switched on by adding `VNAAATS_ONLINE_WEBHOOK=<webhook url>` to /etc/vnaaats.env; does nothing without it. Server deploy needed.
 
 ## 2.9.9 - 2026-11-17
 - Website: two new cards on the homepage Features & Toolsets, natTrak and CPDLC Oceanic Requests for Clearances (RCLs) and TrackAudio, filling the grid.
@@ -198,7 +200,6 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 ## 2.5.1 - 2026-10-31
 - Relief button: when another controller takes over your position, press Relief, choose who is taking over (a relief callsign works too) and confirm. Every aircraft you track is handed to them in EuroScope and they start tracking it (needs the new plugin on both sides). Aircraft on CPDLC are told "There is a controller change in progress which requires you to re log into the CPDLC stations once you receive a log off message" and are logged off once the new controller has them.
 - natTrak sign-in box: now shown every time you choose a position (each controlling session), not just the first time in a browser.
-
 
 ## 2.5.0 - 2026-10-31
 - CPDLC: a "Log off pilot" button in the drawer logs the selected pilot off CPDLC from your station. A pilot who has only just logged on no longer flashes or pings: only a request or a reply does.

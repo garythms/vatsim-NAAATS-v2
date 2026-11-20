@@ -61,3 +61,9 @@ Cautions:
 ## Concorde position reports (server 0.8.0)
 
 Concorde (aircraft type starting `CONC`) reports by voice, so controllers type its times in on the FDD. `POST /EditPosReport {callsign, fix, est, act}` (signed in, not OBSERVER) stores an estimate and/or actual time (four digits; both empty clears it) per route fix, with who entered it. `posReports` is added to a CONC flight's data; the FDD shows the typed times in place of the calculated ones and flashes when a fix is more than 3 minutes overdue. Reports are kept for 24 hours. The plugin does not show these times yet.
+
+## Discord "who is online" board
+Create a webhook in the channel that should show it (Channel settings > Integrations > Webhooks), then add
+`VNAAATS_ONLINE_WEBHOOK=<webhook url>` to `/etc/vnaaats.env` and restart the server. The server posts one embed (vNAAATS logo,
+oceanic controllers with frequency and time online) and edits it whenever the list changes. Optional: `VNAAATS_ONLINE_PREFIXES`
+(default `CZQO,CZQX,EGGX,NAT,BIRD`), `VNAAATS_ONLINE_SECONDS` (60), `VNAAATS_ONLINE_LOGO`. The webhook URL is a secret.
