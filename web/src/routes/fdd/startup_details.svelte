@@ -7,7 +7,7 @@
   export let missing: boolean = false;              // true while the name or CID is still blank (the parent holds "open" back)
   export let loaded: boolean = false;
   let pf: app.ProfileInfo | null = null;
-  let name = ""; let cid = ""; let rating = 4; let pass = "";
+  let name = ""; let cid = ""; let rating = 4;
   let busy = false; let msg = ""; let edit = false;
   let now = Date.now();
   let timer: any = null;
@@ -15,7 +15,7 @@
   async function load(): Promise<void> {
     try {
       pf = await app.profileGet();
-      name = pf.realname; cid = pf.certificate; rating = pf.rating ?? 4; pass = "";
+      name = pf.realname; cid = pf.certificate; rating = pf.rating ?? 4;
     } catch (e) { pf = null; }
     loaded = true;
   }
@@ -31,7 +31,7 @@
   async function save(): Promise<void> {
     busy = true; msg = "";
     try {
-      const n = await app.profileSave(name, cid, rating, pass);
+      const n = await app.profileSave(name, cid, rating, "");
       await load();
       edit = false;
       msg = "Saved to " + n + " EuroScope profile" + (n === 1 ? "" : "s") + ".";
@@ -58,7 +58,7 @@
   {:else}
     <div class="mb-3 p-2 border-2 border-yellow-400 text-sm">
       <b class="text-yellow-300">{hello}. Before EuroScope opens, enter your details.</b>
-      <div class="opacity-80">These fill in EuroScope's Connect dialog. They are saved only in your EuroScope profile{pf.profiles === 1 ? "" : "s"} on this computer and are kept when the sector pack updates.</div>
+      <div class="opacity-80">These fill in the name and CID in EuroScope's Connect dialog (you still type your VATSIM password there). They are saved only in your EuroScope profile{pf.profiles === 1 ? "" : "s"} on this computer and are kept when the sector pack updates.</div>
     </div>
   {/if}
   {#if missing || edit}
@@ -70,7 +70,6 @@
           {#each app.RATINGS as r}<option value={r[0]}>{r[1]}</option>{/each}
         </select>
       </label>
-      <label>VATSIM password <input class="w-full px-2 py-1 text-black" type="password" bind:value={pass} placeholder={pf.has_password ? "saved - leave blank to keep it" : "not saved yet"} autocomplete="new-password" /></label>
       <button class="{BTN} mt-1" disabled={busy || !name.trim() || !cid.trim() || pf.euroscope_running}>{busy ? "Saving..." : "Save"}</button>
       {#if pf.euroscope_running}<div class="text-yellow-300">Close EuroScope first. It rewrites its profile when it closes.</div>{/if}
     </form>
