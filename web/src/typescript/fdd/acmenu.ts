@@ -47,18 +47,18 @@ export async function copyText(text: string): Promise<boolean> {
 
 export const NO_CONTACT_TEXT = "This aircraft is within my controlling area but has not responded to contact me requests";
 
-export function selcalCommand(code: string): string { return ".selcal " + code.toUpperCase().replace(/[^A-Z]/g, ""); }
+export function selcalCommand(code: string): string { return ".selcal " + code.toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 // EuroScope's .contactme takes no callsign: it acts on the aircraft you click or have selected
 export function contactMeCommand(_callsign: string): string { return ".contactme"; }
 export function wallopCommand(callsign: string, text: string): string {
   const t = text.trim().replace(/"/g, "'");
   return ".wallop " + callsign + " " + (t.indexOf(" ") >= 0 ? '"' + t + '"' : t);
 }
-export function validSelcal(code: string): boolean { return /^[A-Z]{4}$/.test(code.toUpperCase().replace(/[-\s]/g, "")); }   // any four letters: VATSIM pilots are not limited to the real-world SELCAL letters
-// Why a SELCAL code is not valid ("" if it is). Any four letters are fine: VATSIM pilots are not limited to the real-world SELCAL letters.
+export function validSelcal(code: string): boolean { return /^[A-Z0-9]{4}$/.test(code.toUpperCase().replace(/[-\s]/g, "")); }   // any four letters or numbers: VATSIM pilots are not limited to the real-world SELCAL letters
+// Why a SELCAL code is not valid ("" if it is). Any four letters or numbers are fine: VATSIM pilots are not limited to the real-world SELCAL letters.
 export function selcalProblem(code: string): string {
   const c = code.toUpperCase().replace(/[-\s]/g, "");
-  return /^[A-Z]{4}$/.test(c) ? "" : "SELCAL must be exactly 4 letters, like ABCD";
+  return /^[A-Z0-9]{4}$/.test(c) ? "" : "SELCAL must be exactly 4 letters or numbers, like ABCD or AB12";
 }
 
 // Send a command to the controller's EuroScope. Returns an error message, or the command id as a number.

@@ -11,7 +11,7 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(cm.clean_command({"type": "track", "callsign": "BAW123", "level": "350", "mach": "200"})[2]["mach"], 200)
         for bad in ({"type": "track", "callsign": "BAW123", "level": "0", "mach": "84"},
                     {"type": "track", "callsign": "BAW123", "level": "350", "mach": "0"},
-                    {"type": "track", "callsign": "BAW123", "level": "350", "mach": "84", "selcal": "AI1O"},
+                    {"type": "track", "callsign": "BAW123", "level": "350", "mach": "84", "selcal": "AI!O"},
                     {"type": "nuke", "callsign": "BAW123"}, {"type": "untrack", "callsign": "bad callsign"},
                     {"type": "transfer", "callsign": "BAW123", "target": ""}):
             self.assertIsNotNone(cm.clean_command(bad)[3], bad)
@@ -265,6 +265,8 @@ class SelcalRemarksTests(unittest.TestCase):
         self.assertEqual(s.selcal_from_remarks("RMK/TCAS SEL/ABCD PBN/A1"), "ABCD")
         self.assertEqual(s.selcal_from_remarks("sel/xyzw"), "XYZW")                 # any letters, not just A-H J-M P-S
         self.assertEqual(s.selcal_from_remarks("SELCAL KLMN"), "KLMN")
+        self.assertEqual(s.selcal_from_remarks("RMK/ SEL/AB12 PBN/A1"), "AB12")                 # numbers are allowed too
+        self.assertEqual(s.selcal_from_remarks("SEL/12345"), "")                                 # but still exactly four
         self.assertEqual(s.selcal_from_remarks("NO SELCAL"), "")
         self.assertEqual(s.selcal_from_remarks(None), "")
         rec = s.convert_network_pilot({"callsign": "BAW1", "flight_plan": {"route": "RIKAL 53/50 55/40 55/30 53/20 SOMAX", "remarks": "SEL/FGHJ", "departure": "EGLL", "arrival": "KJFK"}}, [])
@@ -359,6 +361,7 @@ class TypedCommandTests(unittest.TestCase):
         self.assertEqual(c.clean_command({"type": "contactme", "callsign": "baw1"})[2], {"text": ".contactme"})
         self.assertEqual(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "ab-cd"})[2], {"text": ".selcal ABCD"})
         self.assertIsNotNone(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "AB1"})[3])
+        self.assertEqual(c.clean_command({"type": "selcal", "callsign": "BAW1", "selcal": "ab-12"})[2], {"text": ".selcal AB12"})
         t = c.clean_command({"type": "natmsg", "callsign": "BAW1"})[2]["text"]
         self.assertTrue(t.startswith(".msg BAW1 Hello, you will soon be entering oceanic airspace."))
         ta = c.clean_command({"type": "natmsg", "callsign": "BAW1", "auto": True})[2]["text"]

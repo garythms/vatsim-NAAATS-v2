@@ -2353,7 +2353,7 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		}
 	}
 
-	// SELCAL: four letters from the SELCAL alphabet (A-H, J-M, P-S), dashes/spaces ignored
+	// SELCAL: four letters or numbers (VATSIM allows number-based SELCAL), dashes/spaces ignored
 	if (id == TXT_SELCAL) {
 		string code;
 		for (size_t i = 0; i < content.size(); i++) {
@@ -2364,7 +2364,7 @@ void CFlightPlanWindow::SetTextValue(CRadarScreen* screen, int id, string conten
 		bool valid = code.size() == 4;
 		for (size_t i = 0; valid && i < code.size(); i++) {
 			char c = code[i];
-			if (!((c >= 'A' && c <= 'H') || (c >= 'J' && c <= 'M') || (c >= 'P' && c <= 'S'))) valid = false;
+			if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) valid = false;
 		}
 		if (code.empty()) { // Cleared: go back to whatever the remarks say
 			primedPlan->SelcalManual = false;

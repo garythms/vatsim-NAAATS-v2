@@ -134,7 +134,7 @@
       <li><b>Track</b> - check or change the <b>level</b>, <b>Mach</b> and <b>SELCAL</b>, then <b>Track aircraft</b> (the button is on the left; the <b>SELCAL test</b> button sits under the SELCAL box). The plugin starts tracking the aircraft in EuroScope and the menu shows the result. If another controller is handing the aircraft to you, <b>Track also accepts that handoff</b>.</li>
       <li><b>Transfer</b> - pick the controller to hand the aircraft to and press Transfer. Only stations from the CPDLC station list are offered. If none are online it says <i>No adjacent ATC - Send to UNICOM</i> (use the UNICOM button in the CPDLC drawer).</li>
       <li><b>Release Tag</b> - releases the aircraft in EuroScope (you are asked to confirm).</li>
-      <li><b>SELCAL</b> - enter or change the 4-letter code and use <b>Send</b> to run a SELCAL check in EuroScope, <b>Copy .selcal</b> to paste it yourself, or <b>Save code</b> to store it on the flight. Letters allowed: A-H, J-M, P-S (a red warning names any that are not).</li>
+      <li><b>SELCAL</b> - enter or change the 4-character code and use <b>Send</b> to run a SELCAL check in EuroScope, <b>Copy .selcal</b> to paste it yourself, or <b>Save code</b> to store it on the flight. Letters and numbers are allowed (for example ABCD or AB12); a red warning shows for anything else.</li>
       <li><b>CPDLC</b> - opens the CPDLC drawer for this aircraft if the pilot is connected.</li>
       <li><b>Note</b> - type a short note (up to 15 characters) and press Save note: the EuroScope scratchpad (also in the flight plan panel).</li>
       <li><b>Contact Me</b> - <b>Send</b> runs EuroScope's contact-me command for the aircraft. <b>Copy .contactme</b> copies it.</li>
