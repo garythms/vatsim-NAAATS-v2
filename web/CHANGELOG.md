@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: the "Your details" box and the greeting never appeared because the app refused the display's request for them (the two new commands were not on its allowed list). They are allowed now, so the start-up window asks for your name and CID when they are blank, then greets you with your local time and UTC. FDD for Windows update needed.
+
 ## 2.10.8 - 2026-11-20
 - FDD for Windows: after the EXCXO folder was deleted, Update now still said VatsimNAAATS.dll was not found, because the sector pack unpack always skipped the plugin. It now puts the pack's plugin in when there is none (an existing plugin is still left for the plugin check), then brings it to the latest. FDD for Windows update needed.
 

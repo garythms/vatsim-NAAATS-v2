@@ -13,6 +13,8 @@
     "allow-refresh-cfg",
     "allow-save-key",
     "allow-save-contact-key",
+    "allow-profile-get",
+    "allow-profile-save",
     "allow-pick-exe",
     "allow-launch",
     "allow-open-url",
