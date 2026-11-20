@@ -124,14 +124,17 @@ def load_fixes():
 
 
 def token_to_latlon(token, fixes):
-    """'56/20' -> (56.0, -20.0); '5730/30' -> (57.5, -30.0); named fix -> lookup; else None."""
+    """'56/20' -> (56.0, -20.0); '5730/30' -> (57.5, -30.0); '51N050W' -> (51.0, -50.0); named fix -> lookup; else None."""
     m = re.fullmatch(r"(\d{2})(\d{2})?/(\d{2,3})", token)
     if m:
         lat = int(m.group(1)) + (int(m.group(2)) / 60.0 if m.group(2) else 0.0)
         lon = int(m.group(3))
         return round(lat, 6), -float(lon)                    # NAT tracks are west of Greenwich
     v = fixes.get(token.upper()) or TANGO_FIXES.get(token.upper())
-    return (v[0], v[1]) if v else None
+    if v:
+        return v[0], v[1]
+    p = oceanic_point(token)                                 # 51N050W, 5130N04000W: the other way pilots file oceanic coordinates
+    return (round(p[1], 6), round(p[2], 6)) if p else None
 
 
 def _gc_nm(lat1, lon1, lat2, lon2):

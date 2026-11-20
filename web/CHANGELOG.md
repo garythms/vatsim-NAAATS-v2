@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Server: automatic RCL reminders (and the entry time shown on strips) now work for flights that file their oceanic points as 51N050W or 5130N04000W instead of 51/50 or 5130/40. Those points were not recognised when placing a flight on its route, so such a flight had no entry estimate and no distance and was never reminded in time (DLH521 and FDX2 on 20 November 2026). Server deploy needed.
+
 ## 2.10.1 - 2026-11-20
 - Display and server: a route with half-degree track points such as 5530/50 was refused with "is not accepted - write latitude/longitude as two numbers / two numbers" even though the same format was already in the route (5030/40, 5130/30). Half-degree points (5130/20) are accepted now. Server deploy needed.
 - Plugin: the SELCAL box in the flight plan window accepts four letters or numbers (for example AB12), not only the real-world SELCAL letters. Plugin update needed.
