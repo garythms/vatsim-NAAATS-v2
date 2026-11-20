@@ -163,6 +163,9 @@ class RouteEditTests(unittest.TestCase):
     def test_route_formats(self):
         import vnaaats_server as s
         self.assertEqual(s.route_problem("52/50 52/40 SOMAX"), "")
+        self.assertEqual(s.route_problem("ELSIR 50/50 5030/40 5130/30 52/20 LIMRI"), "")        # half-degree track points are fine
+        self.assertEqual(s.route_problem("5530/50"), "")
+        self.assertIn("51/20", s.route_problem("5145/20"))                                        # only half degrees (30), not any minutes
         self.assertIn("51/20", s.route_problem("51N20W"))
         self.assertIn("51/20", s.route_problem("5120N"))
         self.assertIn("not a fix", s.route_problem("52/50 AB"))

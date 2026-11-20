@@ -1436,7 +1436,7 @@ def _http_json(url, form=None, bearer=None):
         return json.loads(r.read().decode("utf-8"))
 
 
-LATLON_OK = re.compile(r"\d{2}/\d{2}")                 # 51/20 = 51N 020W
+LATLON_OK = re.compile(r"\d{2}(?:30)?/\d{2}")          # 51/20 = 51N 020W; 5130/20 = 51 30N 020W (half degree, as on the tracks)
 NAMED_OK = re.compile(r"[A-Z]{3,5}")                      # named waypoint, e.g. SOMAX
 
 
@@ -1451,7 +1451,7 @@ def route_problem(text):
         if LATLON_OK.fullmatch(f) or NAMED_OK.fullmatch(f):
             continue
         if re.search(r"\d", f):
-            return "%s is not accepted: write latitude/longitude as two numbers / two numbers, for example 51/20 (not 51N20W)" % f
+            return "%s is not accepted: write latitude/longitude as two numbers / two numbers, for example 51/20 or 5130/20 for a half degree (not 51N20W)" % f
         return "%s is not a fix name (3-5 letters, or two numbers / two numbers like 51/20)" % f
     return ""
 

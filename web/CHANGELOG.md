@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Display and server: a route with half-degree track points such as 5530/50 was refused with "is not accepted - write latitude/longitude as two numbers / two numbers" even though the same format was already in the route (5030/40, 5130/30). Half-degree points (5130/20) are accepted now. Server deploy needed.
+
 ## 2.10.0 - 2026-11-20
 - Display and guide: the setup screen and guide said "EXOCO folder"; they now say "EXCXO-vNAAATS folder" (and the plugin path EXCXO-vNAAATS\Plugins\vNAAATS).
 - Gander Radio trial: from 20 November 2026 until 1 January 2027 Gander (CZQO) may control as CZQO_FSS instead of CZQO_CTR (same frequency, sector and CPDLC). vNAAATS treats CZQO_FSS like CZQO_CTR, and CZQO_FSS is added to the opening position list and the EuroScope short codes. Server deploy needed. If /etc/vnaaats.env sets VNAAATS_POSITIONS, add CZQO_FSS there too.
