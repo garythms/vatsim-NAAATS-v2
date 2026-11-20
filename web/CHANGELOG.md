@@ -3,6 +3,8 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Plugin: the SELCAL box in the flight plan window accepts four letters or numbers (for example AB12), not only the real-world SELCAL letters. Plugin update needed.
+- Display and server: SELCAL can be four letters or numbers everywhere (aircraft menu, flight plan, .selcal command, and SEL/ in the VATSIM flight plan remarks). Server deploy needed.
 - Server: fixed the CPDLC unread badge and strip flashing that would not go away. An unread message from before the pilot's current logon (or older than 6 hours) was counted but never shown in the drawer, so opening the aircraft could not clear it. Only what the drawer can show is counted now, and a new logon clears mail from before it. Server deploy needed.
 
 ## 2.10.0 - 2026-11-20

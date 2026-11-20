@@ -35,7 +35,7 @@
   $: ntMach = (() => { ac; const d: any = dataHandler.natTrakData.get((callsign ?? "").toUpperCase()); const v = d && Number(d.mach); if (!v || v <= 0) return ""; return String(Math.round(v < 10 ? v * 100 : v)).padStart(3, "0"); })();
   $: ntLevel = (() => { const d: any = dataHandler.natTrakData.get((callsign ?? "").toUpperCase()); const v = d && Number(d.level); return v && v > 0 ? String(Math.round(v)) : ""; })();
   $: machToUse = mach.trim() || ntMach;           // left blank: the natTrak Mach is used
-  $: selcalWarn = /[^A-Za-z\-\s]/.test(selcal) ? "SELCAL is letters only" : "";   // any four letters are allowed; only warn about things that are not letters
+  $: selcalWarn = /[^A-Za-z0-9\-\s]/.test(selcal) ? "SELCAL is letters and numbers only" : "";   // any four letters or numbers are allowed; only warn about anything else
   $: canEdit = sess.canEdit($session);
   openFor(callsign);
 

@@ -107,7 +107,7 @@ VACATE_SECONDS = int(os.environ.get("VNAAATS_VACATE_SECONDS", "180"))           
 DISCONNECT_SECONDS = int(os.environ.get("VNAAATS_DISCONNECT_SECONDS", "3600"))     # a key sign-in is closed this long after the controller leaves VATSIM
 DEFAULT_POSITIONS = "CZQO_FSS,CZQO_CTR,CZQO_DEL,EGGX_CTR,EGGX_DEL,NAT_FSS"
 EDIT_FIELDS = ("assignedLevel", "assignedMach", "track", "selcal")       # what the web and the plugin both edit (route is web-only)
-SELCAL_OK = re.compile(r"[A-Z]{4}")   # VATSIM pilots can use any four letters
+SELCAL_OK = re.compile(r"[A-Z0-9]{4}")   # VATSIM pilots can use any four letters or numbers
 SCRATCH_MAX = 15                                  # characters in the scratchpad note (EuroScope itself documents no limit)
 SCRATCH_OK = re.compile(r"[A-Z0-9 /.,+*-]{0,%d}" % SCRATCH_MAX)
 
@@ -784,11 +784,11 @@ def _plain_fix(token):
     return t if re.fullmatch(r"[A-Z]{5}", t) and t != "DCT" else None
 
 
-SELCAL_REMARK = re.compile(r"\bSEL(?:CAL)?\s*[/:= ]\s*([A-Z]{4})\b")
+SELCAL_REMARK = re.compile(r"\bSEL(?:CAL)?\s*[/:= ]\s*([A-Z0-9]{4})\b")
 
 
 def selcal_from_remarks(remarks):
-    """The SELCAL a pilot filed in the remarks of the VATSIM flight plan (SEL/ABCD, SELCAL ABCD), or "". Any four letters."""
+    """The SELCAL a pilot filed in the remarks of the VATSIM flight plan (SEL/ABCD, SELCAL ABCD), or "". Any four letters or numbers."""
     m = SELCAL_REMARK.search(str(remarks or "").upper())
     return m.group(1) if m else ""
 
@@ -1548,7 +1548,7 @@ def validate_edit(body):
     if "selcal" in body:
         sc = re.sub(r"[-\s]", "", str(body["selcal"]).upper())
         if sc and not SELCAL_OK.fullmatch(sc):
-            return None, "SELCAL must be exactly 4 letters, like ABCD"
+            return None, "SELCAL must be exactly 4 letters or numbers, like ABCD or AB12"
         changes["selcal"] = sc
     if "scratch" in body:
         sp = " ".join(str(body["scratch"]).upper().split())
