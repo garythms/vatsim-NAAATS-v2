@@ -319,11 +319,21 @@ class CpdlcStation:
             self.db.execute("UPDATE cpdlc_messages SET seen=1 WHERE station=? AND callsign=? AND seen=0", (self.client.station, callsign.upper()))
             self.db.commit()
 
-    def unread(self):
+    def _unseen(self, quiet):
+        """Unseen downlinks per connected aircraft, counting only what the drawer can show (this logon, not older than MESSAGE_MAX_AGE).
+        A message from before the logon is never listed, so it could never be marked as seen and the badge and flashing would stay on."""
         with self.lock:
-            # only aircraft that are connected now: nothing can be done about a message from one that is not
-            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages m WHERE station=? AND seen=0 AND NOT (%s) GROUP BY callsign" % self._INITIAL_ROGER, (self.client.station,))
-                    if c in self.connected}
+            now = self.now()
+            rows = self.db.execute("SELECT callsign, ts FROM cpdlc_messages m WHERE station=? AND seen=0 AND %s(%s)" % ("" if quiet else "NOT ", self._INITIAL_ROGER), (self.client.station,)).fetchall()
+            out = {}
+            for c, ts in rows:
+                conn = self.connected.get(c)            # only aircraft that are connected now: nothing can be done about a message from one that is not
+                if conn and ts >= max(now - self.MESSAGE_MAX_AGE, conn["since"] - 120):
+                    out[c] = out.get(c, 0) + 1
+            return out
+
+    def unread(self):
+        return self._unseen(False)
 
     # The pilot's ROGER to our automated "THIS IS AN AUTOMATED MESSAGE TO CONFIRM CPDLC CONTACT WITH ..." message: it makes a sound but never flashes
     _INITIAL_ROGER = ("m.dir='DOWN' AND UPPER(TRIM(m.text))='ROGER' AND m.mrn IN (SELECT u.min FROM cpdlc_messages u WHERE u.station=m.station AND u.callsign=m.callsign "
@@ -331,14 +341,13 @@ class CpdlcStation:
 
     def quiet(self):
         """Unread initial ROGERs per connected aircraft: counted for the sound, not for the flashing."""
-        with self.lock:
-            return {c: n for c, n in self.db.execute("SELECT callsign, COUNT(*) FROM cpdlc_messages m WHERE station=? AND seen=0 AND (%s) GROUP BY callsign" % self._INITIAL_ROGER, (self.client.station,))
-                    if c in self.connected}
+        return self._unseen(True)
 
     def _set_connected(self, callsign, yes):
         with self.lock:
             if yes and callsign not in self.connected:
                 self.connected[callsign] = {"since": self.now(), "misses": 0}
+                self.db.execute("UPDATE cpdlc_messages SET seen=1 WHERE station=? AND callsign=? AND seen=0 AND ts<?", (self.client.station, callsign, self.connected[callsign]["since"] - 120))   # mail from before this logon is old
                 self.db.execute("INSERT OR REPLACE INTO cpdlc_conn2 VALUES (?,?,?)", (self.client.station, callsign, self.connected[callsign]["since"]))
             elif yes:
                 self.connected[callsign]["misses"] = 0
