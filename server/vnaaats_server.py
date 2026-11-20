@@ -2376,7 +2376,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         if auth:
                             auth.record_failure(ip)
                         return self._send(401, {"ok": False, "reason": bad})
-                    return self._send(200, {"ok": True})
+                    exp = members.key_expires(q.get("code", "")) if members else 0
+                    return self._send(200, {"ok": True, "expires": exp} if exp else {"ok": True})
                 if p == "/PluginScratch":                     # the plugin reports a scratchpad note typed in EuroScope
                     bad = key_problem(q.get("code", ""))
                     if bad:

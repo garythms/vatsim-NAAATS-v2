@@ -265,6 +265,123 @@ fn patch_voice_channels(existing: &Path) -> Result<(), String> {
     fs::write(existing, new).map_err(|e| format!("could not update your voice channel list: {}", e))
 }
 
+/// What the controller types into EuroScope's Connect dialog, kept in their EuroScope profile (.prf) under "LastSession".
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct ProfileDetails {
+    pub realname: String,
+    pub certificate: String,
+    pub rating: Option<u32>,        // EuroScope's own number (Observer 0 ... Enroute Controller 4 ...)
+    pub has_password: bool,         // the password itself is never read back
+}
+
+/// EuroScope's numbers for the ratings a controller can pick (Student 3 = "Senior Student" is 3, Enroute Controller is 4, and so on).
+pub const RATINGS: &[u32] = &[0, 1, 2, 3, 4, 6, 7, 9, 10, 11];
+
+/// The EuroScope profiles that load the vNAAATS plugin. They sit next to the EXCXO folder: in `root`, or in its parent when `root` is the EXCXO folder itself.
+pub fn find_vnaaats_profiles(root: &Path) -> Vec<PathBuf> {
+    let mut dirs = vec![root.to_path_buf()];
+    if root.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case("EXCXO")).unwrap_or(false) {
+        if let Some(parent) = root.parent() {
+            dirs.insert(0, parent.to_path_buf());
+        }
+    }
+    let mut found = Vec::new();
+    for d in dirs {
+        let Ok(rd) = fs::read_dir(&d) else { continue };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.extension().map(|x| x.to_string_lossy().eq_ignore_ascii_case("prf")).unwrap_or(false) {
+                if let Ok(b) = fs::read(&p) {
+                    if String::from_utf8_lossy(&b).to_ascii_lowercase().contains(&DLL_NAME.to_ascii_lowercase()) {
+                        found.push(p);
+                    }
+                }
+            }
+        }
+    }
+    found.sort();
+    found.dedup();
+    found
+}
+
+fn session_value<'a>(text: &'a str, key: &str) -> Option<&'a str> {
+    let head = format!("LastSession\t{}\t", key);
+    text.lines().find_map(|l| l.strip_prefix(head.as_str()))
+}
+
+pub fn read_profile_details(prf: &Path) -> Result<ProfileDetails, String> {
+    let bytes = fs::read(prf).map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&bytes);
+    Ok(ProfileDetails {
+        realname: session_value(&text, "realname").unwrap_or("").trim().to_string(),
+        certificate: session_value(&text, "certificate").unwrap_or("").trim().to_string(),
+        rating: session_value(&text, "rating").and_then(|v| v.trim().parse().ok()),
+        has_password: !session_value(&text, "password").unwrap_or("").trim().is_empty(),
+    })
+}
+
+/// Check what a controller typed before it goes into a profile. EuroScope's file is tab-separated, one setting per line, so tabs and line breaks are refused.
+pub fn check_profile_details(name: &str, cid: &str, rating: u32, password: &str) -> Result<(), String> {
+    let plain = |s: &str| !s.chars().any(|c| c == '\t' || c == '\n' || c == '\r' || c.is_control());
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > 60 || !plain(name) {
+        return Err("enter your real name (as it should show on VATSIM)".into());
+    }
+    if cid.is_empty() || cid.len() > 9 || !cid.chars().all(|c| c.is_ascii_digit()) {
+        return Err("your CID is the number of your VATSIM account (digits only)".into());
+    }
+    if !RATINGS.contains(&rating) {
+        return Err("choose your controller rating".into());
+    }
+    if password.chars().count() > 64 || !plain(password) {
+        return Err("that password cannot be saved".into());
+    }
+    Ok(())
+}
+
+fn set_line(lines: &mut Vec<String>, head: &str, value: &str) {
+    let full = format!("{}{}", head, value);
+    match lines.iter().position(|l| l.starts_with(head)) {
+        Some(i) => lines[i] = full,
+        None => lines.push(full),
+    }
+}
+
+/// Put the name, CID, rating and (when given) password into one profile, leaving every other line as it was.
+/// An empty password leaves the saved one alone. The TeamSpeak nickname is set to the CID when it is still the pack's placeholder, empty, or a number.
+/// Returns true when the file changed.
+pub fn write_profile_details(prf: &Path, name: &str, cid: &str, rating: u32, password: &str) -> Result<bool, String> {
+    check_profile_details(name, cid, rating, password)?;
+    let old = fs::read(prf).map_err(|e| e.to_string())?;
+    let text = String::from_utf8(old).map_err(|_| "this profile has characters the app cannot safely rewrite, so it was left alone".to_string())?;
+    let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut lines: Vec<String> = text.lines().map(String::from).collect();
+    set_line(&mut lines, "LastSession\trealname\t", name.trim());
+    set_line(&mut lines, "LastSession\tcertificate\t", cid);
+    set_line(&mut lines, "LastSession\trating\t", &rating.to_string());
+    if !password.is_empty() {
+        set_line(&mut lines, "LastSession\tpassword\t", password);
+    }
+    let nick_head = "TeamSpeakVccs\tTs3NickName\t";
+    let nick = lines.iter().find_map(|l| l.strip_prefix(nick_head)).map(|v| v.trim().to_string());
+    if nick.as_deref().map(|v| v.is_empty() || v.eq_ignore_ascii_case("PUT YOUR CID HERE") || v.chars().all(|c| c.is_ascii_digit())).unwrap_or(true) {
+        set_line(&mut lines, nick_head, cid);
+    }
+    let new = lines.join(eol) + eol;
+    if new == text {
+        return Ok(false);
+    }
+    let mut tmp_name = prf.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+    tmp_name.push(".new");
+    let tmp = prf.with_file_name(tmp_name);
+    fs::write(&tmp, new).map_err(|e| format!("could not write your profile: {}", e))?;
+    if let Err(e) = fs::rename(&tmp, prf) {
+        let _ = fs::remove_file(&tmp);
+        return Err(format!("could not update your profile - close EuroScope and try again ({})", e));
+    }
+    Ok(true)
+}
+
 /// Where a pack should be unpacked. The zip holds a top-level folder (such as EXCXO) next to its .sct, .ese and .prf files.
 /// If the folder the controller chose IS that folder, the pack goes in its parent, so it does not end up as EXCXO/EXCXO.
 pub fn pack_dest(zip_path: &Path, root: &Path) -> Result<PathBuf, String> {
@@ -618,6 +735,53 @@ mod tests {
         let z = make_zip(t.path(), &[("EXCXO/Settings/VoiceChannels.txt", "pack")]);
         extract_pack(&z, &dest).unwrap();
         assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/VoiceChannels.txt")).unwrap(), "AG:CZQO_FSS Gander Radio:131.700:mine:CZQO_FSS\nAG:EGGX_CTR Shanwick:1:mine:EGGX_CTR\n");
+    }
+
+    #[test]
+    fn profile_details_are_written_into_the_connect_dialog_lines_and_nothing_else() {
+        let t = tempfile::tempdir().unwrap();
+        let prf = t.path().join("OCA vNATTS.prf");
+        fs::write(&prf, "Plugins\tPlugin1\t\\EXCXO\\Plugins\\vNAAATS V2\\VatsimNAAATS.dll\r\nTeamSpeakVccs\tTs3NickName\tPUT YOUR CID HERE\r\nLastSession\tcallsign\tCZQO_FSS\r\nLastSession\trating\t0\r\nLastSession\tpassword\tkeepme\r\n").unwrap();
+        assert!(write_profile_details(&prf, " Gary Thomas ", "1248145", 4, "").unwrap());
+        let text = fs::read_to_string(&prf).unwrap();
+        assert!(text.contains("LastSession\trealname\tGary Thomas\r\n"));
+        assert!(text.contains("LastSession\tcertificate\t1248145\r\n"));
+        assert!(text.contains("LastSession\trating\t4\r\n"));
+        assert!(text.contains("LastSession\tpassword\tkeepme\r\n"));            // an empty password leaves the saved one
+        assert!(text.contains("TeamSpeakVccs\tTs3NickName\t1248145\r\n"));
+        assert!(text.contains("LastSession\tcallsign\tCZQO_FSS\r\n"));
+        assert!(!write_profile_details(&prf, "Gary Thomas", "1248145", 4, "").unwrap());   // nothing to change the second time
+        assert!(write_profile_details(&prf, "Gary Thomas", "1248145", 4, "newpw").unwrap());
+        assert!(fs::read_to_string(&prf).unwrap().contains("LastSession\tpassword\tnewpw\r\n"));
+        let d = read_profile_details(&prf).unwrap();
+        assert_eq!((d.realname.as_str(), d.certificate.as_str(), d.rating, d.has_password), ("Gary Thomas", "1248145", Some(4), true));
+    }
+
+    #[test]
+    fn profile_details_refuse_odd_input_and_keep_a_custom_teamspeak_nickname() {
+        assert!(check_profile_details("", "1", 4, "").is_err());
+        assert!(check_profile_details("A\tB", "1", 4, "").is_err());
+        assert!(check_profile_details("A B", "12x", 4, "").is_err());
+        assert!(check_profile_details("A B", "1", 5, "").is_err());           // 5 is not a rating EuroScope offers
+        assert!(check_profile_details("A B", "1", 4, "pa\nss").is_err());
+        let t = tempfile::tempdir().unwrap();
+        let prf = t.path().join("a.prf");
+        fs::write(&prf, "TeamSpeakVccs\tTs3NickName\tG Thomas\nLastSession\tfacility\t1\n").unwrap();
+        write_profile_details(&prf, "Gary", "1", 4, "").unwrap();
+        let text = fs::read_to_string(&prf).unwrap();
+        assert!(text.contains("Ts3NickName\tG Thomas\n"));
+        assert!(text.contains("LastSession\tfacility\t1\n"));
+        assert!(!text.contains('\r'));
+    }
+
+    #[test]
+    fn only_profiles_that_load_the_vnaaats_plugin_are_found() {
+        let t = tempfile::tempdir().unwrap();
+        fs::create_dir_all(t.path().join("EXCXO")).unwrap();
+        fs::write(t.path().join("mine.prf"), "Plugins\tPlugin1\t\\EXCXO\\Plugins\\vNAAATS V2\\VatsimNAAATS.dll\n").unwrap();
+        fs::write(t.path().join("topsky.prf"), "Plugins\tPlugin1\tTopSky.dll\n").unwrap();
+        assert_eq!(find_vnaaats_profiles(t.path()), vec![t.path().join("mine.prf")]);
+        assert_eq!(find_vnaaats_profiles(&t.path().join("EXCXO")), vec![t.path().join("mine.prf")]);   // the EXCXO folder itself was chosen
     }
 
     #[test]
