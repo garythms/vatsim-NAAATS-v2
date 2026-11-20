@@ -883,6 +883,17 @@ class EstimateEtaTests(unittest.TestCase):
         self.assertEqual(times, sorted(times))
         self.assertTrue(all(x != "--" for x in r))
 
+    def test_icao_style_coordinates_count_as_fixes(self):
+        """Pilots also file oceanic points as 51N050W / 5130N04000W. They must be placed like 51/50 and 5130/40,
+        otherwise a flight with such a route has no times and no distance and never gets its automatic RCL reminder."""
+        self.assertEqual(s.token_to_latlon("51N050W", {}), (51.0, -50.0))
+        self.assertEqual(s.token_to_latlon("5130N04000W", {}), (51.5, -40.0))
+        self.assertEqual(s.token_to_latlon("53N020W", {}), (53.0, -20.0))
+        self.assertEqual(s.token_to_latlon("51N050W", {}), s.token_to_latlon("51/50", {}))
+        r = s.estimate_etas("51N050W 5130N04000W 5230N03000W 53N020W", self.pilot(latitude=51.0, longitude=-56.0, heading=90), {}, now=0)
+        self.assertTrue(all(x != "--" for x in r), r)
+        self.assertGreater(s.route_distance_nm("ALLRY 51N050W 53N020W", (50.0, -58.0), {}), 0)
+
     def test_passed_fixes_are_blank(self):
         r = s.estimate_etas("54/10 5630/20 5630/30", self.pilot(longitude=-15.0), self.FIXES, now=0)
         self.assertEqual(r[0], "--")                       # behind an aircraft flying west
