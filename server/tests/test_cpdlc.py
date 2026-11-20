@@ -151,6 +151,28 @@ class StationTests(unittest.TestCase):
         st.poll_once()
         self.assertEqual(st.unread(), {"BAW123": 1})
 
+    def test_unread_from_before_the_logon_does_not_stick(self):
+        """A message the drawer cannot show (older than this logon) must not keep the badge and the flashing on."""
+        hop, st = make()
+        st._store("DOWN", "BAW123", 3, None, "Y", "REQUEST LEVEL FL380", state="OPEN", seen=0)       # unseen, from an earlier logon
+        hop.queue = [("BAW123", "/data2/5//Y/REQUEST LOGON")]
+        st.now = lambda t=st.now(): t + 3600                                                         # the pilot logs on an hour later
+        st.poll_once()
+        self.assertTrue(st.is_connected("BAW123"))
+        self.assertEqual(st.unread(), {})
+        self.assertEqual([m["text"] for m in st.messages("BAW123") if not m["seen"]], [])
+
+    def test_unread_outside_the_window_is_not_counted(self):
+        hop, st = make()
+        hop.queue = [("BAW123", "/data2/5//Y/REQUEST LOGON")]
+        st.poll_once()
+        st.db.execute("INSERT INTO cpdlc_messages (ts, dir, callsign, min, mrn, ra, text, state, seen, by, station) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                      (st.now() - 600, "DOWN", "BAW123", 9, None, "Y", "OLD REQUEST", "OPEN", 0, "", st.client.station))
+        self.assertEqual(st.unread(), {})                                # older than this logon: never shown, so never counted
+        hop.queue = [("BAW123", "/data2/7//Y/REQUEST LEVEL FL380")]
+        st.poll_once()
+        self.assertEqual(st.unread(), {"BAW123": 1})                     # a real new one still counts
+
     def test_manual_accept_waits(self):
         hop, st = make(auto=False)
         hop.queue = [("DLH1", "/data2/2//Y/REQUEST LOGON")]
