@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Gander Radio trial: from 26 November 2026 (new AIRAC and sector pack) until 1 January 2027 Gander (CZQO) may control as CZQO_FSS instead of CZQO_CTR (same frequency, sector and CPDLC). vNAAATS treats CZQO_FSS like CZQO_CTR, and CZQO_FSS is added to the opening position list and the EuroScope short codes. Server deploy needed. If /etc/vnaaats.env sets VNAAATS_POSITIONS, add CZQO_FSS there too.
+
 ## 2.9.9 - 2026-11-17
 - Website: two new cards on the homepage Features & Toolsets, natTrak and CPDLC Oceanic Requests for Clearances (RCLs) and TrackAudio, filling the grid.
 
