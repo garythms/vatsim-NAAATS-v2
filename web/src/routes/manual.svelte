@@ -54,9 +54,9 @@
 
     <h2 id="start" class="text-2xl font-bold mb-2">2. Starting a session</h2>
     <ol class="list-decimal ml-6 space-y-1 mb-3">
-      <li>Start EuroScope, connect to VATSIM as your oceanic position (for example CZQO_CTR) and check the vNAAATS plugin is loaded.</li>
+      <li>Start EuroScope, connect to VATSIM as your oceanic position (for example CZQO_FSS) and check the vNAAATS plugin is loaded.</li>
       <li>Open <b>FDD for Windows</b> (from the <a class="underline" href="/download">download page</a>). The display no longer works in a web browser; for a tablet or iPad, see <a class="underline" href="/tablet">Tablet or iPad use</a>.</li>
-      <li>Sign in with the login you were given and choose your <b>position</b> (CZQO_CTR, EGGX_CTR and so on). The position is what other controllers see on "last changed" and "tracked by".</li>
+      <li>Sign in with the login you were given and choose your <b>position</b> (CZQO_FSS, EGGX_CTR and so on). The position is what other controllers see on "last changed" and "tracked by".</li>
     </ol>
     <p class="mb-3 opacity-90"><b>Use the app:</b> on Windows, install <b>FDD for Windows</b> from the <a class="underline" href="/download">download page</a>: it opens the display in its own window, looks after your plugin, airline list and font, and opens EuroScope, VACS and your audio client for you. The display no longer works in a web browser.</p>
     <p class="mb-3 opacity-90"><b>Nothing is shown until you have signed in and chosen a position.</b> This protects the data of pilots and controllers: the page stays covered, and the server sends no flight data, until a position has been chosen. There is no view-only mode. Use <i>change</i> to pick another position (the page is covered again until you do) and <i>sign out</i> when you finish. If your sign-in runs out while you work, the sign-in screen returns.</p>

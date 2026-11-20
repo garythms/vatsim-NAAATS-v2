@@ -23,6 +23,7 @@ class ClxTests(unittest.TestCase):
         self.assertEqual(m[0], "FLY CURRENT FLIGHT PLAN OR AS AMENDED BY ATC. SQUAWK 2000 WITHIN 10 MINS AFTER THE OCEANIC ENTRY POINT")
         self.assertEqual(m[1], "CONTACT NAT FSS AT OCEANIC ENTRY POINT WITH CALLSIGN ONLY")
         self.assertTrue(clx.contact_line("CZQO_CTR").startswith("CONTACT GANDER"))
+        self.assertTrue(clx.contact_line("CZQO_FSS").startswith("CONTACT GANDER"))
 
     def test_random_route(self):
         m = clx.build("clx", dict(self.REC, track="RR"), None, "CZQO_CTR", self.NOW)

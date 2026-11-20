@@ -53,7 +53,7 @@
     </ul>
 
     <h2 class="text-2xl font-bold mb-2">1. Get the Gander package</h2>
-    <p class="mb-6 opacity-90">Download and run the Gander Oceanic package from <b>AeroNav</b>: <a class="underline" href="https://files.aero-nav.com/EXCXO">files.aero-nav.com/EXCXO</a>. Open EuroScope with that package once, so you can see the oceanic map, then close EuroScope. Remember where your <b>EXOCO</b> folder is (the folder that holds <b>Plugins</b>).</p>
+    <p class="mb-6 opacity-90">Download and run the Gander Oceanic package from <b>AeroNav</b>: <a class="underline" href="https://files.aero-nav.com/EXCXO">files.aero-nav.com/EXCXO</a>. Open EuroScope with that package once, so you can see the oceanic map, then close EuroScope. Remember where your <b>EXCXO-vNAAATS</b> folder is (the folder that holds <b>Plugins</b>).</p>
 
     <h2 class="text-2xl font-bold mb-2">2. Install FDD for Windows</h2>
     <p class="mb-3 opacity-90">Run the installer you downloaded above. Windows may say <b>"Windows protected your PC"</b> because the installer is not code-signed yet: choose <b>More info</b>, then <b>Run anyway</b>. The app opens when it has finished.</p>
@@ -61,14 +61,14 @@
     <h2 class="text-2xl font-bold mb-2">3. The one-time setup</h2>
     <p class="mb-3 opacity-90">The first time it opens you see a short welcome and then the setup screen. It only appears once; afterwards the app opens straight to the display. (Open it again any time from <b>Settings &gt; App setup</b> in the display.) The screen has a how-to video at the top. Work down the steps:</p>
     <ol class="list-decimal ml-6 space-y-1 mb-3">
-      <li><b>Your EXOCO folder</b> - choose the folder from step 1.</li>
-      <li><b>The vNAAATS plugin</b> - the app looks for <b>VatsimNAAATS.dll</b> in EXOCO\Plugins\vNAAATS. If it is missing or old, press <b>Update now</b> with EuroScope closed. It also installs the airline list and the vNAAATS font next to the DLL.</li>
+      <li><b>Your EXCXO-vNAAATS folder</b> - choose the folder from step 1.</li>
+      <li><b>The vNAAATS plugin</b> - the app looks for <b>VatsimNAAATS.dll</b> in EXCXO-vNAAATS\Plugins\vNAAATS. If it is missing or old, press <b>Update now</b> with EuroScope closed. It also installs the airline list and the vNAAATS font next to the DLL.</li>
       <li><b>Your key</b> - get your API key at <a class="underline" href="/get-key">vnaaats.com/get-key</a> (Gander Oceanic controllers can also use their profile on the Gander Oceanic website) and paste it here. The app writes it into <b>vnaaats.cfg</b> for you.</li>
       <li><b>EuroScope</b> - point the app at <b>EuroScope.exe</b>. Leave "Open EuroScope for me when I choose my position" ticked.</li>
       <li><b>VACS</b> and <b>Audio client</b> (both optional) - point the app at the program. Each has a tick to open it for you after you choose your position.</li>
     </ol>
     <p class="mb-3 opacity-90"><b>VACS call alert (optional):</b> to see incoming VACS calls on the headphones button in the FDD, open <b>VACS</b> (version 2.1.0 or newer), go to <b>Advanced Settings</b> and tick <b>Enable remote control</b>. For safety, change the <b>Listen addr.</b> box beneath it to <b>127.0.0.1:9600</b>, so only your own computer can connect: the default lets any device on your network connect, with no password. The app then shows a green tick, and the headphones button flashes with a pop-up when someone calls you.</p>
-    <p class="mb-6 opacity-90">When every line is green, press <b>Continue</b>. If the plugin DLL is not in your folder yet, get the plugin pack from the <a class="underline" href="/download">download page</a> (open "Not using the app?"), put <b>VatsimNAAATS.dll</b> in EXOCO\Plugins\vNAAATS, and run the setup again.</p>
+    <p class="mb-6 opacity-90">When every line is green, press <b>Continue</b>. If the plugin DLL is not in your folder yet, get the plugin pack from the <a class="underline" href="/download">download page</a> (open "Not using the app?"), put <b>VatsimNAAATS.dll</b> in EXCXO-vNAAATS\Plugins\vNAAATS, and run the setup again.</p>
 
     <h2 class="text-2xl font-bold mb-2">4. Load the plugin in EuroScope (once)</h2>
     <div class="p-4 mb-6 border-2 border-blue-10 bg-blue-3">
@@ -79,7 +79,7 @@
 
     <ol class="list-decimal ml-6 space-y-1 mb-6">
       <li>Open EuroScope with the Gander package.</li>
-      <li>Other SET &gt; Plug-ins &gt; Load, and pick <b>VatsimNAAATS.dll</b> (the one in EXOCO\Plugins\vNAAATS that the app manages).</li>
+      <li>Other SET &gt; Plug-ins &gt; Load, and pick <b>VatsimNAAATS.dll</b> (the one in EXCXO-vNAAATS\Plugins\vNAAATS that the app manages).</li>
       <li><b>Only vNAAATS should be loaded.</b> Remove any other plugin from that list while you work oceanic. (Discord is fine.)</li>
     </ol>
 
@@ -95,7 +95,7 @@
     <h2 class="text-2xl font-bold mb-2">6. Every day after that</h2>
     <ol class="list-decimal ml-6 space-y-1 mb-3">
       <li>Open <b>FDD for Windows</b>. It opens <b>EuroScope</b>, <b>VACS</b> and your audio client for you (each only if ticked in setup) and shows <b>Awaiting an active VATSIM connection</b>.</li>
-      <li>In EuroScope, connect to VATSIM as your oceanic position (for example NAT_FSS, CZQO_CTR or EGGX_CTR) and open your saved vNAAATS screen.</li>
+      <li>In EuroScope, connect to VATSIM as your oceanic position (for example NAT_FSS, CZQO_FSS or EGGX_CTR) and open your saved vNAAATS screen.</li>
       <li>Within a few seconds the display opens by itself on that position. There is no sign-in or position to choose: your key and your live VATSIM connection are the sign-in. You are then asked about natTrak, which has to be signed in to each session.</li>
       <li>If an update is available the app tells you and asks before it downloads anything. Close EuroScope first, then press <b>Update now</b>. Your <b>vnaaats.cfg</b> and key are never touched.</li>
     </ol>

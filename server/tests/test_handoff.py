@@ -61,5 +61,15 @@ class HandoffTests(unittest.TestCase):
         r = h.hint([("46/50", 46, -50), ("ALLRY", 46, -52.5)], (46, -52), [{"callsign": "CZQX_CTR", "frequency": "132.1"}])
         self.assertEqual((r["facility"], r["controller"]), ("CZQX", "CZQX_CTR"))
 
+class GanderFssTrial(unittest.TestCase):
+    """Until 1 January 2027 Gander Radio may be online as CZQO_FSS instead of CZQO_CTR."""
+    def test_czqo_fss_is_found_for_handoff(self):
+        online = [{"callsign": "CZQO_FSS", "frequency": "128.100"}, {"callsign": "KJFK_TWR", "frequency": "119.1"}]
+        self.assertEqual([c["callsign"] for c in h.pick_online("CZQO", online)], ["CZQO_FSS"])
+
+    def test_czqo_fss_has_a_euroscope_code(self):
+        self.assertEqual(h.CODES.get("CZQO_FSS"), h.CODES.get("CZQO_CTR"))
+
+
 if __name__ == "__main__":
     unittest.main()
