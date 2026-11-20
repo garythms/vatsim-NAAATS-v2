@@ -62,6 +62,7 @@ import usersettings as usersettings_mod
 import pluginfiles as pluginfiles_mod
 import adminlog as adminlog_mod
 import handoff as handoff_mod
+import online_board as online_board_mod
 log = logging.getLogger("vnaaats")
 
 TRAINEE_KEY_HOURS = 2            # how long an instructor-issued trainee key lasts
@@ -2659,6 +2660,7 @@ def main():
     if VATSIM_FEED.lower() != "off":
         network = NetworkTraffic(cache, natrak=natrak)
         threading.Thread(target=network.loop, daemon=True).start()
+        online_board_mod.start(os.environ.get("VNAAATS_DB", os.path.join(HERE, "vnaaats.db")), VATSIM_FEED)
     threading.Thread(target=lambda: [store.purge() or time.sleep(3600) for _ in iter(int, 1)], daemon=True).start()
     host, port = os.environ.get("VNAAATS_BIND", "127.0.0.1"), int(os.environ.get("VNAAATS_PORT", "8080"))
     log.info("Listening on %s:%d", host, port)
