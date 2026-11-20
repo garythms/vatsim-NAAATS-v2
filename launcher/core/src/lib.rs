@@ -454,9 +454,9 @@ pub fn extract_pack(zip_path: &Path, dest: &Path) -> Result<usize, String> {
         if rel.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case(CFG_NAME)).unwrap_or(false) {
             continue;
         }
-        if rel.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case(DLL_NAME)).unwrap_or(false) {
-            continue;                           // the plugin is updated by its own check (the pack's copy may be older than the latest release)
-        }
+        if rel.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case(DLL_NAME)).unwrap_or(false) && target.exists() {
+            continue;                           // an installed plugin is updated by its own check (the pack's copy may be older than the latest release)
+        }                                       // (with no plugin at all, the pack's copy goes in; the plugin check then brings it to the latest)
         if target.exists() && is_personal(&rel) {
             // an existing profile keeps the controller's own details, but must point at the new sector file
             if rel.extension().map(|e| e.to_string_lossy().eq_ignore_ascii_case("prf")).unwrap_or(false) {
@@ -830,6 +830,16 @@ mod tests {
         assert!(refresh_cfg(d.path(), "# new\r\nserver=https://vnaaats.com\r\nkey=PASTE_YOUR_API_KEY_HERE\r\n").unwrap());
         let t = fs::read_to_string(d.path().join(CFG_NAME)).unwrap();
         assert_eq!(t, "# new\r\nserver=https://x.example\r\nkey=1234567.abc\r\n\r\nmyoption=5\r\n");
+    }
+
+    #[test]
+    fn extract_pack_installs_the_dll_when_there_is_none() {
+        let t = tempfile::tempdir().unwrap();
+        let dest = t.path().join("dest");
+        fs::create_dir_all(&dest).unwrap();
+        let z = make_zip(t.path(), &[("EXCXO/Plugins/vNAAATS V2/VatsimNAAATS.dll", "pack copy")]);
+        extract_pack(&z, &dest).unwrap();
+        assert_eq!(fs::read_to_string(dest.join("EXCXO/Plugins/vNAAATS V2").join(DLL_NAME)).unwrap(), "pack copy");
     }
 
     #[test]
