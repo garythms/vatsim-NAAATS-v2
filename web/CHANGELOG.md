@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: the "Your details" boxes no longer ask for your VATSIM password. Name, CID and rating are still saved to your EuroScope profile. A password already saved in the profile is left as it is. Web change only, no app update needed.
+
 ## 2.10.6 - 2026-11-20
 - FDD for Windows: if the EXCXO folder is deleted (or the sector pack files are missing), the app no longer says the sector pack is up to date. It now checks the files are really there, and Update now installs the whole pack first (plugin included) and then brings the plugin to the latest. FDD for Windows update needed.
 
