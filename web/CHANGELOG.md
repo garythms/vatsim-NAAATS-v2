@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Server: new Discord "who is online" board. One embed with the vNAAATS logo, edited in place, listing the Gander/Shanwick controllers on VATSIM (CZQO, CZQX, EGGX, NAT, BIRD). Switched on by adding `VNAAATS_ONLINE_WEBHOOK=<webhook url>` to /etc/vnaaats.env; does nothing without it. Server deploy needed.
+
 ## 2.9.9 - 2026-11-17
 - Website: two new cards on the homepage Features & Toolsets, natTrak and CPDLC Oceanic Requests for Clearances (RCLs) and TrackAudio, filling the grid.
 
