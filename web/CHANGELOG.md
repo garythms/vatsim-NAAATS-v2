@@ -2,11 +2,11 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.6 - 2026-11-20
 - FDD for Windows: if the EXCXO folder is deleted (or the sector pack files are missing), the app no longer says the sector pack is up to date. It now checks the files are really there, and Update now installs the whole pack first (plugin included) and then brings the plugin to the latest. FDD for Windows update needed.
 
 ## 2.10.5 - 2026-11-20
-- FDD for Windows: the "Your details" box now appears in the start-up window, before EuroScope is opened (it only showed in the full setup screen before). If your name or CID is blank in your EuroScope profile, the start-up window asks for them first and holds back "Yes, open now" until they are saved, so they are written into the profile before EuroScope starts. Once they are filled in, the window greets you by the time of day on your computer ("Good morning, Dave"), shows your local time and UTC, and has a "Change my details" link. FDD for Windows update needed.
+- FDD for Windows: the "Your details" box now appears in the start-up window, before EuroScope is opened (it only showed in the full setup screen before). If your name or CID is blank in your EuroScope profile, the start-up window asks for them first and holds back "Yes, open now" until they are saved, so they are written into the profile before EuroScope starts. Once they are filled in, the window greets you by the time of day on your computer ("Good morning, Dave"), shows your local time and UTC, and has a "Change my details" link.
 
 ## 2.10.4 - 2026-11-20
 - FDD for Windows: a new "Your details for EuroScope" box in the app setup screen. Enter your real name, CID, controller rating and VATSIM password once and the app writes them into your EuroScope profile, so EuroScope's Connect dialog is filled in. They stay there when the sector pack updates. The password is saved only in the profile file, never sent anywhere. The key step now also shows how many days your key has left. FDD for Windows update needed. Server deploy needed for the days-left line (the server now tells the app when a key runs out).
