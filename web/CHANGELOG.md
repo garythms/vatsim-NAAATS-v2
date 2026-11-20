@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Display: Sign out now stays signed out. Before, if you were still connected to VATSIM, the saved key signed you straight back in within seconds, so Position > Sign out only seemed to restart the screen. Now you get a "You have signed out" screen with a Sign in again button. Web change only, no app update needed.
+
 ## 2.10.8 - 2026-11-20
 - FDD for Windows: after the EXCXO folder was deleted, Update now still said VatsimNAAATS.dll was not found, because the sector pack unpack always skipped the plugin. It now puts the pack's plugin in when there is none (an existing plugin is still left for the plugin check), then brings it to the latest. FDD for Windows update needed.
 

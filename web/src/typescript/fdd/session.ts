@@ -20,6 +20,8 @@ export type Session = {
 
 export const emptySession: Session = { editing: false, password: false, vatsim: false, loggedIn: false, name: "", cid: "", position: "", positions: [] };
 export const session = writable<Session>(emptySession);
+/** True after the controller pressed Sign out: the saved key must not sign them straight back in while they are still connected to VATSIM. */
+export const heldOut = writable<boolean>(false);
 
 export function canEdit(s: Session): boolean {
   return s.loggedIn && s.position !== "" && s.position !== "ADMIN";   // ADMIN = the read-only admin view
@@ -44,7 +46,7 @@ export async function refreshSession(): Promise<void> {
 // Returns an error message, or "" on success
 export async function loginPassword(name: string, password: string): Promise<string> {
   const r = await post("/auth/password", { name, password });
-  if (r.ok) { session.set(r.data); return ""; }
+  if (r.ok) { heldOut.set(false); session.set(r.data); return ""; }
   return r.data.error ?? "login failed";
 }
 
@@ -68,6 +70,7 @@ export async function choosePosition(position: string): Promise<string> {
 }
 
 export async function logout(): Promise<void> {
+  heldOut.set(true);
   await post("/auth/logout", {});
   dataHandler.clearData();                          // nothing stays on the screen once you sign out
   await refreshSession();

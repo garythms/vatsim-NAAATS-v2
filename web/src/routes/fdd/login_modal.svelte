@@ -3,7 +3,7 @@
   import * as sess from "../../typescript/fdd/session";
   import * as app from "../../typescript/fdd/app";
 
-  const { session } = sess;
+  const { session, heldOut } = sess;
   let name: string = "";
   let password: string = "";
   let custom: string = "";
@@ -59,15 +59,16 @@
     if (!k) return;
     sess.rememberKey(k); savedKeyText = k; keyInput = ""; keyError = ""; startKey();
   }
-  function forgetKey(): void { sess.rememberKey(""); savedKeyText = ""; waiting = false; keyError = ""; stopKey(); }
+  function forgetKey(): void { heldOut.set(false); sess.rememberKey(""); savedKeyText = ""; waiting = false; keyError = ""; stopKey(); }
   $: if ($session.loggedIn) { waiting = false; stopKey(); }
   // The session was closed (the controller left VATSIM for over an hour): wait for the next connection again
   let ready = false;
-  $: if (ready && !$session.loggedIn && savedKeyText && !keyTimer && !keyError) startKey();
+  $: if (ready && !$session.loggedIn && savedKeyText && !keyTimer && !keyError && !$heldOut) startKey();
+  function signInAgain(): void { heldOut.set(false); keyError = ""; startKey(); }
 
   onMount(() => {
     loadSaved();
-    sess.refreshSession().then(() => { ready = true; if (savedKeyText && !$session.loggedIn) startKey(); });
+    sess.refreshSession().then(() => { ready = true; if (savedKeyText && !$session.loggedIn && !$heldOut) startKey(); });
     // Ask again now and then, so a session that has run out brings the sign-in screen back
     const t = setInterval(sess.refreshSession, 30000);
     return () => { clearInterval(t); stopKey(); };
@@ -103,7 +104,12 @@
         <div class="mb-3 p-2 text-sm border border-blue-6 bg-blue-4">On Windows? <b>FDD for Windows</b> is the recommended way: it sets everything up and keeps the plugin up to date. <a class="underline font-bold" href="/get/fdd-windows" rel="external">Download it</a>. This browser version also works, for example on an iPad.</div>
       {/if}
       {#if !$session.loggedIn}
-          {#if savedKeyText}
+          {#if savedKeyText && $heldOut}
+            <div class="mb-2 text-lg font-bold">You have signed out</div>
+            <div class="mb-3 text-sm opacity-90">You will not be signed in again by itself. Press the button when you want to sign in again (you need to be connected to VATSIM on an oceanic position).</div>
+            <button class="px-3 py-1 font-bold bg-blue-10 text-black" on:click={signInAgain}>Sign in again</button>
+            <button class="ml-4 text-sm underline opacity-80" on:click={forgetKey}>Use a different key</button>
+          {:else if savedKeyText}
             <div class="mb-2 text-lg font-bold text-yellow-300">Awaiting an active VATSIM connection</div>
             <div class="mb-3 text-sm opacity-90">Connect to VATSIM in EuroScope on your oceanic position (for example NAT_FSS, CZQO_FSS or EGGX_CTR). The display opens by itself, on that position, as soon as you are connected.</div>
             {#if keyError}<div class="mb-3 text-sm text-yellow-300">{keyError}</div>{/if}
