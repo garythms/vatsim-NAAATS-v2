@@ -23,7 +23,7 @@ ALSO IN 1.4b2
 ALSO IN 1.4b1
 - CPDLC: an aircraft connected to CPDLC shows its callsign in brackets on the radar tag, e.g. [BAW123].
 - The server is now https://vnaaats.com (secure). The FDD is at https://vnaaats.com/fdd. If you used the old IP address in vnaaats.cfg, change it.
-- SELCAL box in the flight plan window is editable (4 letters, A-H J-M P-S, e.g. ASCM or AS-CM).
+- SELCAL box in the flight plan window is editable (4 letters or numbers, e.g. ASCM, AB12 or AS-CM).
   Clear the box to go back to the SEL/ code in the remarks.
 - FDD button opens your own server's flight data display (<server>/fdd).
 - Download/update links point to https://vnaaats.com/download.

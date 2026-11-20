@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Plugin: the SELCAL box in the flight plan window accepts four letters or numbers (for example AB12), not only the real-world SELCAL letters. Plugin update needed.
+- Display and server: SELCAL can be four letters or numbers everywhere (aircraft menu, flight plan, .selcal command, and SEL/ in the VATSIM flight plan remarks). Server deploy needed.
+
 ## 2.10.0 - 2026-11-20
 - Display and guide: the setup screen and guide said "EXOCO folder"; they now say "EXCXO-vNAAATS folder" (and the plugin path EXCXO-vNAAATS\Plugins\vNAAATS).
 - Gander Radio trial: from 20 November 2026 until 1 January 2027 Gander (CZQO) may control as CZQO_FSS instead of CZQO_CTR (same frequency, sector and CPDLC). vNAAATS treats CZQO_FSS like CZQO_CTR, and CZQO_FSS is added to the opening position list and the EuroScope short codes. Server deploy needed. If /etc/vnaaats.env sets VNAAATS_POSITIONS, add CZQO_FSS there too.
