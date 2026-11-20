@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { playSelcal, selcalSoundOn, setSelcalSound } from "../../typescript/fdd/selcal_sound";
   import { createEventDispatcher } from "svelte";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
@@ -88,6 +89,8 @@
       const why = note;
       await copy(text);
       note = why + " - the command was copied instead, so paste it in.";
+    } else if (body.type === "selcal") {
+      playSelcal(String(body.selcal));             // typed into EuroScope: play what the pilot hears
     }
   }
 
@@ -242,6 +245,7 @@
             <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
+          <label class="block mt-2 text-sm cursor-pointer"><input type="checkbox" checked={$selcalSoundOn} on:change={(e) => setSelcalSound(e.currentTarget.checked)} /> Play the SELCAL tones when I send</label>
         {:else if tab === "scratch"}
           <div class="text-sm mb-2 opacity-90">A short note (up to 15 characters) for this aircraft. It is the EuroScope scratchpad: it shows under the tag and goes with the aircraft to the next controller.</div>
           <div class="flex flex-row items-center">
