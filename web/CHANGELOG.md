@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Display: pressing Send on a SELCAL (aircraft menu, SELCAL tab) now plays the two-tone SELCAL chime for the code you sent, once the command has gone into EuroScope. It uses the real tone frequencies for all 32 SELCAL tones (letters A-S, and T-Z and 1-9 from SELCAL 32). A tick box in the SELCAL tab turns it off, and the FDD sound switch mutes it too.
+
 ## 2.10.3 - 2026-11-20
 - FDD for Windows: updating the sector pack now renames the Gander positions in a controller's own VoiceChannels.txt from CZQO_CTR (and CZQO_A_CTR to CZQO_H_CTR) to CZQO_FSS, for the CZQO_FSS trial. That file was never replaced by an update, so it kept the old names. Every other line in it is left as it was. FDD for Windows update needed.
 
