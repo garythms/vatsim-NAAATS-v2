@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.4 - 2026-11-20
 - FDD for Windows: a new "Your details for EuroScope" box in the app setup screen. Enter your real name, CID, controller rating and VATSIM password once and the app writes them into your EuroScope profile, so EuroScope's Connect dialog is filled in. They stay there when the sector pack updates. The password is saved only in the profile file, never sent anywhere. The key step now also shows how many days your key has left. FDD for Windows update needed. Server deploy needed for the days-left line (the server now tells the app when a key runs out).
 - Display: pressing Send on a SELCAL (aircraft menu, SELCAL tab) now plays the two-tone SELCAL chime for the code you sent, once the command has gone into EuroScope. It uses the real tone frequencies for all 32 SELCAL tones (letters A-S, and T-Z and 1-9 from SELCAL 32). A tick box in the SELCAL tab turns it off, and the FDD sound switch mutes it too.
 
