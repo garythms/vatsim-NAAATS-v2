@@ -85,8 +85,10 @@
   // The plugin first (if it or its files need it), then the sector pack. Both need EuroScope closed; the app says so if it is open.
   const update = () => run(async () => {
     const parts: string[] = [];
-    if (st && (st.up_to_date === false || st.airlines_up_to_date === false || st.font_found === false)) parts.push(await app.updatePlugin());
+    // the sector pack first: it also holds the plugin, so a deleted folder is rebuilt before the plugin is brought up to date
     if (st && st.sector_up_to_date === false) parts.push(await app.updateSector());
+    await refresh();
+    if (st && (!st.dll_found || st.up_to_date === false || st.airlines_up_to_date === false || st.font_found === false)) parts.push(await app.updatePlugin());
     msg = "Updated: " + (parts.join(" and ") || "everything is up to date") + ".";
   });
   // "Your details": the name, CID, rating and password EuroScope's Connect dialog asks for, saved into the EuroScope profile
@@ -273,7 +275,7 @@
           <div class={STEP}>
             <b>2. The vNAAATS plugin</b>
             {#if !st.dll_found}
-              <div class="text-yellow-300 text-sm">VatsimNAAATS.dll was not found in that folder. Put it in EXCXO-vNAAATS/Plugins/vNAAATS, or choose another folder.</div>
+              <div class="text-yellow-300 text-sm">VatsimNAAATS.dll was not found in that folder.{st.sector_up_to_date === false ? " Press Update now in the Sector pack step below: it installs the whole pack, plugin included." : " Choose another folder, or press Update now once the sector pack step offers it."}</div>
             {:else if st.up_to_date === true && listOk}
               <div class="text-green-300 text-sm">✔ Plugin{st.latest_version ? " " + st.latest_version : ""}, airline list and font are up to date</div>
             {:else if st.up_to_date === false || !listOk}

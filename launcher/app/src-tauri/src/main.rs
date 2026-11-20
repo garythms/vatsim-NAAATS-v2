@@ -154,7 +154,10 @@ async fn status(window: WebviewWindow, app: tauri::AppHandle) -> Result<Status, 
     if saved.root.is_some() {
         if let Ok((_, name, id)) = sector_latest() {
             st.sector_name = Some(name);
-            st.sector_up_to_date = Some(saved.sector_id.as_deref() == Some(id.as_str()));
+            // "up to date" also needs the pack's files to be there: a deleted folder must not look installed
+            let files_there = vnaaats_core::find_plugin_dll(Path::new(saved.root.as_deref().unwrap_or("")), 6).is_some()
+                && !vnaaats_core::find_vnaaats_profiles(Path::new(saved.root.as_deref().unwrap_or(""))).is_empty();
+            st.sector_up_to_date = Some(saved.sector_id.as_deref() == Some(id.as_str()) && files_there);
         }
     }
     let Some(root) = saved.root else { return Ok(st) };
@@ -259,7 +262,8 @@ async fn update_sector(window: WebviewWindow, app: tauri::AppHandle) -> Result<S
         return Err("close EuroScope first, then update the sector pack again".into());
     }
     let (url, name, id) = sector_latest()?;
-    if saved.sector_id.as_deref() == Some(id.as_str()) {
+    let files_there = vnaaats_core::find_plugin_dll(Path::new(&root), 6).is_some() && !vnaaats_core::find_vnaaats_profiles(Path::new(&root)).is_empty();
+    if saved.sector_id.as_deref() == Some(id.as_str()) && files_there {
         return Ok("sector pack already up to date".to_string());
     }
     let tmp = std::env::temp_dir().join("vnaaats-sector-pack.zip");
