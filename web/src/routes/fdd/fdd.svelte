@@ -212,7 +212,10 @@
     const cs = addCs.trim().toUpperCase();
     if (!cs) return;
     if ($hidden[cs]) { unhideStrip(cs); addCs = ""; addMsg = ""; dataHandler.setAsel(cs); return; }   // hidden by you earlier: just bring it back
-    if (dataHandler.getAircraft(cs)) { addCs = ""; addMsg = ""; dataHandler.setAsel(cs); return; }
+    const have = dataHandler.getAircraft(cs);
+    // Already on the list: just select it. A flight the display knows about but is keeping off your list (too far from your area, or outside
+    // the time window) is added for real, so pressing Add always puts a strip on the list.
+    if (have && (have.Manual || windowMode !== "WINDOW" || dataHandler.trafficView(have, WIN_AHEAD, WIN_BEHIND, dataHandler.scopeForPosition($session.position)).show)) { addCs = ""; addMsg = ""; dataHandler.setAsel(cs); return; }
     addMsg = "Adding...";
     const e = await sess.addFlight(cs);
     addMsg = e ? e : "";
