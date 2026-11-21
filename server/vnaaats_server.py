@@ -1620,6 +1620,14 @@ def contactme_telex(cpdlc, network, pos, cs):
         log.warning("contact me telex to %s failed: %s", cs, e)
 
 
+def has_left_oca(rec, pos):
+    """True when this flight is more than 100 nm past the far edge of the oceanic area: it is no longer shown. Tango routes (Shanwick to Iceland)
+    and flights whose direction or position is unknown are never dropped."""
+    if not pos or tango_match(str(rec.get("route", "")).split()) or str(rec.get("track", "")).upper().startswith("T"):
+        return False
+    return cpdlc_mod.left_oca_area(pos[0], pos[1], rec.get("direction"))
+
+
 def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None, logs=None):
     logs = logs if logs is not None else adminlog_mod.LogHub()
     queue = queue if queue is not None else commands_mod.CommandQueue()
@@ -2611,10 +2619,12 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     return self._send(401, {"error": "log in first and choose a position"})
                 if p == "/GetAllFlightData":
                     hidden = store.dismissed_set()
-                    return self._send(200, [with_cpdlc(f) for f in store.all_flights(newest_first=q.get("sort", "1") != "0") if f.get("callsign") not in hidden])
+                    return self._send(200, [with_cpdlc(f) for f in store.all_flights(newest_first=q.get("sort", "1") != "0")
+                                            if f.get("callsign") not in hidden and not (network and has_left_oca(f, network.position(f.get("callsign", ""))))])
                 if p == "/GetNetworkTraffic":
                     hidden = store.dismissed_set()
-                    return self._send(200, [with_cpdlc(f) for f in network.all() if f.get("callsign") not in hidden] if network else [])
+                    return self._send(200, [with_cpdlc(f) for f in network.all()
+                                            if f.get("callsign") not in hidden and not has_left_oca(f, network.position(f.get("callsign", "")))] if network else [])
                 if p == "/GetNatTrakData":
                     return self._send(200, natrak.all() if natrak else [])
                 if p == "/PostNamedFix":
