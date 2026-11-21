@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.17 - 2026-11-21
 - Display: fixed the layout when the window is maximised or full screen. The page was one header taller than the screen, so the top bar and the bottom of the lists were clipped. The content now fills exactly the space under the header.
 
 ## 2.10.16 - 2026-11-21
