@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.10 - 2026-11-21
 - Display: optional "Also send the tones on my frequency" for SELCAL. The tones are played into a virtual audio cable that TrackAudio uses as its microphone, and the display presses and releases TrackAudio's push-to-talk around them, so the pilot hears the tones on the frequency. Off by default; choose the cable output in the SELCAL tab (set-up steps are shown there). FDD for Windows: if a virtual audio cable (VB-Cable) is installed, the start-up window asks once whether to send SELCAL tones on your frequency (Yes shows the two set-up steps, No is never asked again). FDD for Windows update needed.
 
 ## 2.10.9 - 2026-11-20
