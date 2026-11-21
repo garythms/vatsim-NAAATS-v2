@@ -1,14 +1,6 @@
 <script lang="ts">
-  import { playSelcal, selcalSoundOn, setSelcalSound, selcalFreqOn, setSelcalFreq, selcalDevice, setSelcalDevice, listOutputs } from "../../typescript/fdd/selcal_sound";
+  import { playSelcal, selcalSoundOn, setSelcalSound, selcalFreqOn, setSelcalFreq, selcalDevice } from "../../typescript/fdd/selcal_sound";
   import { createEventDispatcher } from "svelte";
-  let outs: { id: string; label: string }[] = []; let outsNote = "";
-  async function loadOuts(): Promise<void> {
-    const r = await listOutputs();
-    outs = r.devices;
-    outsNote = !r.devices.length ? "No sound outputs were found." : !r.named ? "Windows has not shown the device names. Allow the microphone for this app, then press Refresh." : "";
-    if (!$selcalDevice && r.cable) { const d = r.devices.find((x) => x.id === r.cable); setSelcalDevice(r.cable, d?.label ?? ""); }
-  }
-  function freqToggle(on: boolean): void { setSelcalFreq(on); if (on) void loadOuts(); }
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
   import * as app from "../../typescript/fdd/app";
@@ -255,34 +247,10 @@
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
           <label class="block mt-2 text-sm cursor-pointer"><input type="checkbox" checked={$selcalSoundOn} on:change={(e) => setSelcalSound(e.currentTarget.checked)} /> Play the SELCAL tones when I send</label>
-          <label class="block mt-1 text-sm cursor-pointer"><input type="checkbox" checked={$selcalFreqOn} on:change={(e) => freqToggle(e.currentTarget.checked)} /> Also send the tones on my frequency (TrackAudio and a virtual audio cable needed)</label>
-          {#if $selcalFreqOn}
-            <div class="mt-1 p-2 text-sm border border-blue-6 bg-blue-4">
-              <div class="mb-1">Sound output that goes into TrackAudio's microphone (the virtual cable, for example "CABLE Input"):</div>
-              <div class="flex gap-2">
-                <select class="flex-1 px-1 py-0.5 text-black" value={$selcalDevice} on:change={(e) => setSelcalDevice(e.currentTarget.value, outs.find((x) => x.id === e.currentTarget.value)?.label ?? "")} on:focus={() => { if (!outs.length) void loadOuts(); }}>
-                  <option value="">Choose...</option>
-                  {#each outs as o}<option value={o.id}>{o.label || "Output"}</option>{/each}
-                </select>
-                <button class="px-2 {BTN}" on:click={loadOuts}>Refresh</button>
-              </div>
-              {#if outs.length}
-                {#if outs.some((x) => /cable input|vb-audio|virtual/i.test(x.label))}<div class="mt-1 text-green-300">✓ Virtual cable found{$selcalDevice ? " and chosen" : ""}.</div>
-                {:else}<div class="mt-1 text-yellow-300">✗ No virtual cable found. Install the free VB-Cable, restart Windows, then press Refresh. <button class="ml-1 px-2 {BTN}" on:click={() => app.openExternal("https://vb-audio.com/Cable/")}>Get VB-Cable</button></div>{/if}
-              {/if}
-              {#if outsNote}<div class="mt-1 text-yellow-300">{outsNote}</div>{/if}
-              {#if !$selcalDevice}<div class="mt-1 text-yellow-300">Choose the output first. Until then nothing is sent on the frequency.</div>{/if}
-              <div class="mt-1 text-yellow-300">When this is on, pressing Send keys TrackAudio's push-to-talk for about 3 seconds on the frequencies you are transmitting on.</div>
-              <details class="mt-1">
-                <summary class="cursor-pointer underline">How to set it up (once)</summary>
-                <ol class="list-decimal ml-5 mt-1">
-                  <li>Install a virtual audio cable, for example the free VB-Cable (vb-audio.com/Cable). Restart Windows if it asks.</li>
-                  <li>In TrackAudio's settings, set the microphone to <b>CABLE Output</b>.</li>
-                  <li>To keep your voice going out as well: in Windows sound settings, open your real microphone's properties, tick <b>Listen to this device</b> and play it through <b>CABLE Input</b>.</li>
-                  <li>Here, choose <b>CABLE Input</b> above. Make sure TX is on for your frequency in TrackAudio.</li>
-                </ol>
-              </details>
-            </div>
+          {#if $selcalDevice}
+            <label class="block mt-1 text-sm cursor-pointer"><input type="checkbox" checked={$selcalFreqOn} on:change={(e) => setSelcalFreq(e.currentTarget.checked)} /> Also send the tones on my frequency (keys TrackAudio's push-to-talk for about 3 seconds)</label>
+          {:else if app.inApp()}
+            <div class="mt-1 text-sm opacity-80">Want the pilot to hear the tones on your frequency too? <button class="underline" on:click={() => app.setupOpen.set(true)}>Set it up in FDD for Windows setup</button>.</div>
           {/if}
         {:else if tab === "scratch"}
           <div class="text-sm mb-2 opacity-90">A short note (up to 15 characters) for this aircraft. It is the EuroScope scratchpad: it shows under the tag and goes with the aircraft to the next controller.</div>
