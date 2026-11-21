@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.18 - 2026-11-21
 - Display: pressing Add on a callsign that the display already knows about, but is keeping off your list because it is too far from your area, now adds the strip. Before, it only selected the flight and nothing appeared.
 - Display: the "Who spoke last" list now shows only the last 5 different callsigns heard, each with the time it last transmitted. Your own transmissions are no longer listed.
 
