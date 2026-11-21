@@ -16,6 +16,7 @@
     "allow-profile-get",
     "allow-profile-save",
     "allow-cable-found",
+    "allow-open-sound-panel",
     "allow-pick-exe",
     "allow-launch",
     "allow-open-url",

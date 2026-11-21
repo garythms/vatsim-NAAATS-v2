@@ -25,20 +25,30 @@ export function selcalPulses(code: string): [[number, number], [number, number]]
   return [[f[0], f[1]], [f[2], f[3]]];
 }
 
-export const selcalSoundOn = writable<boolean>((() => { try { return localStorage.getItem("fdd.selcalSound") !== "off"; } catch (e) { return true; } })());
-export function setSelcalSound(on: boolean): void {
-  selcalSoundOn.set(on);
-  try { localStorage.setItem("fdd.selcalSound", on ? "on" : "off"); } catch (e) { /* not saved */ }
+/** Who hears the SELCAL tones when you press Send: "me" = only the controller, "all" = the controller and the pilots (on the frequency, through a virtual cable), "off". */
+export type SelcalMode = "off" | "me" | "all";
+function loadMode(): SelcalMode {
+  try {
+    const v = localStorage.getItem("fdd.selcalMode");
+    if (v === "off" || v === "me" || v === "all") return v;
+    // older choices: the tick box for the tones here, and the tick box for the frequency
+    if (localStorage.getItem("fdd.selcalSound") === "off") return "off";
+    if (localStorage.getItem("fdd.selcalFreq") === "on" && localStorage.getItem("fdd.selcalDevice")) return "all";
+  } catch (e) { /* default */ }
+  return "me";
+}
+export const selcalMode = writable<SelcalMode>(loadMode());
+export function setSelcalMode(m: SelcalMode): void {
+  selcalMode.set(m);
+  try { localStorage.setItem("fdd.selcalMode", m); } catch (e) { /* not saved */ }
 }
 
 // ---- Sending the tones on your frequency (optional). TrackAudio cannot play sound itself, so the tones are played into a virtual audio cable
 // that TrackAudio uses as its microphone, and the display presses and releases TrackAudio's push-to-talk around them (ws://127.0.0.1:49080/ws on this computer).
-const LS_FREQ = "fdd.selcalFreq", LS_DEV = "fdd.selcalDevice", LS_DEVNAME = "fdd.selcalDeviceName";
+const LS_DEV = "fdd.selcalDevice", LS_DEVNAME = "fdd.selcalDeviceName";
 function lsGet(k: string): string { try { return localStorage.getItem(k) ?? ""; } catch (e) { return ""; } }
 function lsSet(k: string, v: string): void { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* not saved */ } }
-export const selcalFreqOn = writable<boolean>(lsGet(LS_FREQ) === "on");
 export const selcalDevice = writable<string>(lsGet(LS_DEV));
-export function setSelcalFreq(on: boolean): void { selcalFreqOn.set(on); lsSet(LS_FREQ, on ? "on" : ""); }
 export function setSelcalDevice(id: string, name: string): void { selcalDevice.set(id); lsSet(LS_DEV, id); lsSet(LS_DEVNAME, name); }
 
 export type OutDevice = { id: string; label: string };
@@ -89,19 +99,27 @@ function schedule(ctx: AudioContext, pulses: [[number, number], [number, number]
 }
 
 let actx: AudioContext | null = null;
-/** Play the chime for a code (on this computer's speakers, if the FDD sound and the SELCAL sound are on) and, if switched on, send it on your frequency. */
-export function playSelcal(code: string): void {
-  const pulses = selcalPulses(code);
-  if (!pulses) return;
-  if (dataHandler.soundOn && get(selcalSoundOn)) {
-    try {
-      actx = actx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
-      if (actx.state === "suspended") void actx.resume();
-      schedule(actx, pulses, 0.12);
-    } catch (e) { /* no audio */ }
-  }
+/** A made-up SELCAL: four different tones picked at random, for a code that has no tones of its own (a repeated letter, or I, N, O). */
+function randomPulses(): [[number, number], [number, number]] {
+  const keys = Object.keys(TONES);
+  for (let i = keys.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
+  const f = keys.slice(0, 4).map((k) => TONES[k]);
+  return [[f[0], f[1]], [f[2], f[3]]];
+}
+
+/** Play the SELCAL tones for a code, as the setting says (off / only the controller / the controller and the pilots). A code that has no tones plays a random one.
+ *  test = true plays them here only, whatever the setting is (the "Hear the tones" button). */
+export function playSelcal(code: string, test: boolean = false): void {
+  const mode = test ? "me" : get(selcalMode);
+  if (mode === "off") return;
+  const pulses = selcalPulses(code) ?? randomPulses();
+  try {
+    actx = actx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (actx.state === "suspended") void actx.resume();
+    schedule(actx, pulses, 0.12);
+  } catch (e) { /* no audio here */ }
   const dev = get(selcalDevice);
-  if (get(selcalFreqOn) && dev) {
+  if (mode === "all" && dev) {
     const total = (2 * PULSE_S + GAP_S) * 1000;
     void withPtt(() => {
       try {
