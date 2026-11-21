@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.16 - 2026-11-21
 - Display: a flight that has left the oceanic area and is more than 100 nm beyond its edge (east of 15W for eastbound, west of 53W for westbound) is no longer shown on the display. Before, it stayed until the pilot disconnected. Tango routes and flights whose direction or position is not known are never removed this way. Needs a server update.
 - Communication mode: the display now reads /T/ (text only) and /R/ (receive only) in the pilot's VATSIM flight plan remarks. A red TXT or an orange RX chip shows on the strip next to the callsign, and the aircraft's menu says "TEXT ONLY: use CPDLC or telex, not voice" or "RECEIVE ONLY: hears voice, replies by text". /V/ or nothing means normal voice. The same /t or /r shows beside the callsign on the EuroScope tag (needs the new plugin). In the Flight Plan window, "Pilot comms" lets you change it (Voice, Receive only, Text only) if the pilot filed it wrong or changes mid-flight, and "Use the flight plan" puts it back; your setting lasts for the flight. Needs a server update and the new plugin.
 - Handoff reminders: the yellow "HO ... nm" tag on a strip now only shows for aircraft you are tracking. Aircraft nobody tracks, or someone else tracks, no longer show it (the pop-up cards already only came for your own aircraft). The aircraft menu's "Next:" line is only highlighted for your own aircraft.
