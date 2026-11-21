@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Display: the bar across the top (version, aircraft count, title) stays on one line when the FDD is used at half a screen. The title shortens before anything wraps.
+
 ## 2.10.12 - 2026-11-21
 - FDD for Windows: the SELCAL-on-frequency set-up now lives only in FDD for Windows setup (a new optional step: it finds VB-Cable, has the Get VB-Cable button and the set-up steps, and tells you to restart Windows after installing). Once it is set up, the SELCAL tab of an aircraft only has an on/off tick box for sending the tones on your frequency; without the set-up it just points you to the setup. FDD for Windows update needed.
 
