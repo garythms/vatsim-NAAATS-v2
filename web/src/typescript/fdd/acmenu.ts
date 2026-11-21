@@ -47,6 +47,14 @@ export async function copyText(text: string): Promise<boolean> {
 
 export const NO_CONTACT_TEXT = "This aircraft is within my controlling area but has not responded to contact me requests";
 
+// The standard "no contact" wallop text, with the time (UTC) the first Contact Me went out when it is known
+export function noContactText(firstMs: number): string {
+  if (!firstMs) return NO_CONTACT_TEXT;
+  const d = new Date(firstMs);
+  const z = String(d.getUTCHours()).padStart(2, "0") + String(d.getUTCMinutes()).padStart(2, "0") + "z";
+  return NO_CONTACT_TEXT + ". First contact me request was sent at " + z;
+}
+
 export function selcalCommand(code: string): string { return ".selcal " + code.toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 // EuroScope's .contactme takes no callsign: it acts on the aircraft you click or have selected
 export function contactMeCommand(_callsign: string): string { return ".contactme"; }
