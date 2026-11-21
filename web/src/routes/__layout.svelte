@@ -44,11 +44,11 @@
   }, 50);
 </script>
 
-<div class="flex flex-col h-screen">
+<div class="flex flex-col h-screen overflow-hidden">
   {#if siteSection != 2}
     <div class="overflow-hidden"></div>
   {:else}
-    <div class="flex justify-between items-center whitespace-nowrap overflow-hidden w-screen h-1/25 bg-blue-0 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-10 border-b-blue-0">
+    <div class="flex justify-between items-center whitespace-nowrap overflow-hidden w-full shrink-0 bg-blue-0 border-2 border-l-blue-10 border-t-blue-10 border-r-blue-10 border-b-blue-0">
       <div class="flex shrink-0">
         <button class="px-3 font-black hover:text-grey-300 select-none hover:cursor-default" title="Built {buildInfo.built}">
           Version
