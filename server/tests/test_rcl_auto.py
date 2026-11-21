@@ -94,6 +94,24 @@ class RclTests(Base):
         self.net.offline["BAW1"] = True
         self.assertFalse(self.rcl.due(self.rec))
 
+    def test_only_the_senders_direction_is_due(self):
+        west_of_oca, east_of_oca = (45.0, -65.0), (51.0, -8.0)             # an eastbound flight starts west of the OCA, a westbound one east of it
+        def due(direction, pos):
+            self.net.pos["BAW1"] = pos
+            if direction is None:
+                self.rec.pop("direction", None)
+            else:
+                self.rec["direction"] = direction
+            return self.rcl.due(self.rec)
+        self.poll("CZQO_CTR")                                           # Gander: eastbound only
+        self.assertTrue(due(True, west_of_oca))
+        self.assertFalse(due(False, east_of_oca))                       # westbound enters through Shanwick
+        self.assertTrue(due(None, east_of_oca))                         # unknown direction is kept
+        self.rcl.pollers.clear()
+        self.poll("EGGX_CTR")                                           # Shanwick: westbound only
+        self.assertTrue(due(False, east_of_oca))
+        self.assertFalse(due(True, west_of_oca))
+
     def test_needs_an_oceanic_sender(self):
         self.assertIsNone(self.rcl.tick())                              # nobody online
         self.poll("EGLL_TWR")

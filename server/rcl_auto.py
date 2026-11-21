@@ -249,6 +249,25 @@ class RclAuto:
             live = sorted(c for c, ts in self.pollers.items() if t - ts <= POLLER_FRESH_SECONDS and c.startswith(self.prefixes))
         return live[0] if live else None
 
+    def scope(self):
+        """Which traffic the online oceanic controller has to remind: "gander" (eastbound flights, which enter oceanic airspace through Gander OCA),
+        "shanwick" (westbound flights, which enter through Shanwick OCA) or "all" (any other oceanic position, or no one online yet)."""
+        sender = self.sender() or ""
+        if sender.startswith(("CZQO", "CZQX")):
+            return "gander"
+        if sender.startswith("EGGX"):
+            return "shanwick"
+        return "all"
+
+    def in_scope(self, rec):
+        """False for a flight that goes the other way from the sender's OCA: a Gander controller has nothing to do with westbound traffic
+        (it asks Shanwick), and a Shanwick controller none with eastbound. A flight whose direction is unknown is kept."""
+        d = rec.get("direction")
+        if not isinstance(d, bool):
+            return True
+        sc = self.scope()
+        return not ((sc == "gander" and d is False) or (sc == "shanwick" and d is True))
+
     def status(self):
         self.housekeeping()
         with self.lock:
@@ -299,6 +318,8 @@ class RclAuto:
             return False                                    # still on the ground (the take-off run is faster than MIN_GROUNDSPEED) or just lifting off
         if cs in self.baseline and not late:
             return False
+        if not self.in_scope(rec):
+            return False                                    # the other direction: that OCA's controller deals with it
         if oca_state(pos, rec.get("direction") if isinstance(rec.get("direction"), bool) else None) != "before":
             return False                                    # already inside, or through, the oceanic area: nothing to request
         now_dt = now_dt or datetime.fromtimestamp(self.now(), timezone.utc)
