@@ -474,6 +474,8 @@ class FlightStore:
                                                               # (releasing the tag later must not bring the yellow/red outline back)
                 else:
                     rec["cmAt"] = old["cmAt"]                 # contact-me sent: survives plugin updates
+                    if old.get("cmFirst"):
+                        rec["cmFirst"] = old["cmFirst"]       # ... and so does the time of the first one
             if old and old.get("manual"):
                 rec["manual"] = old["manual"]                 # added by hand on the display: stays so
             if old and "scratch" in old:
@@ -584,6 +586,7 @@ class FlightStore:
                 rec["lastUpdated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             else:
                 return None
+            rec["cmFirst"] = rec.get("cmFirst") or rec.get("cmAt") or now      # the first request stays; cmAt is the latest
             rec["cmAt"] = now
             self.db.execute("INSERT OR REPLACE INTO flights VALUES (?,?,?)", (cs, json.dumps(rec), time.time()))
             self.db.commit()

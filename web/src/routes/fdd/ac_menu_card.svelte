@@ -273,7 +273,7 @@
         {:else if tab === "sup"}
           <textarea class="w-full px-1 mb-2 text-black" rows="3" bind:value={wallopText} placeholder="Message to the supervisors" />
           <div class="flex flex-row">
-            <button class="px-2 py-1 mr-2 {BTN}" on:click={() => (wallopText = m.NO_CONTACT_TEXT)}>No Contact</button>
+            <button class="px-2 py-1 mr-2 {BTN}" on:click={() => (wallopText = m.noContactText(ac?.ContactMeFirst ?? 0))}>No Contact</button>
             <button class="px-2 py-1 border-2 border-red-500 bg-red-700 font-bold hover:cursor-pointer" disabled={!wallopText.trim()} on:click={copyWallop}>Copy .wallop</button>
           </div>
         {:else if tab === "nt"}

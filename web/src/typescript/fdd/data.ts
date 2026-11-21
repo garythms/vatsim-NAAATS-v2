@@ -42,6 +42,7 @@ interface JsonAcObj {
   handoff?: { facility: string; fix: string; nm: number; name: string; soon: boolean; controller: string; frequency: string; code?: string; unicom: boolean; online?: { callsign: string; code: string; frequency: string }[] } | null;
   ntSent?: boolean;
   cmAt?: number;
+  cmFirst?: number;
   manual?: any;
   scratch?: string;
   comm?: { kind: string; by: string; freq: string } | null;
@@ -347,6 +348,7 @@ export async function populateAllAircraft() : Promise<void> {
             Handoff: objArr[i]?.handoff ?? null,
             NtSent: objArr[i]?.ntSent ?? false,
             ContactMeAt: objArr[i]?.cmAt ? objArr[i].cmAt * 1000 : 0,
+            ContactMeFirst: objArr[i]?.cmFirst ? objArr[i].cmFirst * 1000 : (objArr[i]?.cmAt ? objArr[i].cmAt * 1000 : 0),
             Manual: !!objArr[i]?.manual,
             Scratch: objArr[i]?.scratch ?? "",
             Comm: objArr[i]?.comm ?? null,

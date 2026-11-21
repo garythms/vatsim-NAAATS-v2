@@ -474,6 +474,7 @@ class ContactMeTest(unittest.TestCase):
         self.assertEqual(rec["cmAt"], 1000.0)
         self.assertEqual(store.get("BAW1")["cmAt"], 1000.0)
         self.assertEqual(store.mark_cm("BAW1", now=2000.0)["cmAt"], 2000.0)       # existing record: later send replaces the time
+        self.assertEqual(store.get("BAW1")["cmFirst"], 1000.0)                    # ... but the first send time stays
 
 
     def test_cm_ends_when_an_oceanic_controller_tracks(self):
