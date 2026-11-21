@@ -93,6 +93,18 @@ export async function editPosReport(callsign: string, fix: string, est: string, 
   return "";
 }
 
+// Set how a pilot communicates: "text" (/T/), "receive" (/R/), "voice", or "" to go back to what the flight plan says. Returns an error message or "".
+export async function setVoiceMode(callsign: string, mode: string): Promise<string> {
+  const r = await post("/SetVoiceMode", { callsign, mode });
+  if (!r.ok) {
+    if (r.data.error && /log in/.test(r.data.error)) await refreshSession();
+    return r.data.error ?? "could not change it";
+  }
+  await dataHandler.populateAllAircraft();
+  dataHandler.reselect(callsign);
+  return "";
+}
+
 // Switch voice position reports on or off for one flight (Concorde always has them). Returns an error message or "".
 export async function setVoiceReports(callsign: string, on: boolean): Promise<string> {
   const r = await post("/SetVoiceReports", { callsign, on });

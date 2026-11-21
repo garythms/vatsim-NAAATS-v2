@@ -348,6 +348,7 @@ class FlightStore:
         self.db.execute("CREATE TABLE IF NOT EXISTS fixes (name TEXT PRIMARY KEY, lat REAL NOT NULL, lon REAL NOT NULL)")
         self.db.execute("""CREATE TABLE IF NOT EXISTS pos_reports (callsign TEXT NOT NULL, fix TEXT NOT NULL, est TEXT NOT NULL DEFAULT '',
             act TEXT NOT NULL DEFAULT '', by TEXT NOT NULL DEFAULT '', at TEXT NOT NULL DEFAULT '', ts REAL NOT NULL, PRIMARY KEY (callsign, fix))""")
+        self.db.execute("CREATE TABLE IF NOT EXISTS voice_modes (callsign TEXT PRIMARY KEY, mode TEXT NOT NULL, ts REAL NOT NULL, by TEXT NOT NULL DEFAULT '')")
         self.db.execute("CREATE TABLE IF NOT EXISTS voice_reports (callsign TEXT PRIMARY KEY, ts REAL NOT NULL, by TEXT NOT NULL DEFAULT '')")
         self.db.commit()
 
@@ -369,6 +370,23 @@ class FlightStore:
         with self.lock:
             row = self.db.execute("SELECT ts FROM voice_reports WHERE callsign=?", (callsign.strip().upper(),)).fetchone()
         return bool(row) and time.time() - row[0] < self.VOICE_SECONDS
+
+    # --- communication mode a controller set by hand, over what the pilot filed (/T/ text only, /R/ receive only): "text", "receive" or "voice"
+    # (voice = normal, even if the plan says /T/). It lapses after a flight's length, and "" takes it away so the flight plan applies again.
+    def comm_set(self, callsign, mode, by):
+        cs = callsign.strip().upper()
+        with self.lock:
+            if mode in ("text", "receive", "voice"):
+                self.db.execute("INSERT OR REPLACE INTO voice_modes VALUES (?,?,?,?)", (cs, mode, time.time(), by))
+            else:
+                self.db.execute("DELETE FROM voice_modes WHERE callsign=?", (cs,))
+            self.db.commit()
+
+    def comm_get(self, callsign):
+        """The controller's setting ("text"/"receive"/"voice") or None when there is none (the flight plan remarks apply)."""
+        with self.lock:
+            row = self.db.execute("SELECT mode, ts FROM voice_modes WHERE callsign=?", (callsign.strip().upper(),)).fetchone()
+        return row[0] if row and time.time() - row[1] < self.VOICE_SECONDS else None
 
     # --- position reports for aircraft that report by voice (Concorde, or a flight switched on above): estimate and actual time per route fix
     def pos_set(self, callsign, fix, est, act, by):
@@ -788,6 +806,16 @@ def _plain_fix(token):
     """A named 5-letter fix (ALLRY, MALOT) - not DCT, an airway, a procedure or a coordinate."""
     t = _SPEEDLEVEL.sub("", token.upper())
     return t if re.fullmatch(r"[A-Z]{5}", t) and t != "DCT" else None
+
+
+VOICE_REMARK = re.compile(r"(?:^|\s)/([TRV])(?:/|\s|$)")
+
+
+def voice_mode_from_remarks(remarks):
+    """How the pilot filed their communication mode in the VATSIM flight plan remarks: /T/ = text only (cannot hear or speak), /R/ = receive only
+    (hears voice, replies by text), /V/ or nothing = voice. Returns "text", "receive" or "" (voice / not stated)."""
+    found = set(VOICE_REMARK.findall(str(remarks or "").upper()))
+    return "text" if "T" in found else "receive" if "R" in found else ""
 
 
 SELCAL_REMARK = re.compile(r"\bSEL(?:CAL)?\s*[/:= ]\s*([A-Z0-9]{4})\b")
@@ -1650,6 +1678,12 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec["ntSent"] = bool(sent) and not nt_stops_reminder(rec, natrak)
         rec["offline"] = network.is_offline(rec.get("callsign", "")) if network else None
         rec["comm"] = network.comm_for(rec.get("callsign", "")) if network and hasattr(network, "comm_for") else None
+        pilot = network.lookup_pilot(rec.get("callsign", "")) if network and hasattr(network, "lookup_pilot") else None
+        planned = voice_mode_from_remarks(((pilot or {}).get("flight_plan") or {}).get("remarks"))
+        mine = store.comm_get(rec.get("callsign", ""))
+        rec["voiceMode"] = ("" if mine == "voice" else mine) if mine is not None else planned          # "text" / "receive" / "" (voice)
+        rec["voiceModePlan"] = planned                                                                  # what the flight plan says
+        rec["voiceModeSet"] = mine is not None                                                          # a controller changed it
         rec["distNm"] = route_distance_nm(rec.get("route", ""), network.position(rec.get("callsign", "")) if network else None, cache.fixes)
         rec["handoff"] = None                                                # the next boundary, how far, and who is online to take it
         try:
@@ -2209,6 +2243,23 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                         return self._send(404, {"error": "unknown flight"})
                     if not is_conc(rec.get("type", "")):
                         store.voice_set(cs, bool(body.get("on", True)), ("%s (%s)" % (sess["position"], sess["name"]))[:60])
+                    return self._send(200, with_cpdlc(rec))
+                if p == "/SetVoiceMode":                       # a controller sets text only / receive only / voice for one flight, or "" to go back to the flight plan
+                    sess = self._session()
+                    if not sess:
+                        return self._send(401, {"error": "log in first"})
+                    if not sess["position"] or sess["position"] == "OBSERVER":
+                        return self._send(403, {"error": "choose a controlling position first"})
+                    cs = str(body.get("callsign", "")).strip().upper()
+                    mode = str(body.get("mode", "")).strip().lower()
+                    if not re.fullmatch(r"[A-Z0-9]{2,8}", cs):
+                        return self._send(400, {"error": "bad callsign"})
+                    if mode not in ("", "text", "receive", "voice"):
+                        return self._send(400, {"error": "mode must be text, receive, voice or empty"})
+                    rec = store.get(cs) or (next((f for f in network.all() if f.get("callsign") == cs), None) if network else None)
+                    if not rec:
+                        return self._send(404, {"error": "unknown flight"})
+                    store.comm_set(cs, mode, ("%s (%s)" % (sess["position"], sess["name"]))[:60])
                     return self._send(200, with_cpdlc(rec))
                 if p == "/EditPosReport":
                     sess = self._session()

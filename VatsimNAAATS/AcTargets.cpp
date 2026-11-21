@@ -343,6 +343,8 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 	// Callsign as shown on the tag: [BAW123] when the aircraft is connected to CPDLC
 	string csText = string(acFP.GetCallsign());
 	if (fp.CpdlcConnected) csText = "[" + csText + "]";
+	if (fp.VoiceMode == "text") csText += " /t"; // text only: cannot hear or speak on voice
+	else if (fp.VoiceMode == "receive") csText += " /r"; // receive only: hears voice, replies by text
 	string csTagText = csText + (fp.NtSent ? "*" : ""); // width of the callsign plus the natTrak star, for the tag line
 
 	// Check if there is an active handoff to client controller

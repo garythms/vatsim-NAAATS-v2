@@ -11,6 +11,11 @@
 
   const { session } = sess;
   $: editable = sess.canEdit($session);
+  let commMsg: string = "";
+  async function setComm(mode: string): Promise<void> {
+    if (!editable || !asel) return;
+    commMsg = await sess.setVoiceMode(asel.Callsign, mode);
+  }
   let message: string = "";
   let messageOk: boolean = true;
   let messageTimer: any;
@@ -103,6 +108,23 @@
         <span class="mr-2 text-lg">&#9888;</span><span>{dataHandler.conflicts.get(asel.Callsign).join("; ")}</span>
       </div>
     {/if}
+    <div class="flex flex-row flex-wrap items-center gap-2 px-3 py-1 w-full border-b-2 border-b-blue-0 text-sm">
+      <span class="font-bold">Pilot comms</span>
+      <select class="px-1 py-0.5 text-black" disabled={!editable} value={asel.VoiceMode === "text" ? "text" : asel.VoiceMode === "receive" ? "receive" : "voice"}
+        title="How this pilot communicates. The flight plan remarks /T/ (text only) and /R/ (receive only) set it automatically; change it here if the pilot filed it wrong or switches during the flight."
+        on:change={(e) => setComm(e.currentTarget.value)}>
+        <option value="voice">Voice</option>
+        <option value="receive">Receive only (/r)</option>
+        <option value="text">Text only (/t)</option>
+      </select>
+      {#if asel.VoiceModeSet}
+        <span class="text-yellow-300">set here{asel.VoiceModePlan ? " (flight plan: " + (asel.VoiceModePlan === "text" ? "/T/" : "/R/") + ")" : ""}</span>
+        <button class="px-2 py-0.5 border border-blue-6 bg-blue-3" disabled={!editable} on:click={() => setComm("")}>Use the flight plan</button>
+      {:else if asel.VoiceMode}
+        <span class="opacity-80">from the flight plan</span>
+      {/if}
+      {#if commMsg}<span class="text-yellow-300">{commMsg}</span>{/if}
+    </div>
     <div
       class="flex flex-row flex-wrap gap-y-1 items-center justify-start px-3 py-2 border-b-2 w-full border-b-blue-0">
       <TextInput

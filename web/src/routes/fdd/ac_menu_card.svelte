@@ -190,6 +190,8 @@
         <span class="flex flex-row flex-wrap items-center gap-x-3 gap-y-1">
           <span>Aircraft menu - {callsign}<span class="ml-3 font-regular text-yellow-300">{trackId ? "Track " + trackId : "No track"}{blockLevel ? " - Block " + blockLevel : ""}</span></span>
           <span class="px-2 text-sm font-bold border border-black {atcClass}" title="Who the pilot is talking to on VATSIM">{atcLabel}</span>
+          {#if ac?.VoiceMode === "text"}<span class="px-2 text-sm font-bold border border-black bg-red-600 text-white" title="/T/ in the flight plan remarks">TEXT ONLY: use CPDLC or telex, not voice</span>
+          {:else if ac?.VoiceMode === "receive"}<span class="px-2 text-sm font-bold border border-black bg-orange-400 text-black" title="/R/ in the flight plan remarks">RECEIVE ONLY: hears voice, replies by text</span>{/if}
           <span class="px-2 text-sm font-bold border border-black {ntClass}" title="natTrak clearance status">{ntLabel}</span>
           <span class="px-2 text-sm font-bold border border-black {dlClass}" title="How the pilot can be reached by datalink: CPDLC, TELEX (online on Hoppie only) or none">{dlLabel}</span>
         </span>
@@ -231,7 +233,7 @@
           {#if controllers.length === 0}
             <div class="text-sm opacity-80">No adjacent ATC - Send to UNICOM</div>
           {:else}
-            {#if ac && ac.Handoff}<div class="text-sm mb-2 {ac.Handoff.soon ? 'text-yellow-300 font-bold' : 'opacity-80'}">Next: {ac.Handoff.name} ({ac.Handoff.nm} nm to {ac.Handoff.fix}){ac.Handoff.unicom ? " - nobody online, send to UNICOM" : " - " + (ac.Handoff.online ?? []).map((o) => (o.code ? o.code + " " : "") + o.callsign + " " + o.frequency).join(", ")}</div>{/if}
+            {#if ac && ac.Handoff}<div class="text-sm mb-2 {ac.Handoff.soon && String(ac.TrackedBy ?? '').toUpperCase() === ($session.position ?? '').toUpperCase() ? 'text-yellow-300 font-bold' : 'opacity-80'}">Next: {ac.Handoff.name} ({ac.Handoff.nm} nm to {ac.Handoff.fix}){ac.Handoff.unicom ? " - nobody online, send to UNICOM" : " - " + (ac.Handoff.online ?? []).map((o) => (o.code ? o.code + " " : "") + o.callsign + " " + o.frequency).join(", ")}</div>{/if}
             <select class="w-full px-1 py-0.5 text-black mb-3" bind:value={pickedCtrl}>
               <option value="">Choose controller</option>
               {#each controllers as c}

@@ -13,6 +13,19 @@ SAMPLE = [
 KEY = "k" * 20
 
 
+class VoiceModeTest(unittest.TestCase):
+    def test_remarks(self):
+        f = s.voice_mode_from_remarks
+        self.assertEqual(f("/T/ SEL/ABCD"), "text")
+        self.assertEqual(f("RMK/ADSB /R/"), "receive")
+        self.assertEqual(f("/t"), "text")
+        self.assertEqual(f("/V/"), "")
+        self.assertEqual(f("RMK/TCAS EET/CZQX0030 RVR/T"), "")
+        self.assertEqual(f("SEL/ABCD RMK/R"), "")
+        self.assertEqual(f("/R/ /T/"), "text")
+        self.assertEqual(f(None), "")
+
+
 class T(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -320,6 +333,19 @@ class EditTests(unittest.TestCase):
         self.assertTrue(self.store.voice_on("LAPSE1"))
         self.store.db.execute("UPDATE voice_reports SET ts=? WHERE callsign='LAPSE1'", (time.time() - 19 * 3600,))
         self.assertFalse(self.store.voice_on("LAPSE1"))
+
+    def test_comm_mode_override(self):
+        st = self.store
+        self.assertIsNone(st.comm_get("MODE1"))
+        st.comm_set("MODE1", "text", "x")
+        self.assertEqual(st.comm_get("MODE1"), "text")
+        st.comm_set("MODE1", "voice", "x")
+        self.assertEqual(st.comm_get("MODE1"), "voice")
+        st.comm_set("MODE1", "", "x")
+        self.assertIsNone(st.comm_get("MODE1"))
+        st.comm_set("MODE2", "receive", "x")
+        st.db.execute("UPDATE voice_modes SET ts=? WHERE callsign='MODE2'", (time.time() - 19 * 3600,))
+        self.assertIsNone(st.comm_get("MODE2"))
 
     def test_no_observer_mode(self):
         ck = self.login(None)

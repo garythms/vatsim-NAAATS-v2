@@ -46,6 +46,9 @@ interface JsonAcObj {
   manual?: any;
   scratch?: string;
   comm?: { kind: string; by: string; freq: string } | null;
+  voiceMode?: string;
+  voiceModePlan?: string;
+  voiceModeSet?: boolean;
   offline?: boolean | null;
   posReports?: Record<string, { est: string; act: string; by: string; at: string }>;
   voiceReports?: boolean;
@@ -352,6 +355,9 @@ export async function populateAllAircraft() : Promise<void> {
             Manual: !!objArr[i]?.manual,
             Scratch: objArr[i]?.scratch ?? "",
             Comm: objArr[i]?.comm ?? null,
+            VoiceMode: objArr[i]?.voiceMode ?? "",
+            VoiceModePlan: objArr[i]?.voiceModePlan ?? "",
+            VoiceModeSet: !!objArr[i]?.voiceModeSet,
             Offline: objArr[i]?.offline ?? null,
             Entry: routePoints[0] ?? "",
             Exit: routePoints[routePoints.length - 1] ?? "",
