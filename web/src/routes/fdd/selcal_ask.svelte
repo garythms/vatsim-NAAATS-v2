@@ -3,7 +3,7 @@
   // controller's frequency. Yes = set-up steps (cable already chosen); No = never asked again. Without a cable nothing is shown.
   import { onMount } from "svelte";
   import * as app from "../../typescript/fdd/app";
-  import { setSelcalFreq, setSelcalDevice, listOutputs } from "../../typescript/fdd/selcal_sound";
+  import { setSelcalMode, setSelcalDevice, listOutputs } from "../../typescript/fdd/selcal_sound";
 
   const KEY = "fdd.selcalFreqAsk";                  // "" not asked, "yes", "no"
   function asked(): string { try { return localStorage.getItem(KEY) ?? ""; } catch (e) { return ""; } }
@@ -16,7 +16,7 @@
     try { if (await app.cableFound()) stage = "ask"; } catch (e) { /* no cable check: say nothing */ }
   });
   async function yes(): Promise<void> {
-    remember("yes"); setSelcalFreq(true); stage = "steps";
+    remember("yes"); setSelcalMode("all"); stage = "steps";
     const r = await listOutputs();                  // Windows asks once for the microphone so the device names can be read; nothing is recorded
     const c = r.devices.find((d) => d.id === r.cable);
     if (c) setSelcalDevice(c.id, c.label); else note = "The cable output could not be chosen automatically. Choose it later in the SELCAL tab of an aircraft.";

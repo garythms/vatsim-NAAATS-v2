@@ -6,6 +6,8 @@ Version shown in the header (`src/config.json`). Bump it whenever the display ch
 - FDD for Windows: the SELCAL-on-frequency set-up now has an "Open Sound settings" button (opens Windows' Sound window on the Recording tab) and clearer numbered steps for "Listen to this device" and TrackAudio's microphone. FDD for Windows update needed.
 - Display: pressing Send on a SELCAL now says why when no tone is played here (sound alerts off, the tick box off, or a code that has no tones, such as one with I, N, O or a repeated letter). New "Hear the tones (only you)" button in the SELCAL tab to test the sound without sending anything. Web change only.
 
+- Display: SELCAL tones are now one setting in the SELCAL tab: "Controller only hears", "Controller and pilots hear" (needs the cable set-up) or "Off", instead of two tick boxes. A code that has no tones of its own (a repeated letter, or I, N, O) plays a random SELCAL sound instead of staying silent. The "Hear the tones (only you)" test button stays. The Send message about no tone is gone. FDD for Windows update needed.
+
 ## 2.10.12 - 2026-11-21
 - FDD for Windows: the SELCAL-on-frequency set-up now lives only in FDD for Windows setup (a new optional step: it finds VB-Cable, has the Get VB-Cable button and the set-up steps, and tells you to restart Windows after installing). Once it is set up, the SELCAL tab of an aircraft only has an on/off tick box for sending the tones on your frequency; without the set-up it just points you to the setup. FDD for Windows update needed.
 

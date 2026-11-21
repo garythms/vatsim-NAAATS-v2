@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { playSelcal, selcalSoundOn, setSelcalSound, selcalFreqOn, setSelcalFreq, selcalDevice } from "../../typescript/fdd/selcal_sound";
+  import { playSelcal, selcalMode, setSelcalMode, selcalDevice } from "../../typescript/fdd/selcal_sound";
   import { createEventDispatcher } from "svelte";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
@@ -24,6 +24,7 @@
   let level: string = "";
   let mach: string = "";
   let selcal: string = "";
+  function pickMode(v: string): void { setSelcalMode(v === "all" ? "all" : v === "off" ? "off" : "me"); }
   let scratch: string = "";
   let note: string = "";
   let copied: string = "";
@@ -91,8 +92,7 @@
       await copy(text);
       note = why + " - the command was copied instead, so paste it in.";
     } else if (body.type === "selcal") {
-      const why = playSelcal(String(body.selcal));  // typed into EuroScope: play what the pilot hears here, or say why not
-      if (why) note = "\u2714 Sent. No tone played here: " + why + ".";
+      playSelcal(String(body.selcal));             // typed into EuroScope: play what the pilot hears, as the SELCAL setting says
     }
   }
 
@@ -247,12 +247,18 @@
             <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
-          <label class="block mt-2 text-sm cursor-pointer"><input type="checkbox" checked={$selcalSoundOn} on:change={(e) => setSelcalSound(e.currentTarget.checked)} /> Play the SELCAL tones when I send</label>
-          <button class="mt-1 px-2 py-0.5 text-sm {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => { const w = playSelcal(selcal); note = w ? "No tone: " + w + "." : "Playing the tones here (only you hear this)."; }}>Hear the tones (only you)</button>
-          {#if $selcalDevice}
-            <label class="block mt-1 text-sm cursor-pointer"><input type="checkbox" checked={$selcalFreqOn} on:change={(e) => setSelcalFreq(e.currentTarget.checked)} /> Also send the tones on my frequency (keys TrackAudio's push-to-talk for about 3 seconds)</label>
-          {:else if app.inApp()}
-            <div class="mt-1 text-sm opacity-80">Want the pilot to hear the tones on your frequency too? <button class="underline" on:click={() => app.setupOpen.set(true)}>Set it up in FDD for Windows setup</button>.</div>
+          <label class="block mt-2 text-sm">SELCAL tones when I send:
+            <select class="ml-1 px-1 py-0.5 text-black" value={$selcalMode} on:change={(e) => pickMode(e.currentTarget.value)}>
+              <option value="me">Controller only hears</option>
+              <option value="all" disabled={!$selcalDevice}>Controller and pilots hear</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+          <button class="mt-1 px-2 py-0.5 text-sm {BTN}" on:click={() => { playSelcal(selcal, true); note = "Playing the tones here (only you hear this)."; }}>Hear the tones (only you)</button>
+          {#if !$selcalDevice && app.inApp()}
+            <div class="mt-1 text-sm opacity-80">"Controller and pilots hear" needs a virtual audio cable. <button class="underline" on:click={() => app.setupOpen.set(true)}>Set it up in FDD for Windows setup</button>.</div>
+          {:else if $selcalMode === "all"}
+            <div class="mt-1 text-sm text-yellow-300">Pressing Send keys TrackAudio's push-to-talk for about 3 seconds on your frequencies.</div>
           {/if}
         {:else if tab === "scratch"}
           <div class="text-sm mb-2 opacity-90">A short note (up to 15 characters) for this aircraft. It is the EuroScope scratchpad: it shows under the tag and goes with the aircraft to the next controller.</div>
