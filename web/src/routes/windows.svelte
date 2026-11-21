@@ -78,6 +78,11 @@
     </ol>
 
     <div class={CARD}>
+      <div class="font-bold mb-1">Want the pilot to hear your SELCAL?</div>
+      <div class="text-sm opacity-90">An optional one-time step in setup lets the SELCAL tones go out on your frequency, using TrackAudio and the free VB-Cable. <a class="underline" href="/selcal-setup">Watch the video and read the steps</a>.</div>
+    </div>
+
+    <div class={CARD}>
       <div class="font-bold mb-1">iPad or tablet?</div>
       <div class="text-sm opacity-90">In FDD for Windows open Settings and press <b>Tablet or iPad mode</b>. It shows a link and a QR code that open the display on the tablet, signed in as you. EuroScope and the plugin stay on your Windows computer. <a class="underline" href="/tablet">Watch the video</a>.</div>
     </div>
