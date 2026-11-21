@@ -91,7 +91,8 @@
       await copy(text);
       note = why + " - the command was copied instead, so paste it in.";
     } else if (body.type === "selcal") {
-      playSelcal(String(body.selcal));             // typed into EuroScope: play what the pilot hears
+      const why = playSelcal(String(body.selcal));  // typed into EuroScope: play what the pilot hears here, or say why not
+      if (why) note = "\u2714 Sent. No tone played here: " + why + ".";
     }
   }
 
@@ -247,6 +248,7 @@
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
           <label class="block mt-2 text-sm cursor-pointer"><input type="checkbox" checked={$selcalSoundOn} on:change={(e) => setSelcalSound(e.currentTarget.checked)} /> Play the SELCAL tones when I send</label>
+          <button class="mt-1 px-2 py-0.5 text-sm {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => { const w = playSelcal(selcal); note = w ? "No tone: " + w + "." : "Playing the tones here (only you hear this)."; }}>Hear the tones (only you)</button>
           {#if $selcalDevice}
             <label class="block mt-1 text-sm cursor-pointer"><input type="checkbox" checked={$selcalFreqOn} on:change={(e) => setSelcalFreq(e.currentTarget.checked)} /> Also send the tones on my frequency (keys TrackAudio's push-to-talk for about 3 seconds)</label>
           {:else if app.inApp()}
