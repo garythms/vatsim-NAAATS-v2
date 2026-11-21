@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Auto RCL REQ: the reminder list now follows the controller who is online. A Gander position (CZQO or CZQX) is reminded about eastbound flights only, and a Shanwick position (EGGX) about westbound flights only, because the other direction asks the other OCA. Before, both were listed together, so a Gander controller saw westbound flights entering at AKIVO, MALOT and the like. Flights already inside or through oceanic airspace were already left out. Tango routes (T9, T290, T213, T13, T16) are Shanwick's and are reminded in both directions (not for a Gander position), except flights coming up from Santa Maria (south of 45N, or departing LPAZ), which are already in oceanic airspace. Flights departing Keflavik (BIKF) are never reminded; flights heading for BIKF are. Needs a server update.
+
 ## 2.10.13 - 2026-11-21
 - Display: the bar across the top (version, aircraft count, title) stays on one line when the FDD is used at half a screen. The title shortens before anything wraps.
 - FDD for Windows: the SELCAL-on-frequency set-up now has an "Open Sound settings" button (opens Windows' Sound window on the Recording tab) and clearer numbered steps for "Listen to this device" and TrackAudio's microphone. FDD for Windows update needed.
