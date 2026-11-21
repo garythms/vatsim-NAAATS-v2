@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Communication mode: the display now reads /T/ (text only) and /R/ (receive only) in the pilot's VATSIM flight plan remarks. A red TXT or an orange RX chip shows on the strip next to the callsign, and the aircraft's menu says "TEXT ONLY: use CPDLC or telex, not voice" or "RECEIVE ONLY: hears voice, replies by text". /V/ or nothing means normal voice. Needs a server update.
+- Handoff reminders: the yellow "HO ... nm" tag on a strip now only shows for aircraft you are tracking. Aircraft nobody tracks, or someone else tracks, no longer show it (the pop-up cards already only came for your own aircraft). The aircraft menu's "Next:" line is only highlighted for your own aircraft.
+
 ## 2.10.15 - 2026-11-21
 - Supervisor tab: the "No Contact" wallop text now ends with the time (UTC) the first Contact Me was sent, for example "...has not responded to contact me requests. First contact me request was sent at 1342z". Later Contact Me presses do not change it. If no Contact Me was sent from the FDD, the text stays as before. Needs a server update.
 - Contact Me: when the aircraft is on telex (online on Hoppie but not connected by CPDLC), the server also sends it a quiet telex, "PLEASE CONTACT <your station> ON VOICE <your frequency>", at the same moment. Nothing extra to click and nothing shows on the display. Needs a server update.

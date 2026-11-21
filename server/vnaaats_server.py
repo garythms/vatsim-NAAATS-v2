@@ -790,6 +790,16 @@ def _plain_fix(token):
     return t if re.fullmatch(r"[A-Z]{5}", t) and t != "DCT" else None
 
 
+VOICE_REMARK = re.compile(r"(?:^|\s)/([TRV])(?:/|\s|$)")
+
+
+def voice_mode_from_remarks(remarks):
+    """How the pilot filed their communication mode in the VATSIM flight plan remarks: /T/ = text only (cannot hear or speak), /R/ = receive only
+    (hears voice, replies by text), /V/ or nothing = voice. Returns "text", "receive" or "" (voice / not stated)."""
+    found = set(VOICE_REMARK.findall(str(remarks or "").upper()))
+    return "text" if "T" in found else "receive" if "R" in found else ""
+
+
 SELCAL_REMARK = re.compile(r"\bSEL(?:CAL)?\s*[/:= ]\s*([A-Z0-9]{4})\b")
 
 
@@ -1642,6 +1652,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec["ntSent"] = bool(sent) and not nt_stops_reminder(rec, natrak)
         rec["offline"] = network.is_offline(rec.get("callsign", "")) if network else None
         rec["comm"] = network.comm_for(rec.get("callsign", "")) if network and hasattr(network, "comm_for") else None
+        pilot = network.lookup_pilot(rec.get("callsign", "")) if network and hasattr(network, "lookup_pilot") else None
+        rec["voiceMode"] = voice_mode_from_remarks(((pilot or {}).get("flight_plan") or {}).get("remarks"))      # "text" / "receive" / ""
         rec["distNm"] = route_distance_nm(rec.get("route", ""), network.position(rec.get("callsign", "")) if network else None, cache.fixes)
         rec["handoff"] = None                                                # the next boundary, how far, and who is online to take it
         try:

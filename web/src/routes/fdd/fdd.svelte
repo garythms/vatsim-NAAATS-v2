@@ -573,7 +573,8 @@
             alert={visualOn && dataHandler.isNatTrakAlert(ac.Callsign) && tickN >= 0}
             rclReq={tickN >= 0 && dataHandler.isNatTrakPending(ac.Callsign)}
             ntSent={ac.NtSent}
-            handoff={ac.Handoff ?? null}
+            handoff={ac.Handoff && String(ac.TrackedBy ?? "").toUpperCase() === ($session.position ?? "").toUpperCase() ? ac.Handoff : null}
+            voiceMode={ac.VoiceMode ?? ""}
             cmAt={ac.ContactMeAt ?? 0}
             cmState={tickN >= 0 ? dataHandler.contactMeState(ac) : ""}
             comm={ac.Comm}

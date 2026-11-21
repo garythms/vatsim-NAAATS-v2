@@ -13,6 +13,19 @@ SAMPLE = [
 KEY = "k" * 20
 
 
+class VoiceModeTest(unittest.TestCase):
+    def test_remarks(self):
+        f = s.voice_mode_from_remarks
+        self.assertEqual(f("/T/ SEL/ABCD"), "text")
+        self.assertEqual(f("RMK/ADSB /R/"), "receive")
+        self.assertEqual(f("/t"), "text")
+        self.assertEqual(f("/V/"), "")
+        self.assertEqual(f("RMK/TCAS EET/CZQX0030 RVR/T"), "")
+        self.assertEqual(f("SEL/ABCD RMK/R"), "")
+        self.assertEqual(f("/R/ /T/"), "text")
+        self.assertEqual(f(None), "")
+
+
 class T(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
