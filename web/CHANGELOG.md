@@ -3,8 +3,10 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
+- Display: a flight that has left the oceanic area and is more than 100 nm beyond its edge (east of 15W for eastbound, west of 53W for westbound) is no longer shown on the display. Before, it stayed until the pilot disconnected. Tango routes and flights whose direction or position is not known are never removed this way. Needs a server update.
 - Communication mode: the display now reads /T/ (text only) and /R/ (receive only) in the pilot's VATSIM flight plan remarks. A red TXT or an orange RX chip shows on the strip next to the callsign, and the aircraft's menu says "TEXT ONLY: use CPDLC or telex, not voice" or "RECEIVE ONLY: hears voice, replies by text". /V/ or nothing means normal voice. The same /t or /r shows beside the callsign on the EuroScope tag (needs the new plugin). In the Flight Plan window, "Pilot comms" lets you change it (Voice, Receive only, Text only) if the pilot filed it wrong or changes mid-flight, and "Use the flight plan" puts it back; your setting lasts for the flight. Needs a server update and the new plugin.
 - Handoff reminders: the yellow "HO ... nm" tag on a strip now only shows for aircraft you are tracking. Aircraft nobody tracks, or someone else tracks, no longer show it (the pop-up cards already only came for your own aircraft). The aircraft menu's "Next:" line is only highlighted for your own aircraft.
+- Website: new page vnaaats.com/selcal-setup and how-to video 9, "SELCAL tones on your frequency": the three settings, getting VB-Cable, Listen to this device, TrackAudio's microphone, and the sound the pilot hears. Linked from How To Use - Videos, Oceanic training, FDD for Windows and the homepage list. Web change only, no app update needed.
 
 ## 2.10.15 - 2026-11-21
 - Supervisor tab: the "No Contact" wallop text now ends with the time (UTC) the first Contact Me was sent, for example "...has not responded to contact me requests. First contact me request was sent at 1342z". Later Contact Me presses do not change it. If no Contact Me was sent from the FDD, the text stays as before. Needs a server update.
