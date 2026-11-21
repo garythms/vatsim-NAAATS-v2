@@ -31,27 +31,84 @@ export function setSelcalSound(on: boolean): void {
   try { localStorage.setItem("fdd.selcalSound", on ? "on" : "off"); } catch (e) { /* not saved */ }
 }
 
+// ---- Sending the tones on your frequency (optional). TrackAudio cannot play sound itself, so the tones are played into a virtual audio cable
+// that TrackAudio uses as its microphone, and the display presses and releases TrackAudio's push-to-talk around them (ws://127.0.0.1:49080/ws on this computer).
+const LS_FREQ = "fdd.selcalFreq", LS_DEV = "fdd.selcalDevice", LS_DEVNAME = "fdd.selcalDeviceName";
+function lsGet(k: string): string { try { return localStorage.getItem(k) ?? ""; } catch (e) { return ""; } }
+function lsSet(k: string, v: string): void { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* not saved */ } }
+export const selcalFreqOn = writable<boolean>(lsGet(LS_FREQ) === "on");
+export const selcalDevice = writable<string>(lsGet(LS_DEV));
+export function setSelcalFreq(on: boolean): void { selcalFreqOn.set(on); lsSet(LS_FREQ, on ? "on" : ""); }
+export function setSelcalDevice(id: string, name: string): void { selcalDevice.set(id); lsSet(LS_DEV, id); lsSet(LS_DEVNAME, name); }
+
+export type OutDevice = { id: string; label: string };
+/** The sound outputs on this computer. Windows hides the names until the page has been allowed to use the microphone once, so that is asked for here
+ *  (and the microphone is released again straight away: nothing is recorded). Returns the list and, if one looks like a virtual cable, its id. */
+export async function listOutputs(): Promise<{ devices: OutDevice[]; cable: string; named: boolean }> {
+  try {
+    try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach((t) => t.stop()); } catch (e) { /* names may stay hidden */ }
+    const all = await navigator.mediaDevices.enumerateDevices();
+    const devices = all.filter((d) => d.kind === "audiooutput" && d.deviceId !== "default" && d.deviceId !== "communications").map((d) => ({ id: d.deviceId, label: d.label }));
+    const named = devices.some((d) => d.label);
+    const cable = devices.find((d) => /cable input|vb-audio|virtual/i.test(d.label))?.id ?? "";
+    return { devices, cable, named };
+  } catch (e) { return { devices: [], cable: "", named: false }; }
+}
+
+let pttBusy = false;
+/** Press TrackAudio's push-to-talk, run play(), then release it again. The release is always sent, also after an error. */
+async function withPtt(play: () => void, totalMs: number): Promise<void> {
+  if (pttBusy) return;                                // never two at once
+  pttBusy = true;
+  let ws: WebSocket | null = null;
+  const release = () => { try { ws?.send(JSON.stringify({ type: "kPttReleased" })); } catch (e) { /* link gone */ } try { ws?.close(); } catch (e) { /* closed */ } ws = null; pttBusy = false; };
+  try {
+    ws = new WebSocket("ws://127.0.0.1:49080/ws");
+    await new Promise<void>((ok, bad) => { ws!.onopen = () => ok(); ws!.onerror = () => bad(new Error("no TrackAudio")); setTimeout(() => bad(new Error("timeout")), 2000); });
+    ws.send(JSON.stringify({ type: "kPttPressed" }));
+    await new Promise((r) => setTimeout(r, 350));       // let the transmission open before the first tone
+    play();
+    setTimeout(release, totalMs + 350);
+  } catch (e) { release(); }
+}
+
+function schedule(ctx: AudioContext, pulses: [[number, number], [number, number]], level: number): void {
+  const t0 = ctx.currentTime + 0.05;
+  pulses.forEach((pair, i) => {
+    const start = t0 + i * (PULSE_S + GAP_S);
+    pair.forEach((hz) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = hz; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(level, start + 0.02);
+      g.gain.setValueAtTime(level, start + PULSE_S - 0.03);
+      g.gain.linearRampToValueAtTime(0, start + PULSE_S);
+      o.start(start); o.stop(start + PULSE_S + 0.02);
+    });
+  });
+}
+
 let actx: AudioContext | null = null;
-/** Play the chime for a code. Respects the FDD sound switch and its own switch. Does nothing for a code with a repeated or unknown character. */
+/** Play the chime for a code (on this computer's speakers, if the FDD sound and the SELCAL sound are on) and, if switched on, send it on your frequency. */
 export function playSelcal(code: string): void {
-  if (!dataHandler.soundOn || !get(selcalSoundOn)) return;
   const pulses = selcalPulses(code);
   if (!pulses) return;
-  try {
-    actx = actx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (actx.state === "suspended") void actx.resume();
-    const t0 = actx.currentTime + 0.05;
-    pulses.forEach((pair, i) => {
-      const start = t0 + i * (PULSE_S + GAP_S);
-      pair.forEach((hz) => {
-        const o = actx!.createOscillator(), g = actx!.createGain();
-        o.type = "sine"; o.frequency.value = hz; o.connect(g); g.connect(actx!.destination);
-        g.gain.setValueAtTime(0, start);
-        g.gain.linearRampToValueAtTime(0.12, start + 0.02);
-        g.gain.setValueAtTime(0.12, start + PULSE_S - 0.03);
-        g.gain.linearRampToValueAtTime(0, start + PULSE_S);
-        o.start(start); o.stop(start + PULSE_S + 0.02);
-      });
-    });
-  } catch (e) { /* no audio */ }
+  if (dataHandler.soundOn && get(selcalSoundOn)) {
+    try {
+      actx = actx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (actx.state === "suspended") void actx.resume();
+      schedule(actx, pulses, 0.12);
+    } catch (e) { /* no audio */ }
+  }
+  const dev = get(selcalDevice);
+  if (get(selcalFreqOn) && dev) {
+    const total = (2 * PULSE_S + GAP_S) * 1000;
+    void withPtt(() => {
+      try {
+        const ctx: AudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sinkId: dev } as any);
+        const go = () => { schedule(ctx, pulses, 0.5); setTimeout(() => { try { void ctx.close(); } catch (e) { /* closed */ } }, total + 600); };
+        if ((ctx as any).setSinkId && (ctx as any).sinkId !== dev) (ctx as any).setSinkId(dev).then(go, go); else go();
+      } catch (e) { /* the device is gone: nothing is sent */ }
+    }, total);
+  }
 }

@@ -330,6 +330,23 @@ async fn profile_get(window: WebviewWindow, app: tauri::AppHandle) -> Result<Pro
     Ok(ProfileInfo { profiles: found.len(), realname: first.realname, certificate: first.certificate, rating: first.rating, has_password: first.has_password, euroscope_running: euroscope_running(&saved) })
 }
 
+/// Is a virtual audio cable (VB-Cable's "CABLE Input") installed? Reads Windows' list of sound outputs, so nothing has to ask for the microphone.
+#[tauri::command]
+async fn cable_found(window: WebviewWindow) -> Result<bool, String> {
+    check_origin(&window)?;
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let out = Command::new("reg")
+            .args(["query", r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render", "/s", "/f", "CABLE Input"])
+            .creation_flags(0x0800_0000)        // CREATE_NO_WINDOW
+            .output();
+        return Ok(match out { Ok(o) => o.status.success() && String::from_utf8_lossy(&o.stdout).to_ascii_lowercase().contains("cable input"), Err(_) => false });
+    }
+    #[cfg(not(windows))]
+    { Ok(false) }
+}
+
 /// Write the details into every EuroScope profile that loads vNAAATS. The password goes only into those profile files (where EuroScope keeps it), never anywhere else.
 #[tauri::command]
 async fn profile_save(window: WebviewWindow, app: tauri::AppHandle, name: String, cid: String, rating: u32, password: String) -> Result<usize, String> {
@@ -674,7 +691,7 @@ fn main() {
             }
         })
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, cable_found, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }

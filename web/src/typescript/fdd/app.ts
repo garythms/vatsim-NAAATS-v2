@@ -26,6 +26,7 @@ export const updatePlugin = (): Promise<string> => call("update_plugin");
 export const updateSector = (): Promise<string> => call("update_sector");
 export const saveContactKey = (code: number): Promise<void> => call("save_contact_key", { code });
 export type ProfileInfo = { profiles: number; realname: string; certificate: string; rating: number | null; has_password: boolean; euroscope_running: boolean };
+export const cableFound = (): Promise<boolean> => call<boolean>("cable_found");
 export const profileGet = (): Promise<ProfileInfo> => call<ProfileInfo>("profile_get");
 export const profileSave = (name: string, cid: string, rating: number, password: string): Promise<number> => call("profile_save", { name, cid, rating, password });
 /** EuroScope's own numbers for the controller ratings (Enroute Controller is 4). */
