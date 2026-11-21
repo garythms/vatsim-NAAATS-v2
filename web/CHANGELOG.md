@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.11 - 2026-11-21
 - FDD for Windows / display: when no virtual audio cable is found, the SELCAL tab shows a "Get VB-Cable" button that opens the official download page (vb-audio.com) in your browser. You install it yourself (it needs administrator rights and a restart). FDD for Windows update needed.
 
 ## 2.10.10 - 2026-11-21
