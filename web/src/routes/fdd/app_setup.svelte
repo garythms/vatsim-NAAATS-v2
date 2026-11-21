@@ -6,6 +6,7 @@
   import config from "../../config.json";
   import StartupDetails from "./startup_details.svelte";
   import SelcalAsk from "./selcal_ask.svelte";
+  import SelcalSetup from "./selcal_setup.svelte";
   const { vacs } = vc;
 
   let show: boolean = false;
@@ -327,6 +328,9 @@
                 </form>
               {/if}
             </div>
+          {/if}
+          {#if st.dll_found}
+            <div class={STEP}><SelcalSetup /></div>
           {/if}
           {#if st.dll_found && pf}
             <div class={STEP}>
