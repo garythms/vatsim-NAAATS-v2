@@ -330,6 +330,19 @@ async fn profile_get(window: WebviewWindow, app: tauri::AppHandle) -> Result<Pro
     Ok(ProfileInfo { profiles: found.len(), realname: first.realname, certificate: first.certificate, rating: first.rating, has_password: first.has_password, euroscope_running: euroscope_running(&saved) })
 }
 
+/// Open Windows' Sound window on the Recording tab (for "Listen to this device"). A fixed command: nothing from the page is passed on.
+#[tauri::command]
+async fn open_sound_panel(window: WebviewWindow) -> Result<(), String> {
+    check_origin(&window)?;
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        return Command::new("rundll32.exe").args(["shell32.dll,Control_RunDLL", "mmsys.cpl,,1"]).creation_flags(0x0800_0000).spawn().map(|_| ()).map_err(|e| e.to_string());
+    }
+    #[cfg(not(windows))]
+    { Ok(()) }
+}
+
 /// Is a virtual audio cable (VB-Cable's "CABLE Input") installed? Reads Windows' list of sound outputs, so nothing has to ask for the microphone.
 #[tauri::command]
 async fn cable_found(window: WebviewWindow) -> Result<bool, String> {
@@ -691,7 +704,7 @@ fn main() {
             }
         })
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, cable_found, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, cable_found, open_sound_panel, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }

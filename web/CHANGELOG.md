@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: the SELCAL-on-frequency set-up now has an "Open Sound settings" button (opens Windows' Sound window on the Recording tab) and clearer numbered steps for "Listen to this device" and TrackAudio's microphone. FDD for Windows update needed.
+
 ## 2.10.12 - 2026-11-21
 - FDD for Windows: the SELCAL-on-frequency set-up now lives only in FDD for Windows setup (a new optional step: it finds VB-Cable, has the Get VB-Cable button and the set-up steps, and tells you to restart Windows after installing). Once it is set up, the SELCAL tab of an aircraft only has an on/off tick box for sending the tones on your frequency; without the set-up it just points you to the setup. FDD for Windows update needed.
 

@@ -34,12 +34,15 @@
   </div>
 {:else if stage === "steps"}
   <div class="mb-3 p-2 border border-blue-6 bg-blue-4 text-sm">
-    <div class="font-bold mb-1">SELCAL on your frequency is switched on. Two settings left, once:</div>
+    <div class="font-bold mb-1">SELCAL on your frequency is switched on. Two Windows settings are left, once:</div>
     <ol class="list-decimal ml-5 mb-2">
-      <li>In TrackAudio's settings, set the microphone to <b>CABLE Output</b>, and make sure TX is on for your frequency.</li>
-      <li>To keep your voice going out: in Windows sound settings, open your real microphone's properties, tick <b>Listen to this device</b> and play it through <b>CABLE Input</b>.</li>
+      <li>Press <b>Open Sound settings</b> below. A window called "Sound" opens on the <b>Recording</b> tab.</li>
+      <li>Right-click your <b>headset microphone</b> (the one marked "Default Device") and choose <b>Properties</b>.</li>
+      <li>Open the <b>Listen</b> tab, tick <b>Listen to this device</b>, and under "Playback through this device" choose <b>CABLE Input (VB-Audio Virtual Cable)</b>. Press <b>OK</b>.</li>
+      <li>Open <b>TrackAudio</b>'s settings and set its microphone to <b>CABLE Output</b>. Make sure TX is on for your frequency.</li>
     </ol>
     {#if note}<div class="mb-2 text-yellow-300">{note}</div>{/if}
+    <button class="mb-2 px-3 py-1 font-bold bg-blue-10 text-black" on:click={() => app.openSoundPanel()}>Open Sound settings</button>
     <div class="mb-2 opacity-80">When you press Send on a SELCAL, TrackAudio's push-to-talk is keyed for about 3 seconds. Change it any time in the SELCAL tab.</div>
     <button class={BTN} on:click={() => (stage = "none")}>Done</button>
   </div>

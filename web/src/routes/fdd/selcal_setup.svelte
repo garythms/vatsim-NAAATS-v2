@@ -36,11 +36,14 @@
 {:else if cable && $selcalDevice}
   <div class="text-sm text-green-300 mb-1">✓ Set up. Switch the tones on or off in the SELCAL tab of any aircraft.</div>
   <details class="text-sm" open={steps}>
-    <summary class="cursor-pointer underline">The two settings that go with it</summary>
+    <summary class="cursor-pointer underline">The two settings that go with it (do these once)</summary>
     <ol class="list-decimal ml-5 mt-1">
-      <li>In TrackAudio's settings, set the microphone to <b>CABLE Output</b>, and make sure TX is on for your frequency.</li>
-      <li>To keep your voice going out: in Windows sound settings, open your real microphone's properties, tick <b>Listen to this device</b> and play it through <b>CABLE Input</b>.</li>
+      <li>Press <b>Open Sound settings</b> below. A window called "Sound" opens on the <b>Recording</b> tab.</li>
+      <li>Right-click your <b>headset microphone</b> (the one marked "Default Device") and choose <b>Properties</b>.</li>
+      <li>Open the <b>Listen</b> tab, tick <b>Listen to this device</b>, and under "Playback through this device" choose <b>CABLE Input (VB-Audio Virtual Cable)</b>. Press <b>OK</b>.</li>
+      <li>Open <b>TrackAudio</b>'s settings and set its microphone to <b>CABLE Output</b>. Make sure TX is on for your frequency.</li>
     </ol>
+    <button class="mt-1 px-3 py-1 font-bold bg-blue-10 text-black" on:click={() => app.openSoundPanel()}>Open Sound settings</button>
   </details>
   <button class="mt-1 text-sm underline opacity-80" on:click={remove}>Remove this set-up</button>
 {:else if cable === null}
