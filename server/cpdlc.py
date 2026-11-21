@@ -184,6 +184,23 @@ def near_oca_area(lat, lon, limit_nm=NEAR_OCEANIC_NM):
     return OCA_LON_WEST - dlon <= lon <= OCA_LON_EAST + dlon
 
 
+LEFT_OCA_NM = 100        # a flight this far beyond the oceanic area on its exit side is dropped from the display
+
+
+def left_oca_area(lat, lon, eastbound, limit_nm=LEFT_OCA_NM):
+    """True if the flight has flown out of the oceanic area (53W-15W) on its exit side and is more than limit_nm beyond the edge.
+    eastbound True = leaves at 15W, False = leaves at 53W. Anything else (unknown direction or position) = False."""
+    if not isinstance(eastbound, bool):
+        return False
+    try:
+        lat, lon = float(lat), float(lon)
+    except (TypeError, ValueError):
+        return False
+    clat = min(max(lat, OCA_LAT_MIN), OCA_LAT_MAX)
+    dlon = limit_nm / (60.0 * max(0.2, math.cos(math.radians(clat))))
+    return lon > OCA_LON_EAST + dlon if eastbound else lon < OCA_LON_WEST - dlon
+
+
 def near_oceanic(lat, lon, tracks, limit_nm=1000):
     """True/False: within limit_nm of any waypoint of the active tracks. None if there are no tracks to judge by."""
     pts = [(p["latitude"], p["longitude"]) for t in tracks for p in t.get("route", [])]

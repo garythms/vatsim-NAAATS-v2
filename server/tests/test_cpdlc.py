@@ -341,6 +341,15 @@ class AutomationTests(unittest.TestCase):
         self.assertTrue(c.near_oca_area(60, -55))             # west of the edge, inside 100 nm
         self.assertFalse(c.near_oca_area(60, -65))
 
+    def test_left_oca_area(self):
+        self.assertTrue(c.left_oca_area(52, -9, True))         # well past 15W
+        self.assertFalse(c.left_oca_area(52, -13, True))       # about 90 nm past 15W: still shown
+        self.assertFalse(c.left_oca_area(52, -14, True))       # just out of the area
+        self.assertFalse(c.left_oca_area(52, -30, True))       # inside
+        self.assertTrue(c.left_oca_area(50, -60, False))       # westbound, well past 53W
+        self.assertFalse(c.left_oca_area(50, -54, False))
+        self.assertFalse(c.left_oca_area(52, -5, None))        # direction unknown: kept
+
     def test_contact_me_text(self):
         self.assertEqual(c.contact_me_telex_text("Shanwick Radio", "127.9"), "PLEASE CONTACT SHANWICK RADIO ON VOICE 127.900")
         self.assertEqual(c.contact_me_telex_text("Gander", ""), "PLEASE CONTACT GANDER ON VOICE")
