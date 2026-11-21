@@ -89,17 +89,22 @@ function schedule(ctx: AudioContext, pulses: [[number, number], [number, number]
 }
 
 let actx: AudioContext | null = null;
-/** Play the chime for a code (on this computer's speakers, if the FDD sound and the SELCAL sound are on) and, if switched on, send it on your frequency. */
-export function playSelcal(code: string): void {
+/** Play the chime for a code (on this computer's speakers, if the FDD sound and the SELCAL sound are on) and, if switched on, send it on your frequency.
+ *  Returns "" when the chime was played here, or the reason it was not (shown to the controller, so a silent Send is never a mystery). */
+export function playSelcal(code: string): string {
   const pulses = selcalPulses(code);
-  if (!pulses) return;
-  if (dataHandler.soundOn && get(selcalSoundOn)) {
+  let why = "";
+  if (!pulses) why = "the code " + String(code || "").toUpperCase() + " cannot be played as tones (it needs four different letters or numbers from the 32 SELCAL tones: A-H, J-M, P-Z and 1-9, so no I, N or O)";
+  else if (!dataHandler.soundOn) why = "the FDD's sound alerts are switched off (the sound switch at the top of the display)";
+  else if (!get(selcalSoundOn)) why = "\"Play the SELCAL tones when I send\" is not ticked";
+  else {
     try {
       actx = actx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
       if (actx.state === "suspended") void actx.resume();
       schedule(actx, pulses, 0.12);
-    } catch (e) { /* no audio */ }
+    } catch (e) { why = "this window could not play sound"; }
   }
+  if (!pulses) return why;
   const dev = get(selcalDevice);
   if (get(selcalFreqOn) && dev) {
     const total = (2 * PULSE_S + GAP_S) * 1000;
@@ -111,4 +116,5 @@ export function playSelcal(code: string): void {
       } catch (e) { /* the device is gone: nothing is sent */ }
     }, total);
   }
+  return why;
 }
