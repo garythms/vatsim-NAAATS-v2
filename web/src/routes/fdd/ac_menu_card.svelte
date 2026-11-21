@@ -11,6 +11,7 @@
   function freqToggle(on: boolean): void { setSelcalFreq(on); if (on) void loadOuts(); }
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
+  import * as app from "../../typescript/fdd/app";
   import * as cp from "../../typescript/fdd/cpdlc";
   import * as pr from "../../typescript/fdd/posreports";
   import * as m from "../../typescript/fdd/acmenu";
@@ -267,7 +268,7 @@
               </div>
               {#if outs.length}
                 {#if outs.some((x) => /cable input|vb-audio|virtual/i.test(x.label))}<div class="mt-1 text-green-300">✓ Virtual cable found{$selcalDevice ? " and chosen" : ""}.</div>
-                {:else}<div class="mt-1 text-yellow-300">✗ No virtual cable found. Install the free VB-Cable (vb-audio.com/Cable), restart Windows, then press Refresh.</div>{/if}
+                {:else}<div class="mt-1 text-yellow-300">✗ No virtual cable found. Install the free VB-Cable, restart Windows, then press Refresh. <button class="ml-1 px-2 {BTN}" on:click={() => app.openExternal("https://vb-audio.com/Cable/")}>Get VB-Cable</button></div>{/if}
               {/if}
               {#if outsNote}<div class="mt-1 text-yellow-300">{outsNote}</div>{/if}
               {#if !$selcalDevice}<div class="mt-1 text-yellow-300">Choose the output first. Until then nothing is sent on the frequency.</div>{/if}
