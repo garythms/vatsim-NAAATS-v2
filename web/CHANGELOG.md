@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.15 - 2026-11-21
 - Supervisor tab: the "No Contact" wallop text now ends with the time (UTC) the first Contact Me was sent, for example "...has not responded to contact me requests. First contact me request was sent at 1342z". Later Contact Me presses do not change it. If no Contact Me was sent from the FDD, the text stays as before. Needs a server update.
 - Contact Me: when the aircraft is on telex (online on Hoppie but not connected by CPDLC), the server also sends it a quiet telex, "PLEASE CONTACT <your station> ON VOICE <your frequency>", at the same moment. Nothing extra to click and nothing shows on the display. Needs a server update.
 - CPDLC logon: a pilot is now only accepted when inside the oceanic area or within 100 nm of it (before, 1000 nm from a track fix). Anyone further out is refused with: "YOU ARE CURRENTLY NOT WITHIN THE OCEANIC AIRSPACE AREA - IF YOU ARE FILING A REQUEST FOR OCEANIC CLEARANCE PLEASE SEND THIS USING THE PRE-FILLED ATC OPTION OR AS A TELEX MESSAGE AND SEND TO TARGET <station>", where the station is the one that is online (CZQX, EGGX or NATX). Needs a server update.
