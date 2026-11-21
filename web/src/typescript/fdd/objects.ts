@@ -23,6 +23,8 @@ export type Aircraft = {
   Relevant: boolean;
   TargetMode: number;
   LastUpdated: number;
+  VoiceModePlan?: string; // what the flight plan remarks say
+  VoiceModeSet?: boolean; // a controller changed it by hand
   VoiceMode?: string; // "text" = /T/ text only, "receive" = /R/ receive only (from the VATSIM flight plan remarks), "" = voice
   Comm: { kind: string; by: string; freq: string } | null; // who the pilot is tuned to on VATSIM: oceanic / domestic controller or UNICOM
   Scratch: string; // scratchpad note (same as the EuroScope scratchpad)

@@ -334,6 +334,19 @@ class EditTests(unittest.TestCase):
         self.store.db.execute("UPDATE voice_reports SET ts=? WHERE callsign='LAPSE1'", (time.time() - 19 * 3600,))
         self.assertFalse(self.store.voice_on("LAPSE1"))
 
+    def test_comm_mode_override(self):
+        st = self.store
+        self.assertIsNone(st.comm_get("MODE1"))
+        st.comm_set("MODE1", "text", "x")
+        self.assertEqual(st.comm_get("MODE1"), "text")
+        st.comm_set("MODE1", "voice", "x")
+        self.assertEqual(st.comm_get("MODE1"), "voice")
+        st.comm_set("MODE1", "", "x")
+        self.assertIsNone(st.comm_get("MODE1"))
+        st.comm_set("MODE2", "receive", "x")
+        st.db.execute("UPDATE voice_modes SET ts=? WHERE callsign='MODE2'", (time.time() - 19 * 3600,))
+        self.assertIsNone(st.comm_get("MODE2"))
+
     def test_no_observer_mode(self):
         ck = self.login(None)
         code, body, _ = self.call("/auth/position", {"position": "OBSERVER"}, ck)

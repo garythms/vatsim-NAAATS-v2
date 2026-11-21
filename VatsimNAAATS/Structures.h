@@ -298,6 +298,7 @@ struct CNetworkFlightPlan {
 	bool NtSent = false; // natTrak reminder sent to the pilot (red star)
 	double ContactMeAt = 0; // when a Contact Me was sent from the FDD (seconds since 1970, 0 = never)
 	bool CpdlcRelease = false; // server asks to release the tag (pilot sent to UNICOM)
+	string VoiceMode = ""; // "text" (/T/) or "receive" (/R/): how the pilot communicates, "" = voice
 };
 
 struct CAircraftFlightPlan {
@@ -373,6 +374,7 @@ struct CAircraftFlightPlan {
 	bool IsValid = false;
 	bool IsRelevant = true;
 	bool CpdlcConnected = false; // show [CALLSIGN] on the radar tag
+	string VoiceMode = ""; // "text" or "receive": shows /t or /r beside the callsign on the radar tag
 	bool NtSent = false; // natTrak reminder sent: red * beside the callsign
 	double ContactMeAt = 0; // Contact Me sent from the FDD (seconds since 1970, 0 = never): yellow tag outline, red after 20 minutes
 	bool ReleaseRequested = false; // release the tag on the next draw (set after UNICOM)
