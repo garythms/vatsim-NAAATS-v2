@@ -328,8 +328,22 @@ class AutomationTests(unittest.TestCase):
             st.poll_once()
             self.assertEqual(st.is_connected("BAW9"), connected)
             if not connected:
-                self.assertIn("UNABLE. CONTACT CONTROLLER ON VOICE 20 MILES BEFORE OCEANIC ENTRY POINT", self.uplinks(hop)[-1])
+                self.assertIn("YOU ARE CURRENTLY NOT WITHIN THE OCEANIC AIRSPACE AREA", self.uplinks(hop)[-1])
+                self.assertIn("TELEX MESSAGE AND SEND TO TARGET", self.uplinks(hop)[-1])
                 self.assertNotIn("LOGON ACCEPTED", " ".join(self.uplinks(hop)))
+
+    def test_near_oca_area(self):
+        self.assertTrue(c.near_oca_area(55, -30))             # inside
+        self.assertFalse(c.near_oca_area(52, -12))            # about 110 nm east of the edge at 52N
+        self.assertTrue(c.near_oca_area(52, -14))             # just outside the edge
+        self.assertFalse(c.near_oca_area(51.5, -0.1))         # London: too far
+        self.assertFalse(c.near_oca_area(40, -30))            # far south
+        self.assertTrue(c.near_oca_area(60, -55))             # west of the edge, inside 100 nm
+        self.assertFalse(c.near_oca_area(60, -65))
+
+    def test_contact_me_text(self):
+        self.assertEqual(c.contact_me_telex_text("Shanwick Radio", "127.9"), "PLEASE CONTACT SHANWICK RADIO ON VOICE 127.900")
+        self.assertEqual(c.contact_me_telex_text("Gander", ""), "PLEASE CONTACT GANDER ON VOICE")
 
     def test_near_oceanic(self):
         tracks = [{"route": [{"latitude": 52, "longitude": -15}, {"latitude": 52, "longitude": -30}]}]

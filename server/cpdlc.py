@@ -78,12 +78,26 @@ RCL_INTAKE = os.environ.get("VNAAATS_CPDLC_RCL", "on").lower() != "off"      # o
 RCL_SEND = os.environ.get("VNAAATS_CPDLC_RCL_SEND", "off").lower() == "on"      # the "RCL processed" / "Send reclearance" buttons: off until switched on (staged roll-out)
 RCL_KEEP_SECONDS = 6 * 3600        # a request stays in the list this long unless dismissed
 RCL_REPEAT_SECONDS = 1800          # a second request from the same aircraft inside this time updates the first
-MSG_TOO_FAR = "UNABLE. CONTACT CONTROLLER ON VOICE 20 MILES BEFORE OCEANIC ENTRY POINT"
+def too_far_text(station):
+    """The refusal for a pilot who tries to log on while outside the oceanic area (and not within NEAR_OCEANIC_NM of it). station = the Hoppie callsign telexes go to."""
+    return ("YOU ARE CURRENTLY NOT WITHIN THE OCEANIC AIRSPACE AREA - IF YOU ARE FILING A REQUEST FOR OCEANIC CLEARANCE PLEASE SEND THIS USING THE PRE-FILLED ATC OPTION OR AS A TELEX MESSAGE AND SEND TO TARGET %s"
+            % ((station or "").upper() or "THE OCEANIC STATION"))
+
+
+def contact_me_telex_text(name, freq=""):
+    """Sent quietly with Contact Me to a pilot who is on telex (not CPDLC), so they know to call on voice."""
+    try:
+        f = "%.3f" % float(freq)
+    except (TypeError, ValueError):
+        f = ""
+    if f == "199.998" or not f:
+        f = ""
+    return "PLEASE CONTACT %s ON VOICE%s" % ((name or "THE CONTROLLER").upper(), " " + f if f else "")
 MSG_SQUAWK = "SQUAWK 2000 WITHIN 10 MINS AFTER THE OCEANIC ENTRY POINT"      # sent to every pilot who is accepted onto CPDLC (the plugin no longer sets the code itself)
 SQUAWK_MSG = os.environ.get("VNAAATS_CPDLC_SQUAWK_MSG", "off").lower() == "on"      # off: the squawk instruction now comes with the "fly current flight plan" message after the request is processed
 MSG_UNICOM = "THERE IS NO FURTHER ATC AVAILABLE. SERVICE TERMINATED. MONITOR ADVISORY ON 122.800"
 LOGOFF_TEXT = "LOGOFF"          # UNVERIFIED against the live Hoppie network: what the ground sends to log a pilot off
-NEAR_OCEANIC_NM = 1000           # pilots further than this from the oceanic airspace are refused a CPDLC logon
+NEAR_OCEANIC_NM = 100            # pilots further than this from the oceanic airspace (and not inside it) are refused a CPDLC logon
 RELEASE_SECONDS = 180            # how long a "release the tag" request stays visible to the plugin
 PENDING_SECONDS = 1800           # a handoff/UNICOM waiting for the pilot's WILCO is forgotten after this
 
@@ -156,7 +170,21 @@ def nm_between(lat1, lon1, lat2, lon2):
     return 3440.065 * 2 * math.asin(min(1.0, math.sqrt(a)))
 
 
-def near_oceanic(lat, lon, tracks, limit_nm=NEAR_OCEANIC_NM):
+OCA_LON_WEST, OCA_LON_EAST, OCA_LAT_MIN, OCA_LAT_MAX = -53.0, -15.0, 43.0, 72.0      # the Gander and Shanwick oceanic areas, rounded outwards
+
+
+def near_oca_area(lat, lon, limit_nm=NEAR_OCEANIC_NM):
+    """True if the position is inside the oceanic area (53W-15W, 43N-72N) or within limit_nm of it."""
+    lat, lon = float(lat), float(lon)
+    dlat = limit_nm / 60.0
+    if not (OCA_LAT_MIN - dlat <= lat <= OCA_LAT_MAX + dlat):
+        return False
+    clat = min(max(lat, OCA_LAT_MIN), OCA_LAT_MAX)       # the nearest latitude inside the area sets how wide the margin is in degrees of longitude
+    dlon = limit_nm / (60.0 * max(0.2, math.cos(math.radians(clat))))
+    return OCA_LON_WEST - dlon <= lon <= OCA_LON_EAST + dlon
+
+
+def near_oceanic(lat, lon, tracks, limit_nm=1000):
     """True/False: within limit_nm of any waypoint of the active tracks. None if there are no tracks to judge by."""
     pts = [(p["latitude"], p["longitude"]) for t in tracks for p in t.get("route", [])]
     if not pts:
@@ -521,7 +549,7 @@ class CpdlcStation:
         if "REQUEST LOGON" in text or text.strip() == "LOGON":
             self._store("DOWN", sender, pkt["min"], pkt["mrn"], pkt["ra"], pkt["text"], state="LOGON", seen=1)
             if self.auto_accept and self.locate(sender.upper()) is False:
-                self._auto_reply(sender, MSG_TOO_FAR, pkt["min"], "NE")      # too far from the airspace: refuse
+                self._auto_reply(sender, too_far_text(self.client.station), pkt["min"], "NE")      # too far from the airspace: refuse
             elif self.auto_accept:
                 self.accept_logon(sender, pkt["min"])
             else:

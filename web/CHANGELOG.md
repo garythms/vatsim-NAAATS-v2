@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Contact Me: when the aircraft is on telex (online on Hoppie but not connected by CPDLC), the server also sends it a quiet telex, "PLEASE CONTACT <your station> ON VOICE <your frequency>", at the same moment. Nothing extra to click and nothing shows on the display. Needs a server update.
+- CPDLC logon: a pilot is now only accepted when inside the oceanic area or within 100 nm of it (before, 1000 nm from a track fix). Anyone further out is refused with: "YOU ARE CURRENTLY NOT WITHIN THE OCEANIC AIRSPACE AREA - IF YOU ARE FILING A REQUEST FOR OCEANIC CLEARANCE PLEASE SEND THIS USING THE PRE-FILLED ATC OPTION OR AS A TELEX MESSAGE AND SEND TO TARGET <station>", where the station is the one that is online (CZQX, EGGX or NATX). Needs a server update.
+
 ## 2.10.14 - 2026-11-21
 - Auto RCL REQ: the reminder list now follows the controller who is online. A Gander position (CZQO or CZQX) is reminded about eastbound flights only, and a Shanwick position (EGGX) about westbound flights only, because the other direction asks the other OCA. Before, both were listed together, so a Gander controller saw westbound flights entering at AKIVO, MALOT and the like. Flights already inside or through oceanic airspace were already left out. Tango routes (T9, T290, T213, T13, T16) are Shanwick's and are reminded in both directions (not for a Gander position), except flights coming up from Santa Maria (south of 45N, or departing LPAZ), which are already in oceanic airspace. Flights departing Keflavik (BIKF) are never reminded; flights heading for BIKF are. Needs a server update.
 

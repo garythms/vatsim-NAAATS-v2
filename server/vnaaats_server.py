@@ -960,7 +960,7 @@ class NetworkTraffic:
         self.cache, self.url, self.natrak = cache, url, natrak
         self.lock = threading.Lock()
         self.flights, self.updated, self.error = [], None, None
-        self.positions = {}      # callsign -> (lat, lon) for every pilot on the network (used by the CPDLC 1000 nm logon rule)
+        self.positions = {}      # callsign -> (lat, lon) for every pilot on the network (used by the CPDLC logon distance rule)
         self.controllers = []    # online ATC that aircraft can be transferred to: [{callsign, frequency, name, facility}]
         self.atc_freq = {}       # "133.500" -> callsign of every online controller (any position)
         self.pilots = {}         # callsign -> the pilot as in the VATSIM feed (for adding a flight by hand)
@@ -1600,6 +1600,23 @@ TEMP_KEY_ISSUED = {}               # ip -> times a key was issued (limit: 10 an 
 TEMP_KEY_LOCK = threading.Lock()
 
 
+def contactme_telex(cpdlc, network, pos, cs):
+    """Contact Me was sent from the FDD: if the pilot is online on Hoppie but not on CPDLC, also telex them to call on voice. Quiet: failures are only logged."""
+    try:
+        if not cpdlc or cpdlc.is_connected(cs):
+            return
+        st = cpdlc.station_for_sender(pos)
+        if not st or cs not in (st.ping_online([cs]) or set()):
+            return
+        freq = ""
+        if network:
+            with network.lock:
+                freq = next((c.get("frequency", "") for c in network.controllers if str(c.get("callsign", "")).upper() == pos.upper()), "")
+        st.send_telex(cs, cpdlc_mod.contact_me_telex_text(cpdlc_mod.station_display_name(pos), freq), by="auto (contact me)")
+    except Exception as e:
+        log.warning("contact me telex to %s failed: %s", cs, e)
+
+
 def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None, auth=None, cpdlc=None, queue=None, rcl=None, members=None, issuer_secret="", roster=None, logs=None):
     logs = logs if logs is not None else adminlog_mod.LogHub()
     queue = queue if queue is not None else commands_mod.CommandQueue()
@@ -2118,6 +2135,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
                     if err:
                         return self._send(400, {"error": err})
                     cid = queue.add(sess["position"], typ, cs, args, by=("%s (%s)" % (sess["position"], sess["name"]))[:60])
+                    if typ == "contactme" and cpdlc:                      # a pilot on telex cannot see the voice request: tell them quietly as well
+                        threading.Thread(target=contactme_telex, args=(cpdlc, network, sess["position"], cs), daemon=True).start()
                     return self._send(200, {"id": cid})
                 if p == "/rcl/auto":
                     sess = self._session()
@@ -2673,13 +2692,11 @@ def main():
     if network:
         auth.on_position = lambda cid: (lambda c: None if c is None else bool(c))(network.controller_positions(cid))
     if os.environ.get("VNAAATS_CPDLC", "on").lower() != "off":
-        def locate(callsign):                              # is this pilot within 1000 nm of the oceanic airspace?
+        def locate(callsign):                              # is this pilot inside the oceanic airspace or within 100 nm of it?
             pos = network.position(callsign) if network else None
             if not pos:
                 return None                                # not seen on the feed (yet): do not block
-            with cache.lock:
-                tracks = list(cache.tracks)
-            return cpdlc_mod.near_oceanic(pos[0], pos[1], tracks)
+            return cpdlc_mod.near_oca_area(pos[0], pos[1])
         def facts(callsign):                               # what the CPDLC station needs to know about a flight before it sends an automatic message
             cs = callsign.upper()
             pilot = (network.lookup_pilot(cs) if network else None) or {}
