@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Display: optional "Also send the tones on my frequency" for SELCAL. The tones are played into a virtual audio cable that TrackAudio uses as its microphone, and the display presses and releases TrackAudio's push-to-talk around them, so the pilot hears the tones on the frequency. Off by default; choose the cable output in the SELCAL tab (set-up steps are shown there). Web change only, no app update needed.
+
 ## 2.10.9 - 2026-11-20
 - Display: Sign out now stays signed out. Before, if you were still connected to VATSIM, the saved key signed you straight back in within seconds, so Position > Sign out only seemed to restart the screen. Now you get a "You have signed out" screen with a Sign in again button. Web change only, no app update needed.
 - FDD for Windows: the "Your details" box and the greeting never appeared because the app refused the display's request for them (the two new commands were not on its allowed list). They are allowed now, so the start-up window asks for your name and CID when they are blank, then greets you with your local time and UTC. FDD for Windows update needed.
