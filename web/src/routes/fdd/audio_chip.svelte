@@ -18,6 +18,8 @@
   $: last = t.lastRx($ta);
   $: ago = (tick, last ? Math.max(0, Math.floor(Date.now() / 1000 - last.ts)) : 0);
   function agoText(s: number): string { return s < 60 ? s + "s ago" : s < 3600 ? Math.floor(s / 60) + " min ago" : Math.floor(s / 3600) + " h ago"; }
+  // the last 5 different callsigns heard (never your own TX), each with the time it last transmitted
+  $: recent = (() => { const seen = new Set<string>(); const out: any[] = []; for (const h of $ta.history) { if (h.mine || seen.has(h.who)) continue; seen.add(h.who); out.push(h); if (out.length === 5) break; } return out; })();
   $: rxPilot = $ta.rx && !t.isAtc($ta.rx.who) ? $ta.rx : null;      // a controller's call is not "received" by you
   $: text = !$ta.enabled ? "Audio" : $ta.link !== "up" ? "TrackAudio offline" : rxPilot ? "RX: " + rxPilot.who : $ta.tx ? "TX" : last ? "Last RX: " + last.who + " " + agoText(ago) : "TrackAudio";
   let notOnDisplay: string = "";
@@ -61,7 +63,7 @@
       {/if}
     </div>
     <div class="flex-1 min-h-0 overflow-y-auto">
-      {#each $ta.history.slice(0, 50) as h}
+      {#each recent as h}
         <div class="flex flex-row items-center justify-between px-3 py-1.5 border-b border-blue-4">
           <span class="flex flex-row items-center gap-2">
             <span class="px-1 text-xs border {h.mine ? 'border-blue-6' : t.isAtc(h.who) ? 'border-blue-10 text-blue-10' : 'border-green-300 text-green-300'}">{h.mine ? "TX" : t.isAtc(h.who) ? "ATC" : "RX"}</span>
@@ -72,7 +74,7 @@
         </div>
       {/each}
       {#if notOnDisplay}<div class="px-3 py-2 text-yellow-300 text-xs">{notOnDisplay}</div>{/if}
-      {#if $ta.history.length === 0}<div class="px-3 py-3 opacity-70">Nothing heard yet.</div>{/if}
+      {#if recent.length === 0}<div class="px-3 py-3 opacity-70">Nothing heard yet.</div>{/if}
     </div>
     {#if $ta.enabled}
       <label class="px-3 py-2 flex flex-row items-center gap-2 border-t border-blue-4 text-xs select-none" title="Draws a green box around the aircraft's row in the flight list while it is transmitting, then fades it out">

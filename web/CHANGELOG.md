@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Display: the "Who spoke last" list now shows only the last 5 different callsigns heard, each with the time it last transmitted. Your own transmissions are no longer listed.
+
 ## 2.10.17 - 2026-11-21
 - Display: fixed the layout when the window is maximised or full screen. The page was one header taller than the screen, so the top bar and the bottom of the lists were clipped. The content now fills exactly the space under the header.
 
