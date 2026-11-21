@@ -112,6 +112,27 @@ class RclTests(Base):
         self.assertTrue(due(False, east_of_oca))
         self.assertFalse(due(True, west_of_oca))
 
+    def test_tango_and_iceland_and_santa_maria(self):
+        def due(**kw):
+            rec = {"callsign": "BAW1", "route": "A B", "routeEtas": "1300 1330", "trackedBy": ""}
+            rec.update(kw)
+            return self.rcl.due(rec)
+        self.poll("EGGX_CTR")
+        self.net.pos["BAW1"] = (49.5, -5.0)                              # north of the Tango corner, northbound or southbound
+        self.assertTrue(due(track="T9", direction=False))               # Tango: both directions
+        self.assertTrue(due(track="T13", direction=True))
+        self.net.pos["BAW1"] = (43.0, -9.0)                              # south of 45N: out of Santa Maria, already in oceanic airspace
+        self.assertFalse(due(track="T13", direction=True))
+        self.net.pos["BAW1"] = (49.5, -5.0)
+        self.assertFalse(due(track="T9", direction=False, departure="LPAZ"))
+        self.assertFalse(due(track="RR", direction=False, departure="BIKF"))     # leaving Keflavik: no request
+        self.assertTrue(due(track="RR", direction=False, departure="EGLL", arrival="BIKF"))   # heading for Keflavik: request
+        self.rcl.pollers.clear()
+        self.poll("CZQO_CTR")                                           # Gander: Tango routes are Shanwick's
+        self.net.pos["BAW1"] = (49.5, -5.0)
+        self.assertFalse(due(track="T9", direction=False))
+        self.assertFalse(due(track="T13", direction=True))
+
     def test_needs_an_oceanic_sender(self):
         self.assertIsNone(self.rcl.tick())                              # nobody online
         self.poll("EGLL_TWR")

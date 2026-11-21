@@ -33,6 +33,9 @@ MIN_LEAD_MINUTES = 30          # closer than this the request is late: the pilot
 DUE_NM = 700
 START_DELAY_SECONDS = 300      # nothing is sent until an oceanic controller has been online this long (session start settling time)
 SENDER_GAP_RESET = 600         # no oceanic controller online for this long = a new session: the wait and the baseline start again
+TANGO_ROUTES = ("T9", "T290", "T213", "T13", "T16")   # Shanwick Tango routes (the south-east corner of the Shanwick OCA)
+TANGO_SOUTH_LAT = 45.0         # south of this on a Tango route the flight has come out of Santa Maria: already in oceanic airspace
+NO_RCL_DEPARTURES = ("BIKF", "LPAZ")   # leaving Keflavik or Santa Maria: the flight starts inside oceanic airspace, so no request is needed
 OCA_WEST_LON = -53.0           # Gander OCA western edge / Shanwick OCA eastern edge, rounded outwards for a safe "inside" test
 OCA_EAST_LON = -15.0
 OCA_MIN_LAT = 43.0
@@ -259,13 +262,19 @@ class RclAuto:
             return "shanwick"
         return "all"
 
+    @staticmethod
+    def is_tango(rec):
+        return str(rec.get("track", "")).upper() in TANGO_ROUTES
+
     def in_scope(self, rec):
         """False for a flight that goes the other way from the sender's OCA: a Gander controller has nothing to do with westbound traffic
         (it asks Shanwick), and a Shanwick controller none with eastbound. A flight whose direction is unknown is kept."""
+        sc = self.scope()
+        if self.is_tango(rec):
+            return sc != "gander"                           # Tango routes are Shanwick's, and need a request in both directions
         d = rec.get("direction")
         if not isinstance(d, bool):
             return True
-        sc = self.scope()
         return not ((sc == "gander" and d is False) or (sc == "shanwick" and d is True))
 
     def status(self):
@@ -320,7 +329,12 @@ class RclAuto:
             return False
         if not self.in_scope(rec):
             return False                                    # the other direction: that OCA's controller deals with it
-        if oca_state(pos, rec.get("direction") if isinstance(rec.get("direction"), bool) else None) != "before":
+        if str(rec.get("departure", "")).upper() in NO_RCL_DEPARTURES:
+            return False                                    # departs from Keflavik or Santa Maria: already inside oceanic airspace
+        if self.is_tango(rec):
+            if pos[0] < TANGO_SOUTH_LAT:
+                return False                                # coming up from Santa Maria: already inside oceanic airspace
+        elif oca_state(pos, rec.get("direction") if isinstance(rec.get("direction"), bool) else None) != "before":
             return False                                    # already inside, or through, the oceanic area: nothing to request
         now_dt = now_dt or datetime.fromtimestamp(self.now(), timezone.utc)
         m = entry_minutes_from_now(rec.get("routeEtas", ""), now_dt.hour * 60 + now_dt.minute)
