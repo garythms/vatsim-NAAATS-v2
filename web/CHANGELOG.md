@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Website: new page vnaaats.com/selcal-setup and how-to video 9, "SELCAL tones on your frequency": the three settings, getting VB-Cable, Listen to this device, TrackAudio's microphone, and the sound the pilot hears. Linked from How To Use - Videos, Oceanic training, FDD for Windows and the homepage list. Web change only, no app update needed.
+
 ## 2.10.15 - 2026-11-21
 - Supervisor tab: the "No Contact" wallop text now ends with the time (UTC) the first Contact Me was sent, for example "...has not responded to contact me requests. First contact me request was sent at 1342z". Later Contact Me presses do not change it. If no Contact Me was sent from the FDD, the text stays as before. Needs a server update.
 - Contact Me: when the aircraft is on telex (online on Hoppie but not connected by CPDLC), the server also sends it a quiet telex, "PLEASE CONTACT <your station> ON VOICE <your frequency>", at the same moment. Nothing extra to click and nothing shows on the display. Needs a server update.
