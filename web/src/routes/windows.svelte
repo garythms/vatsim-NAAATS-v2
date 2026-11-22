@@ -79,7 +79,7 @@
 
     <div class={CARD}>
       <div class="font-bold mb-1">Want the pilot to hear your SELCAL?</div>
-      <div class="text-sm opacity-90">An optional one-time step in setup lets the SELCAL tones go out on your frequency, using TrackAudio and the free VB-Cable. <a class="underline" href="/selcal-setup">Watch the video and read the steps</a>.</div>
+      <div class="text-sm opacity-90">FDD for Windows offers TrackAudio for Oceanic in setup: a custom beta version of TrackAudio that sends the SELCAL tones out on your frequency. It replaces any TrackAudio already installed, and you can say no and install it later from Settings.</div>
     </div>
 
     <div class={CARD}>

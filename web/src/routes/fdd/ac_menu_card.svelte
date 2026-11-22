@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { playSelcal, selcalMode, setSelcalMode, selcalDevice, selcalVia, setSelcalVia, selcalNote } from "../../typescript/fdd/selcal_sound";
+  import { playSelcal, selcalMode, selcalNote } from "../../typescript/fdd/selcal_sound";
   import { createEventDispatcher } from "svelte";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
@@ -24,7 +24,6 @@
   let level: string = "";
   let mach: string = "";
   let selcal: string = "";
-  function pickMode(v: string): void { setSelcalMode(v === "all" ? "all" : v === "off" ? "off" : "me"); }
   let scratch: string = "";
   let note: string = "";
   let copied: string = "";
@@ -249,28 +248,9 @@
             <button class="px-2 py-1 mr-2 {BTN}" disabled={!m.validSelcal(selcal)} on:click={() => copy(m.selcalCommand(selcal))}>Copy .selcal</button>
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveSelcal}>Save code</button>
           </div>
-          <label class="block mt-2 text-sm">SELCAL tones when I send:
-            <select class="ml-1 px-1 py-0.5 text-black" value={$selcalMode} on:change={(e) => pickMode(e.currentTarget.value)}>
-              <option value="me">Controller only hears</option>
-              <option value="all" disabled={!$selcalDevice && $selcalVia !== "trackaudio"}>Controller and pilots hear</option>
-              <option value="off">Off</option>
-            </select>
-          </label>
+          <div class="mt-2 text-sm opacity-90">{$selcalMode === "all" ? "Send also plays the tones here and sends them on your frequency through TrackAudio." : $selcalMode === "me" ? "Send plays the tones here only (not on your frequency)." : "SELCAL tones are off."} Change this in Settings.</div>
+          {#if $selcalNote}<div class="mt-1 text-sm text-yellow-300">{$selcalNote}</div>{/if}
           <button class="mt-1 px-2 py-0.5 text-sm {BTN}" on:click={() => { playSelcal(selcal, true); note = "Playing the tones here (only you hear this)."; }}>Hear the tones (only you)</button>
-          <label class="block mt-1 text-sm">Pilots hear it:
-            <select class="ml-1 px-1 py-0.5 text-black" value={$selcalVia} on:change={(e) => setSelcalVia(e.currentTarget.value === "trackaudio" ? "trackaudio" : "cable")}>
-              <option value="cable">Through a virtual audio cable</option>
-              <option value="trackaudio">Sent by TrackAudio (SELCAL test version)</option>
-            </select>
-          </label>
-          {#if $selcalVia === "trackaudio" && $selcalMode === "all"}
-            <div class="mt-1 text-sm opacity-80">Needs the SELCAL test version of TrackAudio. It sends the tones on the frequency you have set to transmit; no virtual cable is used.</div>
-            {#if $selcalNote}<div class="mt-1 text-sm text-yellow-300">{$selcalNote}</div>{/if}
-          {:else if !$selcalDevice && app.inApp()}
-            <div class="mt-1 text-sm opacity-80">"Controller and pilots hear" needs a virtual audio cable. <button class="underline" on:click={() => app.setupOpen.set(true)}>Set it up in FDD for Windows setup</button>.</div>
-          {:else if $selcalMode === "all"}
-            <div class="mt-1 text-sm text-yellow-300">Pressing Send keys TrackAudio's push-to-talk for about 3 seconds on your frequencies.</div>
-          {/if}
         {:else if tab === "scratch"}
           <div class="text-sm mb-2 opacity-90">A short note (up to 15 characters) for this aircraft. It is the EuroScope scratchpad: it shows under the tag and goes with the aircraft to the next controller.</div>
           <div class="flex flex-row items-center">

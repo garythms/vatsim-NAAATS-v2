@@ -23,6 +23,8 @@ struct Saved {
     trackaudio: Option<String>,
     #[serde(default)]
     sector_id: Option<String>,          // which sector pack release was last installed here
+    #[serde(default)]
+    oceanic_built: Option<String>,      // build time of the TrackAudio for Oceanic installer that was last run here
 }
 
 fn config_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -331,33 +333,112 @@ async fn profile_get(window: WebviewWindow, app: tauri::AppHandle) -> Result<Pro
 }
 
 /// Open Windows' Sound window on the Recording tab (for "Listen to this device"). A fixed command: nothing from the page is passed on.
-#[tauri::command]
-async fn open_sound_panel(window: WebviewWindow) -> Result<(), String> {
-    check_origin(&window)?;
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        return Command::new("rundll32.exe").args(["shell32.dll,Control_RunDLL", "mmsys.cpl,,1"]).creation_flags(0x0800_0000).spawn().map(|_| ()).map_err(|e| e.to_string());
+// ---- TrackAudio for Oceanic: a build of TrackAudio that can send SELCAL tones on the controller's frequency itself.
+// It is published as the "trackaudio-oceanic" release of this project (installer + latest.json with its SHA-256). It is only ever downloaded
+// when the controller agrees to it in the window, and the installer is only run after its SHA-256 matches latest.json.
+const OCEANIC_MANIFEST: &str = "https://github.com/garythms/vatsim-NAAATS-v2/releases/download/trackaudio-oceanic/latest.json";
+const OCEANIC_PREFIX: &str = "https://github.com/garythms/vatsim-NAAATS-v2/releases/download/trackaudio-oceanic/";
+
+struct OceanicManifest { url: String, sha256: String, built: String, version: String }
+
+fn oceanic_manifest() -> Result<OceanicManifest, String> {
+    let resp = ureq::get(OCEANIC_MANIFEST).set("User-Agent", "vnaaats-app").timeout(std::time::Duration::from_secs(30)).call().map_err(|e| format!("could not check for TrackAudio for Oceanic: {}", e))?;
+    let v: serde_json::Value = serde_json::from_reader(resp.into_reader()).map_err(|e| e.to_string())?;
+    let url = v["url"].as_str().ok_or("the TrackAudio for Oceanic release has no download address")?.to_string();
+    if !url.starts_with(OCEANIC_PREFIX) {
+        return Err("unexpected TrackAudio for Oceanic address".into());
     }
-    #[cfg(not(windows))]
-    { Ok(()) }
+    let sha256 = v["sha256"].as_str().ok_or("the TrackAudio for Oceanic release has no checksum")?.to_ascii_lowercase();
+    if sha256.len() != 64 || !sha256.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err("the TrackAudio for Oceanic checksum is not valid".into());
+    }
+    Ok(OceanicManifest { url, sha256, built: v["built"].as_str().unwrap_or("").to_string(), version: v["trackaudioVersion"].as_str().unwrap_or("").to_string() })
 }
 
-/// Is a virtual audio cable (VB-Cable's "CABLE Input") installed? Reads Windows' list of sound outputs, so nothing has to ask for the microphone.
+#[derive(Serialize)]
+struct OceanicStatus {
+    installed: bool,                    // the installer of TrackAudio for Oceanic has been run here
+    update_available: Option<bool>,     // None when the release cannot be checked
+    latest_version: Option<String>,
+    trackaudio_running: bool,
+    trackaudio_path: Option<String>,
+}
+
 #[tauri::command]
-async fn cable_found(window: WebviewWindow) -> Result<bool, String> {
+async fn oceanic_status(window: WebviewWindow, app: tauri::AppHandle) -> Result<OceanicStatus, String> {
     check_origin(&window)?;
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        let out = Command::new("reg")
-            .args(["query", r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render", "/s", "/f", "CABLE Input"])
-            .creation_flags(0x0800_0000)        // CREATE_NO_WINDOW
-            .output();
-        return Ok(match out { Ok(o) => o.status.success() && String::from_utf8_lossy(&o.stdout).to_ascii_lowercase().contains("cable input"), Err(_) => false });
+    let saved = load(&app);
+    let latest = oceanic_manifest().ok();
+    Ok(OceanicStatus {
+        installed: saved.oceanic_built.is_some(),
+        update_available: latest.as_ref().map(|m| saved.oceanic_built.as_deref() != Some(m.built.as_str())),
+        latest_version: latest.map(|m| m.version),
+        trackaudio_running: is_running("trackaudio.exe"),
+        trackaudio_path: saved.trackaudio,
+    })
+}
+
+/// Where the installer puts TrackAudio: per user (the default) or for all users.
+fn trackaudio_candidates() -> Vec<PathBuf> {
+    let mut v = Vec::new();
+    for var in ["LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)"] {
+        if let Ok(base) = std::env::var(var) {
+            let base = PathBuf::from(base);
+            v.push(if var == "LOCALAPPDATA" { base.join("Programs").join("TrackAudio").join("trackaudio.exe") } else { base.join("TrackAudio").join("trackaudio.exe") });
+        }
     }
-    #[cfg(not(windows))]
-    { Ok(false) }
+    v
+}
+
+/// Download TrackAudio for Oceanic, check its SHA-256, run its installer (it replaces an installed TrackAudio and keeps its settings),
+/// and remember where TrackAudio is so the FDD for Windows can start it.
+#[tauri::command]
+async fn oceanic_install(window: WebviewWindow, app: tauri::AppHandle) -> Result<String, String> {
+    check_origin(&window)?;
+    if is_running("trackaudio.exe") {
+        return Err("close TrackAudio first, then install again".into());
+    }
+    let m = oceanic_manifest()?;
+    let tmp_dir = std::env::temp_dir().join("vnaaats-trackaudio");
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    let exe = tmp_dir.join("TrackAudio-for-Oceanic-Setup.exe");
+    let result = (|| -> Result<String, String> {
+        use std::io::Read;
+        let resp = ureq::get(&m.url).set("User-Agent", "vnaaats-app").timeout(std::time::Duration::from_secs(900)).call().map_err(|e| format!("could not download TrackAudio for Oceanic: {}", e))?;
+        let mut bytes = Vec::new();
+        resp.into_reader().take(400 * 1024 * 1024).read_to_end(&mut bytes).map_err(|e| format!("the download stopped: {}", e))?;
+        if !vnaaats_core::sha256_hex(&bytes).eq_ignore_ascii_case(&m.sha256) {
+            return Err("the download did not match its checksum, so nothing was installed. Try again.".into());
+        }
+        std::fs::write(&exe, &bytes).map_err(|e| e.to_string())?;
+        let mut cmd = Command::new(&exe);
+        cmd.arg("/S");                      // the installer's silent mode: no questions, it replaces the old TrackAudio in place
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000);
+        }
+        match cmd.status() {
+            Ok(st) if st.success() => {}
+            Ok(st) => return Err(format!("the installer stopped (code {}). Close TrackAudio and try again.", st.code().unwrap_or(-1))),
+            // Windows wants administrator rights (error 740): show the normal installer window, which asks for them
+            Err(e) if e.raw_os_error() == Some(740) => {
+                open_like_explorer(&exe)?;
+                return Ok("The installer is open: follow it, then start TrackAudio.".to_string());
+            }
+            Err(e) => return Err(format!("could not start the installer: {}", e)),
+        }
+        let mut saved = load(&app);
+        saved.oceanic_built = Some(m.built.clone());
+        if let Some(found) = trackaudio_candidates().into_iter().find(|p| vnaaats_core::is_exe(p)) {
+            saved.trackaudio = Some(found.to_string_lossy().into_owned());
+        }
+        store(&app, &saved)?;
+        Ok(format!("TrackAudio for Oceanic {} is installed", m.version))
+    })();
+    let _ = std::fs::remove_dir_all(&tmp_dir);
+    result
 }
 
 /// Write the details into every EuroScope profile that loads vNAAATS. The password goes only into those profile files (where EuroScope keeps it), never anywhere else.
@@ -704,7 +785,7 @@ fn main() {
             }
         })
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, cable_found, open_sound_panel, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, oceanic_status, oceanic_install, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }

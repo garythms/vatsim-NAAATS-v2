@@ -15,7 +15,6 @@ const pages: { href: string; label: string }[] = [
     { href: "/access", label: "Get access" },
     { href: "/tablet", label: "Tablet or iPad use" },
     { href: "/windows", label: "FDD for Windows" },
-    { href: "/selcal-setup", label: "SELCAL tones on your frequency" },
     { href: "/download", label: "Downloads" },
     { href: "/guide", label: "Install guide" },
     { href: "/manual", label: "User manual" },

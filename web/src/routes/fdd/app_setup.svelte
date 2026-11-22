@@ -5,8 +5,7 @@
   import * as vc from "../../typescript/fdd/vacs";
   import config from "../../config.json";
   import StartupDetails from "./startup_details.svelte";
-  import SelcalAsk from "./selcal_ask.svelte";
-  import SelcalSetup from "./selcal_setup.svelte";
+  import SelcalOceanic from "./selcal_oceanic.svelte";
   const { vacs } = vc;
 
   let show: boolean = false;
@@ -171,7 +170,7 @@
     <div class="w-[30rem] max-w-full bg-blue-3 border-2 border-blue-10 text-white font-regular p-4">
       <div class="text-xl font-bold mb-2">{updated ? "Updated" : "Before you start"}</div>
       <StartupDetails bind:missing={detailsMissing} />
-      <SelcalAsk />
+      <SelcalOceanic offer />
       {#if keyBad}
         <div class="mb-3 p-2 border-2 border-red-400 text-sm">
           <b class="text-red-300">API key update is required.</b> Your key {KEY_WHY[st?.key_status ?? "unknown"] ?? "is not accepted"}. The FDD will not work with EuroScope without a working key.
@@ -213,7 +212,7 @@
     <div class="w-[30rem] max-w-full bg-blue-3 border-2 border-blue-10 text-white font-regular p-4">
       <div class="text-xl font-bold mb-2">{allGood ? "You are up to date" : "Check before you start"}</div>
       <StartupDetails bind:missing={detailsMissing} />
-      <SelcalAsk />
+      <SelcalOceanic offer />
       {#if st}
         <ul class="mb-3 text-sm space-y-1">
           <li class={pluginOk ? "text-green-300" : "text-yellow-300"}>{pluginOk ? "✔ Plugin" + (st.latest_version ? " " + st.latest_version : "") + " and airline list are the latest" : "⚠ The plugin or its files are not up to date"}</li>
@@ -330,7 +329,7 @@
             </div>
           {/if}
           {#if st.dll_found}
-            <div class={STEP}><SelcalSetup /></div>
+            <SelcalOceanic />
           {/if}
           {#if st.dll_found && pf}
             <div class={STEP}>
