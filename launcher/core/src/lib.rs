@@ -230,6 +230,58 @@ fn patch_prf_sector(existing: &Path, pack_prf: &str) -> Result<(), String> {
     fs::write(existing, lines.join(eol) + eol).map_err(|e| format!("could not update your EuroScope profile: {}", e))
 }
 
+/// The vNAAATS FDD for Windows now shows the Discord card itself, so the separate DiscordEuroscope plugin would only add a second card.
+/// Take that plugin out of an existing EuroScope profile and renumber the plugins that are left (EuroScope reads Plugin0, Plugin1 ... in
+/// order, so a gap would stop the later ones loading). Every other line, including the controller's login details, is left as it was.
+fn strip_discord_plugin(text: &str) -> String {
+    let eol = if text.contains("\r\n") { "\r\n" } else { "\n" };
+    // "Plugins<TAB>Plugin3<TAB>value" or "Plugins<TAB>Plugin3Display0<TAB>value": the plugin number, if this is one of those lines
+    let number = |l: &str| -> Option<(usize, String)> {
+        let mut p = l.splitn(3, '\t');
+        if p.next()? != "Plugins" { return None; }
+        let rest = p.next()?.strip_prefix("Plugin")?;
+        let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+        let n: usize = digits.parse().ok()?;
+        Some((n, rest[digits.len()..].to_string()))
+    };
+    let lines: Vec<&str> = text.lines().collect();
+    let mut drop: Vec<usize> = Vec::new();
+    for l in &lines {
+        if let Some((n, suffix)) = number(l) {
+            if suffix.is_empty() && l.to_ascii_lowercase().contains("discordeuroscope") { drop.push(n); }
+        }
+    }
+    if drop.is_empty() {
+        return text.to_string();
+    }
+    let mut kept: Vec<usize> = lines.iter().filter_map(|l| number(l).map(|(n, _)| n)).filter(|n| !drop.contains(n)).collect();
+    kept.sort();
+    kept.dedup();
+    let mut out: Vec<String> = Vec::new();
+    for l in &lines {
+        match number(l) {
+            Some((n, _)) if drop.contains(&n) => continue,
+            Some((n, suffix)) => {
+                let new_n = kept.iter().position(|k| *k == n).unwrap_or(n);
+                let value = l.splitn(3, '\t').nth(2).unwrap_or("");
+                out.push(format!("Plugins\tPlugin{}{}\t{}", new_n, suffix, value));
+            }
+            None => out.push(l.to_string()),
+        }
+    }
+    out.join(eol) + eol
+}
+
+fn patch_prf_discord(existing: &Path) -> Result<(), String> {
+    let old = fs::read(existing).map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&old).into_owned();
+    let new = strip_discord_plugin(&text);
+    if new == text {
+        return Ok(());
+    }
+    fs::write(existing, new).map_err(|e| format!("could not update your EuroScope profile: {}", e))
+}
+
 /// Gander Radio is trialled as CZQO_FSS until 1 January 2027. An existing VoiceChannels.txt is the controller's own file and is
 /// not replaced, so rename the Gander positions in it (CZQO_CTR, CZQO_A_CTR ... CZQO_H_CTR) and leave every other line as it was.
 fn migrate_voice_channels(text: &str) -> String {
@@ -463,6 +515,7 @@ pub fn extract_pack(zip_path: &Path, dest: &Path) -> Result<usize, String> {
                 let mut pack_text = String::new();
                 f.read_to_string(&mut pack_text).ok();
                 patch_prf_sector(&target, &pack_text)?;
+                patch_prf_discord(&target)?;
             }
             if rel.file_name().map(|n| n.to_string_lossy().eq_ignore_ascii_case("voicechannels.txt")).unwrap_or(false) {
                 patch_voice_channels(&target)?;
@@ -712,6 +765,21 @@ mod tests {
         assert_eq!(fs::read_to_string(dest.join("EXCXO.prf")).unwrap(), "my login");
         assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/General.txt")).unwrap(), "pack");
         assert_eq!(fs::read_to_string(dest.join("EXCXO/Settings/VCCS.txt")).unwrap(), "pack");   // missing, so installed
+    }
+
+    #[test]
+    fn existing_profile_loses_the_discord_plugin_and_the_rest_are_renumbered() {
+        let before = "ASRFastKeys\t1\t\\EXCXO\\ASR\\vNAAATS.asr\r\nPlugins\tPlugin0\t\\EXCXO\\Plugins\\DiscordEuroscope\\DiscordEuroscope.dll\r\nPlugins\tPlugin0Display0\tStandard ES radar screen\r\nPlugins\tPlugin1\t\\EXCXO\\Plugins\\vNAAATS V2\\VatsimNAAATS.dll\r\nPlugins\tPlugin1Display0\tvNAAATS Display\r\nLastSession\trealname\tA Controller\r\nPlugins\tPlugin1Display1\tStandard ES radar screen\r\n";
+        let after = strip_discord_plugin(before);
+        assert!(!after.to_ascii_lowercase().contains("discord"));
+        assert!(after.contains("Plugins\tPlugin0\t\\EXCXO\\Plugins\\vNAAATS V2\\VatsimNAAATS.dll\r\n"));
+        assert!(after.contains("Plugins\tPlugin0Display0\tvNAAATS Display\r\n"));
+        assert!(after.contains("Plugins\tPlugin0Display1\tStandard ES radar screen\r\n"));
+        assert!(after.contains("LastSession\trealname\tA Controller\r\n"));
+        assert!(!after.contains("Plugin1"));
+        assert_eq!(strip_discord_plugin(&after), after);                                  // nothing left to change
+        let none = "Plugins\tPlugin0\t\\x\\VatsimNAAATS.dll\r\n";
+        assert_eq!(strip_discord_plugin(none), none);                                     // no Discord plugin: untouched
     }
 
     #[test]
