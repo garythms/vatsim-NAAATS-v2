@@ -3,7 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## Unreleased
-- SELCAL: a new choice in the SELCAL tab, "Pilots hear it: Sent by TrackAudio (SELCAL test version)". With the SELCAL test version of TrackAudio installed, pressing Send makes TrackAudio itself transmit the tones on the frequency you have set to transmit, so no virtual audio cable is needed. It is off by default (the virtual cable is still the default) because it only works with that test version of TrackAudio.
+- SELCAL: a new choice in the SELCAL tab, "Pilots hear it: Sent by TrackAudio (SELCAL test version)". With the SELCAL test version of TrackAudio installed, pressing Send makes TrackAudio itself transmit the tones on the frequency you have set to transmit, so no virtual audio cable is needed. It is off by default (the virtual cable is still the default) because it only works with that test version of TrackAudio. A Test button next to it sends the tones on the frequency only, with no text message to the pilot, so a pilot can tell the radio tones from their own program's alert.
 
 ## 2.10.19 - 2026-11-22
 - Sounds: a new Volume link next to Audio ON/OFF opens a panel with a volume slider and Test button for each alert sound (natTrak request, CPDLC message, clearance request, handoff prompt, SELCAL) and one master volume. 0 mutes a sound. Everything starts at full, as before, and the settings are kept on that computer. The Audio ON/OFF switch still turns all alerts off.
