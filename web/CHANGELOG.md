@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- TrackAudio for Oceanic: the install screen now says it is based on TrackAudio (GPL-3.0), modified by vNAAATS and not supported by the TrackAudio author, with a link to the source of the modified version.
+
 ## 2.12.1 - 2026-11-22
 - FDD for Windows: updating the sector pack now takes the separate DiscordEuroscope plugin out of your EuroScope profile (the Discord card now comes from the app, so you would get two). Your login details and every other line are left as they were; the plugin's files stay on your disk, unused.
 

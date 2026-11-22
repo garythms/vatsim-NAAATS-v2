@@ -45,6 +45,7 @@
       <div class="mt-1 opacity-90">The FDD and TrackAudio can now send the SELCAL tones out on your frequency, so the pilot hears them as well as getting the written alert. It needs a special build of TrackAudio.</div>
       <div class="mt-1 opacity-90">This is a custom-made <b>beta</b> version of TrackAudio for oceanic. Everything else in TrackAudio works as it does now, and it can still be used as a domestic ATC client. It will <b>replace any version of TrackAudio already installed</b> on this computer, and keeps your TrackAudio settings.</div>
       <div class="mt-1 opacity-90">If you are happy to go ahead, TrackAudio for Oceanic will download and install on this computer.</div>
+      <div class="mt-1 text-xs opacity-70">Based on TrackAudio (GPL-3.0), modified by vNAAATS. It is not made or supported by the TrackAudio author, so please ask us, not them. <a class="underline" href="https://github.com/garythms/vatsim-NAAATS-v2/tree/trackaudio-selcal-build/tools/trackaudio-selcal" target="_blank" rel="noopener">Source for this modified version</a>.</div>
       {#if msg}<div class="mt-1 text-yellow-300">{msg}</div>{/if}
       <div class="mt-2">
         <button class="mr-2 {BTN}" disabled={busy} on:click={install}>{busy ? "Installing..." : "Yes, install it"}</button>
