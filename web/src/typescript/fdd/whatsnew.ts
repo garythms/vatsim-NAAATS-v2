@@ -8,6 +8,13 @@ export type Note = { id: string; date: string; items: { title: string; text: str
 
 export const NOTES: Note[] = [
   {
+    id: "2.12.0",
+    date: "22 November 2026",
+    items: [
+      { title: "FDD for Windows", text: "FDD for Windows: a Discord status. While Discord is running and you are signed in with a position, your Discord profile shows \"Playing vNAAATS\" with your position and frequency, and what you are doing: Sending SELCAL, TX on your frequency, RX from a callsign, or Aircraft tracked (n of total). It has Listen to me and vNAAATS buttons and an elapsed timer. Switch it off in Settings under Discord status. It needs the new FDD for Windows, and does nothing until the vNAAATS Discord application is set up." },
+    ],
+  },
+  {
     id: "2.9.0",
     date: "13 November 2026",
     items: [
