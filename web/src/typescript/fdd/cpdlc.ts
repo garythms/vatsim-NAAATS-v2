@@ -3,6 +3,7 @@
  *  and sending uplinks through the server (which talks to the Hoppie network).
  */
 import { writable, get } from "svelte/store";
+import * as sounds from "./sounds";
 import * as dataHandler from "./data";
 
 const apiBase: string = (import.meta as any).env?.VITE_API_BASE ?? "";
@@ -65,10 +66,13 @@ export const cpdlcFreetexts = writable<Freetext[]>([]);   // standard messages f
 
 let cpdlcAudio: HTMLAudioElement | null = null;
 // The sound for a message from a pilot (static/cpdlc.wav). Respects the FDD sound switch.
-export function playCpdlcSound(): void {
-  if (!dataHandler.soundOn) return;
+export function playCpdlcSound(test: boolean = false): void {
+  if (!test && !dataHandler.soundOn) return;
+  const vol: number = sounds.gain("cpdlc");
+  if (vol <= 0) return;
   try {
     cpdlcAudio = cpdlcAudio ?? new Audio("/cpdlc.wav");
+    cpdlcAudio.volume = vol;
     cpdlcAudio.currentTime = 0;
     const p = cpdlcAudio.play();
     if (p && p.catch) p.catch(() => dataHandler.playPing());   // autoplay blocked: fall back to the beep
@@ -82,10 +86,13 @@ export function setRclSound(on: boolean): void {
   rclSoundOn.set(on);
   try { localStorage.setItem("fdd.rclSound", on ? "on" : "off"); } catch (e) { /* not saved */ }
 }
-export function playRclSound(): void {
-  if (!dataHandler.soundOn || !get(rclSoundOn)) return;
+export function playRclSound(test: boolean = false): void {
+  if (!test && (!dataHandler.soundOn || !get(rclSoundOn))) return;
+  const vol: number = sounds.gain("rcl");
+  if (vol <= 0) return;
   try {
     rclAudio = rclAudio ?? new Audio("/cpdlc-rcl.wav");
+    rclAudio.volume = vol;
     rclAudio.currentTime = 0;
     const p = rclAudio.play();
     if (p && p.catch) p.catch(() => dataHandler.playPing());

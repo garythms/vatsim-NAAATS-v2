@@ -5,6 +5,7 @@
  *  Frequencies are the ones in the ICAO SELCAL 32 proposal (ICAO SAM/IG/23 NE/12) and the ASRI SELCAL guide. They are only used here to make a matching sound.
  */
 import { writable, get } from "svelte/store";
+import * as sounds from "./sounds";
 import * as dataHandler from "./data";
 
 export const TONES: Record<string, number> = {
@@ -116,7 +117,8 @@ export function playSelcal(code: string, test: boolean = false): void {
   try {
     actx = actx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
     if (actx.state === "suspended") void actx.resume();
-    schedule(actx, pulses, 0.12);
+    const vol: number = sounds.gain("selcal");
+    if (vol > 0) schedule(actx, pulses, 0.12 * vol);
   } catch (e) { /* no audio here */ }
   const dev = get(selcalDevice);
   if (mode === "all" && dev) {

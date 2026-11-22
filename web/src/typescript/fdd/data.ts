@@ -7,6 +7,7 @@
  *  Imports
  */
 import { CronJob } from "cron";
+import * as sounds from "./sounds";
 import type { Aircraft, NatTrack, NatTrakData } from "./objects";
 import { formatWaypoint } from "./waypoint";
 import { inApp as appInApp, openExternal as appOpenExternal, natTrakOpen as appNatTrakOpen } from "./app";
@@ -455,6 +456,8 @@ const toneNotes: { [key: string]: [number, number, number, string][] } = {
 };
 
 export function playPing(): void {
+  const vol: number = sounds.gain("natrak");
+  if (vol <= 0) return;
   try {
     const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AC) return;
@@ -467,7 +470,7 @@ export function playPing(): void {
       osc.type = wave;
       osc.frequency.value = freq;
       gain.gain.setValueAtTime(0.0001, t0 + delay);
-      gain.gain.exponentialRampToValueAtTime(0.3, t0 + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.3 * vol, t0 + delay + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + len);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
