@@ -43,7 +43,7 @@
     <div class="mb-3 p-2 border border-blue-6 bg-blue-4 text-sm">
       <div class="font-bold">TrackAudio for Oceanic: SELCAL tones on your frequency</div>
       <div class="mt-1 opacity-90">The FDD and TrackAudio can now send the SELCAL tones out on your frequency, so the pilot hears them as well as getting the written alert. It needs a special build of TrackAudio.</div>
-      <div class="mt-1 opacity-90">This is a custom-made <b>beta</b> version of TrackAudio for oceanic. Everything else in TrackAudio works as it does now. It will <b>replace any version of TrackAudio already installed</b> on this computer, and keeps your TrackAudio settings.</div>
+      <div class="mt-1 opacity-90">This is a custom-made <b>beta</b> version of TrackAudio for oceanic. Everything else in TrackAudio works as it does now, and it can still be used as a domestic ATC client. It will <b>replace any version of TrackAudio already installed</b> on this computer, and keeps your TrackAudio settings.</div>
       <div class="mt-1 opacity-90">If you are happy to go ahead, TrackAudio for Oceanic will download and install on this computer.</div>
       {#if msg}<div class="mt-1 text-yellow-300">{msg}</div>{/if}
       <div class="mt-2">
@@ -69,7 +69,7 @@
     {#if $selcalNeedsOceanic}<div class="mt-1 text-yellow-300">Your TrackAudio cannot send SELCAL tones on the frequency. Install TrackAudio for Oceanic below.</div>{/if}
     <div class="mt-2 font-bold">TrackAudio for Oceanic</div>
     {#if inApp}
-      <div class="text-xs opacity-80">{st ? (st.installed ? (st.update_available ? "Installed. A newer build is available." : "Installed and up to date.") : "Not installed from here yet.") : "Checking..."} It is a custom beta version of TrackAudio and replaces any TrackAudio already on this computer.</div>
+      <div class="text-xs opacity-80">{st ? (st.installed ? (st.update_available ? "Installed. A newer build is available." : "Installed and up to date.") : "Not installed from here yet.") : "Checking..."} It is a custom beta version of TrackAudio, still usable as a domestic ATC client, and replaces any TrackAudio already on this computer.</div>
       {#if st?.trackaudio_running}<div class="text-yellow-300 text-xs">TrackAudio is running: close it before installing.</div>{/if}
       {#if msg}<div class="mt-1 {msg.startsWith('✖') ? 'text-yellow-300' : ''}">{msg}</div>{/if}
       <button class="mt-1 px-3 py-1 {BTN}" disabled={busy} on:click={install}>{busy ? "Installing..." : st?.installed ? (st.update_available ? "Update TrackAudio for Oceanic" : "Reinstall TrackAudio for Oceanic") : "Install TrackAudio for Oceanic"}</button>
