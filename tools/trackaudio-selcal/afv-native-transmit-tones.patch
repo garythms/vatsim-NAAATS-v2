@@ -1,5 +1,5 @@
 diff --git a/include/afv-native/afv/ATCRadioSimulation.h b/include/afv-native/afv/ATCRadioSimulation.h
-index 69e7a14..6241905 100644
+index 69e7a14..d779cdb 100644
 --- a/include/afv-native/afv/ATCRadioSimulation.h
 +++ b/include/afv-native/afv/ATCRadioSimulation.h
 @@ -38,6 +38,7 @@
@@ -10,15 +10,16 @@ index 69e7a14..6241905 100644
  #include "afv-native/afv/VoiceCompressionSink.h"
  #include "afv-native/afv/dto/CrossCoupleGroup.h"
  #include "afv-native/afv/dto/StationTransceiver.h"
-@@ -63,6 +64,7 @@
+@@ -63,6 +64,8 @@
  #include "afv-native/util/other.h"
  #include "afv-native/utility.h"
  #include <atomic>
++#include <chrono>
 +#include <deque>
  #include <cmath>
  #include <iostream>
  #include <map>
-@@ -201,6 +203,14 @@ namespace afv_native { namespace afv {
+@@ -201,6 +204,14 @@ namespace afv_native { namespace afv {
          std::vector<afv::dto::CrossCoupleGroup> makeCrossCoupleGroupDto();
  
          void setPtt(bool pressed);
@@ -33,14 +34,16 @@ index 69e7a14..6241905 100644
          void setUDPChannel(cryptodto::UDPChannel *newChannel);
  
          double getVu() const;
-@@ -279,6 +289,10 @@ namespace afv_native { namespace afv {
+@@ -279,6 +290,12 @@ namespace afv_native { namespace afv {
          std::mutex                            mRadioStateLock;
          std::atomic<bool>                     mPtt;
          std::atomic<bool>                     mLastFramePtt;
 +        std::mutex                            mToneLock;
 +        std::deque<audio::SampleType>         mToneSamples;   // queued tone audio, consumed one frame per microphone frame
 +        std::atomic<bool>                     mToneTx {false};
-+        bool pttActive() const { return mPtt.load() || mToneTx.load(); }
++        std::atomic<int64_t>                  mToneDeadlineMs {0};   // safety: the tone key-down always ends by this time, even if no mic frames arrive
++        static int64_t nowMs() { return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
++        bool pttActive() const { return mPtt.load() || (mToneTx.load() && nowMs() < mToneDeadlineMs.load()); }
          std::atomic<uint32_t>                 mTxSequence;
          std::map<unsigned int, AtcRadioState> mRadioState;
          std::shared_ptr<audio::ITick>         mTick;
@@ -96,16 +99,20 @@ index fc024f8..edcc04e 100644
          AFV_NATIVE_API void SetAtisRecording(bool state);
          AFV_NATIVE_API bool IsAtisRecording();
 diff --git a/src/afv/ATCRadioSimulation.cpp b/src/afv/ATCRadioSimulation.cpp
-index 030d134..66a9939 100644
+index 030d134..ef36dda 100644
 --- a/src/afv/ATCRadioSimulation.cpp
 +++ b/src/afv/ATCRadioSimulation.cpp
-@@ -117,6 +117,24 @@ void ATCRadioSimulation::putAudioFrame(const audio::SampleType *bufferIn) {
+@@ -117,6 +117,28 @@ void ATCRadioSimulation::putAudioFrame(const audio::SampleType *bufferIn) {
          samples[i] = value;
      }
  
 +    // A queued tone sequence (SELCAL etc.) replaces the microphone audio, frame for frame.
 +    {
 +        std::lock_guard<std::mutex> toneGuard(mToneLock);
++        if (!mToneSamples.empty() && nowMs() >= mToneDeadlineMs.load()) {
++            mToneSamples.clear();      // overran its deadline: drop it and release the transmitter
++            mToneTx.store(false);
++        }
 +        if (!mToneSamples.empty()) {
 +            for (int i = 0; i < audio::frameSizeSamples; i++) {
 +                if (mToneSamples.empty()) {
@@ -124,7 +131,7 @@ index 030d134..66a9939 100644
      // do the peak/Vu calcs
      {
          auto             *b    = samples;
-@@ -139,7 +157,7 @@ void ATCRadioSimulation::putAudioFrame(const audio::SampleType *bufferIn) {
+@@ -139,7 +161,7 @@ void ATCRadioSimulation::putAudioFrame(const audio::SampleType *bufferIn) {
      }
  
      // Copy processed mic audio to loopback buffer if enabled and PTT is active
@@ -133,7 +140,7 @@ index 030d134..66a9939 100644
          std::lock_guard<std::mutex> loopbackGuard(mLoopbackLock);
          ::memcpy(mLoopbackBuffer, samples, sizeof(audio::SampleType) * audio::frameSizeSamples);
          // Apply radio effects (VHF filter + compressor) to make it sound like radio
-@@ -153,7 +171,7 @@ void ATCRadioSimulation::putAudioFrame(const audio::SampleType *bufferIn) {
+@@ -153,7 +175,7 @@ void ATCRadioSimulation::putAudioFrame(const audio::SampleType *bufferIn) {
          ::memset(mLoopbackBuffer, 0, sizeof(audio::SampleType) * audio::frameSizeSamples);
      }
  
@@ -142,7 +149,7 @@ index 030d134..66a9939 100644
          // Tick the sequence over when we have no Ptt as the compressed endpoint wont' get called to do that.
          std::atomic_fetch_add<uint32_t>(&mTxSequence, 1);
          return;
-@@ -168,7 +186,7 @@ void ATCRadioSimulation::processCompressedFrame(std::vector<unsigned char> compr
+@@ -168,7 +190,7 @@ void ATCRadioSimulation::processCompressedFrame(std::vector<unsigned char> compr
          {
              std::lock_guard<std::mutex> radioStateGuard(mRadioStateLock);
  
@@ -151,7 +158,7 @@ index 030d134..66a9939 100644
                  audioOutDto.LastPacket = true;
                  mLastFramePtt          = false;
              } else {
-@@ -208,7 +226,7 @@ bool ATCRadioSimulation::getTxActive(unsigned int radio) {
+@@ -208,7 +230,7 @@ bool ATCRadioSimulation::getTxActive(unsigned int radio) {
      if (!mRadioState[radio].tx) {
          return false;
      }
@@ -160,7 +167,7 @@ index 030d134..66a9939 100644
  }
  
  bool ATCRadioSimulation::getRxActive(unsigned int radio) {
-@@ -238,7 +256,7 @@ bool ATCRadioSimulation::_process_radio(const std::map<void *, audio::SampleType
+@@ -238,7 +260,7 @@ bool ATCRadioSimulation::_process_radio(const std::map<void *, audio::SampleType
      std::shared_ptr<OutputDeviceState> state = onHeadset ? mHeadsetState : mSpeakerState;
  
      ::memset(state->mChannelBuffer.data(), 0, audio::frameSizeBytes);
@@ -169,7 +176,7 @@ index 030d134..66a9939 100644
          // don't analyze and mix-in the radios that are transmitting or muted,
          // but suppress the effects.
          resetRadioFx(rxIter, true);
-@@ -670,6 +688,64 @@ void ATCRadioSimulation::setPtt(bool pressed) {
+@@ -670,6 +692,65 @@ void ATCRadioSimulation::setPtt(bool pressed) {
      mPtt.store(pressed);
  }
  
@@ -217,6 +224,7 @@ index 030d134..66a9939 100644
 +        return false;
 +    }
 +    mToneSamples = std::move(out);
++    mToneDeadlineMs.store(nowMs() + totalMs + 1500);   // normal end is when the frames run out; this only matters if the microphone stops delivering frames
 +    mToneTx.store(true);
 +    return true;
 +}
@@ -234,7 +242,7 @@ index 030d134..66a9939 100644
  void ATCRadioSimulation::setGain(unsigned int radio, float gain) {
      std::lock_guard<std::mutex> radioStateGuard(mRadioStateLock);
      mRadioState[radio].Gain = gain;
-@@ -797,6 +873,7 @@ void ATCRadioSimulation::reset() {
+@@ -797,6 +878,7 @@ void ATCRadioSimulation::reset() {
      }
      mTxSequence.store(0);
      mPtt.store(false);
