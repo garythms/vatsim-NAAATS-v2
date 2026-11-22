@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- Website: the pages (FDD for Windows, downloads, training and the rest) scroll again. The full-screen layout fix in 2.10.17 had stopped them scrolling; it now only applies to the display itself.
+
 ## 2.11.0 - 2026-11-22
 - SELCAL on your frequency is now the default. Pressing Send plays the tones here and sends them out on the frequency that is set to transmit in TrackAudio, so the pilot hears them as well as getting the written alert. It uses TrackAudio for Oceanic (a custom beta build of TrackAudio, same functions and still usable as a domestic ATC client, that replaces any TrackAudio already installed). The display shows what happened, including when your TrackAudio is not the Oceanic build.
 - Settings: a new SELCAL tones block turns sending on your frequency off (or off completely) and installs or updates TrackAudio for Oceanic. FDD for Windows asks once at setup whether to download and install it; answering "Not now" keeps everything working with the tones played here only.
