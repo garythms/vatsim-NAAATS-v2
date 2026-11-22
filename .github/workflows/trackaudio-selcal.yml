@@ -108,5 +108,5 @@ jobs:
             url = "https://github.com/garythms/vatsim-NAAATS-v2/releases/download/trackaudio-oceanic/TrackAudio-for-Oceanic-Setup.exe";
             upstream = "https://github.com/pierr3/TrackAudio"; upstreamCommit = $env:TA_REF; source = "https://github.com/garythms/vatsim-NAAATS-v2/tree/master/tools/trackaudio-selcal" }
           $json | ConvertTo-Json | Set-Content latest.json
-          gh release delete trackaudio-oceanic --yes --cleanup-tag 2>$null
-          gh release create trackaudio-oceanic TrackAudio-for-Oceanic-Setup.exe latest.json --latest=false --prerelease --target ${{ github.sha }} --title "TrackAudio for Oceanic" --notes "A beta build of TrackAudio ($ver, GPL-3.0) with the kTransmitTones message for SELCAL on frequency. Built from pierr3/TrackAudio commit $env:TA_REF with the patches in tools/trackaudio-selcal. Installed by FDD for Windows when you agree to it."
+          gh release delete trackaudio-oceanic --repo ${{ github.repository }} --yes --cleanup-tag 2>$null
+          gh release create trackaudio-oceanic --repo ${{ github.repository }} TrackAudio-for-Oceanic-Setup.exe latest.json --latest=false --prerelease --target ${{ github.sha }} --title "TrackAudio for Oceanic" --notes "A beta build of TrackAudio ($ver, GPL-3.0) with the kTransmitTones message for SELCAL on frequency. Built from pierr3/TrackAudio commit $env:TA_REF with the patches in tools/trackaudio-selcal. Installed by FDD for Windows when you agree to it."
