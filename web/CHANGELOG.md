@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.12.0 - 2026-11-22
 - FDD for Windows: a Discord status. While Discord is running and you are signed in with a position, your Discord profile shows "Playing vNAAATS" with your position and frequency, and what you are doing: Sending SELCAL, TX on your frequency, RX from a callsign, or Aircraft tracked (n of total). It has Listen to me and vNAAATS buttons and an elapsed timer. Switch it off in Settings under Discord status. It needs the new FDD for Windows, and does nothing until the vNAAATS Discord application is set up.
 
 ## 2.11.1 - 2026-11-22
