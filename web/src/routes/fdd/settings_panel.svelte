@@ -4,6 +4,7 @@
   import * as sess from "../../typescript/fdd/session";
   import * as app from "../../typescript/fdd/app";
   import { whatsNewOpen } from "../../typescript/fdd/whatsnew";
+  import SelcalOceanic from "./selcal_oceanic.svelte";
   // @ts-ignore (plain JavaScript, vendored)
   import qrcode from "../../typescript/vendor/qrcode-generator.js";
   let setupAgain = app.inApp() && app.setupAgainGet();
@@ -137,6 +138,7 @@
           {/if}
         </div>
       {/if}
+      <SelcalOceanic />
       {#if app.inApp() && $session.loggedIn}
         <div class="mx-3 mb-3 p-2 border border-blue-6 bg-blue-3 text-sm">
           <div class="font-bold">Tablet or iPad mode</div>

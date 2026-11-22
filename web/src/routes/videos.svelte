@@ -23,7 +23,6 @@
         { src: "/training/vNAAATS-howto-1-FDD.mp4", title: "1. How to use the Flight Data Display", text: "Tracking, releasing and transferring tags, automatic hand-off to relief, contact me, supervisor request, and changing a flight level, speed or SELCAL." },
         { src: "/training/vNAAATS-howto-2-CPDLC.mp4", title: "2. How to use CPDLC", text: "Signing in with your Hoppie code, accepting pilots, level messages, clearance requests, UNICOM and the pop-out window." },
         { src: "/training/vNAAATS-howto-3-natTrak.mp4", title: "3. How to use natTrak through the FDD", text: "The pending and cleared lists, Prepare in natTrak, RCL processed and Send reclearance." },
-        { src: "/training/vNAAATS-howto-9-SELCAL-tones.mp4", title: "9. SELCAL tones on your frequency", text: "About two minutes, with the sound the pilot hears: the three settings, getting VB-Cable, Listen to this device, and TrackAudio's microphone. Written guide at vnaaats.com/selcal-setup." },
         { src: "/training/vNAAATS-howto-8-Tablet-iPad.mp4", title: "8. Tablet and iPad mode", text: "About a minute: how FDD for Windows gives you a one-time link and QR code that open the display on a tablet or iPad, signed in as you. EuroScope stays on your Windows computer." },
         { src: "/training/vNAAATS-howto-4-VACS-TrackAudio.mp4", title: "4. VACS and TrackAudio in FDD for Windows", text: "What VACS and TrackAudio are, setting up VACS remote control, answering VACS calls, who spoke last, and the transmitting-aircraft highlight." },
       ],

@@ -26,8 +26,11 @@ export const updatePlugin = (): Promise<string> => call("update_plugin");
 export const updateSector = (): Promise<string> => call("update_sector");
 export const saveContactKey = (code: number): Promise<void> => call("save_contact_key", { code });
 export type ProfileInfo = { profiles: number; realname: string; certificate: string; rating: number | null; has_password: boolean; euroscope_running: boolean };
-export const openSoundPanel = (): Promise<void> => call<void>("open_sound_panel");
-export const cableFound = (): Promise<boolean> => call<boolean>("cable_found");
+/** TrackAudio for Oceanic: a build of TrackAudio that can send SELCAL tones on the controller's frequency itself. Downloaded and installed only when the controller agrees. */
+export type OceanicStatus = { installed: boolean; update_available: boolean | null; latest_version: string | null; trackaudio_running: boolean; trackaudio_path: string | null };
+export const oceanicStatus = (): Promise<OceanicStatus> => call<OceanicStatus>("oceanic_status");
+export const oceanicInstall = (): Promise<string> => call<string>("oceanic_install");
+export const OCEANIC_PAGE = "https://github.com/garythms/vatsim-NAAATS-v2/releases/tag/trackaudio-oceanic";
 export const profileGet = (): Promise<ProfileInfo> => call<ProfileInfo>("profile_get");
 export const profileSave = (name: string, cid: string, rating: number, password: string): Promise<number> => call("profile_save", { name, cid, rating, password });
 /** EuroScope's own numbers for the controller ratings (Enroute Controller is 4). */

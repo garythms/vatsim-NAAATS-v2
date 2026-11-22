@@ -1,5 +1,5 @@
 /*
- *  The sound a pilot hears when a controller calls them with SELCAL, played in the display when you press Send on a SELCAL.
+ *  The SELCAL sound: played here when you press Send on a SELCAL, and sent on your frequency by TrackAudio for Oceanic so the pilot hears it too.
  *  A SELCAL is four characters sent as two pairs (AB-CD): both tones of a pair together for about 1 second, a pause of 0.2 seconds, then the second pair.
  *  The 16 original tones are letters A-S (no I, N or O). SELCAL 32 adds 16 more tones: T-Z and the digits 1-9.
  *  Frequencies are the ones in the ICAO SELCAL 32 proposal (ICAO SAM/IG/23 NE/12) and the ASRI SELCAL guide. They are only used here to make a matching sound.
@@ -26,17 +26,16 @@ export function selcalPulses(code: string): [[number, number], [number, number]]
   return [[f[0], f[1]], [f[2], f[3]]];
 }
 
-/** Who hears the SELCAL tones when you press Send: "me" = only the controller, "all" = the controller and the pilots (on the frequency, through a virtual cable), "off". */
+/** Who hears the SELCAL tones when you press Send: "me" = only the controller, on this computer; "all" = the controller, and the pilots on your frequency
+ *  (TrackAudio for Oceanic sends them); "off" = nobody. "all" is the default. It is changed on the Settings page. */
 export type SelcalMode = "off" | "me" | "all";
 function loadMode(): SelcalMode {
   try {
     const v = localStorage.getItem("fdd.selcalMode");
     if (v === "off" || v === "me" || v === "all") return v;
-    // older choices: the tick box for the tones here, and the tick box for the frequency
-    if (localStorage.getItem("fdd.selcalSound") === "off") return "off";
-    if (localStorage.getItem("fdd.selcalFreq") === "on" && localStorage.getItem("fdd.selcalDevice")) return "all";
+    if (localStorage.getItem("fdd.selcalSound") === "off") return "off";      // an older choice: the tones were switched off
   } catch (e) { /* default */ }
-  return "me";
+  return "all";
 }
 export const selcalMode = writable<SelcalMode>(loadMode());
 export function setSelcalMode(m: SelcalMode): void {
@@ -44,21 +43,17 @@ export function setSelcalMode(m: SelcalMode): void {
   try { localStorage.setItem("fdd.selcalMode", m); } catch (e) { /* not saved */ }
 }
 
-/** How the tones reach the pilots when "Controller and pilots hear" is chosen: "trackaudio" = TrackAudio sends them itself (needs the SELCAL test version
- *  of TrackAudio, which has the kTransmitTones message); "cable" = the older way, through a virtual audio cable. */
-export type SelcalVia = "cable" | "trackaudio";
-export const selcalVia = writable<SelcalVia>((() => { try { return localStorage.getItem("fdd.selcalVia") === "trackaudio" ? "trackaudio" : "cable"; } catch (e) { return "cable"; } })());
-export function setSelcalVia(v: SelcalVia): void {
-  selcalVia.set(v);
-  try { localStorage.setItem("fdd.selcalVia", v); } catch (e) { /* not saved */ }
-}
-/** What happened the last time the tones were sent through TrackAudio, for the SELCAL tab ("" = nothing to say). */
+/** What happened the last time the tones were sent on your frequency, for the SELCAL tab ("" = nothing to say). */
 export const selcalNote = writable<string>("");
+/** True when TrackAudio answered nothing to the tone request: it is the normal TrackAudio, not TrackAudio for Oceanic. The display then offers the install. */
+export const selcalNeedsOceanic = writable<boolean>(false);
 
-/** Ask TrackAudio (on this computer) to send the SELCAL on the frequency that is set to transmit. Returns "" when it was sent, or why it was not. */
+/** Ask TrackAudio (on this computer, ws://127.0.0.1:49080/ws) to send the SELCAL on the frequency that is set to transmit.
+ *  TrackAudio for Oceanic answers every request with kTransmitTonesResult { ok, reason }; no answer means an ordinary TrackAudio. Returns "" when it was sent, or why not. */
 async function sendViaTrackAudio(code: string): Promise<string> {
   const c = String(code || "").toUpperCase().replace(/[-\s]/g, "");
   let ws: WebSocket | null = null;
+  selcalNeedsOceanic.set(false);
   try {
     ws = new WebSocket("ws://127.0.0.1:49080/ws");
     await new Promise<void>((ok, bad) => { ws!.onopen = () => ok(); ws!.onerror = () => bad(new Error("no TrackAudio")); setTimeout(() => bad(new Error("timeout")), 2000); });
@@ -74,52 +69,23 @@ async function sendViaTrackAudio(code: string): Promise<string> {
       };
       ws!.send(JSON.stringify({ type: "kGetStationStates" }));
     });
-    if (!freq) return "None of your TrackAudio frequencies is set to transmit, so no SELCAL was sent. Turn TX on for the frequency you want.";
-    ws.send(JSON.stringify({ type: "kTransmitTones", value: { frequency: freq, selcal: c } }));
-    await new Promise((r) => setTimeout(r, 400));          // let the message leave before the link closes
-    return "";
+    if (!freq) return "None of your TrackAudio frequencies is set to transmit, so no SELCAL was sent on your frequency. Turn TX on for the frequency you want.";
+    const answer: { ok: boolean; reason: string } | null = await new Promise((done) => {
+      const t = setTimeout(() => done(null), 2500);
+      ws!.onmessage = (e) => {
+        try {
+          const m = JSON.parse(String(e.data));
+          if (m?.type !== "kTransmitTonesResult") return;
+          clearTimeout(t); done({ ok: m.value?.ok === true, reason: String(m.value?.reason ?? "") });
+        } catch (err) { /* not for us */ }
+      };
+      ws!.send(JSON.stringify({ type: "kTransmitTones", value: { frequency: freq, selcal: c } }));
+    });
+    if (!answer) { selcalNeedsOceanic.set(true); return "Your TrackAudio cannot send SELCAL tones on the frequency. Install TrackAudio for Oceanic (Settings)."; }
+    return answer.ok ? "" : (answer.reason || "TrackAudio did not send the SELCAL.");
   } catch (e) {
-    return "Could not reach TrackAudio on this computer, so no SELCAL was sent on the frequency.";
+    return "TrackAudio is not running on this computer, so no SELCAL was sent on your frequency.";
   } finally { try { ws?.close(); } catch (e) { /* closed */ } }
-}
-
-// ---- Sending the tones on your frequency through a virtual cable (the older way). TrackAudio cannot play sound itself, so the tones are played into a virtual audio cable
-// that TrackAudio uses as its microphone, and the display presses and releases TrackAudio's push-to-talk around them (ws://127.0.0.1:49080/ws on this computer).
-const LS_DEV = "fdd.selcalDevice", LS_DEVNAME = "fdd.selcalDeviceName";
-function lsGet(k: string): string { try { return localStorage.getItem(k) ?? ""; } catch (e) { return ""; } }
-function lsSet(k: string, v: string): void { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* not saved */ } }
-export const selcalDevice = writable<string>(lsGet(LS_DEV));
-export function setSelcalDevice(id: string, name: string): void { selcalDevice.set(id); lsSet(LS_DEV, id); lsSet(LS_DEVNAME, name); }
-
-export type OutDevice = { id: string; label: string };
-/** The sound outputs on this computer. Windows hides the names until the page has been allowed to use the microphone once, so that is asked for here
- *  (and the microphone is released again straight away: nothing is recorded). Returns the list and, if one looks like a virtual cable, its id. */
-export async function listOutputs(): Promise<{ devices: OutDevice[]; cable: string; named: boolean }> {
-  try {
-    try { const st = await navigator.mediaDevices.getUserMedia({ audio: true }); st.getTracks().forEach((t) => t.stop()); } catch (e) { /* names may stay hidden */ }
-    const all = await navigator.mediaDevices.enumerateDevices();
-    const devices = all.filter((d) => d.kind === "audiooutput" && d.deviceId !== "default" && d.deviceId !== "communications").map((d) => ({ id: d.deviceId, label: d.label }));
-    const named = devices.some((d) => d.label);
-    const cable = devices.find((d) => /cable input|vb-audio|virtual/i.test(d.label))?.id ?? "";
-    return { devices, cable, named };
-  } catch (e) { return { devices: [], cable: "", named: false }; }
-}
-
-let pttBusy = false;
-/** Press TrackAudio's push-to-talk, run play(), then release it again. The release is always sent, also after an error. */
-async function withPtt(play: () => void, totalMs: number): Promise<void> {
-  if (pttBusy) return;                                // never two at once
-  pttBusy = true;
-  let ws: WebSocket | null = null;
-  const release = () => { try { ws?.send(JSON.stringify({ type: "kPttReleased" })); } catch (e) { /* link gone */ } try { ws?.close(); } catch (e) { /* closed */ } ws = null; pttBusy = false; };
-  try {
-    ws = new WebSocket("ws://127.0.0.1:49080/ws");
-    await new Promise<void>((ok, bad) => { ws!.onopen = () => ok(); ws!.onerror = () => bad(new Error("no TrackAudio")); setTimeout(() => bad(new Error("timeout")), 2000); });
-    ws.send(JSON.stringify({ type: "kPttPressed" }));
-    await new Promise((r) => setTimeout(r, 350));       // let the transmission open before the first tone
-    play();
-    setTimeout(release, totalMs + 350);
-  } catch (e) { release(); }
 }
 
 function schedule(ctx: AudioContext, pulses: [[number, number], [number, number]], level: number): void {
@@ -159,20 +125,8 @@ export function playSelcal(code: string, test: boolean = false): void {
     const vol: number = sounds.gain("selcal");
     if (vol > 0) schedule(actx, pulses, 0.12 * vol);
   } catch (e) { /* no audio here */ }
-  const dev = get(selcalDevice);
-  if (mode === "all" && get(selcalVia) === "trackaudio" && !test) {
+  if (mode === "all" && !test) {
     selcalNote.set("");
     void sendViaTrackAudio(code).then((why) => selcalNote.set(why ? why : "SELCAL sent on your frequency by TrackAudio."));
-    return;
-  }
-  if (mode === "all" && dev) {
-    const total = (2 * PULSE_S + GAP_S) * 1000;
-    void withPtt(() => {
-      try {
-        const ctx: AudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sinkId: dev } as any);
-        const go = () => { schedule(ctx, pulses, 0.5); setTimeout(() => { try { void ctx.close(); } catch (e) { /* closed */ } }, total + 600); };
-        if ((ctx as any).setSinkId && (ctx as any).sinkId !== dev) (ctx as any).setSinkId(dev).then(go, go); else go();
-      } catch (e) { /* the device is gone: nothing is sent */ }
-    }, total);
   }
 }
