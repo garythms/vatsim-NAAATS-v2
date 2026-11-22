@@ -44,6 +44,10 @@ jobs:
           (cd backend/extern/afv-native && git checkout fc7d216fb3fee6a7d4b990fe27e2d5c1ad072f0e && git apply --verbose ../../../../patches/tools/trackaudio-selcal/afv-native-transmit-tones.patch)
           (cd backend/extern/libuiohook && git checkout unregister-hook-when-debugging)
           git apply --verbose ../patches/tools/trackaudio-selcal/trackaudio-transmit-tones.patch
+          # Name shown to the user (shortcut, installed apps list). The internal name and app id stay "TrackAudio", so it replaces the
+          # existing TrackAudio install and keeps its settings.
+          node -e "const fs=require('fs');let t=fs.readFileSync('electron-builder-config.js','utf8');const n=t.replace(\"shortcutName: '\${productName}'\",\"shortcutName: 'TrackAudio for Oceanic'\").replace(\"uninstallDisplayName: '\${productName}'\",\"uninstallDisplayName: 'TrackAudio for Oceanic'\");if(n===t||!n.includes('TrackAudio for Oceanic')){console.error('name not changed');process.exit(1)}fs.writeFileSync('electron-builder-config.js',n)"
+          grep -n "TrackAudio for Oceanic" electron-builder-config.js
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
