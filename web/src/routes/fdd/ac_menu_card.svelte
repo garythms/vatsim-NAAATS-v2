@@ -95,6 +95,17 @@
     }
   }
 
+  // Contact Me: the .contactme request goes out (the server also telexes a pilot who is on telex), and when the flight plan has a SELCAL the
+  // SELCAL call follows straight after, so the pilot is alerted in every way we have. A failure of the first stops the second.
+  async function contactMe(): Promise<void> {
+    await typeIn({ type: "contactme" }, m.contactMeCommand(callsign));
+    if (note.charAt(0) === "\u2716" || !selcal || !m.validSelcal(selcal)) return;
+    const first = note;
+    await new Promise((r) => setTimeout(r, 1500));
+    await typeIn({ type: "selcal", selcal: selcal.toUpperCase() }, m.selcalCommand(selcal));
+    note = (first ? first + "  " : "") + (note.charAt(0) === "\u2716" ? note : "\u2714 SELCAL " + selcal.toUpperCase() + " sent");
+  }
+
   async function copy(text: string): Promise<void> {
     copied = text;
     note = (await m.copyText(text)) ? "" : "Could not copy automatically - type it in yourself.";
@@ -258,8 +269,8 @@
             <button class="px-2 py-1 {BTN}" disabled={!canEdit} on:click={saveScratch}>Save note</button>
           </div>
         {:else if tab === "contact"}
-          <div class="text-sm mb-2 opacity-90">"Send" selects {callsign} in EuroScope and runs .contactme for you. If you copy it instead, click the aircraft in EuroScope first, then paste the command.</div>
-          <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit} on:click={() => typeIn({ type: "contactme" }, m.contactMeCommand(callsign))}>Send</button>
+          <div class="text-sm mb-2 opacity-90">"Send" selects {callsign} in EuroScope and runs .contactme for you. A pilot on telex is telexed as well{selcal && m.validSelcal(selcal) ? ", and the SELCAL " + selcal.toUpperCase() + " from the flight plan is called straight after (tones on your frequency as set in Settings)" : ". The flight plan has no SELCAL, so none is called"}. If you copy it instead, click the aircraft in EuroScope first, then paste the command.</div>
+          <button class="px-2 py-1 mr-2 {BTN}" disabled={busy || !canEdit} on:click={contactMe}>Send</button>
           <button class="px-2 py-1 {BTN}" on:click={() => copy(m.contactMeCommand(callsign))}>Copy .contactme</button>
         {:else if tab === "sup"}
           <textarea class="w-full px-1 mb-2 text-black" rows="3" bind:value={wallopText} placeholder="Message to the supervisors" />
