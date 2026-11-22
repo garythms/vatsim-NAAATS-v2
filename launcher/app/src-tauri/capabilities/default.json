@@ -17,6 +17,8 @@
     "allow-profile-save",
     "allow-oceanic-status",
     "allow-oceanic-install",
+    "allow-presence-set",
+    "allow-presence-clear",
     "allow-pick-exe",
     "allow-launch",
     "allow-open-url",

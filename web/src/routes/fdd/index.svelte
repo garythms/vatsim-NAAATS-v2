@@ -16,9 +16,11 @@
   import AcMenu from "./ac_menu.svelte";
   import PlanEdit from "./plan_edit.svelte";
   import { onMount } from "svelte";
+  import { startPresence } from "../../typescript/fdd/presence";
   import * as site from "../../typescript/site"
 
   onMount(async () => {
+    startPresence();
     site.setTitle("Flight Data Display");
     document.body.style.opacity = "0%";
 
