@@ -44,7 +44,46 @@ export function setSelcalMode(m: SelcalMode): void {
   try { localStorage.setItem("fdd.selcalMode", m); } catch (e) { /* not saved */ }
 }
 
-// ---- Sending the tones on your frequency (optional). TrackAudio cannot play sound itself, so the tones are played into a virtual audio cable
+/** How the tones reach the pilots when "Controller and pilots hear" is chosen: "trackaudio" = TrackAudio sends them itself (needs the SELCAL test version
+ *  of TrackAudio, which has the kTransmitTones message); "cable" = the older way, through a virtual audio cable. */
+export type SelcalVia = "cable" | "trackaudio";
+export const selcalVia = writable<SelcalVia>((() => { try { return localStorage.getItem("fdd.selcalVia") === "trackaudio" ? "trackaudio" : "cable"; } catch (e) { return "cable"; } })());
+export function setSelcalVia(v: SelcalVia): void {
+  selcalVia.set(v);
+  try { localStorage.setItem("fdd.selcalVia", v); } catch (e) { /* not saved */ }
+}
+/** What happened the last time the tones were sent through TrackAudio, for the SELCAL tab ("" = nothing to say). */
+export const selcalNote = writable<string>("");
+
+/** Ask TrackAudio (on this computer) to send the SELCAL on the frequency that is set to transmit. Returns "" when it was sent, or why it was not. */
+async function sendViaTrackAudio(code: string): Promise<string> {
+  const c = String(code || "").toUpperCase().replace(/[-\s]/g, "");
+  let ws: WebSocket | null = null;
+  try {
+    ws = new WebSocket("ws://127.0.0.1:49080/ws");
+    await new Promise<void>((ok, bad) => { ws!.onopen = () => ok(); ws!.onerror = () => bad(new Error("no TrackAudio")); setTimeout(() => bad(new Error("timeout")), 2000); });
+    const freq: number = await new Promise<number>((ok) => {
+      const t = setTimeout(() => ok(0), 2000);
+      ws!.onmessage = (e) => {
+        try {
+          const m = JSON.parse(String(e.data));
+          if (m?.type !== "kStationStates") return;
+          const st = (m.value?.stations ?? []).map((s: any) => s?.value ?? s).find((s: any) => s?.tx === true && Number(s?.frequency) > 0);
+          clearTimeout(t); ok(st ? Number(st.frequency) : 0);
+        } catch (err) { /* not for us */ }
+      };
+      ws!.send(JSON.stringify({ type: "kGetStationStates" }));
+    });
+    if (!freq) return "None of your TrackAudio frequencies is set to transmit, so no SELCAL was sent. Turn TX on for the frequency you want.";
+    ws.send(JSON.stringify({ type: "kTransmitTones", value: { frequency: freq, selcal: c } }));
+    await new Promise((r) => setTimeout(r, 400));          // let the message leave before the link closes
+    return "";
+  } catch (e) {
+    return "Could not reach TrackAudio on this computer, so no SELCAL was sent on the frequency.";
+  } finally { try { ws?.close(); } catch (e) { /* closed */ } }
+}
+
+// ---- Sending the tones on your frequency through a virtual cable (the older way). TrackAudio cannot play sound itself, so the tones are played into a virtual audio cable
 // that TrackAudio uses as its microphone, and the display presses and releases TrackAudio's push-to-talk around them (ws://127.0.0.1:49080/ws on this computer).
 const LS_DEV = "fdd.selcalDevice", LS_DEVNAME = "fdd.selcalDeviceName";
 function lsGet(k: string): string { try { return localStorage.getItem(k) ?? ""; } catch (e) { return ""; } }
@@ -121,6 +160,11 @@ export function playSelcal(code: string, test: boolean = false): void {
     if (vol > 0) schedule(actx, pulses, 0.12 * vol);
   } catch (e) { /* no audio here */ }
   const dev = get(selcalDevice);
+  if (mode === "all" && get(selcalVia) === "trackaudio" && !test) {
+    selcalNote.set("");
+    void sendViaTrackAudio(code).then((why) => selcalNote.set(why ? why : "SELCAL sent on your frequency by TrackAudio."));
+    return;
+  }
   if (mode === "all" && dev) {
     const total = (2 * PULSE_S + GAP_S) * 1000;
     void withPtt(() => {
