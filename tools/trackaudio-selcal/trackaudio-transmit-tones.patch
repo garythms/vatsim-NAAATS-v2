@@ -10,8 +10,28 @@ index a9f5760..ea5b644 100644
  
      static std::map<sdkCall, std::string>& getSDKCallUrlMap()
      {
+diff --git a/backend/include/sdkWebsocketMessage.hpp b/backend/include/sdkWebsocketMessage.hpp
+index 9be2af4..3779d6b 100644
+--- a/backend/include/sdkWebsocketMessage.hpp
++++ b/backend/include/sdkWebsocketMessage.hpp
+@@ -20,6 +20,7 @@ enum class WebsocketMessageType : std::uint8_t {
+     kStationAdded,
+     kAddStation,
+     kMainVolumeChange,
++    kTransmitTonesResult,
+ };
+ 
+ inline const std::map<WebsocketMessageType, std::string>& getWebsocketMessageTypeMap()
+@@ -37,6 +38,7 @@ inline const std::map<WebsocketMessageType, std::string>& getWebsocketMessageTyp
+         { WebsocketMessageType::kStationAdded, "kStationAdded" },
+         { WebsocketMessageType::kAddStation, "kAddStation" },
+         { WebsocketMessageType::kMainVolumeChange, "kMainVolumeChange" },
++        { WebsocketMessageType::kTransmitTonesResult, "kTransmitTonesResult" },
+     };
+     return kWebsocketMessageTypeMap;
+ }
 diff --git a/backend/src/sdk.cpp b/backend/src/sdk.cpp
-index d8903ce..2af3cb7 100644
+index d8903ce..9ddca54 100644
 --- a/backend/src/sdk.cpp
 +++ b/backend/src/sdk.cpp
 @@ -2,7 +2,11 @@
@@ -35,7 +55,7 @@ index d8903ce..2af3cb7 100644
          }
      } catch (const std::exception& e) {
          PLOG_ERROR << "Error parsing incoming message JSON: " << e.what();
-@@ -624,6 +630,75 @@ void SDK::handleChangeStationVolume(const nlohmann::json& json, uint64_t clientI
+@@ -624,6 +630,90 @@ void SDK::handleChangeStationVolume(const nlohmann::json& json, uint64_t clientI
      }
  }
  
@@ -51,13 +71,25 @@ index d8903ce..2af3cb7 100644
 +// is a silent gap. Optional "gain" (0 to 1, default 0.5). Total length is limited to 10 seconds.
 +void SDK::handleTransmitTones(const nlohmann::json& json, uint64_t clientId)
 +{
++    // Every request is answered with kTransmitTonesResult { ok, reason } so the client knows whether the tones were sent.
++    auto reply = [&](bool ok, const std::string& reason) {
++        nlohmann::json result
++            = WebsocketMessage::buildMessage(WebsocketMessageType::kTransmitTonesResult);
++        result["value"]["ok"] = ok;
++        result["value"]["reason"] = reason;
++        sendMessage(clientId, result.dump());
++        if (!ok) {
++            PLOG_ERROR << "kTransmitTones: " << reason;
++        }
++    };
++
 +    if (!mClient || !mClient->IsVoiceConnected()) {
-+        PLOG_ERROR << "Voice must be connected to transmit tones.";
++        reply(false, "Voice must be connected to transmit tones.");
 +        return;
 +    }
 +
 +    if (!json.contains("value") || !json["value"].contains("frequency")) {
-+        PLOG_ERROR << "kTransmitTones requires a frequency.";
++        reply(false, "kTransmitTones requires a frequency.");
 +        return;
 +    }
 +
@@ -76,13 +108,13 @@ index d8903ce..2af3cb7 100644
 +                code += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
 +            }
 +            if (code.size() != 4) {
-+                PLOG_ERROR << "A SELCAL code has four letters.";
++                reply(false, "A SELCAL code has four letters.");
 +                return;
 +            }
 +            for (size_t i = 0; i < 4; i++) {
 +                if (kSelcalTones.find(code[i]) == kSelcalTones.end()
 +                    || code.find(code[i]) != i) {
-+                    PLOG_ERROR << "Invalid SELCAL code (letters A-H, J-M, P-S, none repeated).";
++                    reply(false, "Invalid SELCAL code (letters A-H, J-M, P-S, none repeated).");
 +                    return;
 +                }
 +            }
@@ -95,16 +127,19 @@ index d8903ce..2af3cb7 100644
 +                    t.value("ms", 0u), gain });
 +            }
 +        } else {
-+            PLOG_ERROR << "kTransmitTones requires selcal or tones.";
++            reply(false, "kTransmitTones requires selcal or tones.");
 +            return;
 +        }
 +
 +        if (!mClient->TransmitTones(frequency, segments)) {
-+            PLOG_ERROR << "Could not transmit tones: the frequency must be set to transmit, the "
-+                          "sequence must be 1 to 10000 ms, and no other sequence may be playing.";
++            reply(false,
++                "Could not transmit tones: the frequency must be set to transmit, the sequence "
++                "must be 1 to 10000 ms, and no other sequence may be playing.");
++            return;
 +        }
++        reply(true, "");
 +    } catch (const std::exception& e) {
-+        PLOG_ERROR << "kTransmitTones failed: " << e.what();
++        reply(false, std::string("kTransmitTones failed: ") + e.what());
 +    }
 +}
 +

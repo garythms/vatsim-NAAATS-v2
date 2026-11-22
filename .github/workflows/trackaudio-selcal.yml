@@ -5,6 +5,9 @@ on:
   push:
     branches: [trackaudio-selcal-build]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-2022
@@ -83,3 +86,23 @@ jobs:
         with:
           name: TrackAudio-SELCAL-win
           path: ta/dist/trackaudio-*.*
+
+      # The FDD for Windows downloads this release when a controller agrees to install TrackAudio for Oceanic.
+      # latest.json says which version it is and its SHA-256, so the app can check the download before it runs it.
+      - name: Publish TrackAudio for Oceanic release
+        if: github.event_name == 'push' && github.ref_name == 'trackaudio-selcal-build'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $exe = Get-ChildItem ta/dist -Filter "trackaudio-*-setup.exe" | Select-Object -First 1
+          if (-not $exe) { Write-Error "no installer found"; exit 1 }
+          Copy-Item $exe.FullName TrackAudio-for-Oceanic-Setup.exe
+          $sha = (Get-FileHash TrackAudio-for-Oceanic-Setup.exe -Algorithm SHA256).Hash.ToLower()
+          $ver = (Get-Content ta/package.json -Raw | ConvertFrom-Json).version
+          $json = [ordered]@{ name = "TrackAudio for Oceanic"; trackaudioVersion = $ver; sha256 = $sha; built = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ");
+            url = "https://github.com/garythms/vatsim-NAAATS-v2/releases/download/trackaudio-oceanic/TrackAudio-for-Oceanic-Setup.exe";
+            upstream = "https://github.com/pierr3/TrackAudio"; upstreamCommit = $env:TA_REF; source = "https://github.com/garythms/vatsim-NAAATS-v2/tree/master/tools/trackaudio-selcal" }
+          $json | ConvertTo-Json | Set-Content latest.json
+          gh release delete trackaudio-oceanic --yes --cleanup-tag 2>$null
+          gh release create trackaudio-oceanic TrackAudio-for-Oceanic-Setup.exe latest.json --latest=false --prerelease --target ${{ github.sha }} --title "TrackAudio for Oceanic" --notes "A beta build of TrackAudio ($ver, GPL-3.0) with the kTransmitTones message for SELCAL on frequency. Built from pierr3/TrackAudio commit $env:TA_REF with the patches in tools/trackaudio-selcal. Installed by FDD for Windows when you agree to it."
