@@ -333,6 +333,61 @@ async fn profile_get(window: WebviewWindow, app: tauri::AppHandle) -> Result<Pro
 }
 
 /// Open Windows' Sound window on the Recording tab (for "Listen to this device"). A fixed command: nothing from the page is passed on.
+// ---- Discord Rich Presence: the "Playing vNAAATS" card on the controller's own Discord profile.
+// It talks to the Discord app on this computer (a local connection); nothing goes through any other server. The Application ID is the public id
+// of the vNAAATS application made in the Discord developer portal; while it is empty the feature does nothing.
+const DISCORD_APP_ID: &str = "1574163478451851394";
+
+static PRESENCE: std::sync::Mutex<Option<discord_rich_presence::DiscordIpcClient>> = std::sync::Mutex::new(None);
+
+/// Show or update the card. Quiet: if Discord is not running or the id is not set, nothing happens and nothing is reported as an error.
+#[tauri::command]
+async fn presence_set(window: WebviewWindow, details: String, state: String, started: i64) -> Result<bool, String> {
+    check_origin(&window)?;
+    if DISCORD_APP_ID.is_empty() {
+        return Ok(false);
+    }
+    use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
+    let clip = |t: String| -> String { t.chars().take(100).collect() };
+    let (details, state) = (clip(details), clip(state));
+    let mut guard = PRESENCE.lock().map_err(|_| "presence is busy".to_string())?;
+    for _attempt in 0..2 {
+        if guard.is_none() {
+            let mut c = match DiscordIpcClient::new(DISCORD_APP_ID) { Ok(c) => c, Err(_) => return Ok(false) };
+            if c.connect().is_err() {
+                return Ok(false);                       // Discord is not running: tried again at the next update
+            }
+            *guard = Some(c);
+        }
+        let mut act = activity::Activity::new()
+            .details(&details)
+            .state(&state)
+            .buttons(vec![activity::Button::new("Listen to me", "https://listen.vatsim.net/"), activity::Button::new("vNAAATS", "https://vnaaats.com")]);
+        if started > 0 {
+            act = act.timestamps(activity::Timestamps::new().start(started));
+        }
+        if guard.as_mut().map(|c| c.set_activity(act).is_ok()).unwrap_or(false) {
+            return Ok(true);
+        }
+        *guard = None;                                  // the connection dropped (Discord was restarted): connect again once
+    }
+    Ok(false)
+}
+
+/// Take the card down (signed out, or switched off in Settings).
+#[tauri::command]
+async fn presence_clear(window: WebviewWindow) -> Result<(), String> {
+    check_origin(&window)?;
+    use discord_rich_presence::DiscordIpc;
+    if let Ok(mut guard) = PRESENCE.lock() {
+        if let Some(mut c) = guard.take() {
+            let _ = c.clear_activity();
+            let _ = c.close();
+        }
+    }
+    Ok(())
+}
+
 // ---- TrackAudio for Oceanic: a build of TrackAudio that can send SELCAL tones on the controller's frequency itself.
 // It is published as the "trackaudio-oceanic" release of this project (installer + latest.json with its SHA-256). It is only ever downloaded
 // when the controller agrees to it in the window, and the installer is only run after its SHA-256 matches latest.json.
@@ -785,7 +840,7 @@ fn main() {
             }
         })
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, oceanic_status, oceanic_install, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
+        .invoke_handler(tauri::generate_handler![status, pick_folder, update_plugin, update_sector, refresh_cfg, save_key, save_contact_key, profile_get, profile_save, oceanic_status, oceanic_install, presence_set, presence_clear, pick_exe, launch, open_url, cred_get, cred_save, cred_forget, open_nattrak, nattrak_open, nattrak_signed_in, open_popout, app_update_check, app_update_install])
         .run(tauri::generate_context!())
         .expect("the vNAAATS app could not start");
 }

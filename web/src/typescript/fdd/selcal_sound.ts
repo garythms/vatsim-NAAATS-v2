@@ -47,6 +47,8 @@ export function setSelcalMode(m: SelcalMode): void {
 export const selcalNote = writable<string>("");
 /** True when TrackAudio answered nothing to the tone request: it is the normal TrackAudio, not TrackAudio for Oceanic. The display then offers the install. */
 export const selcalNeedsOceanic = writable<boolean>(false);
+/** The last SELCAL the controller sent from here (for the Discord card): the code and when (ms). */
+export const lastSelcalSent = writable<{ code: string; at: number }>({ code: "", at: 0 });
 
 /** Ask TrackAudio (on this computer, ws://127.0.0.1:49080/ws) to send the SELCAL on the frequency that is set to transmit.
  *  TrackAudio for Oceanic answers every request with kTransmitTonesResult { ok, reason }; no answer means an ordinary TrackAudio. Returns "" when it was sent, or why not. */
@@ -117,6 +119,7 @@ function randomPulses(): [[number, number], [number, number]] {
  *  test = true plays them here only, whatever the setting is (the "Hear the tones" button). */
 export function playSelcal(code: string, test: boolean = false): void {
   const mode = test ? "me" : get(selcalMode);
+  if (!test) lastSelcalSent.set({ code: String(code || "").toUpperCase().replace(/[-\s]/g, ""), at: Date.now() });
   if (mode === "off") return;
   const pulses = selcalPulses(code) ?? randomPulses();
   try {

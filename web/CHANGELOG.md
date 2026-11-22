@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: a Discord status. While Discord is running and you are signed in with a position, your Discord profile shows "Playing vNAAATS" with your position and frequency, and what you are doing: Sending SELCAL, TX on your frequency, RX from a callsign, or Aircraft tracked (n of total). It has Listen to me and vNAAATS buttons and an elapsed timer. Switch it off in Settings under Discord status. It needs the new FDD for Windows, and does nothing until the vNAAATS Discord application is set up.
+
 ## 2.11.1 - 2026-11-22
 - Contact Me: pressing Send now also calls the aircraft's SELCAL when the flight plan has one (the .selcal goes into EuroScope straight after the .contactme, and the tones play on your frequency as set in Settings). A pilot on telex is still telexed at the same time. If Contact Me fails, the SELCAL is not sent.
 - Website: the pages (FDD for Windows, downloads, training and the rest) scroll again. The full-screen layout fix in 2.10.17 had stopped them scrolling; it now only applies to the display itself.

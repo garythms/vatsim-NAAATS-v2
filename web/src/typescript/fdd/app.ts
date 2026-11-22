@@ -30,6 +30,9 @@ export type ProfileInfo = { profiles: number; realname: string; certificate: str
 export type OceanicStatus = { installed: boolean; update_available: boolean | null; latest_version: string | null; trackaudio_running: boolean; trackaudio_path: string | null };
 export const oceanicStatus = (): Promise<OceanicStatus> => call<OceanicStatus>("oceanic_status");
 export const oceanicInstall = (): Promise<string> => call<string>("oceanic_install");
+/** Discord Rich Presence (the "Playing vNAAATS" card). Returns false when Discord is not running or the app has no Discord application id yet. */
+export const presenceSet = (details: string, state: string, started: number): Promise<boolean> => call<boolean>("presence_set", { details, state, started });
+export const presenceClear = (): Promise<void> => call<void>("presence_clear");
 export const OCEANIC_PAGE = "https://github.com/garythms/vatsim-NAAATS-v2/releases/tag/trackaudio-oceanic";
 export const profileGet = (): Promise<ProfileInfo> => call<ProfileInfo>("profile_get");
 export const profileSave = (name: string, cid: string, rating: number, password: string): Promise<number> => call("profile_save", { name, cid, rating, password });
