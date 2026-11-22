@@ -4,6 +4,7 @@
  *  at the boundary and then says it is leaving oceanic airspace (UNICOM). Dismissing a card keeps it away for that aircraft.
  */
 import { writable, get } from "svelte/store";
+import * as sounds from "./sounds";
 import * as dataHandler from "./data";
 import * as acmenu from "./acmenu";
 import * as cp from "./cpdlc";
@@ -89,8 +90,10 @@ async function autoUnicom(cs: string, me: string): Promise<void> {
 const done = new Set<string>();      // callsign|kind already shown (or dismissed)
 let actx: AudioContext | null = null;
 /** Two rising notes, different from the VACS ring and the CPDLC sound. */
-export function chime(): void {
-  if (!dataHandler.soundOn || !get(handoffSoundOn)) return;
+export function chime(test: boolean = false): void {
+  if (!test && (!dataHandler.soundOn || !get(handoffSoundOn))) return;
+  const vol: number = sounds.gain("handoff");
+  if (vol <= 0) return;
   try {
     actx = actx ?? new (window.AudioContext || (window as any).webkitAudioContext)();
     if (actx.state === "suspended") void actx.resume();
@@ -99,7 +102,7 @@ export function chime(): void {
     [[660, 0], [880, 0.22]].forEach(([f, d]) => {
       const o = actx!.createOscillator(), g = actx!.createGain();
       o.type = "triangle"; o.frequency.value = f; o.connect(g); g.connect(actx!.destination);
-      g.gain.setValueAtTime(0, t0 + d); g.gain.linearRampToValueAtTime(0.25, t0 + d + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t0 + d + 0.5);
+      g.gain.setValueAtTime(0, t0 + d); g.gain.linearRampToValueAtTime(0.25 * vol, t0 + d + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t0 + d + 0.5);
       o.start(t0 + d); o.stop(t0 + d + 0.52);
     });
   } catch (e) { /* no audio */ }

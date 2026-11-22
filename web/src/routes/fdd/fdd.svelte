@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SoundVolume from "./sound_volume.svelte";
   import { ms } from "../../typescript/fdd/motion";
   import { fly } from "svelte/transition";
   const halfPoint = (name: string) => name.match(/^(\d{2})(\d{2})\/(\d{2,3})$/);   // 5830/40: a half-degree track point
@@ -499,6 +500,7 @@
         <span class="flex flex-row gap-x-3">
           <span class="underline hover:cursor-pointer" title="Flashing strips and tab title" on:click={toggleVisual}>Visual: {visualOn ? "ON" : "OFF"}</span>
           <span class="underline hover:cursor-pointer" title="Sound when a new request arrives" on:click={toggleSound}>Audio: {soundOn ? "ON" : "OFF"}</span>
+          <SoundVolume />
           <span class="underline hover:cursor-pointer" title="Clicking an aircraft here circles it in white in EuroScope for a few seconds" on:click={toggleCircle}>Circle: {circleOn ? "ON" : "OFF"}</span>
           {#if $circleNote}<span class="text-yellow-300 ml-2">{$circleNote}</span>{/if}
           <span class="underline hover:cursor-pointer" title="Change the alert sound (plays a preview)" on:click={changeTone}>Tone: {tone}</span>
