@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { playSelcal, selcalMode, setSelcalMode, selcalDevice, selcalVia, setSelcalVia, selcalNote, testOnFrequency } from "../../typescript/fdd/selcal_sound";
+  import { playSelcal, selcalMode, setSelcalMode, selcalDevice, selcalVia, setSelcalVia, selcalNote } from "../../typescript/fdd/selcal_sound";
   import { createEventDispatcher } from "svelte";
   import * as dataHandler from "../../typescript/fdd/data";
   import * as sess from "../../typescript/fdd/session";
@@ -265,7 +265,6 @@
           </label>
           {#if $selcalVia === "trackaudio" && $selcalMode === "all"}
             <div class="mt-1 text-sm opacity-80">Needs the SELCAL test version of TrackAudio. It sends the tones on the frequency you have set to transmit; no virtual cable is used.</div>
-            <button class="mt-1 px-2 py-0.5 text-sm {BTN}" disabled={!m.validSelcal(selcal)} title="Sends the tones on your frequency only. The pilot gets no text message, so they can tell the radio tones from their program's own alert." on:click={() => testOnFrequency(selcal)}>Test: tones on frequency only</button>
             {#if $selcalNote}<div class="mt-1 text-sm text-yellow-300">{$selcalNote}</div>{/if}
           {:else if !$selcalDevice && app.inApp()}
             <div class="mt-1 text-sm opacity-80">"Controller and pilots hear" needs a virtual audio cable. <button class="underline" on:click={() => app.setupOpen.set(true)}>Set it up in FDD for Windows setup</button>.</div>

@@ -83,13 +83,6 @@ async function sendViaTrackAudio(code: string): Promise<string> {
   } finally { try { ws?.close(); } catch (e) { /* closed */ } }
 }
 
-/** Send ONLY the tones on your frequency through TrackAudio: no .selcal text message to the pilot, so what the pilot hears is the radio tones and nothing else. For testing. */
-export async function testOnFrequency(code: string): Promise<void> {
-  selcalNote.set("");
-  const why = await sendViaTrackAudio(code);
-  selcalNote.set(why ? why : "Tones sent on your frequency by TrackAudio. No text message was sent.");
-}
-
 // ---- Sending the tones on your frequency through a virtual cable (the older way). TrackAudio cannot play sound itself, so the tones are played into a virtual audio cable
 // that TrackAudio uses as its microphone, and the display presses and releases TrackAudio's push-to-talk around them (ws://127.0.0.1:49080/ws on this computer).
 const LS_DEV = "fdd.selcalDevice", LS_DEVNAME = "fdd.selcalDeviceName";
