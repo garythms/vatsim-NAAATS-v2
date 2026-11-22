@@ -44,7 +44,7 @@
   }, 50);
 </script>
 
-<div class="flex flex-col h-screen overflow-hidden">
+<div class="flex flex-col h-screen {siteSection == 2 ? 'overflow-hidden' : ''}">
   {#if siteSection != 2}
     <div class="overflow-hidden"></div>
   {:else}
