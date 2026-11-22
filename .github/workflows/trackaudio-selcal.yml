@@ -1,0 +1,83 @@
+name: TrackAudio SELCAL test build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [trackaudio-selcal-build]
+
+jobs:
+  build:
+    runs-on: windows-2022
+    env:
+      VCPKG_BINARY_SOURCES: 'clear;x-gha,readwrite'
+      TA_REF: 34c9169d1469c3d7bb239d29750c63673b4d0e61
+    steps:
+      - name: Export GitHub Actions cache environment variables
+        uses: actions/github-script@v9
+        with:
+          script: |
+            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Checkout patches
+        uses: actions/checkout@v7
+        with:
+          path: patches
+
+      - name: Checkout TrackAudio (pinned)
+        uses: actions/checkout@v7
+        with:
+          repository: pierr3/TrackAudio
+          ref: ${{ env.TA_REF }}
+          path: ta
+
+      - name: Checkout submodules and apply patches
+        shell: bash
+        working-directory: ta
+        run: |
+          git submodule update --init --recursive backend/vcpkg
+          git submodule update --init --recursive backend/extern/afv-native
+          git submodule update --init --recursive backend/extern/libuiohook
+          (cd backend/extern/afv-native && git checkout fc7d216fb3fee6a7d4b990fe27e2d5c1ad072f0e && git apply --verbose ../../../../patches/tools/trackaudio-selcal/afv-native-transmit-tones.patch)
+          (cd backend/extern/libuiohook && git checkout unregister-hook-when-debugging)
+          git apply --verbose ../patches/tools/trackaudio-selcal/trackaudio-transmit-tones.patch
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.x
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: ta/package.json
+
+      - name: Install Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11.x'
+
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '4.2.x'
+
+      - name: Build backend
+        shell: bash
+        working-directory: ta
+        run: |
+          set -e
+          npm install -g cmake-js
+          pnpm run build:backend
+          pnpm install
+
+      - name: Build and package
+        shell: bash
+        working-directory: ta
+        run: pnpm run build:win -- --publish=never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: TrackAudio-SELCAL-win
+          path: ta/dist/trackaudio-*.*

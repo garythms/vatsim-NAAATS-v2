@@ -1,0 +1,113 @@
+diff --git a/backend/include/sdk.hpp b/backend/include/sdk.hpp
+index a9f5760..ea5b644 100644
+--- a/backend/include/sdk.hpp
++++ b/backend/include/sdk.hpp
+@@ -89,6 +89,7 @@ private:
+     void handleAddStation(const nlohmann::json& json, uint64_t clientId);
+     void handleChangeStationVolume(const nlohmann::json& json, uint64_t clientId);
+     void handleChangeMainVolume(const nlohmann::json& json, uint64_t clientId);
++    void handleTransmitTones(const nlohmann::json& json, uint64_t clientId);
+ 
+     static std::map<sdkCall, std::string>& getSDKCallUrlMap()
+     {
+diff --git a/backend/src/sdk.cpp b/backend/src/sdk.cpp
+index d8903ce..2af3cb7 100644
+--- a/backend/src/sdk.cpp
++++ b/backend/src/sdk.cpp
+@@ -2,7 +2,11 @@
+ #include "Helpers.hpp"
+ #include "RadioHelper.hpp"
+ #include "Shared.hpp"
++#include <cctype>
++#include <map>
+ #include <plog/Log.h>
++#include <string>
++#include <vector>
+ 
+ SDK::SDK() { this->buildServer(); }
+ 
+@@ -391,6 +395,8 @@ void SDK::handleIncomingWebSocketRequest(const std::string& payload, uint64_t cl
+             this->handleChangeStationVolume(json, clientId);
+         } else if (messageType == "kChangeMainVolume") {
+             this->handleChangeMainVolume(json, clientId);
++        } else if (messageType == "kTransmitTones") {
++            this->handleTransmitTones(json, clientId);
+         }
+     } catch (const std::exception& e) {
+         PLOG_ERROR << "Error parsing incoming message JSON: " << e.what();
+@@ -624,6 +630,75 @@ void SDK::handleChangeStationVolume(const nlohmann::json& json, uint64_t clientI
+     }
+ }
+ 
++// ICAO SELCAL tone frequencies in Hz (Annex 10, the 16 original tones).
++static const std::map<char, double> kSelcalTones = { { 'A', 312.6 }, { 'B', 346.7 }, { 'C', 384.6 },
++    { 'D', 426.6 }, { 'E', 473.2 }, { 'F', 524.8 }, { 'G', 582.1 }, { 'H', 645.7 }, { 'J', 716.1 },
++    { 'K', 794.3 }, { 'L', 880.9 }, { 'M', 977.2 }, { 'P', 1083.9 }, { 'Q', 1202.3 }, { 'R', 1333.5 },
++    { 'S', 1479.1 } };
++
++// Transmits a tone sequence on a frequency in place of the microphone, e.g. SELCAL. The frequency must
++// already be set to transmit. Either "selcal": "ABCD" (or "AB-CD"), which sends the standard two 1.0 s
++// pulses 0.2 s apart, or "tones": [{ "f1": Hz, "f2": Hz (optional), "ms": duration }, ...] where f1 = 0
++// is a silent gap. Optional "gain" (0 to 1, default 0.5). Total length is limited to 10 seconds.
++void SDK::handleTransmitTones(const nlohmann::json& json, uint64_t clientId)
++{
++    if (!mClient || !mClient->IsVoiceConnected()) {
++        PLOG_ERROR << "Voice must be connected to transmit tones.";
++        return;
++    }
++
++    if (!json.contains("value") || !json["value"].contains("frequency")) {
++        PLOG_ERROR << "kTransmitTones requires a frequency.";
++        return;
++    }
++
++    try {
++        const auto& value = json["value"];
++        auto frequency = value["frequency"].get<unsigned int>();
++        float gain = value.value("gain", 0.5f);
++        std::vector<afv_native::afv::ToneSegment> segments;
++
++        if (value.contains("selcal")) {
++            std::string code;
++            for (char c : value["selcal"].get<std::string>()) {
++                if (c == '-' || c == ' ') {
++                    continue;
++                }
++                code += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
++            }
++            if (code.size() != 4) {
++                PLOG_ERROR << "A SELCAL code has four letters.";
++                return;
++            }
++            for (size_t i = 0; i < 4; i++) {
++                if (kSelcalTones.find(code[i]) == kSelcalTones.end()
++                    || code.find(code[i]) != i) {
++                    PLOG_ERROR << "Invalid SELCAL code (letters A-H, J-M, P-S, none repeated).";
++                    return;
++                }
++            }
++            segments.push_back({ kSelcalTones.at(code[0]), kSelcalTones.at(code[1]), 1000, gain });
++            segments.push_back({ 0.0, 0.0, 200, gain });
++            segments.push_back({ kSelcalTones.at(code[2]), kSelcalTones.at(code[3]), 1000, gain });
++        } else if (value.contains("tones") && value["tones"].is_array()) {
++            for (const auto& t : value["tones"]) {
++                segments.push_back({ t.value("f1", 0.0), t.value("f2", 0.0),
++                    t.value("ms", 0u), gain });
++            }
++        } else {
++            PLOG_ERROR << "kTransmitTones requires selcal or tones.";
++            return;
++        }
++
++        if (!mClient->TransmitTones(frequency, segments)) {
++            PLOG_ERROR << "Could not transmit tones: the frequency must be set to transmit, the "
++                          "sequence must be 1 to 10000 ms, and no other sequence may be playing.";
++        }
++    } catch (const std::exception& e) {
++        PLOG_ERROR << "kTransmitTones failed: " << e.what();
++    }
++}
++
+ void SDK::handleChangeMainVolume(const nlohmann::json& json, uint64_t clientId)
+ {
+     if (!mClient || !mClient->IsVoiceConnected()) {
