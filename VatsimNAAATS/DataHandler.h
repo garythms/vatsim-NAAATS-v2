@@ -73,6 +73,7 @@ class CDataHandler
 	static int ContactButton; // contactbutton=left|middle|right: the mouse button the plugin clicks the aircraft with (match your EuroScope ASEL button)
 	static bool HomeFocus; // homefocus=1: press Home before typing (old behaviour; EuroScope puts .contactme in an empty command line, and Home on a detailed tag sends Contact Me). Default off
 	static int ContactKey; // contactkey=<Windows key code>: the key EuroScope uses for Contact Me on a detailed tag. 36 (Home) unless the controller changed it in EuroScope
+	static bool DiscordCard; // discord=1 (default): show "Playing vNAAATS" (position, frequency, aircraft tracked) on my Discord profile. 0 turns it off.
 	static bool ChatContact; // chatcontact=1 (default): Contact Me by selecting the aircraft, typing .chat CALLSIGN and then the message in the same command line
 	static bool HomeContact; // homecontact=1: Contact Me by hovering the callsign and pressing Home (EuroScope runs .contactme on the detailed tag) instead of typing and clicking. Default on
 	static bool PasteMessage; // pastemessage=1: long .msg lines are pasted with Ctrl+V instead of typed. Default on

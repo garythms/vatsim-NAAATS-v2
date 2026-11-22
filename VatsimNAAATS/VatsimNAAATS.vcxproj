@@ -198,6 +198,7 @@
     <ClCompile Include="CommonRenders.cpp" />
     <ClCompile Include="ConflictList.cpp" />
     <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="DiscordPresence.cpp" />
     <ClCompile Include="RCLList.cpp" />
     <ClCompile Include="MenuBar.cpp" />
     <ClCompile Include="MessageWindow.cpp" />
@@ -233,6 +234,7 @@
     <ClInclude Include="Constants.h" />
     <ClInclude Include="Keys.h" />
     <ClInclude Include="Logger.h" />
+    <ClInclude Include="DiscordPresence.h" />
     <ClInclude Include="RCLList.h" />
     <ClInclude Include="FlightPlanWindow.h" />
     <ClInclude Include="InboundList.h" />

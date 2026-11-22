@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.h"
 #include "RadarDisplay.h"
+#include "DiscordPresence.h"
 #include <set>
 #include "AcTargets.h"
 #include "InboundList.h"
@@ -558,8 +559,34 @@ void CRadarDisplay::RunRemoteCommands()
 			plugin->DisplayUserMessage("vNAAATS", "Settings", "Your vNAAATS settings were changed on the FDD and saved in vnaaats.cfg. Close EuroScope and open it again for them to take effect.", true, true, true, true, true);
 	}
 	CDataHandler::ApplyPendingNetwork(this); // changes fetched from the server (e.g. edits made on the web FDD), applied on this thread
-	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) { RetrackPhase = 0; return; }   // disconnected: start the recovery again next time
+	if (!plugin->ControllerMyself().IsValid() || !plugin->ControllerMyself().IsController()) { RetrackPhase = 0; CDiscordPresence::Clear(); return; }   // disconnected: start the recovery again next time
 	CDataHandler::ControllerCallsign = plugin->ControllerMyself().GetCallsign();
+
+	// Discord card ("Playing vNAAATS"): position and frequency, aircraft I am tracking of those EuroScope knows, handoffs offered to me. Every 15 seconds.
+	{
+		static clock_t lastCard = 0;
+		static string cardFor = "";
+		static long long cardStart = 0;
+		if (!CDataHandler::DiscordCard) CDiscordPresence::Clear();
+		else if (lastCard == 0 || (double)(clock() - lastCard) / (double)CLOCKS_PER_SEC >= 15.0) {
+			lastCard = clock();
+			string me = plugin->ControllerMyself().GetCallsign();
+			if (me != cardFor) { cardFor = me; cardStart = (long long)time(NULL); }
+			int mineCount = 0, total = 0, offered = 0;
+			for (CFlightPlan f = plugin->FlightPlanSelectFirst(); f.IsValid(); f = plugin->FlightPlanSelectNext(f)) {
+				total++;
+				if (f.GetTrackingControllerIsMe()) mineCount++;
+				else if (string(f.GetHandoffTargetControllerCallsign()) == me) offered++;
+			}
+			char fq[16] = "";
+			double fr = plugin->ControllerMyself().GetPrimaryFrequency();
+			if (fr > 100.0 && fr < 137.0 && fabs(fr - 199.998) > 0.01) snprintf(fq, sizeof(fq), " %.3fMHz", fr);
+			string details = me + fq;
+			string state = "Aircraft tracked (" + to_string(mineCount) + " of " + to_string(total) + ")";
+			if (offered > 0) state += " - " + to_string(offered) + (offered == 1 ? " handoff to me" : " handoffs to me");
+			CDiscordPresence::Set(details, state, cardStart);
+		}
+	}
 
 	// Crash / disconnection recovery: when I (re)connect as a controller, track again the aircraft I had before.
 	//  phase 0 = not connected, 1 = settling (EuroScope needs time to load the flight plans), 2 = fetching, 3 = re-tracking, 4 = normal

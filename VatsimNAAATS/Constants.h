@@ -111,6 +111,8 @@ const vector<string> pointsShanwick = { "RATSU",
 // Plugin info
 const string PLUGIN_NAME = "vNAAATS";
 const string PLUGIN_VERSION = "2.9.3";
+// The public id of the vNAAATS application made in the Discord developer portal (the name shown after "Playing"). Empty = no Discord card.
+const string DISCORD_APP_ID = "";
 const string PLUGIN_AUTHOR = "Gary Thomas";
 const string PLUGIN_COPYRIGHT = "(C) 2026 Gary Thomas vNAAATS";
 const bool IS_ALPHA = false;

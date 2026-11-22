@@ -5,6 +5,7 @@
 
 #include "Constants.h"
 #include "RadarDisplay.h"
+#include "DiscordPresence.h"
 #include "Utils.h"
 
 CNAAATSPlugin::CNAAATSPlugin() : CPlugIn(COMPATIBILITY_CODE, PLUGIN_NAME.c_str(), PLUGIN_VERSION.c_str(), PLUGIN_AUTHOR.c_str(), PLUGIN_COPYRIGHT.c_str())
@@ -14,7 +15,7 @@ CNAAATSPlugin::CNAAATSPlugin() : CPlugIn(COMPATIBILITY_CODE, PLUGIN_NAME.c_str()
 }
 
 CNAAATSPlugin::~CNAAATSPlugin() {
-
+	CDiscordPresence::Stop();
 }
 
 CRadarScreen* CNAAATSPlugin::OnRadarScreenCreated(const char* sDisplayName, bool NeedRadarContent, bool GeoReferenced, bool CanBeSaved, bool CanBeCreated) 

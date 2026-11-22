@@ -19,6 +19,7 @@ OPTIONS = {
     "pastemessage": {"values": ("0", "1"), "default": "1"},   # paste long .msg lines with Ctrl+V instead of typing them
     "highlight": {"values": ("0", "1"), "default": "1"},
     "retrack":   {"values": ("0", "1"), "default": "1"},
+    "discord":   {"values": ("0", "1"), "default": "1"},     # the "Playing vNAAATS" card on the controller's Discord profile
     "remotelog": {"values": ("0", "1", "2"), "default": "1"},
 }
 
