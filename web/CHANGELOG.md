@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.10.20 - 2026-11-22
 - SELCAL: a new choice in the SELCAL tab, "Pilots hear it: Sent by TrackAudio (SELCAL test version)". With the SELCAL test version of TrackAudio installed, pressing Send makes TrackAudio itself transmit the tones on the frequency you have set to transmit, so no virtual audio cable is needed. It is off by default (the virtual cable is still the default) because it only works with that test version of TrackAudio.
 
 ## 2.10.19 - 2026-11-22
