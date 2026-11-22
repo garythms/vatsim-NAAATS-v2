@@ -336,7 +336,7 @@ async fn profile_get(window: WebviewWindow, app: tauri::AppHandle) -> Result<Pro
 // ---- Discord Rich Presence: the "Playing vNAAATS" card on the controller's own Discord profile.
 // It talks to the Discord app on this computer (a local connection); nothing goes through any other server. The Application ID is the public id
 // of the vNAAATS application made in the Discord developer portal; while it is empty the feature does nothing.
-const DISCORD_APP_ID: &str = "";
+const DISCORD_APP_ID: &str = "1574163478451851394";
 
 static PRESENCE: std::sync::Mutex<Option<discord_rich_presence::DiscordIpcClient>> = std::sync::Mutex::new(None);
 
