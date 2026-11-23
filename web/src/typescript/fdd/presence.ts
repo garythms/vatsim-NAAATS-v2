@@ -1,7 +1,7 @@
 /*
  *  Discord Rich Presence for FDD for Windows: the "Playing vNAAATS" card on the controller's own Discord profile.
  *  First line: position and frequency. Second line, most recent first: Sending SELCAL, TX on the frequency, RX from a callsign,
- *  otherwise aircraft tracked (n of total). Two buttons: Listen to me and vNAAATS (set in the app).
+ *  otherwise aircraft tracked (n of total). Two buttons: Live Map and vNAAATS (set in the app).
  *  Only in FDD for Windows, only while signed in with a position, on by default and switched off in Settings.
  *  The card is built by the Discord app on this computer; nothing is sent to any other server.
  */
