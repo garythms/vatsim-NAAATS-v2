@@ -144,7 +144,7 @@
         <div class="mx-3 mb-3 p-2 border border-blue-6 bg-blue-3 text-sm">
           <div class="font-bold">Discord status</div>
           <label class="flex flex-row items-center gap-2 mt-1"><input type="checkbox" checked={$presenceOn} on:change={(e) => setPresenceOn(e.currentTarget.checked)} /> Show "Playing vNAAATS" on my Discord profile</label>
-          <div class="text-xs opacity-80 mt-1">Shows your position and frequency, and what you are doing: sending a SELCAL, transmitting, receiving a call from a pilot, or how many aircraft you are tracking. It also has Map (the Gander Oceanic live map) and vNAAATS buttons. It is made by the Discord app on this computer, and only while Discord is running and you are signed in with a position.</div>
+          <div class="text-xs opacity-80 mt-1">Shows your position and frequency, and what you are doing: sending a SELCAL, transmitting, receiving a call from a pilot, or how many aircraft you are tracking. It also has Live Map (the Gander Oceanic live map) and vNAAATS buttons. It is made by the Discord app on this computer, and only while Discord is running and you are signed in with a position.</div>
         </div>
       {/if}
       {#if app.inApp() && $session.loggedIn}

@@ -362,7 +362,7 @@ async fn presence_set(window: WebviewWindow, details: String, state: String, sta
         let mut act = activity::Activity::new()
             .details(&details)
             .state(&state)
-            .buttons(vec![activity::Button::new("Map", "https://ganderoceanic.ca/map"), activity::Button::new("vNAAATS", "https://vnaaats.com")]);
+            .buttons(vec![activity::Button::new("Live Map", "https://ganderoceanic.ca/map"), activity::Button::new("vNAAATS", "https://vnaaats.com")]);
         if started > 0 {
             act = act.timestamps(activity::Timestamps::new().start(started));
         }
