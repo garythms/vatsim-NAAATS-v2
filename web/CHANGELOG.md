@@ -2,6 +2,9 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## Unreleased
+- FDD for Windows: the Discord status button "Listen to me" is replaced by "Map", which opens the Gander Oceanic live map (https://ganderoceanic.ca/map).
+
 ## 2.12.1 - 2026-11-22
 - FDD for Windows: updating the sector pack now takes the separate DiscordEuroscope plugin out of your EuroScope profile (the Discord card now comes from the app, so you would get two). Your login details and every other line are left as they were; the plugin's files stay on your disk, unused.
 
