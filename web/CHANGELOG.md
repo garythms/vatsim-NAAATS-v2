@@ -2,7 +2,7 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
-## Unreleased
+## 2.12.2 - 2026-11-23
 - FDD for Windows: the Discord status button "Listen to me" is replaced by "Live Map", which opens the Gander Oceanic live map (https://ganderoceanic.ca/map).
 
 ## 2.12.1 - 2026-11-22
