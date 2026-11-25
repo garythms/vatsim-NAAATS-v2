@@ -43,6 +43,7 @@ export type Aircraft = {
   UpdatedAt: number; // epoch ms, 0 if unknown
   History: { at: string; by: string; changes: Record<string, [any, any]> }[];
   IsConc: boolean; // Concorde
+  VoiceFrom: number; // fixes before this index were already passed when it was first tracked: no report is expected for them
   VoiceReports: boolean; // reports by voice, controllers type its times in: always Concorde, or any flight a controller switched on
   PosFixes: string[]; // route fixes in flight order (position report rows)
   PosCalc: string[]; // calculated times for those fixes, same order

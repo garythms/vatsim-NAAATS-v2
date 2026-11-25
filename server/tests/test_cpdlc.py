@@ -599,6 +599,20 @@ class HttpTests(unittest.TestCase):
         self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "est": "", "act": ""}, ck)       # clearing removes the row
         self.assertEqual(self.call("/GetSingleFlightData?callsign=CONC1")[1][0]["posReports"], {})
 
+    def test_voice_positions_skip_fixes_already_passed(self):
+        from vnaaats_server import voice_positions as vpos, first_fix_ahead
+        t = lambda h, m: h * 3600 + m * 60
+        route, etas = "56/20 56/30 56/40", "1000 1100 1200"
+        # tracked after entering the OCA: 56/20 was already behind it, so no report is asked for and it is not overdue
+        self.assertIn("overdue", vpos(route, etas, {}, {}, t(11, 10)))
+        out = vpos(route, etas, {}, {}, t(11, 10), skip=1)
+        self.assertEqual(out["overdue"]["fix"], "56/30")                                                       # the first fix it has to report
+        self.assertNotIn("overdue", vpos(route, etas, {}, {}, t(10, 30), skip=1))
+        pilot = {"latitude": 56.0, "longitude": -24.0, "heading": 270}
+        self.assertEqual(first_fix_ahead(route, pilot, {}), 1)                                                  # 20W is behind a westbound aircraft at 24W
+        self.assertEqual(first_fix_ahead(route, {"latitude": 56.0, "longitude": -18.0, "heading": 270}, {}), 0)
+        self.assertEqual(first_fix_ahead(route, {}, {}), 0)
+
     def test_voice_positions(self):
         from vnaaats_server import voice_positions as vpos
         t = lambda h, m: h * 3600 + m * 60
