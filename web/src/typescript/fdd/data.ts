@@ -53,6 +53,7 @@ interface JsonAcObj {
   offline?: boolean | null;
   posReports?: Record<string, { est: string; act: string; by: string; at: string }>;
   voiceReports?: boolean;
+  voiceFrom?: number;
   updatedBy?: string;
   updatedAt?: string;
   history?: { at: string; by: string; changes: Record<string, [any, any]> }[];
@@ -368,6 +369,7 @@ export async function populateAllAircraft() : Promise<void> {
             History: objArr[i]?.history ?? [],
             IsConc: isConc,
             VoiceReports: voice,
+            VoiceFrom: objArr[i]?.voiceFrom ?? 0,
             PosFixes: [...routePoints],
             PosCalc: posCalc,
             PosReports: posReports,
@@ -408,7 +410,7 @@ export function concOverdueFix(ac: Aircraft): string {
   if (!ac.VoiceReports) return "";
   const n: Date = new Date();
   const nowMin: number = n.getUTCHours() * 60 + n.getUTCMinutes();
-  for (let i: number = 0; i < ac.PosFixes.length; i++) {
+  for (let i: number = ac.VoiceFrom ?? 0; i < ac.PosFixes.length; i++) { // fixes it had already passed when a controller first tracked it are never overdue
     const fix: string = ac.PosFixes[i];
     const r = ac.PosReports[fix];
     if (r && r.act) continue; // already reported

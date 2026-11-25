@@ -17,6 +17,7 @@ namespace Colours {
 	const Color DarkGrey(182, 182, 182);
 	const Color TargetOrange(255, 128, 0);
 	const Color TargetBlue(130, 175, 192);
+	const Color VoiceGreen(0, 200, 83); // voice position report aircraft nobody is tracking
 	const Color LightGreen(81, 188, 161);
 	const Color ScreenBlue(59, 110, 179);
 	const Color LightBackground(165, 199, 249);

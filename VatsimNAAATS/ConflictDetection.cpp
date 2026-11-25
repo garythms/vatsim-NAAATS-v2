@@ -488,6 +488,16 @@ void CConflictDetection::CheckSTCA(CRadarScreen* screen, CRadarTarget* target, m
 	// Set on screen aircraft
 	aircraftOnScreen = onScreenAircraft;
 
+	// Aircraft reporting by voice are not monitored for conflicts (their tag is at a calculated position, not the real one)
+	{
+		CAircraftFlightPlan* vfp = CDataHandler::GetFlightData(string(target->GetCallsign()));
+		if (vfp && vfp->VoiceReports) {
+			string vcs = target->GetCallsign();
+			CurrentSTCA.erase(std::remove_if(CurrentSTCA.begin(), CurrentSTCA.end(), [&vcs](const CSTCAStatus& o) { return o.CallsignA == vcs || o.CallsignB == vcs; }), CurrentSTCA.end());
+			return;
+		}
+	}
+
 	try {
 		// Status for target
 		CAircraftStatus targetAc(target->GetCallsign(), target->GetPosition().GetPressureAltitude(),
@@ -499,6 +509,10 @@ void CConflictDetection::CheckSTCA(CRadarScreen* screen, CRadarTarget* target, m
 			if (i->first == targetAc.Callsign)
 				continue;
 			CRadarTarget ac = screen->GetPlugIn()->RadarTargetSelect(i->first.c_str());
+			{
+				CAircraftFlightPlan* ofp = CDataHandler::GetFlightData(i->first);
+				if (ofp && ofp->VoiceReports) continue; // the other aircraft reports by voice
+			}
 
 			// Status for this aircraft
 			CAircraftStatus acTest(ac.GetCallsign(), ac.GetPosition().GetPressureAltitude(),

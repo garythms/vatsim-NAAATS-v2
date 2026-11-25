@@ -137,6 +137,111 @@ def token_to_latlon(token, fixes):
     return (round(p[1], 6), round(p[2], 6)) if p else None
 
 
+def _hhmm_min(t):
+    d = re.sub(r"\D", "", str(t or ""))
+    return int(d[:2]) * 60 + int(d[2:]) if len(d) == 4 else -1
+
+
+def _gc_point(p1, p2, f):
+    """The point a fraction f (0..1) of the way along the great circle from p1 to p2, each (lat, lon) in degrees."""
+    la1, lo1, la2, lo2 = map(math.radians, (p1[0], p1[1], p2[0], p2[1]))
+    d = 2 * math.asin(min(1.0, math.sqrt(math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2)))
+    if d < 1e-9:
+        return p1
+    a, b = math.sin((1 - f) * d) / math.sin(d), math.sin(f * d) / math.sin(d)
+    x = a * math.cos(la1) * math.cos(lo1) + b * math.cos(la2) * math.cos(lo2)
+    y = a * math.cos(la1) * math.sin(lo1) + b * math.cos(la2) * math.sin(lo2)
+    z = a * math.sin(la1) + b * math.sin(la2)
+    return round(math.degrees(math.atan2(z, math.hypot(x, y))), 5), round(math.degrees(math.atan2(y, x)), 5)
+
+
+def first_fix_ahead(route, pilot, fixes):
+    """Index of the first route fix still ahead of the aircraft (within 100 degrees of its heading), or 0 when that cannot be told."""
+    try:
+        lat, lon, hdg = float(pilot["latitude"]), float(pilot["longitude"]), float(pilot.get("heading") or 0)
+    except (KeyError, TypeError, ValueError):
+        return 0
+    for i, tok in enumerate(str(route or "").split()):
+        ll = token_to_latlon(tok, fixes)
+        if ll and abs((_bearing(lat, lon, ll[0], ll[1]) - hdg + 540) % 360 - 180) <= 100:
+            return i
+    return 0
+
+
+def voice_positions(route, etas, reports, fixes, now_sec, mach=0, skip=0):
+    """Where the EuroScope tag of a voice position report flight belongs, as the plugin draws it (while a controller tracks it).
+
+    A voice report only corrects the system's own estimate. The last fix with an actual time anchors the aircraft there at that time, and the tag
+    then moves along the direct line to the next fix so that it arrives at the estimate (the pilot's estimate if one is typed in, else the calculated one,
+    moved by however early or late the aircraft was at the last fix). A new report re-anchors it. Weather deviations are not known to the system, so the tag
+    always follows the direct path between the two fixes.
+    "last": that calculated position (lat, lon), plus the fixes it is between ("fix", "next") and how far along it is ("f", 0..1). Left out until a report is entered.
+    "skip": fixes before this index were already behind the aircraft when a controller first tracked it: no report is expected for them, so they are never overdue.
+    "overdue": set once the next fix's estimate passed by more than 3 minutes (the FDD rule: estimates more than 90 minutes old are ignored). The tag is then held
+    at that fix and flashes."""
+    toks = str(route or "").split()
+    eta = str(etas or "").split()
+    reports = reports or {}
+    out = {}
+    last_i = -1
+    for i, tok in enumerate(toks):
+        r = reports.get(tok.upper())
+        if r and r.get("act"):
+            last_i = i
+    now_min = now_sec / 60.0
+    if last_i >= 0:
+        here = token_to_latlon(toks[last_i], fixes)
+        t0 = _hhmm_min(reports[toks[last_i].upper()]["act"])
+        if here and t0 >= 0:
+            late_now = (now_min - t0) % 1440
+            elapsed = late_now if late_now <= 720 else 0.0              # an actual time in the future: still at the fix
+            pos, f, nxt = here, 0.0, ""
+            if last_i + 1 < len(toks):
+                nxt = toks[last_i + 1].upper()
+                there = token_to_latlon(nxt, fixes)
+                if there:
+                    rn = reports.get(nxt) or {}
+                    seg = -1.0
+                    t1 = _hhmm_min(rn.get("est") or "")
+                    if t1 >= 0:
+                        seg = (t1 - t0) % 1440                                      # the pilot's estimate for the next fix
+                    else:
+                        c0 = _hhmm_min(eta[last_i] if last_i < len(eta) else "")
+                        c1 = _hhmm_min(eta[last_i + 1] if last_i + 1 < len(eta) else "")
+                        if c0 >= 0 and c1 >= 0:
+                            seg = (c1 - c0) % 1440                                  # the system's own estimate of this leg
+                    if seg <= 0 or seg > 720:
+                        try:
+                            kt = float(mach) / (100.0 if float(mach) >= 10 else 1.0) * 573.0       # no times to go by: Mach 0.84 is about 480 knots
+                        except (TypeError, ValueError):
+                            kt = 0.0
+                        seg = _gc_nm(here[0], here[1], there[0], there[1]) / kt * 60.0 if kt > 0 else -1.0
+                    if seg > 0:
+                        f = max(0.0, min(1.0, elapsed / seg))
+                        pos = _gc_point(here, there, f)
+            out["last"] = {"fix": toks[last_i].upper(), "next": nxt, "f": round(f, 3), "lat": pos[0], "lon": pos[1], "act": reports[toks[last_i].upper()]["act"]}
+    for i, tok in enumerate(toks):
+        if i < skip:
+            continue
+        r = reports.get(tok.upper())
+        if r and r.get("act"):
+            continue
+        est = _hhmm_min((r or {}).get("est") or (eta[i] if i < len(eta) else ""))
+        if est < 0:
+            continue
+        late = ((now_min - est) % 1440 + 1440) % 1440
+        if late > 720:
+            break                                   # still in the future
+        if late > 90:
+            continue                                # stale
+        if late > 3:
+            ll = token_to_latlon(tok, fixes)
+            if ll:
+                out["overdue"] = {"fix": tok.upper(), "lat": ll[0], "lon": ll[1]}
+        break
+    return out
+
+
 def _gc_nm(lat1, lon1, lat2, lon2):
     """Great-circle distance in nautical miles."""
     p1, p2 = math.radians(lat1), math.radians(lat2)
@@ -350,6 +455,7 @@ class FlightStore:
             act TEXT NOT NULL DEFAULT '', by TEXT NOT NULL DEFAULT '', at TEXT NOT NULL DEFAULT '', ts REAL NOT NULL, PRIMARY KEY (callsign, fix))""")
         self.db.execute("CREATE TABLE IF NOT EXISTS voice_modes (callsign TEXT PRIMARY KEY, mode TEXT NOT NULL, ts REAL NOT NULL, by TEXT NOT NULL DEFAULT '')")
         self.db.execute("CREATE TABLE IF NOT EXISTS voice_reports (callsign TEXT PRIMARY KEY, ts REAL NOT NULL, by TEXT NOT NULL DEFAULT '')")
+        self.db.execute("CREATE TABLE IF NOT EXISTS voice_start (callsign TEXT PRIMARY KEY, idx INTEGER NOT NULL, ts REAL NOT NULL)")
         self.db.commit()
 
     # --- flights a controller switched on for voice position reports (any aircraft that is not Concorde). It lapses after a flight's length,
@@ -360,6 +466,7 @@ class FlightStore:
         cs = callsign.strip().upper()
         with self.lock:
             self.db.execute("DELETE FROM pos_reports WHERE callsign=?", (cs,))
+            self.db.execute("DELETE FROM voice_start WHERE callsign=?", (cs,))
             if on:
                 self.db.execute("INSERT OR REPLACE INTO voice_reports VALUES (?,?,?)", (cs, time.time(), by))
             else:
@@ -370,6 +477,18 @@ class FlightStore:
         with self.lock:
             row = self.db.execute("SELECT ts FROM voice_reports WHERE callsign=?", (callsign.strip().upper(),)).fetchone()
         return bool(row) and time.time() - row[0] < self.VOICE_SECONDS
+
+    # --- the first route fix still ahead of a voice report flight when a controller first tracked it. A flight tracked after it has entered the OCA
+    # has no position reports for the fixes it already passed, and none are asked for: they are never overdue.
+    def voice_start_get(self, callsign):
+        with self.lock:
+            row = self.db.execute("SELECT idx, ts FROM voice_start WHERE callsign=?", (callsign.strip().upper(),)).fetchone()
+        return row[0] if row and time.time() - row[1] < self.VOICE_SECONDS else None
+
+    def voice_start_set(self, callsign, idx):
+        with self.lock:
+            self.db.execute("INSERT OR IGNORE INTO voice_start VALUES (?,?,?)", (callsign.strip().upper(), int(idx), time.time()))
+            self.db.commit()
 
     # --- communication mode a controller set by hand, over what the pilot filed (/T/ text only, /R/ receive only): "text", "receive" or "voice"
     # (voice = normal, even if the plan says /T/). It lapses after a flight's length, and "" takes it away so the flight plan applies again.
@@ -1703,6 +1822,13 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec["voiceReports"] = voice                                        # position reports by voice: always for Concorde, otherwise when a controller switched it on
         if voice:
             rec["posReports"] = store.pos_get(rec.get("callsign", ""))
+            _n = datetime.now(timezone.utc)
+            skip = store.voice_start_get(rec.get("callsign", ""))
+            if skip is None and by and pilot:                              # first time a controller tracks it: fixes it already passed need no reports
+                skip = first_fix_ahead(rec.get("route", ""), pilot, cache.fixes)
+                store.voice_start_set(rec.get("callsign", ""), skip)
+            rec["voiceFrom"] = skip or 0                                   # the FDD leaves the earlier fixes out of its overdue check
+            rec["voicePos"] = voice_positions(rec.get("route", ""), rec.get("routeEtas", ""), rec["posReports"], cache.fixes, _n.hour * 3600 + _n.minute * 60 + _n.second, rec.get("mach", 0), skip or 0)   # the plugin draws the tag from this
         return rec
     secure_cookie = auth.public_url.startswith("https://")
     shared_key_ok = os.environ.get("VNAAATS_SHARED_KEY", "on").lower() != "off"
