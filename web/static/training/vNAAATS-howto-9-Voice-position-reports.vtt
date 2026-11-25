@@ -1,0 +1,136 @@
+WEBVTT
+
+00:00:04.300 --> 00:00:07.703
+This video shows how voice position reports work in vNAAATS.
+
+00:00:07.703 --> 00:00:12.695
+Concorde always reports by voice, and so can any other flight that isn't ADS-B equipped.
+
+00:00:12.695 --> 00:00:15.901
+For those flights, you type in what the pilot tells you,
+
+00:00:15.901 --> 00:00:18.764
+and the system uses it to keep its estimate right.
+
+00:00:20.064 --> 00:00:21.538
+For Concorde, it's already on.
+
+00:00:21.538 --> 00:00:24.868
+For any other flight, click the callsign to open the aircraft menu,
+
+00:00:24.868 --> 00:00:26.060
+and press Voice reports.
+
+00:00:26.060 --> 00:00:29.531
+It changes to Voice reports on, and a Position reports button appears,
+
+00:00:29.531 --> 00:00:31.565
+in the menu and in the flight plan panel.
+
+00:00:31.565 --> 00:00:34.491
+It is for that one flight, everyone on the display sees it,
+
+00:00:34.491 --> 00:00:36.873
+and it switches itself off after eighteen hours.
+
+00:00:36.873 --> 00:00:39.477
+Switching it on or off clears the times typed so far.
+
+00:00:40.777 --> 00:00:43.597
+The button opens a table with every fix on the route,
+
+00:00:43.597 --> 00:00:46.204
+and three times: calculated, estimate and actual.
+
+00:00:46.204 --> 00:00:48.258
+Type each report as the pilot gives it.
+
+00:00:48.258 --> 00:00:51.129
+Put the time they passed the fix in the actual column,
+
+00:00:51.129 --> 00:00:54.264
+and their estimate for the next fix in the estimate column.
+
+00:00:54.264 --> 00:00:56.108
+Press now to fill the current time.
+
+00:00:56.108 --> 00:00:58.953
+Typed times replace the calculated times on the strip.
+
+00:01:00.253 --> 00:01:01.565
+Now the EuroScope screen.
+
+00:01:01.565 --> 00:01:03.821
+A voice report doesn't freeze the aircraft.
+
+00:01:03.821 --> 00:01:05.604
+It corrects the system's estimate.
+
+00:01:05.604 --> 00:01:10.116
+If nobody is tracking the aircraft, its tag is green and moves with its real position.
+
+00:01:10.116 --> 00:01:12.341
+Once it is tracked, by you or anyone else,
+
+00:01:12.341 --> 00:01:15.572
+the tag follows a calculated position, in the normal colours.
+
+00:01:15.572 --> 00:01:20.282
+The last report anchors it, and the tag then moves along the direct line to the next fix,
+
+00:01:20.282 --> 00:01:21.605
+arriving at the estimate.
+
+00:01:21.605 --> 00:01:24.514
+When the pilot reports the next fix and you type it in,
+
+00:01:24.514 --> 00:01:28.058
+the tag is re-anchored, and the same thing happens on the next leg.
+
+00:01:28.058 --> 00:01:31.835
+The system can't see weather deviations, so it keeps to the direct path.
+
+00:01:31.835 --> 00:01:34.615
+And no conflict alerts are raised for these aircraft.
+
+00:01:35.915 --> 00:01:40.438
+If the estimate for the next fix passes by more than three minutes with no report,
+
+00:01:40.438 --> 00:01:42.865
+the tag holds at that fix and flashes white.
+
+00:01:42.865 --> 00:01:46.564
+The strip, the Position reports button and the table row flash too,
+
+00:01:46.564 --> 00:01:48.884
+and the top bar shows a red overdue count.
+
+00:01:48.884 --> 00:01:51.510
+Call the pilot for their report, and type it in.
+
+00:01:52.810 --> 00:01:56.329
+If you track an aircraft that is already in the oceanic airspace,
+
+00:01:56.329 --> 00:01:58.332
+ignore the earlier fixes on the list.
+
+00:01:58.332 --> 00:02:02.942
+No reports are needed for fixes it has already passed, and they never show as overdue.
+
+00:02:02.942 --> 00:02:05.247
+Start from the first fix still ahead of it.
+
+00:02:06.547 --> 00:02:07.130
+To sum up.
+
+00:02:07.130 --> 00:02:09.109
+Green means nobody is tracking it.
+
+00:02:09.109 --> 00:02:13.535
+Once tracked, the tag follows the calculated position along the direct line.
+
+00:02:13.535 --> 00:02:15.049
+Each report re-anchors it.
+
+00:02:15.049 --> 00:02:18.601
+A late report holds the tag at the fix, and flashes it white.

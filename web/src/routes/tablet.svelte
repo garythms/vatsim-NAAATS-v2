@@ -13,7 +13,7 @@
     <h1 class="text-4xl font-bold mt-3 mb-1">Tablet or iPad use</h1>
     <div class="opacity-80 mb-6">Put the Flight Data Display on a tablet, an iPad or a second screen while EuroScope stays on your Windows computer. It starts from FDD for Windows.</div>
 
-    <video class="w-full bg-black mb-2" controls preload="metadata" playsinline src="/training/vNAAATS-howto-8-Tablet-iPad.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-8-Tablet-iPad.mp4">Download it</a>.</video>
+    <video class="w-full bg-black mb-2" controls preload="metadata" playsinline src="/training/vNAAATS-howto-8-Tablet-iPad.mp4"><track kind="captions" srclang="en" label="English" src="/training/vNAAATS-howto-8-Tablet-iPad.vtt" />Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-8-Tablet-iPad.mp4">Download it</a>.</video>
     <p class="text-sm opacity-80 mb-6">About a minute. It uses sample flights and is not a live display.</p>
 
     <h2 class="text-2xl font-bold mb-2">How it works</h2>

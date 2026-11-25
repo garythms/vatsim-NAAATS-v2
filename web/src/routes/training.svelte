@@ -26,7 +26,7 @@
     <div class="opacity-80 mb-6">For trainees working towards their OCA endorsement. Watch the introduction before your first session on the scopes.</div>
 
     <h2 class="text-2xl font-bold mb-2">Trainee introduction</h2>
-    <video class="w-full bg-black mb-2" controls preload="metadata" playsinline src="/training/vNAAATS-trainee-intro.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-trainee-intro.mp4">Download it</a>.</video>
+    <video class="w-full bg-black mb-2" controls preload="metadata" playsinline src="/training/vNAAATS-trainee-intro.mp4"><track kind="captions" srclang="en" label="English" src="/training/vNAAATS-trainee-intro.vtt" />Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-trainee-intro.mp4">Download it</a>.</video>
     <p class="text-sm opacity-80 mb-6">About 5 minutes. It uses sample flights and is not a live display. It covers what you need, the oceanic area, vNAAATS and the Flight Data Display, CPDLC, and natTrak.</p>
 
     <h2 class="text-2xl font-bold mb-2">Before your session</h2>
@@ -78,7 +78,7 @@
     {#each howto as v}
       <div class="mb-6">
         <div class="font-bold mb-1">{v.title}</div>
-        <video class="w-full bg-black mb-1" controls preload="none" playsinline src={"/training/" + v.file}>Your browser cannot play this video. <a class="underline" rel="external" href={"/training/" + v.file}>Download it</a>.</video>
+        <video class="w-full bg-black mb-1" controls preload="none" playsinline src={"/training/" + v.file}><track kind="captions" srclang="en" label="English" src={"/training/" + v.file.replace(".mp4", ".vtt")} />Your browser cannot play this video. <a class="underline" rel="external" href={"/training/" + v.file}>Download it</a>.</video>
         <div class="text-sm opacity-80">{v.text}</div>
       </div>
     {/each}

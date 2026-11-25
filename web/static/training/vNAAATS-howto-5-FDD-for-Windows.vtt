@@ -1,0 +1,113 @@
+WEBVTT
+
+00:00:01.062 --> 00:00:07.814
+Welcome to vNAAATS. This is FDD for Windows, the one fits all program for oceanic control.
+
+00:00:09.222 --> 00:00:18.470
+Controlling Oceanic means juggling a lot of tools. EuroScope, the flight data display. natTrak, CPDLC, controller calls and your audio client.
+
+00:00:19.078 --> 00:00:23.494
+D.D. for Windows brings them all together so you can control from one place.
+
+00:00:24.262 --> 00:00:26.598
+This is the flight data display in its own window.
+
+00:00:26.918 --> 00:00:31.142
+Every flight heading for the oceanic area is on your strips, grouped by track.
+
+00:00:31.462 --> 00:00:33.158
+each tango route as its own bridge.
+
+00:00:33.702 --> 00:00:36.614
+The alerts button takes you straight to any flight with a warning.
+
+00:00:36.902 --> 00:00:41.350
+and the aircraft menu has everything from tracking and transfers to a cell-cal check.
+
+00:00:42.758 --> 00:00:46.086
+natTrak, the VATSIM Oceanic Clearance System is built in.
+
+00:00:46.438 --> 00:00:53.926
+Pending and cleared lists show what needs your action, and natTrak opens in its own window that keeps your sign in, so you never leave the display.
+
+00:00:55.398 --> 00:00:57.030
+Your other tools sit along the top.
+
+00:00:57.350 --> 00:01:05.958
+The VACS button shows calls from other controllers. The audio chip shows who spoke last on your frequency. And CPDLC opens the data link window.
+
+00:01:06.342 --> 00:01:14.694
+clearance requests and level messages, which you can pop out onto another screen. One more thing we highly recommend using TrackAudio.
+
+00:01:15.014 --> 00:01:22.438
+you needed to get the full features of the vNAAATS flight data display, like who spoke last and the highlight on the aircraft that is transmitting.
+
+00:01:23.750 --> 00:01:29.062
+Beside it sits EuroScope. Pick an aircraft in EuroScope and it is highlighted in the display.
+
+00:01:29.414 --> 00:01:33.574
+commands such as track, release and transfer go from the display to the plugin.
+
+00:01:35.238 --> 00:01:39.046
+Play also works in a browser, and that is still the right choice on an iPad.
+
+00:01:39.494 --> 00:01:41.286
+but on Windows the app does much more.
+
+00:01:41.606 --> 00:01:51.846
+It starts EuroScope, VACS in your audio client for you. It keeps the plugin up to date and asks before it changes anything. It saves your key into the vnayats.cfg file.
+
+00:01:52.102 --> 00:01:54.502
+and brings that file up to date each time you open it.
+
+00:01:54.950 --> 00:01:56.134
+your own values.
+
+00:01:56.454 --> 00:02:00.198
+The program is already running, it leaves it alone so you never get a second copy.
+
+00:02:00.742 --> 00:02:04.262
+And you can paste your key just as it is, even with key equals in front.
+
+00:02:04.518 --> 00:02:06.758
+It has its own window and it updates itself.
+
+00:02:07.750 --> 00:02:17.702
+Getting started takes a few minutes. First, get your free API key at vnayats.com/get-key. Then download and install FDD for Windows and do the one-time setup.
+
+00:02:18.054 --> 00:02:23.046
+When you start the app it says, "Awaiting an active VATSIM connection." Connect in EuroScope.
+
+00:02:23.334 --> 00:02:26.630
+Within a few seconds the display opens on your position by itself.
+
+00:02:27.750 --> 00:02:33.510
+Here is how the install goes. Download the installer from vnaaats.com/windows and run it.
+
+00:02:33.830 --> 00:02:41.990
+You do not need administrator rights. The installer is not code signed yet. So if Windows Smart Screen says Windows protected your PC, just choose more info.
+
+00:02:43.430 --> 00:02:45.318
+The code signing page explains why.
+
+00:02:46.662 --> 00:02:58.310
+The first time you open the app, it walks you through a one-time setup. Choose your EuroScope folder, check the plugin, paste your key, and tick the programs you want it to open for you. After that, it opens straight to the display.
+
+00:02:59.846 --> 00:03:02.662
+FDD for Windows also looks after its own updates.
+
+00:03:03.046 --> 00:03:11.430
+FDD updates by itself, and when the app, the EuroScope plugin, the airline list, or the font needs updating, it prompts you and asks before it changes anything.
+
+00:03:11.782 --> 00:03:16.294
+Close your O-scope first then press update now. Your key is never touched.
+
+00:03:17.190 --> 00:03:23.430
+The key is personal, so keep it private. The display only opens while you are connected to VATSIM on an oceanic position.
+
+00:03:23.878 --> 00:03:26.086
+Remember, we highly recommend TrackAudio.
+
+00:03:26.342 --> 00:03:32.957
+Download FDD for Windows at vnayats.com/windows. One program, everything in one place.
+

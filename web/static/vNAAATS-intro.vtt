@@ -1,0 +1,53 @@
+WEBVTT
+
+00:00:00.326 --> 00:00:05.478
+Welcome to vNAAATS, Modern Oceanic Control for the Nat Region on VATSIM.
+
+00:00:06.470 --> 00:00:20.480
+vNAAATS modernizes how oceanic traffic is controlled across the NAT region. It replaces the old tools with a flight data display, a plugin for EuroScope, and a server that links them together, so everything stays in step between controllers.
+
+00:00:21.414 --> 00:00:28.070
+You can run the flight data display in your browser, or install FDD for Windows, a small app that opens it for you.
+
+00:00:28.358 --> 00:00:33.510
+The EuroScope plugin passes flights and clearances between the display and your radar screen.
+
+00:00:34.534 --> 00:00:46.918
+The vNAAATS flight data display shows every aircraft entering the NAT region on one page, its track, level, Mach and estimates. Pending requests that need action sit at the top and the cleared flights are listed beside them.
+
+00:00:48.262 --> 00:00:55.270
+At vNAAATS, pilots now ask for their oceanic route with a request for clearance or RCL, 30 to 90 minutes before the entry point.
+
+00:00:55.718 --> 00:01:05.382
+It is a request, not a clearance. The controller processes it and the pilot is told to fly the current flight plan or is amended by a TC and to squawk 2,000 at the entry.
+
+00:01:07.014 --> 00:01:10.438
+If you would like more help, AutoRCL sends the replies for you.
+
+00:01:10.694 --> 00:01:20.710
+A red star on the tag shows that a request has been sent, even when the aircraft is still 90 minutes away and outside your visibility range. So don't worry, it has been sent.
+
+00:01:21.606 --> 00:01:26.086
+Not every pilot has CPDLC and it is not a requirement on VATSIM.
+
+00:01:26.374 --> 00:01:33.190
+If they are not connected to Hoppie, the request goes as a plain message in EuroScope, and that track carries on as before.
+
+00:01:33.574 --> 00:01:35.846
+Requests under 30 minutes are for voice.
+
+00:01:36.774 --> 00:01:48.966
+The vNAAATS handoff helper is a helping hand, not a hand on the controls. In busy periods, when entry traffic loads into the NAT region, it reminds you to hand off, so no aircraft slips past its boundary.
+
+00:01:50.022 --> 00:01:56.870
+This is a change of process for controllers and for pilots alike, and it modernizes Oceanic on VATSIM for everyone.
+
+00:01:58.534 --> 00:02:13.632
+To get started with VNAZ, get your free key at vNAAATS.com/get-key. It lasts 90 days. Install FDD for Windows or use the browser and paste the key once. Then connect to VATSIM on an oceanic position and the display opens by itself.
+
+00:02:15.014 --> 00:02:18.694
+Watch the how-to videos at vnayats.com/training
+
+00:02:19.014 --> 00:02:19.745
+vNAAATS
+

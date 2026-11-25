@@ -1,0 +1,95 @@
+WEBVTT
+
+00:00:01.030 --> 00:00:06.182
+Welcome to vNAAATS. In this video you will learn how the flight data display works with natTrak.
+
+00:00:06.470 --> 00:00:13.158
+pending and cleared lists requesting a clearance for an aircraft and answering clearance requests that arrive by CPDLC.
+
+00:00:15.078 --> 00:00:20.838
+Please note this is a demonstration using sample flights. It is not a live version of the FDD.
+
+00:00:24.294 --> 00:00:27.654
+Sign in to the FDD with your key and it opens on your position.
+
+00:00:28.070 --> 00:00:32.806
+To work in natTrak itself, press open natTrak and sign in there with your VATSIM details.
+
+00:00:33.062 --> 00:00:35.622
+The FDD never sees your natTrak password.
+
+00:00:36.230 --> 00:00:44.006
+At the top, natTrak Pending lists the requests waiting for controller and cleared lists the clearances already issued with the track fixed level, Mach and estimate.
+
+00:00:44.422 --> 00:00:46.566
+New requests flash and sound an alert.
+
+00:00:46.854 --> 00:00:50.246
+You can switch the visual alert, the sound, the circle, and the tone here.
+
+00:00:53.542 --> 00:00:59.686
+Select an aircraft and its natTrak clearance data appears on the right. The status level, Mach fix an estimate.
+
+00:00:59.942 --> 00:01:01.734
+You can compare it with the flight plan.
+
+00:01:02.758 --> 00:01:08.422
+The pilot has not yet asked for clearance. Auto RCL reminds them for you from 90 to 30 minutes before their entry point.
+
+00:01:08.838 --> 00:01:14.182
+If they are on Hoppie it goes as a telex, otherwise it is typed to them in EuroScope and a red star shows it has been sent
+
+00:01:14.502 --> 00:01:18.982
+You can also send it yourself. Open the aircraft menu, choose RCL, REQ and press send.
+
+00:01:19.302 --> 00:01:23.174
+Inside 30 minutes, it is too late for a request, so deal with that flight on voice.
+
+00:01:23.814 --> 00:01:30.886
+Pilots who ask by CPDLC show in the clearance request list at the top of the CPDLC window. Press Prepare and natTrak.
+
+00:01:31.110 --> 00:01:33.798
+In the Windows app, natTrak opens with the form filled in.
+
+00:01:34.118 --> 00:01:41.254
+In a browser, you get the values with a copy button for each. Check them, then press create yourself in natTrak. The FDD never presses it for you.
+
+00:01:41.958 --> 00:01:45.734
+Once the flight is on natTrak and you have checked it there, the Send button is unlocked.
+
+00:01:46.214 --> 00:01:53.894
+RCL process tells the pilot to fly the current flight plan or is amended by a TC and to squawk 2000 at the oceanic entry point.
+
+00:01:54.374 --> 00:01:56.294
+The pilot answers Roger or Wilko.
+
+00:01:56.646 --> 00:01:58.662
+Send re-clearance sends the full clearance.
+
+00:01:59.302 --> 00:02:03.142
+A preview opens first, check the text, change it if you need to, and press send.
+
+00:02:03.526 --> 00:02:12.006
+The message goes from your CPDLC station with the clearance, the squawk instruction and a contact line for Gander, Shanwick or NAT FSS depending on your position.
+
+00:02:12.486 --> 00:02:13.798
+The pilot answers will co.
+
+00:02:14.502 --> 00:02:16.710
+The request then shows who sent it and when.
+
+00:02:17.030 --> 00:02:19.846
+You can send it again at any time from the same buttons.
+
+00:02:20.454 --> 00:02:23.750
+Always check the clearance in natTrak before you press either button.
+
+00:02:24.454 --> 00:02:26.694
+FDD only ever sends what you confirm.
+
+00:02:27.430 --> 00:02:32.422
+You can also pop the CPDLC window out onto a second screen, so request stay in view.
+
+00:02:32.870 --> 00:02:35.976
+That is natTrak through the FDD. Thanks for watching.
+
