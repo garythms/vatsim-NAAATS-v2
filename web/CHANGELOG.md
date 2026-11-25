@@ -2,6 +2,10 @@
 
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
+## 2.12.3 - 2026-11-25
+- Voice position report flights on the EuroScope screen: untracked ones move with the real position in green. Tracked ones are drawn at a calculated position that starts at the last fix with an actual time and moves along the direct line to the next fix, arriving at the estimate (the pilot's if typed, else the system's leg time moved by early/late, else the assigned Mach). A new report re-anchors it. If the estimate passes by more than 3 minutes, the tag is held at that fix and flashes white. No conflict alerts for these flights. Needs the new plugin build and a server deploy.
+- Tracking a voice-report flight that has already entered the OCA: the fixes it had already passed need no report and are never overdue (strip flash, button and top-bar count).
+
 ## 2.12.2 - 2026-11-23
 - FDD for Windows: the Discord status button "Listen to me" is replaced by "Live Map", which opens the Gander Oceanic live map (https://ganderoceanic.ca/map).
 
