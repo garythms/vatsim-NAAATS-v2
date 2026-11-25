@@ -488,7 +488,7 @@ void CConflictDetection::CheckSTCA(CRadarScreen* screen, CRadarTarget* target, m
 	// Set on screen aircraft
 	aircraftOnScreen = onScreenAircraft;
 
-	// Aircraft reporting by voice are not monitored for conflicts (their tag is fixed at the last report, not at the real position)
+	// Aircraft reporting by voice are not monitored for conflicts (their tag is at a calculated position, not the real one)
 	{
 		CAircraftFlightPlan* vfp = CDataHandler::GetFlightData(string(target->GetCallsign()));
 		if (vfp && vfp->VoiceReports) {

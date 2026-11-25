@@ -1782,7 +1782,7 @@ void CRadarDisplay::OnMoveScreenObject(int ObjectType, const char* sObjectId, PO
 	// Move tag
 	if (ObjectType == SCREEN_TAG || ObjectType == SCREEN_TAG_CS) {
 		auto kv = tagStatuses.find(sObjectId);
-		// Voice position report aircraft: the tag is at the last report, not at the real position
+		// Voice position report aircraft: the tag is at the calculated position, not at the real position
 		bool dragOverdue = false;
 		CFlightPlan dragFp = GetPlugIn()->FlightPlanSelect(sObjectId);
 		CPosition dragPos = CAcTargets::DisplayPosition(CDataHandler::GetFlightData(string(sObjectId)), dragFp, GetPlugIn()->RadarTargetSelect(sObjectId).GetPosition().GetPosition(), &dragOverdue);

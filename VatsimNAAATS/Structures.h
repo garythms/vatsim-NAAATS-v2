@@ -300,7 +300,7 @@ struct CNetworkFlightPlan {
 	bool CpdlcRelease = false; // server asks to release the tag (pilot sent to UNICOM)
 	string VoiceMode = ""; // "text" (/T/) or "receive" (/R/): how the pilot communicates, "" = voice
 	bool VoiceReports = false; // position reports by voice (Concorde, or switched on in the FDD)
-	bool VpLast = false; double VpLastLat = 0, VpLastLon = 0; // where the last voice position report was (the tag stays here while tracked)
+	bool VpLast = false; double VpLastLat = 0, VpLastLon = 0; // where the system calculates the aircraft is, from the last voice position report and the estimate for the next fix (the server moves it along the direct line)
 	bool VpOverdue = false; double VpOverLat = 0, VpOverLon = 0; // a report is overdue: the fix it was expected at
 };
 
@@ -378,7 +378,7 @@ struct CAircraftFlightPlan {
 	bool IsRelevant = true;
 	bool CpdlcConnected = false; // show [CALLSIGN] on the radar tag
 	string VoiceMode = ""; // "text" or "receive": shows /t or /r beside the callsign on the radar tag
-	bool VoiceReports = false; // position reports by voice: green when untracked, tag fixed at the last report once tracked, no conflict alerts
+	bool VoiceReports = false; // position reports by voice: green when untracked; once tracked the tag follows the server's calculated position (re-anchored by each report); no conflict alerts
 	bool VpLast = false; double VpLastLat = 0, VpLastLon = 0;
 	bool VpOverdue = false; double VpOverLat = 0, VpOverLon = 0;
 	bool NtSent = false; // natTrak reminder sent: red * beside the callsign

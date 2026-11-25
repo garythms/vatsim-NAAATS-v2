@@ -20,8 +20,9 @@ class CAcTargets
 		// Initialisation for button states
 		static void Initialise();
 
-		// Where a target is drawn. Aircraft reporting by voice are tracked: fixed at the last position report (moved to the expected fix, and *overdue set, when a
-		// report is overdue). Everything else, and voice aircraft nobody tracks, is drawn at the live position.
+		// Where a target is drawn. Aircraft reporting by voice and tracked by a controller are drawn where the server calculates them to be: anchored at the last
+		// position report and moving along the direct line to the next fix, arriving at the estimate (held at that fix, and *overdue set, when the report is overdue).
+		// Everything else, and voice aircraft nobody tracks, is drawn at the live position.
 		static CPosition DisplayPosition(CAircraftFlightPlan* fp, CFlightPlan& flightPlan, CPosition live, bool* overdue);
 
 		// Render the airplane icon

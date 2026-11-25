@@ -38,7 +38,7 @@ CPosition CAcTargets::DisplayPosition(CAircraftFlightPlan* fp, CFlightPlan& flig
 		CPosition p; p.m_Latitude = fp->VpLastLat; p.m_Longitude = fp->VpLastLon;
 		return p;
 	}
-	return live; // no report entered yet
+	return live; // no report entered yet: nothing to calculate from
 }
 
 void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTarget* target, bool tagsOn, map<int, CWinButton>* toggleData, bool halo, bool ptl, CSTCAStatus* status) {
@@ -58,7 +58,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 	CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(cs.c_str());
 	CAircraftFlightPlan* acFP = CDataHandler::GetFlightData(cs);
 
-	// Voice position report aircraft: drawn at the last report while tracked (at the expected fix, flashing, when a report is overdue), green while nobody tracks them
+	// Voice position report aircraft: while tracked, drawn at the position calculated from the last report (held at the next fix, flashing, when a report is overdue); green while nobody tracks them
 	bool voiceOverdue = false;
 	CPosition shownPos = DisplayPosition(acFP, fp, target->GetPosition().GetPosition(), &voiceOverdue);
 	acPoint = screen->ConvertCoordFromPositionToPixel(shownPos);

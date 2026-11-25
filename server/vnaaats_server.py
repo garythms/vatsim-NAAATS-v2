@@ -142,22 +142,70 @@ def _hhmm_min(t):
     return int(d[:2]) * 60 + int(d[2:]) if len(d) == 4 else -1
 
 
-def voice_positions(route, etas, reports, fixes, now_min):
-    """Where the EuroScope tag of a voice position report flight belongs, as the plugin draws it.
+def _gc_point(p1, p2, f):
+    """The point a fraction f (0..1) of the way along the great circle from p1 to p2, each (lat, lon) in degrees."""
+    la1, lo1, la2, lo2 = map(math.radians, (p1[0], p1[1], p2[0], p2[1]))
+    d = 2 * math.asin(min(1.0, math.sqrt(math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2)))
+    if d < 1e-9:
+        return p1
+    a, b = math.sin((1 - f) * d) / math.sin(d), math.sin(f * d) / math.sin(d)
+    x = a * math.cos(la1) * math.cos(lo1) + b * math.cos(la2) * math.cos(lo2)
+    y = a * math.cos(la1) * math.sin(lo1) + b * math.cos(la2) * math.sin(lo2)
+    z = a * math.sin(la1) + b * math.sin(la2)
+    return round(math.degrees(math.atan2(z, math.hypot(x, y))), 5), round(math.degrees(math.atan2(y, x)), 5)
 
-    "last": the latest route fix with an actual time typed in (lat, lon, fix, act). The tag stays there until the next report.
-    "overdue": the first fix with no actual time whose estimate passed more than 3 minutes ago (the same rule as the FDD: estimates more than 90 minutes old
-    are ignored). The tag moves to that fix and flashes. Either is left out when there is nothing to show."""
+
+def voice_positions(route, etas, reports, fixes, now_sec, mach=0):
+    """Where the EuroScope tag of a voice position report flight belongs, as the plugin draws it (while a controller tracks it).
+
+    A voice report only corrects the system's own estimate. The last fix with an actual time anchors the aircraft there at that time, and the tag
+    then moves along the direct line to the next fix so that it arrives at the estimate (the pilot's estimate if one is typed in, else the calculated one,
+    moved by however early or late the aircraft was at the last fix). A new report re-anchors it. Weather deviations are not known to the system, so the tag
+    always follows the direct path between the two fixes.
+    "last": that calculated position (lat, lon), plus the fixes it is between ("fix", "next") and how far along it is ("f", 0..1). Left out until a report is entered.
+    "overdue": set once the next fix's estimate passed by more than 3 minutes (the FDD rule: estimates more than 90 minutes old are ignored). The tag is then held
+    at that fix and flashes."""
     toks = str(route or "").split()
     eta = str(etas or "").split()
     reports = reports or {}
     out = {}
+    last_i = -1
     for i, tok in enumerate(toks):
         r = reports.get(tok.upper())
         if r and r.get("act"):
-            ll = token_to_latlon(tok, fixes)
-            if ll:
-                out["last"] = {"fix": tok.upper(), "lat": ll[0], "lon": ll[1], "act": r["act"]}
+            last_i = i
+    now_min = now_sec / 60.0
+    if last_i >= 0:
+        here = token_to_latlon(toks[last_i], fixes)
+        t0 = _hhmm_min(reports[toks[last_i].upper()]["act"])
+        if here and t0 >= 0:
+            late_now = (now_min - t0) % 1440
+            elapsed = late_now if late_now <= 720 else 0.0              # an actual time in the future: still at the fix
+            pos, f, nxt = here, 0.0, ""
+            if last_i + 1 < len(toks):
+                nxt = toks[last_i + 1].upper()
+                there = token_to_latlon(nxt, fixes)
+                if there:
+                    rn = reports.get(nxt) or {}
+                    seg = -1.0
+                    t1 = _hhmm_min(rn.get("est") or "")
+                    if t1 >= 0:
+                        seg = (t1 - t0) % 1440                                      # the pilot's estimate for the next fix
+                    else:
+                        c0 = _hhmm_min(eta[last_i] if last_i < len(eta) else "")
+                        c1 = _hhmm_min(eta[last_i + 1] if last_i + 1 < len(eta) else "")
+                        if c0 >= 0 and c1 >= 0:
+                            seg = (c1 - c0) % 1440                                  # the system's own estimate of this leg
+                    if seg <= 0 or seg > 720:
+                        try:
+                            kt = float(mach) / (100.0 if float(mach) >= 10 else 1.0) * 573.0       # no times to go by: Mach 0.84 is about 480 knots
+                        except (TypeError, ValueError):
+                            kt = 0.0
+                        seg = _gc_nm(here[0], here[1], there[0], there[1]) / kt * 60.0 if kt > 0 else -1.0
+                    if seg > 0:
+                        f = max(0.0, min(1.0, elapsed / seg))
+                        pos = _gc_point(here, there, f)
+            out["last"] = {"fix": toks[last_i].upper(), "next": nxt, "f": round(f, 3), "lat": pos[0], "lon": pos[1], "act": reports[toks[last_i].upper()]["act"]}
     for i, tok in enumerate(toks):
         r = reports.get(tok.upper())
         if r and r.get("act"):
@@ -1745,7 +1793,7 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         if voice:
             rec["posReports"] = store.pos_get(rec.get("callsign", ""))
             _n = datetime.now(timezone.utc)
-            rec["voicePos"] = voice_positions(rec.get("route", ""), rec.get("routeEtas", ""), rec["posReports"], cache.fixes, _n.hour * 60 + _n.minute)   # the plugin draws the tag from this
+            rec["voicePos"] = voice_positions(rec.get("route", ""), rec.get("routeEtas", ""), rec["posReports"], cache.fixes, _n.hour * 3600 + _n.minute * 60 + _n.second, rec.get("mach", 0))   # the plugin draws the tag from this
         return rec
     secure_cookie = auth.public_url.startswith("https://")
     shared_key_ok = os.environ.get("VNAAATS_SHARED_KEY", "on").lower() != "off"

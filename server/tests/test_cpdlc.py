@@ -588,7 +588,7 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(rec["posReports"]["52/50"]["est"], "1200")
         self.assertIn("CZQO_CTR", rec["posReports"]["52/50"]["by"])
         vp = self.call("/GetSingleFlightData?callsign=CONC1")[1][0]["voicePos"]                       # the plugin draws the tag from this
-        self.assertEqual((vp["last"]["fix"], vp["last"]["lat"], vp["last"]["lon"]), ("52/50", 52.0, -50.0))
+        self.assertEqual((vp["last"]["fix"], vp["last"]["next"]), ("52/50", "52/40"))                 # anchored at the report, moving to the next fix
         self.assertEqual(self.call("/EditFlight", {"callsign": "CONC1", "mach": "200"}, ck)[0], 200)       # Mach 2.00 is allowed
         self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/40", "est": "9999"}, ck)[0], 400)
         self.assertEqual(self.call("/EditPosReport", {"callsign": "BAW123", "fix": "52/40", "est": "1210"}, ck)[0], 400)   # not Concorde
@@ -601,12 +601,26 @@ class HttpTests(unittest.TestCase):
 
     def test_voice_positions(self):
         from vnaaats_server import voice_positions as vpos
-        rep = {"56/20": {"act": "1002", "est": "1000"}}
-        out = vpos("56/20 56/30 56/40", "1000 1015 1030", rep, {}, 10 * 60 + 50)
-        self.assertEqual(out["last"]["fix"], "56/20")                      # stays at the last reported fix
-        self.assertEqual(out["overdue"]["fix"], "56/30")                   # 1015 estimate passed by more than 3 minutes
-        self.assertNotIn("overdue", vpos("56/20 56/30 56/40", "1000 1015 1030", rep, {}, 10 * 60 + 17))   # only 2 minutes late
-        self.assertEqual(vpos("56/20 56/30", "1000 1015", {}, {}, 9 * 60), {})                           # nothing reported, nothing due
+        t = lambda h, m: h * 3600 + m * 60
+        rep = {"56/20": {"act": "1152", "est": ""}, "56/30": {"est": "1232", "act": ""}}
+        route, etas = "56/20 56/30 56/40", "1150 1230 1305"
+        out = vpos(route, etas, rep, {}, t(11, 52), 84)
+        self.assertEqual((out["last"]["lat"], out["last"]["lon"], out["last"]["f"]), (56.0, -20.0, 0.0))       # anchored at the report
+        mid = vpos(route, etas, rep, {}, t(12, 12), 84)["last"]
+        self.assertAlmostEqual(mid["f"], 0.5, places=2)                                                         # halfway to the pilot's estimate
+        self.assertAlmostEqual(mid["lon"], -25.0, places=1)                                                     # along the direct line to 30W
+        out = vpos(route, etas, rep, {}, t(12, 33), 84)
+        self.assertEqual((out["last"]["f"], out["last"]["lon"]), (1.0, -30.0))                                  # waits at the fix
+        self.assertNotIn("overdue", out)                                                                       # only 1 minute late
+        self.assertEqual(vpos(route, etas, rep, {}, t(12, 40), 84)["overdue"]["fix"], "56/30")                 # more than 3 minutes late
+        rep["56/30"]["act"] = "1241"                                                                            # the next report re-anchors the tag
+        out = vpos(route, etas, rep, {}, t(12, 41), 84)
+        self.assertEqual((out["last"]["fix"], out["last"]["f"], out["last"]["lon"]), ("56/30", 0.0, -30.0))
+        self.assertNotIn("overdue", out)
+        # no estimate typed in: the system's own leg time, moved by how early or late the aircraft was at the last fix
+        late = vpos("56/20 56/30", "1150 1230", {"56/20": {"act": "1200"}}, {}, t(12, 20), 84)["last"]
+        self.assertAlmostEqual(late["f"], 0.5, places=2)
+        self.assertEqual(vpos(route, etas, {}, {}, t(9, 0), 84), {})                                            # nothing reported yet: nothing to draw
 
     def test_position_change_stops_station(self):
         ck = self.login("NAT_FSS")
