@@ -226,6 +226,18 @@
       <li>Type each report as the pilot gives it. Press <b>now</b> for the current time.</li>
     </ol>
     <p class="mb-2 opacity-90">Good to know: it is for that one flight only, everyone on the display sees it, and it switches itself off after 18 hours. Switching it on or off clears the times typed so far, so only turn it off when you are done.</p>
+    <h3 class="text-lg font-bold mb-1">What the EuroScope tag does</h3>
+    <p class="mb-2 opacity-90">A voice report does not freeze the aircraft. It corrects the system's estimate:</p>
+    <ul class="list-disc ml-6 mb-3 space-y-1 opacity-90">
+      <li><b>Not tracked:</b> the tag moves with the real position and is drawn <b>green</b>.</li>
+      <li><b>Tracked</b> (by you or anyone): the tag is drawn at the calculated position in the normal colours (orange for you, blue for others). The last fix with an actual time anchors it at that time, and the tag then moves along the direct line to the next fix, arriving at the estimate. That estimate is the pilot's if you typed one, otherwise the system's own time for the leg, moved by how early or late the aircraft was at the last fix, otherwise the assigned Mach.</li>
+      <li><b>A new report</b> re-anchors the tag at that fix and the cycle starts again for the next leg.</li>
+      <li><b>Weather deviations</b> are not known to the system, so the tag keeps following the direct path between the two fixes.</li>
+      <li><b>Overdue by more than 3 minutes:</b> the tag is held at that fix and flashes white.</li>
+      <li>Until the first report is entered, a tracked aircraft just moves with its real position.</li>
+      <li>No conflict alerts (STCA) are raised for these aircraft.</li>
+      <li><b>Tracking an aircraft that is already in the OCA:</b> ignore the fixes it has already passed. No report is expected for them and they never show as overdue. Start from the first fix still ahead.</li>
+    </ul>
     <p class="mb-6 opacity-90">A flight with position reports <b>flashes</b> (strip, button and table row), and the top bar shows a red <i>overdue</i> count, when the next fix's time passed more than 3 minutes ago with no report.</p>
 
     <h2 id="es" class="text-2xl font-bold mb-2">12. What you see in EuroScope</h2>
