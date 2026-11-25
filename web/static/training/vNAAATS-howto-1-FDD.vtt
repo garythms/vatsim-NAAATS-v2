@@ -1,0 +1,104 @@
+WEBVTT
+
+00:00:01.062 --> 00:00:06.662
+Welcome to vNAAATS. In this video, you will learn how to use the flight data display or FDD.
+
+00:00:06.982 --> 00:00:13.798
+tracking, releasing and transferring aircraft, changing a flight level, speed or SELCAL, and handing over to a relief controller.
+
+00:00:15.686 --> 00:00:21.414
+Please note this is a demonstration using sample flights. It is not a live version of the FDD.
+
+00:00:24.870 --> 00:00:27.110
+Open the FDD and enter your key.
+
+00:00:27.462 --> 00:00:39.078
+The display waits until you are connected to VATSIM on an oceanic position, then opens on that position by itself. To work in natTrak, use the Open natTrak link and sign in there with your VATSIM details.
+
+00:00:39.622 --> 00:00:43.718
+The main list shows the flights heading for oceanic airspace, grouped by track.
+
+00:00:44.582 --> 00:00:49.222
+natTrak requests waiting for action are on the left, and cleared flights are on the right.
+
+00:00:49.574 --> 00:00:55.366
+The show menu limits the list of flights close to entering or leaving, and you can group and sort it however suits you.
+
+00:00:56.102 --> 00:00:58.502
+Click a call sign to open the aircraft menu.
+
+00:00:58.758 --> 00:01:02.246
+In the history lists, a click on a call sign opens its flight plan.
+
+00:01:02.566 --> 00:01:06.342
+The flight plan and the NATTRAC data for that aircraft appear on the right.
+
+00:01:07.046 --> 00:01:10.182
+To take an aircraft, choose Track, then press Track Aircraft.
+
+00:01:10.502 --> 00:01:13.158
+The plugin types the command into EuroScope for you.
+
+00:01:13.894 --> 00:01:15.846
+to change a flight level or speed.
+
+00:01:16.294 --> 00:01:20.518
+Select the new flight level or Mach number in the same menu and press Update Aircraft.
+
+00:01:20.966 --> 00:01:23.814
+The change is sent to EuroScope and saved for everyone.
+
+00:01:24.582 --> 00:01:28.454
+For SELCAL, open the SELCAL tab, type the four-letter code and press send.
+
+00:01:28.806 --> 00:01:32.006
+You can also copy the command or save the code against the flight.
+
+00:01:32.710 --> 00:01:36.262
+When the aircraft leaves you, open the menu and choose release tag.
+
+00:01:37.222 --> 00:01:42.374
+Pass it to another controller, choose transfer, pick the controller who is online and press transfer.
+
+00:01:42.726 --> 00:01:46.470
+When an aircraft nears its boundary, the handoff button flashes to remind you.
+
+00:01:46.790 --> 00:01:48.358
+There is a separate video on that.
+
+00:01:49.126 --> 00:01:52.422
+If a pilot is not talking to you, choose contact me and press send.
+
+00:01:52.870 --> 00:01:57.446
+Plug in clicks the call sign on the tag for you and the display tells you if it did not land.
+
+00:01:57.798 --> 00:02:01.862
+The flight is marked and turns red if there is still no track after 20 minutes.
+
+00:02:02.470 --> 00:02:07.526
+If you need a supervisor, choose the red supervisor button, write your message and copy the wallop.
+
+00:02:10.886 --> 00:02:15.910
+To hand your whole position to a relief controller, open the position menu and choose relief.
+
+00:02:16.198 --> 00:02:19.110
+Pick the controller who is taking over and start the handover.
+
+00:02:19.430 --> 00:02:21.862
+your aircraft are passed across automatically.
+
+00:02:22.534 --> 00:02:28.742
+If you work on more than one screen, the CPDLC window and the TrackAudio history each have a pop out button.
+
+00:02:29.158 --> 00:02:32.678
+It opens them in a window of their own that you can drag to another screen.
+
+00:02:35.622 --> 00:02:37.350
+That is the flight data display.
+
+00:02:37.574 --> 00:02:42.406
+In the next videos we cover CPDLC and using natTrak through the FDD.
+
+00:02:42.630 --> 00:02:43.778
+Thanks for watching.
+

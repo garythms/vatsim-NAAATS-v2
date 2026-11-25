@@ -40,7 +40,7 @@
     <h2 id="overview" class="text-2xl font-bold mb-2">1. How it all fits together</h2>
     <div class="p-4 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="font-bold mb-1">Video: how to use vNAAATS</div>
-      <video class="w-full bg-black" controls preload="none" playsinline src="/vNAAATS-intro.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/vNAAATS-intro.mp4">Download it</a>.</video>
+      <video class="w-full bg-black" controls preload="none" playsinline src="/vNAAATS-intro.mp4"><track kind="captions" srclang="en" label="English" src="/vNAAATS-intro.vtt" />Your browser cannot play this video. <a class="underline" rel="external" href="/vNAAATS-intro.mp4">Download it</a>.</video>
       <div class="text-sm opacity-80 mt-2">About two and a half minutes, an overview of vNAAATS and the oceanic clearance process. The flights shown are demo data.</div>
     </div>
 
@@ -65,7 +65,7 @@
     <h2 id="layout" class="text-2xl font-bold mb-2">3. The Flight Data Display screen</h2>
     <div class="p-4 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="font-bold mb-1">Video: how to use the Flight Data Display</div>
-      <video class="w-full bg-black" controls preload="none" playsinline src="/training/vNAAATS-howto-1-FDD.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-1-FDD.mp4">Download it</a>.</video>
+      <video class="w-full bg-black" controls preload="none" playsinline src="/training/vNAAATS-howto-1-FDD.mp4"><track kind="captions" srclang="en" label="English" src="/training/vNAAATS-howto-1-FDD.vtt" />Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-1-FDD.mp4">Download it</a>.</video>
       <div class="text-sm opacity-80 mt-2">Tracking, releasing and transferring tags, automatic hand-off to relief, contact me, supervisor request, and changing a flight level, speed or SELCAL. Sample flights, not a live display.</div>
     </div>
 
@@ -164,7 +164,7 @@
     <h2 id="nattrak" class="text-2xl font-bold mb-2">8. natTrak requests and alerts</h2>
     <div class="p-4 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="font-bold mb-1">Video: how to use natTrak through the FDD</div>
-      <video class="w-full bg-black" controls preload="none" playsinline src="/training/vNAAATS-howto-3-natTrak.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-3-natTrak.mp4">Download it</a>.</video>
+      <video class="w-full bg-black" controls preload="none" playsinline src="/training/vNAAATS-howto-3-natTrak.mp4"><track kind="captions" srclang="en" label="English" src="/training/vNAAATS-howto-3-natTrak.vtt" />Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-3-natTrak.mp4">Download it</a>.</video>
       <div class="text-sm opacity-80 mt-2">The pending and cleared lists, Prepare in natTrak, RCL processed and Send reclearance. Sample flights, not a live display.</div>
     </div>
 
@@ -193,7 +193,7 @@
     <h2 id="cpdlc" class="text-2xl font-bold mb-2">9. CPDLC</h2>
     <div class="p-4 mb-6 border-2 border-blue-10 bg-blue-3">
       <div class="font-bold mb-1">Video: how to use CPDLC</div>
-      <video class="w-full bg-black" controls preload="none" playsinline src="/training/vNAAATS-howto-2-CPDLC.mp4">Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-2-CPDLC.mp4">Download it</a>.</video>
+      <video class="w-full bg-black" controls preload="none" playsinline src="/training/vNAAATS-howto-2-CPDLC.mp4"><track kind="captions" srclang="en" label="English" src="/training/vNAAATS-howto-2-CPDLC.vtt" />Your browser cannot play this video. <a class="underline" rel="external" href="/training/vNAAATS-howto-2-CPDLC.mp4">Download it</a>.</video>
       <div class="text-sm opacity-80 mt-2">Signing in with your Hoppie code, accepting pilots, level messages, clearance requests, UNICOM and the pop-out window. Sample flights, not a live display.</div>
     </div>
 

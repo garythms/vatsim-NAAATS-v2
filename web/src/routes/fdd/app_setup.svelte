@@ -256,7 +256,7 @@
       <div class="mb-3 text-sm opacity-80">{firstTime ? "This only needs doing once. Next time the app opens straight to the display and only asks you if an update is needed." : "A quick check that this computer is ready."}{st ? " (app " + st.app_version + ")" : ""}</div>
       <details class="mb-3 border border-blue-6 bg-blue-4 p-2" open={firstTime}>
         <summary class="cursor-pointer font-bold text-sm">Watch the how-to video (about a minute): getting vNAAATS working in EuroScope</summary>
-        <video class="w-full mt-2 bg-black" controls preload="none" playsinline src="/vNAAATS-install-howto.mp4">The video could not be played.</video>
+        <video class="w-full mt-2 bg-black" controls preload="none" playsinline src="/vNAAATS-install-howto.mp4"><track kind="captions" srclang="en" label="English" src="/vNAAATS-install-howto.vtt" />The video could not be played.</video>
         <button class="mt-2 underline text-xs" on:click={() => app.openExternal("https://vnaaats.com/guide")}>Open the full install guide in your browser</button>
       </details>
       {#if !st && problem}

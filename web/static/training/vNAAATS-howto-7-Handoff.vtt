@@ -1,0 +1,62 @@
+WEBVTT
+
+00:00:00.326 --> 00:00:05.478
+This is the vNAAATS handoff helper. A helping hand, not a hand on the controls.
+
+00:00:06.566 --> 00:00:20.640
+The Handoff Helper is not a feature to take control away from you. It is a helping hand, a reminder to hand off, especially in busy periods, when entry traffic is loading into the NAT region, and it is easy for one aircraft to slip past its boundary.
+
+00:00:21.734 --> 00:00:26.758
+When an aircraft you are tracking nears its boundary, the handoff button flashes yellow in the toolbar.
+
+00:00:27.046 --> 00:00:27.974
+short chime.
+
+00:00:28.326 --> 00:00:32.582
+Click it to read the message. If you prefer quiet, the sound can be switched off.
+
+00:00:33.926 --> 00:00:41.542
+The card shows which aircraft it is, how far it is from the boundary, and which sector is next. Choose a controller who is online and press transfer.
+
+00:00:41.894 --> 00:00:43.750
+EuroScope does the transfer for you.
+
+00:00:45.446 --> 00:00:49.638
+The pilot is on CPDLC. They are sent the contact message for you.
+
+00:00:50.246 --> 00:00:52.678
+off once they answer Wilco or Roger.
+
+00:00:54.022 --> 00:00:55.974
+Nobody is online to take the aircraft.
+
+00:00:56.262 --> 00:00:59.750
+The card waits until it is at the boundary, then offers handoff to Unica.
+
+00:01:00.422 --> 00:01:03.782
+The pilot is told to monitor 122 decimal 800.
+
+00:01:04.230 --> 00:01:10.470
+If the pilot is not on CPDLC, tell them by voice or text.
+
+00:01:11.686 --> 00:01:27.296
+If you would like even more help, there is Auto Handoff. It is off by default. For aircraft you track that are on CPDLC, it sends the transfer for you at the distance you choose from 10 to 50 nautical miles when a controller is online to take it. With nobody online, it sends the UNICOM message at the boundary.
+
+00:01:27.590 --> 00:01:32.038
+Each action is tried once, and if it fails, the card comes up so you can do it by hand.
+
+00:01:33.382 --> 00:01:38.502
+Between Shanwick and Gander, a flight crossing 30 West is handed to the other oceanic center.
+
+00:01:38.854 --> 00:01:41.606
+when a combined NAT FSS position is online.
+
+00:01:41.926 --> 00:01:42.854
+There is no problem
+
+00:01:43.494 --> 00:01:46.278
+The controller works both areas on one frequency.
+
+00:01:47.462 --> 00:02:01.568
+To sum up, the reminder flashes and chimes. Transfer or hand off to Unicom in one click. Switch on auto handoff if you want it done for you. It is there to help in busy entry periods into the NAT region, so no aircraft is missed and you always stay in-
+

@@ -50,7 +50,7 @@
       {#each g.videos as v}
         <div class="mb-6">
           <div class="font-bold mb-1">{v.title}</div>
-          <video class="w-full bg-black mb-1" controls preload="none" playsinline src={v.src}>Your browser cannot play this video. <a class="underline" rel="external" href={v.src}>Download it</a>.</video>
+          <video class="w-full bg-black mb-1" controls preload="none" playsinline src={v.src}><track kind="captions" srclang="en" label="English" src={v.src.replace(".mp4", ".vtt")} />Your browser cannot play this video. <a class="underline" rel="external" href={v.src}>Download it</a>.</video>
           <div class="text-sm opacity-80">{v.text}</div>
         </div>
       {/each}

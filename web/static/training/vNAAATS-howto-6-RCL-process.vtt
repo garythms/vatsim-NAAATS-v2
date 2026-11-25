@@ -1,0 +1,86 @@
+WEBVTT
+
+00:00:00.326 --> 00:00:10.726
+This is the oceanic clearance process on VATSIM. In a few minutes you will see how a pilot's request for oceanic clearance is received, processed and confirmed using vNAAATS.
+
+00:00:11.814 --> 00:00:16.550
+vNAAATS modernizes oceanic traffic controlled across the NAT region and makes it simple.
+
+00:00:16.998 --> 00:00:21.350
+Pilots can now send their request by CPDLC straight to the controller.
+
+00:00:21.766 --> 00:00:24.902
+Requests, reminders and replies come together in one window.
+
+00:00:25.158 --> 00:00:27.078
+Buttons build and send the messages for you
+
+00:00:27.558 --> 00:00:31.654
+Remember this is a change of process for controllers and for VATSIM pilots alike.
+
+00:00:33.030 --> 00:00:42.022
+Gander and Shanwick no longer issue an oceanic clearance. Instead, pilots send a request called an RCL 30 to 90 minutes before their oceanic entry
+
+00:00:42.406 --> 00:00:49.350
+by CPDLC or on natTrak. It is a request for the controllers to check traffic. It is not a clearance.
+
+00:00:50.470 --> 00:00:58.118
+The pilot has not asked, the Auto RCL reminder asks for the request, and for the highest level they can accept, called MAXFL.
+
+00:00:58.470 --> 00:01:05.286
+Inside 30 minutes of entry it is too late for a request, so the flight is listed under by voice and you deal with it on the radio.
+
+00:01:06.470 --> 00:01:11.974
+Not every pilot has an aircraft that can use CPDLC and it is not a requirement on VATSIM.
+
+00:01:12.486 --> 00:01:24.774
+If the pilot is on Hoppie's CPDLC, the reminder goes as a telex. If they are not connected, vNAAATS types the reminder to them in EuroScope for you. Either way, they can carry on requesting on natTrak, exactly as before.
+
+00:01:26.246 --> 00:01:38.278
+Look for the red star on the aircraft tag, it means the reminder has been sent. So don't worry, when you see the star it has been sent even if the aircraft is outside your visibility range or still 90 minutes from its entry point.
+
+00:01:40.198 --> 00:01:54.912
+The request arrives by CPDLC. It appears in the clearance request list, with the level Mach, Track and MAX FL. The pilot is told at once, RCL received by CZQO or by EGGX, depending on the area they enter.
+
+00:01:56.166 --> 00:02:04.454
+Press Prepare in natTrak. It fills in the level, Mach, Track and Entry Fix for you. Check the request against your traffic, then submit it in natTrak.
+
+00:02:05.958 --> 00:02:10.278
+There are new buttons to do the work. On a request, Prepare in natTrak fills in the form.
+
+00:02:10.566 --> 00:02:14.886
+an RCL processed or send reclearance sends the right message to the pilot.
+
+00:02:15.174 --> 00:02:19.846
+In the quick messages, there is also resume normal speed and contact by voice.
+
+00:02:21.062 --> 00:02:32.198
+If no change is needed, press RCL processed. The pilot is told to fly the current flight plan or as amended by a TC and to squawk 2000 within 10 minutes after the oceanic entry.
+
+00:02:32.710 --> 00:02:36.294
+The second message tells them to contact the controller at the oceanic entry point.
+
+00:02:36.806 --> 00:02:42.246
+call sign only, they answer Wilco. If something has to change, press send reclearance instead.
+
+00:02:43.494 --> 00:02:56.486
+If the clearance has to change, enter the change in natTrak, then press send reclearance. vNAAATS builds the clearance message from natTrak with the entry point, route, level and Mach and you can edit it before it goes. The pilot answers will go.
+
+00:02:57.990 --> 00:03:08.934
+At the oceanic entry point, the pilot gets an automated message confirming CPDLC contact with Gander or Shanwick and answers Roger on the combined NATFSS station.
+
+00:03:09.158 --> 00:03:11.782
+crossing 30 west sends, a second one for the new area.
+
+00:03:12.166 --> 00:03:15.494
+Aircraft on the ground and flights leaving Keflavik get nothing.
+
+00:03:16.678 --> 00:03:27.558
+Watch for the no reply tag. If a pilot has not answered after three minutes, ask again or use voice. A rejected request or no answer in 50 minutes is also handled on voice.
+
+00:03:28.710 --> 00:03:36.870
+To sum up, 1. The request 30 to 90 minutes before entry. 2. Prepare it in natTrak. 3. Processed or re-clearance and the pilot answers will come.
+
+00:03:37.094 --> 00:03:43.750
+4. The automated contact message at entry 5. The pilot answers Roger More how-to videos are on the training page
+

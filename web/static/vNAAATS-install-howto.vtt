@@ -1,0 +1,50 @@
+WEBVTT
+
+00:00:00.838 --> 00:00:02.246
+Welcome to vNAAATS.
+
+00:00:02.470 --> 00:00:06.438
+This is a quick how-to on installing the vNAAATS plugin in EuroScope.
+
+00:00:07.558 --> 00:00:11.174
+once you have downloaded the latest version of the vNAAATS package.
+
+00:00:11.398 --> 00:00:14.278
+obtained your key from the Gander Oceanic website.
+
+00:00:14.566 --> 00:00:17.926
+and added these to your vnaaats.cfg file.
+
+00:00:18.182 --> 00:00:20.070
+It is time to set up EuroScope.
+
+00:00:20.998 --> 00:00:25.190
+First, select the OC of vNAAATS profile to open EuroScope.
+
+00:00:28.070 --> 00:00:31.238
+Click Open SCT. Choose Load Sector File.
+
+00:00:31.494 --> 00:00:35.014
+and select the latest EXCXO NAT sector file.
+
+00:00:46.310 --> 00:00:50.374
+Ensure the vNAAATS plugin is loaded in the plugin dialog box.
+
+00:00:51.046 --> 00:00:54.374
+Then click Open SCT and New vNAAATS display.
+
+00:00:54.854 --> 00:00:56.422
+The blue menu bar should appear.
+
+00:00:57.542 --> 00:01:04.358
+Lastly, once again, click Open SCT, then Open, and navigate to your EXCXO folder.
+
+00:01:04.870 --> 00:01:09.062
+Find the ASR folder and click on the vNAAATS.asr file.
+
+00:01:09.510 --> 00:01:10.982
+You're now ready to control.
+
+00:01:11.302 --> 00:01:14.662
+We suggest you save this profile when exiting your EuroScope.
+

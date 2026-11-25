@@ -1,0 +1,185 @@
+WEBVTT
+
+00:00:00.998 --> 00:00:07.238
+Welcome to vNAAATS. This is the Oceanic Trainee introduction, the area, the controller pack, and natTrak.
+
+00:00:09.382 --> 00:00:15.462
+Please note this is a demonstration using sample flights. It is not a live version of the FDD.
+
+00:00:18.694 --> 00:00:23.622
+Congratulations on passing your exam. You have taken the first step towards your OCA endorsement.
+
+00:00:23.942 --> 00:00:26.598
+Next, one of our instructors will take you onto the scopes.
+
+00:00:26.918 --> 00:00:36.038
+Before that, this short video covers what you need, the Oceanic area you will control, the vNAAATS controller pack, and the natTrak website used to process Oceanic clearance requests.
+
+00:00:36.678 --> 00:00:50.310
+Before your session, make sure you have the latest stable vNAAATS and EuroScope pack linked from the training page. You also need a Hoppie ACARS code which is free from the Hoppie website so that you can use CPDLC. And you will sign into natTrak with your normal VATSOM details.
+
+00:00:50.598 --> 00:00:57.286
+On the day of your live training session, your instructor will issue you a temporary key in order to access the FDD and control the ocean.
+
+00:00:58.022 --> 00:01:05.670
+Now the call signs. You can control as Gander Radio, Shanwick Radio, or NAT_FSS, which acts as both Gander and Shanwick.
+
+00:01:05.926 --> 00:01:12.838
+For training and for your OC endorsement, you will control as NATFSS. The other call signs are only used during events.
+
+00:01:13.478 --> 00:01:17.286
+The oceanic area you will control is split into two halves at 30 west.
+
+00:01:17.542 --> 00:01:26.822
+Gander is to the west of 30 West and Shanwick is to the east. Because you control as both, you call yourself Gander Radio or Shanwick Radio, depending on which side of the line the aircraft is.
+
+00:01:27.110 --> 00:01:29.222
+The northern boundary is the solid blue line.
+
+00:01:29.606 --> 00:01:34.054
+North of it is the Reykjavík Oceanic area controlled by Icelandic controllers.
+
+00:01:34.694 --> 00:01:40.358
+To the south are two other oceanic areas, Santa Maria to the southeast and New York to the southwest.
+
+00:01:40.774 --> 00:01:43.526
+The west is Canada controlled by Moncton Centre.
+
+00:01:43.942 --> 00:01:49.702
+To the northeast is the United Kingdom controlled by Scottish and to the east is Ireland controlled by Shannon.
+
+00:01:50.022 --> 00:01:52.198
+France and Spain lie to the southeast.
+
+00:01:52.486 --> 00:01:55.206
+There are transition areas for both Canada and Ireland.
+
+00:01:55.686 --> 00:01:58.086
+Ireland it is a light green vertical line.
+
+00:01:58.502 --> 00:02:03.558
+Canada hand the aircraft off to Moncton around 30 miles before the oceanic exit point.
+
+00:02:04.294 --> 00:02:08.198
+The pack also draws the current NAT tracks taken from the live track message.
+
+00:02:08.454 --> 00:02:11.014
+They are shown dashed and move when the tracks change.
+
+00:02:11.270 --> 00:02:15.014
+The four supersonic routes are fixed and always stay in the same position.
+
+00:02:15.718 --> 00:02:18.662
+Now for vNAAATS, this is the Oceanic Controller Pack.
+
+00:02:18.982 --> 00:02:27.590
+It has two parts, a plugin that runs inside your Oscope and manages your flight tags and the flight data display or FDD which runs in a web browser or as a Windows app.
+
+00:02:27.942 --> 00:02:32.710
+Together they cover tracking, releasing and transferring aircraft, CPDLC and natTrak.
+
+00:02:32.966 --> 00:02:34.950
+Let us take a quick tour of the FDD.
+
+00:02:35.590 --> 00:02:39.878
+Enter your key and the display opens on your position as soon as you are connected to VATSIM.
+
+00:02:40.294 --> 00:02:43.974
+The FDD shows the aircraft that will enter or are inside your area.
+
+00:02:44.230 --> 00:02:46.950
+You can group them by track and sort them by entry time.
+
+00:02:47.462 --> 00:02:52.934
+Panels on the right show the flight plan, the NAT track data for the selected aircraft, and the current tracks.
+
+00:02:53.606 --> 00:02:56.710
+Click a call sign to select the flight and open the aircraft menu.
+
+00:02:57.062 --> 00:03:05.734
+From here, you can track an aircraft, release it, transfer it, change its flight level, Mach number or SEL-CEL, send a contact me and send a supervisor request.
+
+00:03:06.150 --> 00:03:09.702
+Changes you make here are shared with your EuroScope tags automatically.
+
+00:03:10.406 --> 00:03:13.318
+CPDLC is built into the FDD.
+
+00:03:13.702 --> 00:03:18.022
+Open the CPDLC window and sign into your station with your Hoppie code.
+
+00:03:18.406 --> 00:03:23.142
+Pilots who are close to oceanic airspace log on to you and appear in the connected list.
+
+00:03:23.398 --> 00:03:29.094
+Click a call sign to read the conversation. Send level changes, contact messages, or standard messages.
+
+00:03:29.446 --> 00:03:35.782
+Pilots can also request oceanic clearances by CPDLC and those requests appear at the top of the window.
+
+00:03:36.486 --> 00:03:39.398
+PDLC is optional for pilots on VATSIM.
+
+00:03:40.358 --> 00:03:41.734
+The track is also built-in
+
+00:03:42.150 --> 00:03:46.374
+The pending list shows the aircraft that have filed for an oceanic clearance and need action.
+
+00:03:46.758 --> 00:03:49.062
+The cleared list shows the ones you have already cleared.
+
+00:03:49.382 --> 00:03:52.998
+Open natTrak takes you straight to the website, ready for you to work through them.
+
+00:03:53.702 --> 00:03:58.502
+On the natTrak website, log in with your VATSIM details and open the pending messages.
+
+00:03:58.822 --> 00:04:01.958
+Work through the aircraft in time order, clicking view on each one.
+
+00:04:02.598 --> 00:04:09.542
+The bottom right, natTrak tells you either that there are no active conflicts detected within 10 minutes or that a conflict is detected.
+
+00:04:09.766 --> 00:04:14.854
+It checks for loss of separation against other aircraft on the same track by flight level and speed.
+
+00:04:15.142 --> 00:04:18.726
+If there is no conflict, click move to process list and review the next one.
+
+00:04:19.078 --> 00:04:23.878
+For a reclearance, choose the same NAT track, add the reason in the free text and transmit the reclearance.
+
+00:04:24.166 --> 00:04:26.246
+The FDD updates automatically.
+
+00:04:26.950 --> 00:04:30.150
+It is important to get clearance requests from pilots in good time.
+
+00:04:30.534 --> 00:04:34.950
+Since December 2024, Gander and Shanwick no longer issue an oceanic clearance.
+
+00:04:35.270 --> 00:04:42.598
+Pilots send a request, called an RCL, 30 to 90 minutes before their entry point, with the highest level they can accept their MAX FL.
+
+00:04:42.950 --> 00:04:50.342
+Inside 30 minutes it is done by voice. Auto RCL reminds pilots who have not asked, and a red star shows the reminder was sent.
+
+00:04:50.662 --> 00:04:56.902
+Not every pilot can use CPDLC and it is not required on VATSIM, so natTrak still works as before.
+
+00:04:57.286 --> 00:05:00.358
+This is a change of process for pilots as well as controllers.
+
+00:05:00.678 --> 00:05:03.046
+Flights leaving Keflavik need no request.
+
+00:05:03.718 --> 00:05:05.094
+That is everything for now.
+
+00:05:05.478 --> 00:05:11.718
+The training page has these notes, the downloads, and our how-to videos for the FDD, CPDLC, and natTrak.
+
+00:05:12.038 --> 00:05:14.103
+Good luck and we will see you on the scopes
+
