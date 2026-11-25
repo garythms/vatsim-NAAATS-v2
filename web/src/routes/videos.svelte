@@ -25,6 +25,7 @@
         { src: "/training/vNAAATS-howto-3-natTrak.mp4", title: "3. How to use natTrak through the FDD", text: "The pending and cleared lists, Prepare in natTrak, RCL processed and Send reclearance." },
         { src: "/training/vNAAATS-howto-8-Tablet-iPad.mp4", title: "8. Tablet and iPad mode", text: "About a minute: how FDD for Windows gives you a one-time link and QR code that open the display on a tablet or iPad, signed in as you. EuroScope stays on your Windows computer." },
         { src: "/training/vNAAATS-howto-4-VACS-TrackAudio.mp4", title: "4. VACS and TrackAudio in FDD for Windows", text: "What VACS and TrackAudio are, setting up VACS remote control, answering VACS calls, who spoke last, and the transmitting-aircraft highlight." },
+        { src: "/training/vNAAATS-howto-9-Voice-position-reports.mp4", title: "9. Voice position reports", text: "About two and a half minutes. Typing in what the pilot reports, what the EuroScope tag does (green when untracked, calculated position when tracked, re-anchored by each report), the overdue flash, and tracking a flight that is already in the OCA." },
       ],
     },
     {
