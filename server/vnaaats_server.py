@@ -137,6 +137,47 @@ def token_to_latlon(token, fixes):
     return (round(p[1], 6), round(p[2], 6)) if p else None
 
 
+def _hhmm_min(t):
+    d = re.sub(r"\D", "", str(t or ""))
+    return int(d[:2]) * 60 + int(d[2:]) if len(d) == 4 else -1
+
+
+def voice_positions(route, etas, reports, fixes, now_min):
+    """Where the EuroScope tag of a voice position report flight belongs, as the plugin draws it.
+
+    "last": the latest route fix with an actual time typed in (lat, lon, fix, act). The tag stays there until the next report.
+    "overdue": the first fix with no actual time whose estimate passed more than 3 minutes ago (the same rule as the FDD: estimates more than 90 minutes old
+    are ignored). The tag moves to that fix and flashes. Either is left out when there is nothing to show."""
+    toks = str(route or "").split()
+    eta = str(etas or "").split()
+    reports = reports or {}
+    out = {}
+    for i, tok in enumerate(toks):
+        r = reports.get(tok.upper())
+        if r and r.get("act"):
+            ll = token_to_latlon(tok, fixes)
+            if ll:
+                out["last"] = {"fix": tok.upper(), "lat": ll[0], "lon": ll[1], "act": r["act"]}
+    for i, tok in enumerate(toks):
+        r = reports.get(tok.upper())
+        if r and r.get("act"):
+            continue
+        est = _hhmm_min((r or {}).get("est") or (eta[i] if i < len(eta) else ""))
+        if est < 0:
+            continue
+        late = ((now_min - est) % 1440 + 1440) % 1440
+        if late > 720:
+            break                                   # still in the future
+        if late > 90:
+            continue                                # stale
+        if late > 3:
+            ll = token_to_latlon(tok, fixes)
+            if ll:
+                out["overdue"] = {"fix": tok.upper(), "lat": ll[0], "lon": ll[1]}
+        break
+    return out
+
+
 def _gc_nm(lat1, lon1, lat2, lon2):
     """Great-circle distance in nautical miles."""
     p1, p2 = math.radians(lat1), math.radians(lat2)
@@ -1703,6 +1744,8 @@ def make_handler(cache, store, api_key, web_dir=None, network=None, natrak=None,
         rec["voiceReports"] = voice                                        # position reports by voice: always for Concorde, otherwise when a controller switched it on
         if voice:
             rec["posReports"] = store.pos_get(rec.get("callsign", ""))
+            _n = datetime.now(timezone.utc)
+            rec["voicePos"] = voice_positions(rec.get("route", ""), rec.get("routeEtas", ""), rec["posReports"], cache.fixes, _n.hour * 60 + _n.minute)   # the plugin draws the tag from this
         return rec
     secure_cookie = auth.public_url.startswith("https://")
     shared_key_ok = os.environ.get("VNAAATS_SHARED_KEY", "on").lower() != "off"

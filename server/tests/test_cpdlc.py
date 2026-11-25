@@ -587,6 +587,8 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(rec["posReports"]["52/50"]["act"], "1203")
         self.assertEqual(rec["posReports"]["52/50"]["est"], "1200")
         self.assertIn("CZQO_CTR", rec["posReports"]["52/50"]["by"])
+        vp = self.call("/GetSingleFlightData?callsign=CONC1")[1][0]["voicePos"]                       # the plugin draws the tag from this
+        self.assertEqual((vp["last"]["fix"], vp["last"]["lat"], vp["last"]["lon"]), ("52/50", 52.0, -50.0))
         self.assertEqual(self.call("/EditFlight", {"callsign": "CONC1", "mach": "200"}, ck)[0], 200)       # Mach 2.00 is allowed
         self.assertEqual(self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/40", "est": "9999"}, ck)[0], 400)
         self.assertEqual(self.call("/EditPosReport", {"callsign": "BAW123", "fix": "52/40", "est": "1210"}, ck)[0], 400)   # not Concorde
@@ -596,6 +598,15 @@ class HttpTests(unittest.TestCase):
         self.assertNotIn("posReports", flights["BAW123"])
         self.call("/EditPosReport", {"callsign": "CONC1", "fix": "52/50", "est": "", "act": ""}, ck)       # clearing removes the row
         self.assertEqual(self.call("/GetSingleFlightData?callsign=CONC1")[1][0]["posReports"], {})
+
+    def test_voice_positions(self):
+        from vnaaats_server import voice_positions as vpos
+        rep = {"56/20": {"act": "1002", "est": "1000"}}
+        out = vpos("56/20 56/30 56/40", "1000 1015 1030", rep, {}, 10 * 60 + 50)
+        self.assertEqual(out["last"]["fix"], "56/20")                      # stays at the last reported fix
+        self.assertEqual(out["overdue"]["fix"], "56/30")                   # 1015 estimate passed by more than 3 minutes
+        self.assertNotIn("overdue", vpos("56/20 56/30 56/40", "1000 1015 1030", rep, {}, 10 * 60 + 17))   # only 2 minutes late
+        self.assertEqual(vpos("56/20 56/30", "1000 1015", {}, {}, 9 * 60), {})                           # nothing reported, nothing due
 
     def test_position_change_stops_station(self):
         ck = self.login("NAT_FSS")

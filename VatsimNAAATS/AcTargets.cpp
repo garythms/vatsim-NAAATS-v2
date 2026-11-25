@@ -23,6 +23,24 @@ void CAcTargets::Initialise() {
 	ButtonStates["Refuse"] = false;
 }
 
+CPosition CAcTargets::DisplayPosition(CAircraftFlightPlan* fp, CFlightPlan& flightPlan, CPosition live, bool* overdue) {
+	if (overdue) *overdue = false;
+	if (!fp || !fp->VoiceReports) return live;
+	// Only while a controller (anyone) has the aircraft: until then it moves with the real position
+	bool tracked = flightPlan.GetTrackingControllerIsMe() || string(flightPlan.GetTrackingControllerCallsign()) != "";
+	if (!tracked) return live;
+	if (fp->VpOverdue) {
+		if (overdue) *overdue = true;
+		CPosition p; p.m_Latitude = fp->VpOverLat; p.m_Longitude = fp->VpOverLon;
+		return p;
+	}
+	if (fp->VpLast) {
+		CPosition p; p.m_Latitude = fp->VpLastLat; p.m_Longitude = fp->VpLastLon;
+		return p;
+	}
+	return live; // no report entered yet
+}
+
 void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTarget* target, bool tagsOn, map<int, CWinButton>* toggleData, bool halo, bool ptl, CSTCAStatus* status) {
 	// 2 second timer
 	double twoSecT = (double)(clock() - twoSecondTimer) / ((double)CLOCKS_PER_SEC);
@@ -39,6 +57,12 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 	// Flight plan
 	CFlightPlan fp = screen->GetPlugIn()->FlightPlanSelect(cs.c_str());
 	CAircraftFlightPlan* acFP = CDataHandler::GetFlightData(cs);
+
+	// Voice position report aircraft: drawn at the last report while tracked (at the expected fix, flashing, when a report is overdue), green while nobody tracks them
+	bool voiceOverdue = false;
+	CPosition shownPos = DisplayPosition(acFP, fp, target->GetPosition().GetPosition(), &voiceOverdue);
+	acPoint = screen->ConvertCoordFromPositionToPixel(shownPos);
+	bool voiceGreen = acFP->VoiceReports && !(fp.GetTrackingControllerIsMe() || string(fp.GetTrackingControllerCallsign()) != "");
 
 	// Radar flags	
 	acFP->TargetMode = CUtils::GetTargetMode(target->GetPosition().GetRadarFlags());
@@ -65,6 +89,8 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 	SolidBrush yellowBrush(WarningYellow);
 	SolidBrush redBrush(CriticalRed);
 	SolidBrush whiteBrush(TextWhite);
+	SolidBrush greenBrush(VoiceGreen);
+	Pen greenPen(&greenBrush, 1.5);
 	Pen bluePen(&blueBrush, 1.5);
 	Pen orangePen(&orangeBrush, 1.5);
 	Pen whitePen(&whiteBrush, 1.5);
@@ -158,7 +184,12 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 		// Pick the colour
 		SolidBrush* iconBrush = &blueBrush;
 		Pen* iconPen = &bluePen;
-		if (status->ConflictStatus == CConflictStatus::CRITICAL) {
+		if (voiceGreen) {
+			// Voice position report aircraft nobody is tracking: green, moving
+			iconBrush = &greenBrush;
+			iconPen = &greenPen;
+		}
+		else if (status->ConflictStatus == CConflictStatus::CRITICAL) {
 			// Critical conflict status, so flash white and red
 			bool white = twoSecT >= 1.1;
 			iconBrush = white ? &whiteBrush : &redBrush;
@@ -175,6 +206,12 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 		else if (fp.GetTrackingControllerIsMe()) {
 			iconBrush = &orangeBrush;
 			iconPen = &orangePen;
+		}
+
+		// A voice position report is overdue: flash the symbol white
+		if (voiceOverdue && twoSecT >= 1.1) {
+			iconBrush = &whiteBrush;
+			iconPen = &whitePen;
 		}
 
 		// Solid when cleared, or whenever any controller is tracking the aircraft (clearance or not)
@@ -225,7 +262,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 		// Get aircraft point at that time
 		int distance = CUtils::GetDistanceSpeedTime(target->GetPosition().GetReportedGS(), min * 60);
-		POINT ptlPoint = screen->ConvertCoordFromPositionToPixel(CUtils::GetPointDistanceBearing(target->GetPosition().GetPosition(), distance, target->GetPosition().GetReportedHeadingTrueNorth()));
+		POINT ptlPoint = screen->ConvertCoordFromPositionToPixel(CUtils::GetPointDistanceBearing(shownPos, distance, target->GetPosition().GetReportedHeadingTrueNorth()));
 
 		// Draw leader
 		Pen pen(Colours::TargetOrange, 1);
@@ -278,7 +315,7 @@ void CAcTargets::RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadar
 
 		// Get aircraft point at that time
 		//int distance = CUtils::GetDistanceSpeedTime(target->GetGS(), min * 60);
-		POINT haloPoint = screen->ConvertCoordFromPositionToPixel(CUtils::GetPointDistanceBearing(target->GetPosition().GetPosition(), dist, target->GetPosition().GetReportedHeadingTrueNorth()));
+		POINT haloPoint = screen->ConvertCoordFromPositionToPixel(CUtils::GetPointDistanceBearing(shownPos, dist, target->GetPosition().GetReportedHeadingTrueNorth()));
 
 		// Get distance
 		int radius = CUtils::GetDistanceBetweenPoints(acPoint, haloPoint);
@@ -340,6 +377,12 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 	CDataHandler::GetFlightData(acFP.GetCallsign(), fp);
 	string scratchNote = CDataHandler::SyncScratch(acFP); // scratchpad note (kept in step with the FDD)
 
+	// Voice position report aircraft: the tag goes with the symbol (see RenderTarget)
+	bool voiceOverdue = false;
+	CPosition shownPos = DisplayPosition(&fp, acFP, target->GetPosition().GetPosition(), &voiceOverdue);
+	acPoint = screen->ConvertCoordFromPositionToPixel(shownPos);
+	bool voiceGreen = fp.VoiceReports && !(acFP.GetTrackingControllerIsMe() || string(acFP.GetTrackingControllerCallsign()) != "");
+
 	// Callsign as shown on the tag: [BAW123] when the aircraft is connected to CPDLC
 	string csText = string(acFP.GetCallsign());
 	if (fp.CpdlcConnected) csText = "[" + csText + "]";
@@ -354,7 +397,7 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 	int sDC = dc->SaveDC();
 
 	// Aircraft position
-	CPosition position = target->GetPosition().GetPosition();
+	CPosition position = shownPos;
 
 	// Tag rectangle
 	CRect tagRect;
@@ -429,6 +472,10 @@ POINT CAcTargets::RenderTag(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTa
 				textColour = TargetOrange.ToCOLORREF();
 			}
 		}
+
+		// Voice position report aircraft: green while nobody tracks them, flashing white when a report is overdue
+		if (voiceGreen) textColour = VoiceGreen.ToCOLORREF();
+		if (voiceOverdue && twoSecT >= 1.1) textColour = TextWhite.ToCOLORREF();
 
 		// Pick font for callsign
 		FontSelector::SelectATCFont(16, dc);

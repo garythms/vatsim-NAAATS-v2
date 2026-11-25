@@ -629,6 +629,20 @@ void CDataHandler::DownloadNetworkAircraft(void* args) {
 			netFP.NtSent = jsonArray[i].value("ntSent", false);
 			netFP.ContactMeAt = jsonArray[i].value("cmAt", 0.0); // older servers do not send it
 			netFP.VoiceMode = jsonArray[i].value("voiceMode", string("")); // older servers do not send it
+			netFP.VoiceReports = jsonArray[i].value("voiceReports", false);
+			if (netFP.VoiceReports && jsonArray[i].contains("voicePos") && jsonArray[i]["voicePos"].is_object()) {
+				auto& vp = jsonArray[i]["voicePos"];
+				if (vp.contains("last") && vp["last"].is_object()) {
+					netFP.VpLast = true;
+					netFP.VpLastLat = vp["last"].value("lat", 0.0);
+					netFP.VpLastLon = vp["last"].value("lon", 0.0);
+				}
+				if (vp.contains("overdue") && vp["overdue"].is_object()) {
+					netFP.VpOverdue = true;
+					netFP.VpOverLat = vp["overdue"].value("lat", 0.0);
+					netFP.VpOverLon = vp["overdue"].value("lon", 0.0);
+				}
+			}
 
 			// Hand the data to the draw thread. Writing into the live flight plan from this background thread raced with drawing
 			// (an open flight plan window reading the route while the server's route replaced it) and could crash EuroScope.
@@ -712,6 +726,9 @@ void CDataHandler::ApplyPendingNetwork(CRadarScreen* screen) {
 				fp->NtSent = netFP.NtSent;
 				fp->ContactMeAt = netFP.ContactMeAt;
 				fp->VoiceMode = netFP.VoiceMode;
+				fp->VoiceReports = netFP.VoiceReports;
+				fp->VpLast = netFP.VpLast; fp->VpLastLat = netFP.VpLastLat; fp->VpLastLon = netFP.VpLastLon;
+				fp->VpOverdue = netFP.VpOverdue; fp->VpOverLat = netFP.VpOverLat; fp->VpOverLon = netFP.VpOverLon;
 				{
 					string netScratch = pn.scratch;
 					if (!fp->NetScratchKnown || fp->NetScratch != netScratch) fp->NetScratch = netScratch;

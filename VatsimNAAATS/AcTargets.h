@@ -20,6 +20,10 @@ class CAcTargets
 		// Initialisation for button states
 		static void Initialise();
 
+		// Where a target is drawn. Aircraft reporting by voice are tracked: fixed at the last position report (moved to the expected fix, and *overdue set, when a
+		// report is overdue). Everything else, and voice aircraft nobody tracks, is drawn at the live position.
+		static CPosition DisplayPosition(CAircraftFlightPlan* fp, CFlightPlan& flightPlan, CPosition live, bool* overdue);
+
 		// Render the airplane icon
 		static void RenderTarget(Graphics* g, CDC* dc, CRadarScreen* screen, CRadarTarget* target, bool tagsOn, map<int, CWinButton>* toggleData, bool halo, bool ptl, CSTCAStatus* status);
 
