@@ -13,7 +13,7 @@ const MAX = 200;
 const KEEP_SECONDS = 24 * 3600;
 const PORT = 49080;
 // Safety: if TrackAudio never sends "transmit ended", the TX chip would stay on for good. After this long with no end it is cleared.
-const TX_MAX_SECONDS = 60;
+const TX_MAX_SECONDS = 30;
 
 function loadHist(): Talk[] {
   try {

@@ -3,7 +3,7 @@
 Version shown in the header (`src/config.json`). Bump it whenever the display changes.
 
 ## 2.12.4 - 2026-11-27
-- Fix: the TrackAudio chip could stay on "TX" after a normal call (TrackAudio for Oceanic did not always send "transmit ended"). TX now clears by itself if no end arrives within 60 seconds, and whenever the link to TrackAudio drops or comes back. The Discord status follows it. Server deploy needed (web files); FDD for Windows needs no new build.
+- Fix: the TrackAudio chip could stay on "TX" after a normal call (TrackAudio for Oceanic did not always send "transmit ended"). TX now clears by itself if no end arrives within 30 seconds, and whenever the link to TrackAudio drops or comes back. The Discord status follows it. Server deploy needed (web files); FDD for Windows needs no new build.
 
 ## 2.12.3 - 2026-11-25
 - Voice position report flights on the EuroScope screen: untracked ones move with the real position in green. Tracked ones are drawn at a calculated position that starts at the last fix with an actual time and moves along the direct line to the next fix, arriving at the estimate (the pilot's if typed, else the system's leg time moved by early/late, else the assigned Mach). A new report re-anchors it. If the estimate passes by more than 3 minutes, the tag is held at that fix and flashes white. No conflict alerts for these flights. Needs the new plugin build and a server deploy.
