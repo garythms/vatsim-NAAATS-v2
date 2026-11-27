@@ -12,6 +12,8 @@ const HIST_KEY = "vnaaats.taHistory";
 const MAX = 200;
 const KEEP_SECONDS = 24 * 3600;
 const PORT = 49080;
+// Safety: if TrackAudio never sends "transmit ended", the TX chip would stay on for good. After this long with no end it is cleared.
+const TX_MAX_SECONDS = 30;
 
 function loadHist(): Talk[] {
   try {
@@ -66,6 +68,8 @@ let ws: WebSocket | null = null;
 let retry: any = null;
 let running = false;
 let txSince = 0;
+let txGuard: any = null;
+function txClear(): void { clearTimeout(txGuard); txGuard = null; }
 
 function upd(f: (s: TaState) => void): void { ta.update((s) => { f(s); return { ...s }; }); }
 function mhz(hz: any): string { const n = Number(hz); return n > 1000 ? (n / 1e6).toFixed(3) : ""; }
@@ -94,7 +98,11 @@ export function handle(raw: string): void {
   } else if (type === "kTxBegin") {
     txSince = now;
     upd((s) => { s.tx = true; });
+    txClear();
+    // a missed kTxEnd must not leave TX showing: clear it (not recorded in the history, as its length is not known)
+    txGuard = setTimeout(() => { txGuard = null; txSince = 0; upd((s) => { s.tx = false; }); }, TX_MAX_SECONDS * 1000);
   } else if (type === "kTxEnd") {
+    txClear();
     upd((s) => { s.tx = false; });
     if (txSince) addTalk({ who: "You", mine: true, freq: "", ts: txSince, secs: Math.max(1, Math.round(now - txSince)) });
     txSince = 0;
@@ -106,9 +114,9 @@ function connect(): void {
   try {
     ws = new WebSocket("ws://127.0.0.1:" + PORT + "/ws");
   } catch (e) { schedule(); return; }
-  ws.onopen = () => upd((s) => { s.link = "up"; });
+  ws.onopen = () => { txClear(); txSince = 0; upd((s) => { s.link = "up"; s.tx = false; }); };
   ws.onmessage = (e) => { if (typeof e.data === "string") handle(e.data); };
-  ws.onclose = () => { upd((s) => { s.link = "off"; s.rx = null; s.tx = false; }); allEnded(); schedule(); };
+  ws.onclose = () => { txClear(); txSince = 0; upd((s) => { s.link = "off"; s.rx = null; s.tx = false; }); allEnded(); schedule(); };
   ws.onerror = () => { try { ws?.close(); } catch (e) { /* closing */ } };
 }
 function schedule(): void { if (running) { clearTimeout(retry); retry = setTimeout(connect, 5000); } }
@@ -124,6 +132,7 @@ export function stop(): void {
   clearTimeout(retry);
   try { ws?.close(); } catch (e) { /* closing */ }
   ws = null;
+  txClear(); txSince = 0;
   upd((s) => { s.link = "off"; s.rx = null; s.tx = false; });
 }
 export function setEnabled(on: boolean): void {
